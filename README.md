@@ -225,13 +225,66 @@ OmegaWiki/
 │   ├── fetch_s2.py              #   Semantic Scholar API
 │   ├── fetch_deepxiv.py         #   DeepXiv semantic search
 │   ├── fetch_wikipedia.py       #   Wikipedia fetcher (used by /prefill)
-│   └── remote.py                #   SSH ops for remote experiments
+│   ├── remote.py                #   SSH ops for remote experiments
+│   ├── wiki_graph.py            #   Standalone knowledge graph traversal
+│   ├── compile_context.py       #   Purpose-driven context compilation
+│   ├── find_similar.py          #   Token Jaccard dedup search
+│   └── wiki_lint.py             #   Cross-wiki structural lint
 ├── .claude/skills/              # 23 Claude Code skill definitions
 ├── i18n/                        # Bilingual: en/ (canonical) + zh/
 ├── config/                      # Configuration templates
 ├── tests/                       # 2263 tests
 ├── mcp-servers/                 # Cross-model review server
 └── .github/workflows/           # Daily arXiv cron
+```
+
+
+## Standalone Tools
+
+In addition to the main `research_wiki.py` engine and `lint.py` validator, four standalone CLI tools provide focused capabilities:
+
+### wiki_graph.py — Knowledge Graph Traversal
+
+BFS traversal, orphan detection, contradiction discovery, and wikilink seeding for `graph/edges.jsonl`.
+
+```bash
+python3 tools/wiki_graph.py wiki/ seed                          # Extract edges from wikilinks
+python3 tools/wiki_graph.py wiki/ neighbors concepts/attention --depth 2
+python3 tools/wiki_graph.py wiki/ find-contradictions
+python3 tools/wiki_graph.py wiki/ orphans
+python3 tools/wiki_graph.py wiki/ stats
+python3 tools/wiki_graph.py wiki/ add-edge --from concepts/x --to papers/y --type supports
+```
+
+### compile_context.py — Purpose-Driven Context Compilation
+
+Reads `index.md` trigger-to-page mappings and concatenates page content within a token budget. Useful for assembling focused context windows for LLM prompts.
+
+```bash
+python3 tools/compile_context.py wiki/ --list                   # Show available purposes
+python3 tools/compile_context.py wiki/ --for session-close --budget 4000
+```
+
+Purposes are auto-derived from `## By Trigger` / `### <Heading>` sections in your `index.md`.
+
+### find_similar.py — Semantic Dedup Search
+
+Token Jaccard similarity search across wiki pages. Detects near-duplicates before creating new pages.
+
+```bash
+python3 tools/find_similar.py wiki/ "attention mechanism"
+python3 tools/find_similar.py wiki/ "transformer" --type concepts
+python3 tools/find_similar.py wiki/ "failed experiment" --threshold 0.5 --top 10
+```
+
+### wiki_lint.py — Cross-Wiki Structural Lint
+
+Complements `lint.py` (entity-schema checks) with broader structural health checks: orphan pages, broken wikilinks, stale/ghost index entries, oversized pages, and duplicate filenames.
+
+```bash
+python3 tools/wiki_lint.py wiki/                                # Run all checks
+python3 tools/wiki_lint.py wiki/ --fix                          # Auto-fix safe issues
+python3 tools/wiki_lint.py wiki/ --max-lines 300 --json         # Custom threshold, JSON output
 ```
 
 ## Testing
