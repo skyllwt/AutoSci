@@ -123,7 +123,7 @@ else
     ok "Created .venv"
 fi
 
-VENV_PYTHON=".venv/bin/python"
+VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
 if [ ! -x "$VENV_PYTHON" ]; then
     fail "Expected $VENV_PYTHON but it does not exist"
     exit 1
