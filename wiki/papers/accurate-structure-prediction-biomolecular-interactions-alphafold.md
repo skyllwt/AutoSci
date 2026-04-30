@@ -65,11 +65,11 @@ AF3 is the clearest demonstration so far that biomolecular structure prediction 
 
 ## Related
 
+- [[diffusion-based-generation-eliminates-need-equivariant]]
+- [[single-deep-learning-model-predict-diverse]]
 - [[pairformer-module]]
 - [[diffusion-based-structure-prediction]]
 - [[biomolecular-complex-prediction-unified-deep-learning]]
-- [[unified-deep-learning-handles-biomolecular-complexes]]
-- [[diffusion-replaces-equivariant-structure-modules]]
 - [[demis-hassabis]]
 - [[john-jumper]]
 - [[max-jaderberg]]

@@ -23,12 +23,17 @@ medpredict is the working umbrella for computational and machine-learning approa
 
 ## Seminal works
 
-- AlphaFold2 — see [[highly-accurate-protein-structure-prediction-with-alphafold]]
-- AlphaFold3 — see [[accurate-structure-prediction-of-biomolecular-interactions-with-alphafold-3]]
-- AlphaFold DB 2024 — see [[alphafold-protein-structure-database-in-2024-providing-structure-coverage-for-over-214-million-protein-sequences]]
-- CCSB-HI1 human PPI map — see [[towards-a-proteome-scale-map-of-the-human-protein-protein-interaction-network]]
-- MusiteDeep PTM webserver — see [[musitedeep-a-deep-learning-based-webserver-for-protein-post-translational-modification-site-prediction-and-visualization]]
-- UbiBrowser E3-substrate platform — see [[an-integrated-bioinformatics-platform-for-investigating-the-human-e3-ubiquitin-ligase-substrate-interaction-network]]
+- AlphaFold2 — see [[highly-accurate-protein-structure-prediction-alphafold]]
+- AlphaFold3 — see [[accurate-structure-prediction-biomolecular-interactions-alphafold]]
+- AlphaFold DB 2024 — see [[alphafold-protein-structure-database-2024-providing]]
+- CCSB-HI1 human PPI map — see [[towards-proteome-scale-map-human-protein]]
+- MusiteDeep PTM webserver — see [[musitedeep-deep-learning-based-webserver-protein]]
+- UbiBrowser E3-substrate platform — see [[integrated-bioinformatics-platform-investigating-human-e3]]
+- AlphaFold2-resolved human PPI network — see [[towards-structurally-resolved-human-protein-interaction]]
+- Geometric deep learning on molecules — see [[geometric-deep-learning-molecular-representations]]
+- Ubiquitin ligases in cancer — see [[ubiquitin-ligases-oncogenic-transformation-cancer-therapy]]
+- Multi-omics for targeted therapy — see [[data-cure-comprehensive-exploration-multi-omics]]
+- PTM-isoform drug design — see [[drug-design-targeting-active-posttranslational-modification]]
 
 ## SOTA tracker
 

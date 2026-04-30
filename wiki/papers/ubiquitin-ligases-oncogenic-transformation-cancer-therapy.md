@@ -72,5 +72,5 @@ This review's framing — that E3 cancer biology is fundamentally a substrate-co
 
 - [[ubiquitin-ligase-e3]] — central concept introduced/used here
 - [[ubiquitylation]] — enzymatic cascade and chain-topology framework
-- [[zeev-a-ronai]] — senior author
+- [[ze-ev-ronai]] — senior author
 - [[e3-ligase-deregulation-cancer-alters-substrate]] — claim supported by this review

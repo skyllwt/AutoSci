@@ -29,7 +29,7 @@ Cullin–RING ligases (CRLs) are modular: a cullin scaffold (CUL1–CUL5, CUL7, 
 
 ## Variants
 
-- **MDM2** — RING E3, primary ligase for [[claim:p53-axis|p53]]; oncogene when overexpressed.
+- **MDM2** — RING E3, primary ligase for p53; oncogene when overexpressed.
 - **BRCA1–BARD1** — RING heterodimer; tumour suppressor; mediates K6-linked and non-degradative ubiquitylation in DNA damage response.
 - **SCF–FBXW7** — substrate receptor for cyclin E, MYC, mTOR, c-Jun, Notch; tumour suppressor.
 - **SCF–SKP2** — substrate receptor for p27KIP1, p21, FOXOs; oncogene; mediates K63-linked AKT activation in some contexts.

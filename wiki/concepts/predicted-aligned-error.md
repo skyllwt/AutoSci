@@ -23,7 +23,7 @@ PAE(i, j) ≥ 0 is reported in Å. For a structure of length `L`, the full PAE i
 
 ```
 {
-  "predicted_aligned_error": [[ ... L×L ... ]],
+  "predicted_aligned_error": <L-by-L 2D array of Å values>,
   "max_predicted_aligned_error": <upper-bound scalar>
 }
 ```
