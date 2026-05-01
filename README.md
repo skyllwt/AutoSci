@@ -363,69 +363,96 @@ OmegaWiki/
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## 🎁 Angel User Program / 天使用户计划
+## LLM API Configuration / 大模型 API 配置
 
-> **Limited time — free 15-day MiMo API credits for our earliest supporters.**
-> **限时活动 — 为天使用户提供 15 天免费 MiMo API 额度。**
+ΩmegaWiki runs on **Claude Code**, which speaks the **Anthropic API** protocol. You can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables.
 
-We're offering a batch of MiMo API credits to early supporters — use them with Claude Code to explore ΩmegaWiki, try out the skills, and help us iterate. ΩmegaWiki is still in its early stage and supports a wide range of feature extensions; we'd love for you to push it, explore new use cases, tell us what you'd like to see, and shape it alongside us.
+ΩmegaWiki 基于 **Claude Code**,Claude Code 使用 **Anthropic API** 协议通信。你既可以直接使用 Claude,也可以通过覆盖几个环境变量,把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。
 
-**Haven't used Claude Code yet?** This is also your chance to get hands-on with one of the most capable agentic systems out there. You might just fall in love with it — and figure out how to reshape your research, your workflow, and the way you build things with AI, well before the people around you catch on.
+### Option A — Native Claude / 原生 Claude
 
-我们为早期支持者提供一批 MiMo API 额度——用它在 Claude Code 里探索 ΩmegaWiki，体验各项 skill，并和我们一起打磨这个项目。ΩmegaWiki 仍处于早期阶段，同时支持非常丰富的功能拓展空间。我们希望你来用它、探索新的使用场景、告诉我们你想看到什么，和我们一起把它做得更强。
+```bash
+claude login   # OAuth, no manual config / OAuth 登录,无需手动配置
+```
 
-**还没用过 Claude Code？** 这也是一次近距离接触前沿 Agent 的机会——Claude Code 是目前最强的智能 agent 之一。你很可能会爱上它，并比身边的人更早一步摸索出：如何用 Claude Code 重塑你的研究、工作流，以及与 AI 协作的方式。
+### Option B — Third-party Anthropic-compatible API / 第三方 Anthropic 兼容 API
 
-**Credits are valid through 2026-04-30. Credits are limited and the program may close once the current batch is exhausted.**
-**额度有效期至 2026-04-30。名额有限，当前批次发放完毕后本计划可能随时关闭。**
+Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the project's `.claude/settings.json`), and replace the `<...>` placeholder with your own API key. Model names and extra options are taken from each provider's official Claude Code docs — if anything stops working (e.g. a model is renamed), check the provider's website.
 
-> If you find ΩmegaWiki useful, starring the repo helps others discover it — but it's not a requirement for joining this program. / 如果你觉得 ΩmegaWiki 对你有帮助，欢迎 Star 本仓库帮助更多人发现它——但这并非参与本计划的条件。
+从下方任选一个供应商,把对应配置粘贴到 `~/.claude/settings.json`(或项目的 `.claude/settings.json`),并把 `<...>` 占位符替换为你自己的 API key。模型名与额外选项均来自各供应商官方 Claude Code 文档;若出现问题(例如模型改名),请查询对应官网。
 
-### How to apply / 申请方式
-
-Applications are currently handled manually via the community WeChat group due to limited quota. To apply, please join the WeChat group (QR code below) and contact the admin with:
-
-- Your GitHub username
-- A short description of your intended workflow / how you plan to use ΩmegaWiki
-- (Optional) Any feedback or feature ideas you'd like to share
-
-由于名额有限，本计划目前通过社群微信群人工受理申请。请扫描下方二维码加入微信群，并向管理员提供以下信息：
-
-- 你的 GitHub 用户名
-- 简要说明你计划如何使用 ΩmegaWiki（预期的工作流/使用场景）
-- （可选）你希望分享的反馈或功能建议
-
-We review applications based on fit with the project's current stage and the kind of feedback we're looking for — not on a first-come-first-served basis alone. / 我们会根据申请信息与项目当前阶段的契合度来审核，而非单纯按先后顺序。
-
-### Config / 配置方式
-
-**Step 1 — Point Claude Code at MiMo** / **第 1 步：把 Claude Code 指向 MiMo**
-
-Drop the following into `~/.claude/settings.json` (or your project's `.claude/settings.json`):
-
-将以下内容写入 `~/.claude/settings.json`（或项目的 `.claude/settings.json`）：
+#### MiMo (小米)
 
 ```json
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.xiaomimimo.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "<your-personal-mimo-key>",
+    "ANTHROPIC_AUTH_TOKEN": "<your-mimo-key>",
     "ANTHROPIC_MODEL": "mimo-v2.5",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "mimo-v2.5",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "mimo-v2.5-pro",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "mimo-v2.5"         
-  }                                                       
-}    
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "mimo-v2.5"
+  }
+}
 ```
 
-**Step 2 — Skip the Claude Code onboarding** / **第 2 步：跳过 Claude Code 初始引导**
+#### DeepSeek
 
-Because you're using a third-party key (MiMo) instead of signing in via `claude login`, Claude Code's first-run onboarding flow won't complete automatically. Create or edit `.claude.json` to mark onboarding as done:
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "<your-deepseek-key>",
+    "ANTHROPIC_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1m]",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-v4-flash",
+    "CLAUDE_CODE_EFFORT_LEVEL": "max"
+  }
+}
+```
 
-因为你用的是第三方 key（MiMo），不会走 `claude login` 的登录流程，Claude Code 首次启动的引导步骤不会自动完成。创建或编辑 `.claude.json`，手动标记引导已完成：
+#### Kimi (Moonshot)
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.moonshot.ai/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "<your-moonshot-key>",
+    "ANTHROPIC_MODEL": "kimi-k2.5",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.5",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "kimi-k2.5",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "kimi-k2.5",
+    "ENABLE_TOOL_SEARCH": "false"
+  }
+}
+```
+
+#### GLM (Z.AI)
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "<your-zai-key>",
+    "API_TIMEOUT_MS": "3000000"
+  }
+}
+```
+
+> Z.AI applies a default server-side model mapping, so no explicit `ANTHROPIC_MODEL` is needed.
+> Z.AI 默认在服务端做模型映射,无需显式设置 `ANTHROPIC_MODEL`。
+
+**Skip the Claude Code onboarding** / **跳过 Claude Code 初始引导**
+
+When using a third-party key (instead of `claude login`), Claude Code's first-run onboarding won't complete automatically. Create or edit `.claude.json` and mark it done:
+
+使用第三方 key 时不会走 `claude login`,Claude Code 首次启动的引导不会自动完成。创建或编辑 `.claude.json`,手动标记引导已完成:
 
 - macOS / Linux: `~/.claude.json`
-- Windows: `<用户目录>\.claude.json`
+- Windows: `<user-home>\.claude.json`
 
 ```json
 {
@@ -433,16 +460,13 @@ Because you're using a third-party key (MiMo) instead of signing in via `claude 
 }
 ```
 
-Then run `claude` as usual. That's it — zero extra setup.
-保存后正常运行 `claude` 即可，零额外配置。
-
-> **House rules / 使用约定**: Personal use only. Please don't share your key or run automated batch scripts — if any single key shows abuse patterns, we'll revoke it to protect other users. / **请仅限个人使用**，不要分享 key 或跑批量脚本。任何 key 出现异常用量会立即被回收，以保护其他用户。
+Then run `claude` as usual. / 保存后正常运行 `claude` 即可。
 
 ---
 
 ## Community / 交流群
 
-<img src="assets/wechat_group_1.png" width="240" alt="WeChat Group QR Code">
+<img src="assets/wechat_group.png" width="240" alt="WeChat Group QR Code">
 
 Scan to join the ΩmegaWiki WeChat group / 扫码加入微信交流群
 
