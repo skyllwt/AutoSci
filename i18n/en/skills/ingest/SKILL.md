@@ -15,7 +15,7 @@ Use these local references on demand:
 - `references/init-mode.md` — manifest-driven handoff from `/init` and parallel-safety conventions
 - `references/error-handling.md` — source parse, API, and slug-collision fallbacks
 
-Open `docs/runtime-page-templates.en.md` before drafting any wiki page frontmatter or body sections, and `docs/runtime-support-files.en.md` for `index.md`, `log.md`, and `graph/` formats.
+Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runtime/templates/{kind}.md.tmpl` for body section structure. For `index.md`, `log.md`, and `graph/` shapes, see `runtime/schema/conventions.yaml` and `runtime/schema/edges.yaml`.
 
 ## Inputs
 
@@ -129,7 +129,7 @@ Raw persistence rule: never copy or duplicate a file already under `raw/discover
 
 ### Step 3: Write the paper page
 
-Open `docs/runtime-page-templates.en.md` for the paper template. Fill every required frontmatter field; leave `cited_by` empty for now (step 5 backfills it).
+Open `runtime/schema/entities.yaml` (papers section) for the field set and `runtime/templates/papers.md.tmpl` for body section order. Fill every required frontmatter field; leave `cited_by` empty for now (step 5 backfills it).
 
 Before writing, run a **shape check** on the frontmatter you are about to emit — no more than this:
 
@@ -171,7 +171,7 @@ Skip this whole step in INIT MODE — the parent `/init` handles it at fan-in.
    - importance < 4 → append under `## SOTA tracker` or `## Recent work` by year
    - if the paper directly addresses a listed open problem, annotate that line on the topic page
 2. Do not create new topic pages from `/ingest` — topic creation belongs to `/init` and `/edit`.
-3. Append new or edited page entries to `wiki/index.md` under their category headings. See `docs/runtime-support-files.en.md` for the exact format.
+3. Append new or edited page entries to `wiki/index.md` under their category headings. Format: each entity kind is a top-level YAML key (matching `runtime/schema/entities.yaml`), with `- slug: <slug>` entries beneath.
 
 ### Step 7: Log and rebuild
 

@@ -1,0 +1,62 @@
+# xref.yaml — Bidirectional link contract.
+#
+# Whenever entity A writes a forward link to entity B, the reverse update on B
+# is required.  Each rule has:
+#
+#   forward.kind                     source entity kind
+#   forward.<frontmatter_field |     where the forward link lives:
+#            body_section       |       a frontmatter list field, OR
+#            edge_type>                 a body section (use '*' for any), OR
+#                                       a graph edge type
+#   forward.target                   target entity kind
+#
+#   reverse.kind                     target entity kind (same as forward.target)
+#   reverse.<frontmatter_field |     where the reverse update goes
+#            body_section>
+#   reverse.action                   append_slug | append_record
+#   record                           record template (only for append_record);
+#                                    {from} expands to the source slug
+#
+# Foundations are terminal: any link to foundations writes no reverse.
+
+rules:
+
+  # papers ## Related → concepts.key_papers
+  - forward: { kind: papers,      body_section: Related,         target: concepts }
+    reverse: { kind: concepts,    frontmatter_field: key_papers, action: append_slug }
+
+  # any paper-body wikilink to a person → people ## Key papers
+  - forward: { kind: papers,      body_section: '*',             target: people }
+    reverse: { kind: people,      body_section: "Key papers",    action: append_slug }
+
+  # paper supports a claim (graph edge) → claims.evidence
+  - forward: { kind: papers,      edge_type: supports,           target: claims }
+    reverse: { kind: claims,      frontmatter_field: evidence,   action: append_record }
+    record:  { source: '{from}', type: supports, strength: moderate }
+
+  # topics.key_people → people ## Research areas
+  - forward: { kind: topics,      frontmatter_field: key_people, target: people }
+    reverse: { kind: people,      body_section: "Research areas", action: append_slug }
+
+  # concepts.key_papers → papers ## Related
+  - forward: { kind: concepts,    frontmatter_field: key_papers, target: papers }
+    reverse: { kind: papers,      body_section: Related,         action: append_slug }
+
+  # concepts.part_of → topics ## Overview
+  - forward: { kind: concepts,    frontmatter_field: part_of,    target: topics }
+    reverse: { kind: topics,      body_section: Overview,        action: append_slug }
+
+  # ideas.origin_gaps → claims ## Linked ideas
+  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: claims }
+    reverse: { kind: claims,      body_section: "Linked ideas",  action: append_slug }
+
+  # experiments.target_claim → claims.evidence (with structured record)
+  - forward: { kind: experiments, frontmatter_field: target_claim, target: claims }
+    reverse: { kind: claims,      frontmatter_field: evidence,   action: append_record }
+    record:  { source: '{from}', type: tested_by, strength: moderate }
+
+  # claims.source_papers → papers ## Related
+  - forward: { kind: claims,      frontmatter_field: source_papers, target: papers }
+    reverse: { kind: papers,      body_section: Related,         action: append_slug }
+
+terminal_targets: [foundations]

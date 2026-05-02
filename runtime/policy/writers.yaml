@@ -1,0 +1,83 @@
+# writers.yaml — Field- and edge-level write permissions.
+#
+# STATUS: SPEC, NOT A RUNTIME GATE.
+# Nothing in tools/ or .claude/skills/ reads this file at write time. It is a
+# declarative contract for SKILL.md authors and for Claude when reading the
+# repo's rules — "this is who is supposed to write this." Enforcement is at
+# the prompt level (each skill's SKILL.md tells the agent what it writes), not
+# at the CLI. We deliberately did not plumb a `--skill` arg through set-meta /
+# add-edge: research workflows are fluid, and `/edit` exists as a designed
+# escape hatch for "per user request" overrides — runtime enforcement here
+# would either fight `/edit` or grow a long exception list.
+#
+# When this file disagrees with reality, update the file (or the offending
+# SKILL.md) — do not add runtime checks.
+#
+# Default: a field or edge not listed here may be written by any skill
+# (including /edit).  This file lists only the genuinely restricted ones —
+# typically derived values, lifecycle transitions, and frozen-after-init data.
+#
+# `frozen_after_first_write: true` is also a spec marker, not a hard lock.
+# It means: by convention, only the listed writers should set the initial
+# value, and downstream skills should leave it alone. Identity-critical
+# fields (papers.slug / arxiv / s2_id) — if you ever want a hard runtime
+# lock, put it in tools/research_wiki.py::set_meta as a data-integrity
+# check, not as a permission check driven by this file.
+
+fields:
+
+  # Paper identity & ranking — set at ingest, frozen after.
+  papers.importance:        { writers: [ingest], frozen_after_first_write: true }
+  papers.arxiv:             { writers: [ingest], frozen_after_first_write: true }
+  papers.s2_id:             { writers: [ingest], frozen_after_first_write: true }
+  papers.slug:              { writers: [ingest], frozen_after_first_write: true }
+  papers.cited_by:          { writers: [ingest] }
+
+  # Claim confidence is recomputed whenever evidence changes.
+  claims.confidence:        { writers: [ingest, exp-eval, refine] }
+  claims.status:            { writers: [ingest, exp-eval, refine] }
+  claims.evidence:          { writers: [ingest, exp-eval] }   # otherwise via xref
+
+  # Idea lifecycle.
+  ideas.status:             { writers: [ideate, exp-eval, refine] }
+  ideas.failure_reason:     { writers: [exp-eval] }
+  ideas.date_resolved:      { writers: [exp-eval] }
+  ideas.pilot_result:       { writers: [exp-eval] }
+
+  # Experiment lifecycle.
+  experiments.status:       { writers: [exp-design, exp-run, exp-status, exp-eval] }
+  experiments.outcome:      { writers: [exp-eval] }
+  experiments.key_result:   { writers: [exp-eval] }
+  experiments.date_completed: { writers: [exp-run] }
+  experiments.run_log:      { writers: [exp-run, exp-status] }
+  experiments.remote:       { writers: [exp-run, exp-status] }
+
+edges:
+
+  # Citation graph — built at ingest, kept fresh by daily-arxiv.
+  cites:                    [ingest]
+
+  # Paper-paper semantic — only /ingest produces these judgments.
+  same_problem_as:          [ingest]
+  similar_method_to:        [ingest]
+  complementary_to:         [ingest]
+  builds_on:                [ingest]
+  compares_against:         [ingest]
+  improves_on:              [ingest]
+  challenges:               [ingest]
+  surveys:                  [ingest]
+
+  # Paper-concept semantic — only /ingest produces these.
+  introduces_concept:       [ingest]
+  uses_concept:             [ingest]
+  extends_concept:          [ingest]
+  critiques_concept:        [ingest]
+
+  # Workflow edges — multiple skills can produce these.
+  supports:                 [ingest, exp-eval]
+  contradicts:              [ingest]
+  tested_by:                [exp-design]
+  invalidates:              [exp-eval]
+  addresses_gap:            [ideate]
+  derived_from:             [ingest]
+  inspired_by:              [ideate]
