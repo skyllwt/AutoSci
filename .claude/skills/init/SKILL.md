@@ -26,6 +26,7 @@ Use these local references on demand:
 - Final paper pages via parallel `/ingest` subagents
 - `.checkpoints/init-*.json` manifests for resume and replay
 - Updated `wiki/index.md`, `wiki/log.md`, `wiki/graph/*`
+- Refreshed visualization artifacts: `wiki/.obsidian/graph.json` (per-entity-type color groups) and `wiki/canvases/*.canvas` (best-effort, see Step 6). The interactive web Graph view is served by `tools/serve.py` (SPA), not regenerated as a standalone file.
 
 ## Wiki Interaction
 
@@ -191,6 +192,15 @@ After all subagents complete:
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
+Then regenerate visualization artifacts (best-effort; visualize failure must not fail `/init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `config/visualize.json` so the per-entity-type color groups stay in sync with the runtime config — Obsidian's graph view shows uncolored nodes when `colorGroups` is empty, so this step keeps the graph readable across rebuilds.
+
+```bash
+"$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
+  || echo "WARN: visualize generate-obsidian-config failed; run /visualize manually" >&2
+"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
+  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+```
+
 Report separately:
 
 - user-provided papers ingested through prepared `raw/tmp/` paths
@@ -200,6 +210,7 @@ Report separately:
 - pages created by `/ingest`
 - pages updated by `/ingest`
 - any skipped or failed papers
+- visualization refresh status (Canvas + HTML succeeded, or which step warned)
 
 If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoint and report the failure.
 
@@ -230,6 +241,7 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - **Single paper ingest fails**: record it via checkpoint, skip it, continue the rest, and list it in the report
 - **Current checkout is detached HEAD**: stop before worktree fan-out and ask the user to switch to or create a named branch first
 - **stash pop fails**: keep checkpoint metadata and report the manual recovery step
+- **Visualization regeneration fails**: warn and continue; never fail `/init`. The user can rerun `/visualize --canvas --html` separately to diagnose
 
 ## Dependencies
 
@@ -249,10 +261,13 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - `"$PYTHON_BIN" tools/init_discovery.py plan [--topic "<topic>"] --mode auto --raw-root raw --wiki-root wiki --prepared-manifest .checkpoints/init-prepare.json --allow-introduction <true|false> --output-plan .checkpoints/init-plan.json`
 - `"$PYTHON_BIN" tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id <candidate-id>`
 - `"$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix`
+- `"$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/`
+- `"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/`
 
 ### Skills
 
 - `/ingest` — one paper per subagent, in INIT MODE
+- `/visualize` — Step 6 fan-in regenerates Obsidian graph color groups, Canvas, and HTML by calling `tools/visualize.py` directly (best-effort); the user may also invoke `/visualize` manually later for `--focus` views or to re-render after editing `config/visualize.json`
 
 ### External APIs used by `init_discovery.py`
 

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OmegaWiki</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topnav">
+    <a class="brand" href="#/">
+      OmegaWiki <span class="badge">Phase 1</span>
+    </a>
+    <nav>
+      <a href="#/" class="nav-link">Reader</a>
+      <a href="#/graph" class="nav-link">Graph</a>
+      <a href="#/dashboard" class="nav-link">Dashboard</a>
+    </nav>
+    <input id="jump-input" class="jump" type="search" list="slug-list"
+           placeholder="jump to slug&hellip; (Enter)" autocomplete="off"
+           aria-label="jump to slug" disabled>
+    <datalist id="slug-list"></datalist>
+    <span id="live-indicator" class="live-indicator" title="live-reload via SSE"></span>
+    <div id="boot-status" class="boot-status">loading&hellip;</div>
+  </header>
+
+  <main id="view">
+    <p class="muted">loading wiki data&hellip;</p>
+  </main>
+
+  <script type="module" src="/modules/main.js"></script>
+</body>
+</html>
