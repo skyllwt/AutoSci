@@ -38,7 +38,8 @@ export const ENTITY_LABEL = Object.freeze({
 });
 
 // Edge-workflow color palette (used by Graph view to color edges by their
-// semantic category). Mirrors tools/visualize.py:EDGE_WORKFLOW_COLORS.
+// semantic category). Self-contained; the corresponding workflow groups are
+// declared per-edge in runtime/schema/edges.yaml::workflow.
 export const EDGE_WORKFLOW_COLORS = Object.freeze({
   ingest: "#5B8BD9",
   claim_evidence: "#59C189",

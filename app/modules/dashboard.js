@@ -2,8 +2,6 @@
 //
 // 8 widgets, each fed by one read endpoint or by state.entitiesByType
 // (already loaded at boot). All charts are pure HTML/CSS — no chart lib.
-//
-// Spec: docs/frontend-design.md §7.3.
 
 import { marked } from "https://cdn.jsdelivr.net/npm/marked@14.1.4/lib/marked.esm.js";
 import { getMaturity, getOpenQuestions, getLog, postRegenerate } from "./api.js";

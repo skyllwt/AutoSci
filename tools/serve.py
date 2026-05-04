@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Local HTTP server for the OmegaWiki standalone frontend.
 
-Serves (read):
+ThreadingHTTPServer (stdlib only, no pip dependency). Binds to 127.0.0.1.
+Serves the SPA in `app/` plus a JSON API + SSE live-reload stream.
+
+Read endpoints (Cache-Control: no-store):
   /                              -> app/index.html
   /<file>                        -> app/<file>          (static)
   GET   /api/health              -> hello-world JSON
@@ -13,8 +16,11 @@ Serves (read):
   GET   /api/graph               -> {edges, citations}
   GET   /api/open-questions      -> raw markdown of wiki/graph/open_questions.md
   GET   /api/log?tail=N          -> parsed entries from wiki/log.md
+  GET   /api/events              -> SSE stream of `change` events (see below)
 
-Serves (write — Phase 4; loopback-only):
+Write endpoints (loopback-only; every successful write appends a
+"## [date] frontend | <verb> <subject>" line to wiki/log.md so /check
+and other skills can distinguish SPA-originated edits):
   PATCH /api/entities/{type}/{slug}   body {field, value, append?}
                                        -> research_wiki.py set-meta
   POST  /api/edges                    body {from, to, type, evidence?,
@@ -25,22 +31,48 @@ Serves (write — Phase 4; loopback-only):
   POST  /api/log                      body {message}
                                        -> research_wiki.py log
   POST  /api/regenerate/{kind}        kind ∈ {index, context-brief,
-                                            open-questions, visualize}
-                                       -> research_wiki.py rebuild-* /
-                                          tools/visualize.py generate-*
+                                              open-questions}
+                                       -> research_wiki.py rebuild-*
 
   POST  /api/intent/{skill}           body context for command synthesis
                                        skill ∈ {ingest, ask, edit, check,
                                                 ideate, discover, exp-design}
                                        -> {skill, command, doc_url, message}
-                                       (returns guidance only — does not
-                                       execute /skill; SPA has no LLM
-                                       session)
+
+Skill-intent boundary
+---------------------
+The SPA cannot run /skill X — slash-commands need a Claude Code LLM
+session. Naive UX would silently call a different code path and produce
+results that diverge from /skill X's actual behavior. So every UI button
+that wants a skill posts to /api/intent/{skill}; the backend assembles
+the right "/skill ..." command (filling in slug/arxiv-id/etc. from page
+context) and returns it. The SPA opens a copy-to-clipboard modal with the
+command. The user pastes it into Claude Code. The boundary is explicit
+in the API surface itself — no silent skill faking.
+
+Live reload (SSE)
+-----------------
+A background thread polls every file under wiki/ for mtime changes every
+1.5s. On any change, broadcasts `event: change\\ndata: {paths: [...]}`
+to all connected /api/events clients. The SPA's EventSource listener
+refetches data and re-renders the current view. A 2.5s grace window
+after each SPA-initiated write suppresses redundant re-renders triggered
+by the SPA's own write — state.lastWriteAt is consulted before
+re-rendering. External edits (Obsidian, Claude Code editing wiki/* during
+a running ingest, manual research_wiki.py invocations) all reflect in the
+SPA within ~1.5 seconds with no manual refresh.
 
 Run:
   python tools/serve.py [--host 127.0.0.1] [--port 8765]
 
-Phase 0+1+3+4 of docs/frontend-design.md. Stdlib only.
+Smoke test:
+  curl http://127.0.0.1:8765/api/health    -> {"status":"ok","phase":4}
+  curl http://127.0.0.1:8765/api/stats     -> entity counts (must match
+                                              `python tools/research_wiki.py
+                                              stats wiki/ --json`)
+  Browser: open /, navigate to #/reader/papers/<slug>, #/graph,
+           #/dashboard. Edit a tag in Reader -> `git diff wiki/...` shows
+           the change -> wiki/log.md has a new "frontend | PATCH..." line.
 """
 from __future__ import annotations
 
