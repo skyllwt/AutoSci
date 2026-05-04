@@ -25,6 +25,16 @@ Anchor 模式（按大致权重排序）：
 
 Topic / wiki 模式：相同信号，去掉 anchor overlap 与 anchor-influence edge（topic 模式没有 anchor；wiki 模式的派生 anchor 仍有 edge 信号）。influence 与 freshness 权重相应抬高以补偿。
 
+Venue 模式：
+
+1. **Wiki relevance** —— 主信号。`tools/discover.py` 会从 `wiki/papers/`、`wiki/concepts/`、`wiki/topics/` 建一个小型 BM25 风格的本地 corpus，其中页面标题和 frontmatter 权重大于正文。候选的标题、摘要、keywords、TLDR 和 track name 会与这个 corpus 打分。若 wiki 过于稀疏，或 venue 候选完全无法命中 corpus，工具会失败，而不是假装给出个性化 ranking。
+2. **Citation count** —— Paper Copilot 可用的引用字段，做对数缩放，作为次级信号。
+3. **Freshness** —— 轻量 tie-breaker；venue 运行通常固定一个年份，所以它一般影响不大。
+4. **Paper Copilot rating / review metadata** —— 存在时仅作次级 tie-breaker。
+5. **Source diversity** —— 当前 venue 模式要求只用 Paper Copilot，因此这个信号基本不移动结果。
+
+Venue 模式使用 Paper Copilot 的公开 GitHub JSON 数据（`papercopilot/paperlists`）作为 venue/year 论文列表来源，不抓取 live website，也不把完整数据集 vendor 进仓库。
+
 ### 为什么同时使用聚合 influence 和 per-edge influence？
 
 它们回答不同问题：

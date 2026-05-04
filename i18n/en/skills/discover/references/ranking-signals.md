@@ -25,6 +25,16 @@ Anchor mode (rough weight order):
 
 Topic / wiki mode: same signals minus anchor overlap and minus the anchor-influence edge (no anchor exists in topic mode; wiki-derived anchors do score the edge signal). Influence and freshness carry more weight to compensate.
 
+Venue mode:
+
+1. **Wiki relevance** — primary signal. `tools/discover.py` builds a small BM25-style local corpus from `wiki/papers/`, `wiki/concepts/`, and `wiki/topics/`, with stronger weights for page titles and frontmatter than body text. Candidate titles, abstracts, keywords, TLDRs, and track names are scored against that corpus. If the wiki is too sparse, or no venue candidate matches the corpus, the tool fails instead of pretending the ranking is personalized.
+2. **Citation count** — Paper Copilot's available citation field, log-scaled as a secondary signal.
+3. **Freshness** — mild tie-breaker; most venue runs use one year, so this normally does not move much.
+4. **Paper Copilot rating / review metadata** — used only as secondary tie-breakers when present.
+5. **Source diversity** — negligible for venue mode today because Paper Copilot is the required source.
+
+Venue mode uses Paper Copilot's public GitHub JSON data (`papercopilot/paperlists`) for the venue/year list and does not scrape the live website or vendor the dataset.
+
 ### Why aggregate influence AND per-edge influence?
 
 They answer different questions:
