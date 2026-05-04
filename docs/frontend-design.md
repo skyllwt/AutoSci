@@ -305,5 +305,5 @@ The whole design is purely additive. If the SPA does not work out, every existin
 - `tools/visualize.py` lines 38–42 — `ENTITY_DIRS`
 - `tools/research_wiki.py` lines 2750–2840 — subcommand dispatcher (endpoint backings)
 - `config/visualize.json` — color palette (already used by `generate-obsidian-config`)
-- `docs/runtime-page-templates.en.md` — frontmatter schemas for all 9 entity types
-- `docs/runtime-support-files.en.md` — `edges.jsonl` / `citations.jsonl` row schemas
+- `runtime/schema/entities.yaml` — frontmatter schemas for all 9 entity types
+- `runtime/schema/edges.yaml` — `edges.jsonl` / `citations.jsonl` row schemas

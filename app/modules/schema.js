@@ -1,8 +1,8 @@
 // Single source of truth for ΩmegaWiki entity-type schema constants.
 //
-// These mirror tools/visualize.py:ENTITY_DIRS and the 9 page types listed in
-// CLAUDE.md / docs/runtime-page-templates.en.md. They are the project's
-// schema, not user data — every user's wiki has the same 9 directory names.
+// These mirror tools/visualize.py:ENTITY_DIRS and the 9 page types declared in
+// runtime/schema/entities.yaml (the SSOT). They are the project's schema, not
+// user data — every user's wiki has the same 9 directory names.
 //
 // Future-proofing: if a new entity type is ever added (e.g. `protocols`),
 // extend it here in one place and all views pick it up automatically.
@@ -47,8 +47,8 @@ export const EDGE_WORKFLOW_COLORS = Object.freeze({
   provenance: "#999999",
 });
 
-// Edge-type → workflow mapping. Mirrors tools/_schemas.py:EDGE_TYPE_SPECS
-// (workflow field) plus the synthetic "cites" type for citations.jsonl.
+// Edge-type → workflow mapping. Mirrors runtime/schema/edges.yaml (each
+// edge's `workflow` field) plus the synthetic "cites" type for citations.jsonl.
 export const EDGE_TYPE_WORKFLOW = Object.freeze({
   // ingest workflow (paper-paper + paper-concept)
   same_problem_as: "ingest",
