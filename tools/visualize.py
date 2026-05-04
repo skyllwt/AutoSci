@@ -36,11 +36,8 @@ from pathlib import Path
 # Constants
 # ---------------------------------------------------------------------------
 
-ENTITY_DIRS = [
-    "papers", "concepts", "topics", "people",
-    "ideas", "experiments", "claims", "Summary",
-    "foundations",
-]
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from runtime.loader import ENTITY_DIRS  # noqa: E402
 
 DERIVED_DIR = "graph"
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)

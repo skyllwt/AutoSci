@@ -62,10 +62,9 @@ APP_ROOT = ROOT / "app"
 WIKI_ROOT = ROOT / "wiki"
 GRAPH_DIR = WIKI_ROOT / "graph"
 
-ENTITY_DIRS = (
-    "papers", "concepts", "topics", "people",
-    "ideas", "experiments", "claims", "Summary", "foundations",
-)
+sys.path.insert(0, str(ROOT))
+from runtime.loader import ENTITY_DIRS  # noqa: E402
+
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$", re.DOTALL)
 ENTITY_PATH_RE = re.compile(
