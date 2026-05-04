@@ -32,7 +32,7 @@ _SCHEMA = Path(__file__).resolve().parent / 'schema'
 _POLICY = Path(__file__).resolve().parent / 'policy'
 
 def _load(path: Path) -> dict:
-    return yaml.safe_load(path.read_text())
+    return yaml.safe_load(path.read_text(encoding='utf-8'))
 
 ENTITIES    = _load(_SCHEMA / 'entities.yaml')
 EDGES       = _load(_SCHEMA / 'edges.yaml')
