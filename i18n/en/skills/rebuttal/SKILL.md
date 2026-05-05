@@ -1,11 +1,11 @@
 ---
-description: Parse review comments → atomize concerns (Rvx-Cy) → map to wiki claims → check evidence → Review LLM stress-test → generate rebuttal
+description: Parse review comments → atomize concerns (Rvx-Cy) → map to wiki ideas/methods → check evidence → Review LLM stress-test → generate rebuttal
 argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---
 
 # /rebuttal
 
-> Parse review comments, atomize each concern (Rvx-Cy numbering) and map it to a wiki claim,
+> Parse review comments, atomize each concern (Rvx-Cy numbering) and map it to a wiki idea or method,
 > check whether evidence is sufficient (tracing back to wiki experiments),
 > simulate reviewer follow-up questions with Review LLM (stress-test, scored 1-5), and generate
 > a formal plain-text rebuttal and a rich-text rebuttal.
@@ -28,26 +28,26 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 - **wiki/outputs/rebuttal-{slug}.md** — rich-text rebuttal (with [[wikilinks]], evidence tracing, analysis tables)
 - **wiki/outputs/rebuttal-{slug}.txt** — formal rebuttal (plain text, suitable for pasting into submission system)
-- **wiki/claims/*.md** — if a concern exposes an evidence gap, append a suggestion to `## Open questions`
+- **wiki/ideas/*.md** / **wiki/methods/*.md** — if a concern exposes an evidence gap, append a suggestion to the relevant section (`## Risks` / `## Lessons learned` for ideas; `## Limitations` for methods)
 - **wiki/log.md** — append log entry
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/claims/*.md` — map concerns to claims, check evidence sufficiency
-- `wiki/experiments/*.md` — find experiment results supporting claims
+- `wiki/ideas/*.md` — map concerns to ideas, check linked experiments and novelty argument
+- `wiki/methods/*.md` — map concerns to methods, check Mechanism / Procedure / Limitations
+- `wiki/experiments/*.md` — find experiment results supporting ideas (via `linked_idea`)
 - `wiki/papers/*.md` — find citation context for referenced papers
 - `wiki/concepts/*.md` — understand the conceptual background of method-related concerns
-- `wiki/ideas/*.md` — find the motivation and pilot results for ideas
 - `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from /paper-plan, if --paper-slug provided)
 - `wiki/graph/context_brief.md` — global context
-- `wiki/graph/edges.jsonl` — claim-experiment-paper relationships
+- `wiki/graph/edges.jsonl` — idea-experiment-paper-method relationships
 - `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test independence
 
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — rich-text version
 - `wiki/outputs/rebuttal-{slug}.txt` — formal plain-text version
-- `wiki/claims/*.md` — append reviewer-identified gaps to `## Open questions` (do not directly modify confidence/status; add suggestions only)
+- `wiki/ideas/*.md` / `wiki/methods/*.md` — append reviewer-identified gaps to `## Risks` / `## Lessons learned` (ideas) or `## Limitations` (methods); do not silently flip an idea's status — only flag concerns
 - `wiki/log.md` — append log entry
 
 ### Graph edges created
@@ -95,32 +95,31 @@ Split each weakness and question into independent atomic concerns:
 
 4. **Output**: atomized concern list, each containing {id (Rvx-Cy), reviewer, type, severity, text}
 
-### Step 3: Map Concerns to Wiki Claims
+### Step 3: Map Concerns to Wiki Ideas / Methods
 
 For each concern:
 
-1. **Find associated claim**:
+1. **Find associated idea or method**:
    - Extract keywords from concern text
-   - Search `wiki/claims/*.md` for matching claims
-   - Read `wiki/graph/edges.jsonl` to find claim-experiment relationships
-   - If no direct match is found: annotate as "unmapped" (no direct claim correspondence)
+   - Search `wiki/ideas/*.md` and `wiki/methods/*.md` for matches (idea for hypothesis/result challenges; method for design/algorithmic challenges)
+   - Read `wiki/graph/edges.jsonl` to find idea↔experiment and method↔paper relationships
+   - If no direct match is found: annotate as "unmapped" (no direct entity correspondence)
 
 2. **Check Evidence Status**:
-   - Read the claim's evidence list
-   - Count strong/moderate/weak evidence
-   - Find results of associated experiments
+   - For an idea: read `linked_experiments`, count succeeded/inconclusive/failed outcomes; read `novelty_score` and `status`
+   - For a method: read `source_papers` and `## Limitations`
    - **Judgment**:
-     - Sufficient: strong >= 1 or moderate >= 2
-     - Partial: evidence exists but insufficient strength
-     - Insufficient: no evidence or only weak evidence
-     - Contradicted: evidence of invalidates type exists
+     - Sufficient: ≥1 succeeded experiment for the linked idea, OR method backed by source paper(s)
+     - Partial: experiments exist but mixed outcomes
+     - Insufficient: no supporting experiments or thin source coverage
+     - Contradicted: failed/inconclusive experiments dominate
 
 3. **Output**:
 
-| Concern ID | Reviewer | Type | Severity | Claim mapped | Evidence Status | Strategy |
-|------------|----------|------|----------|--------------|-----------------|----------|
-| Rv1-C1 | R1 | method | critical | [[claim-slug]] | sufficient | A |
-| Rv1-C2 | R1 | missing | major | [[claim-slug]] | insufficient | B |
+| Concern ID | Reviewer | Type | Severity | Entity mapped | Evidence Status | Strategy |
+|------------|----------|------|----------|---------------|-----------------|----------|
+| Rv1-C1 | R1 | method | critical | [[method-slug]] | sufficient | A |
+| Rv1-C2 | R1 | missing | major | [[idea-slug]] | insufficient | B |
 | Rv2-C1 | R2 | novelty | major | unmapped | — | D |
 
 ### Step 4: Draft Rebuttal Responses
@@ -159,7 +158,7 @@ Draft a response for each concern according to its strategy:
 - [ ] No fabrication: do not fabricate data or experiment results
 - [ ] No overpromise: only commit to specific executable supplementary experiments
 - [ ] Cited data is recorded in wiki/experiments/
-- [ ] If claim is challenged/deprecated, do not pretend it is supported
+- [ ] If the linked idea has `status: invalidated` or its experiments are inconclusive, do not pretend it is supported
 
 ### Step 5: Review LLM Stress-Test
 
@@ -238,10 +237,10 @@ Additional Experiments (if applicable):
 # Rebuttal Analysis: {paper title}
 
 ## Coverage Summary
-| Concern ID | Type | Severity | Claim | Evidence Status | Review LLM Score | Strategy |
-|------------|------|----------|-------|-----------------|------------|----------|
-| Rv1-C1 | method | critical | [[claim-slug]] | sufficient | 4/5 | A |
-| Rv1-C2 | missing | major | [[claim-slug]] | insufficient | 3/5 | B |
+| Concern ID | Type | Severity | Entity | Evidence Status | Review LLM Score | Strategy |
+|------------|------|----------|--------|-----------------|------------------|----------|
+| Rv1-C1 | method | critical | [[method-slug]] | sufficient | 4/5 | A |
+| Rv1-C2 | missing | major | [[idea-slug]] | insufficient | 3/5 | B |
 
 ## Responses
 ### Reviewer 1
@@ -249,9 +248,9 @@ Additional Experiments (if applicable):
 **[Rv1-C2]** ...
 
 ## Evidence Gap Analysis
-| Claim | Confidence | Gap | Needed |
-|-------|-----------|-----|--------|
-| [[claim-slug]] | 0.5 | No ablation on dataset X | Run ablation experiment |
+| Entity | Status / Novelty | Gap | Needed |
+|--------|------------------|-----|--------|
+| [[idea-slug]] | proposed / novelty 2 | No ablation on dataset X | Run ablation experiment |
 
 ## Action Items
 
@@ -263,12 +262,12 @@ Additional Experiments (if applicable):
 ### Wiki Updates
 | Page | Update | Reason |
 |------|--------|--------|
-| claims/{slug} | Add open question | Rv2-C1 evidence gap |
+| ideas/{slug} | Append concern to `## Risks` | Rv2-C1 evidence gap |
 
 ### Suggested Experiments
-| Experiment | Target Claim | Suggested by |
+| Experiment | Linked Idea | Suggested by |
 |-----------|-------------|--------------|
-| ablation-dataset-x | [[claim-slug]] | Rv1-C2 |
+| ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
 → Run `/exp-design ablation-dataset-x` to design follow-up
 
@@ -281,17 +280,18 @@ Additional Experiments (if applicable):
 - [x] No fabrication: all cited data exists in wiki/experiments
 - [x] No overpromise: all committed experiments are specific and feasible
 - [x] Full coverage: {N}/{N} concerns addressed (no omissions)
-- [x] Challenged claims not presented as supported
+- [x] Invalidated/inconclusive ideas not presented as supported
 ```
 
 **6c. Final safety check**:
 - **Full coverage**: confirm every concern has a response (no omissions)
 - **No fabrication**: every cited data point is recorded in wiki/experiments/ (traceable)
 - **No overpromise**: supplementary experiment commitments are specific and feasible
-- **Honesty on weak claims**: if claim confidence < 0.4, do not pretend evidence is sufficient
+- **Honesty on weak ideas**: if the linked idea has `novelty_score <= 2` OR its linked experiments are inconclusive, do not pretend evidence is sufficient
 
 **6d. Update wiki**:
-- For claims with evidence gaps: append reviewer-identified gaps to `## Open questions` in `wiki/claims/{slug}.md`
+- For ideas with evidence gaps: append reviewer-identified gaps to `## Risks` (or `## Lessons learned`) in `wiki/ideas/{slug}.md`
+- For methods with weak coverage: append concerns to `## Limitations` in `wiki/methods/{slug}.md`
 - Append log:
   ```bash
   python3 tools/research_wiki.py log wiki/ \
@@ -304,7 +304,7 @@ Additional Experiments (if applicable):
 - **No overpromise**: only commit to specific executable supplementary experiments. Use "we will run ablation on X with setup Y" not "we will investigate"
 - **Full coverage**: every reviewer concern (Rvx-Cy) must have a response; omissions block output
 - **Evidence traceability**: every piece of evidence cited in a response must be traceable to a wiki page with source slug annotated
-- **Do not directly modify wiki claims**: rebuttal only appends suggestions to claims' Open questions; do not modify confidence/status
+- **Do not silently flip a linked idea's status**: rebuttal only flags concerns by appending to ideas' `## Risks` / `## Lessons learned` or methods' `## Limitations`; status transitions are reserved for `/exp-eval`
 - **Review LLM independence**: during stress-test, follow cross-model-review.md; do not reveal response strategy to Review LLM
 - **Concern ID format**: strictly use Rvx-Cy format (Rv1-C1, Rv1-C2, Rv2-C1) to ensure traceability
 - **Specific commitments**: all revision commitments and experiment plans must be specific (specific Section, specific dataset, explicit metric)
@@ -314,10 +314,10 @@ Additional Experiments (if applicable):
 
 - **Review file not found**: report error, list available files under raw/reviews/
 - **Review format cannot be parsed**: fall back to plain-text processing; use LLM to extract concerns; annotate in report
-- **Concern cannot be mapped to a claim (unmapped)**: annotate as "unmapped"; still respond (based on paper content rather than wiki claim)
+- **Concern cannot be mapped to an idea or method (unmapped)**: annotate as "unmapped"; still respond (based on paper content rather than wiki entity)
 - **Review LLM stress-test unavailable**: skip Step 5; annotate in report "stress-test skipped: Review LLM unavailable"
 - **Evidence severely insufficient**: if >50% of concerns have insufficient evidence, warn the user and suggest supplementing experiments first
-- **Wiki empty**: warn that wiki knowledge base is empty; suggest running /ingest to populate claims and experiments
+- **Wiki empty**: warn that wiki knowledge base is empty; suggest running /ingest to populate ideas, methods, and experiments
 - **All responses scored 1-2 by Review LLM**: halt output, report requires re-analysis, suggest supplementing experiments first
 
 ## Dependencies
@@ -333,7 +333,7 @@ Additional Experiments (if applicable):
 ### Claude Code Native
 - `Read` — read review comments, wiki pages, shared references
 - `Write` — write rebuttal-{slug}.md, rebuttal-{slug}.txt
-- `Glob` — find claims, experiments
+- `Glob` — find ideas, methods, experiments
 - `Grep` — search wiki for concern keywords
 
 ### Shared References

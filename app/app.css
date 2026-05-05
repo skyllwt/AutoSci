@@ -687,7 +687,7 @@ a.chip.tag:hover { background: rgba(74, 144, 217, 0.32); cursor: pointer; }
 }
 .gauge-detail { margin-top: 0.5rem; }
 
-/* Bars (claims-by-status) */
+/* Bars (counts-by-status) */
 .bars { display: flex; flex-direction: column; gap: 6px; }
 .bar-row {
   display: grid;

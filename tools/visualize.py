@@ -50,7 +50,7 @@ CANVAS_COLOR_MAP = {
     "people": "5",        # green
     "ideas": "3",         # orange
     "experiments": "1",   # red
-    "claims": "6",        # purple
+    "methods": "6",       # purple
     "Summary": "5",       # green
     "foundations": "2",   # yellow
 }
@@ -562,8 +562,8 @@ Obsidian Plugins (install via Settings > Community Plugins):
 
 2. Dataview (RECOMMENDED)
    - SQL-like queries over YAML frontmatter
-   - Create dynamic views like "all claims with confidence > 0.7"
-   - Example query: TABLE confidence, status FROM "claims" WHERE confidence > 0.7
+   - Create dynamic views like "all training methods" or "ideas with novelty_score >= 4"
+   - Example query: TABLE type, source_papers FROM "methods" WHERE type = "training"
    - Install: Settings > Community Plugins > Browse > "Dataview"
 
 3. Excalidraw (OPTIONAL)
@@ -582,7 +582,7 @@ Canvas Usage:
 
 1. Navigate to canvases/ in the file explorer
 2. Open knowledge-map.canvas for the full graph overview
-3. Open claim-evidence.canvas for the claim-centric research view
+3. Open idea-evidence.canvas for the idea-centric research view
 4. Generate focused canvases: python3 tools/visualize.py generate-canvas wiki/ --focus <node_id>
 
 Standalone web Graph view:
@@ -613,7 +613,7 @@ def main() -> None:
     p_canvas = subparsers.add_parser("generate-canvas",
                                      help="Generate Obsidian Canvas from graph data")
     p_canvas.add_argument("wiki_root", help="Path to wiki/ directory")
-    p_canvas.add_argument("--focus", help="Center canvas on a specific node (e.g., claims/my-claim)")
+    p_canvas.add_argument("--focus", help="Center canvas on a specific node (e.g., methods/my-method)")
     p_canvas.add_argument("--depth", type=int, default=2, help="BFS depth for focused canvas (default: 2)")
     p_canvas.add_argument("--output", help="Custom output path")
 

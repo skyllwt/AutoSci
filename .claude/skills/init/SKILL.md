@@ -21,7 +21,7 @@ Use these local references on demand:
 
 ## Outputs
 
-- `wiki/` scaffold and provisional pages (Summary, topics, ideas, concepts, claims)
+- `wiki/` scaffold and provisional pages (Summary, topics, ideas, concepts)
 - `raw/tmp/` and `raw/discovered/` prepared sources
 - Final paper pages via parallel `/ingest` subagents
 - `.checkpoints/init-*.json` manifests for resume and replay
@@ -34,7 +34,7 @@ Use these local references on demand:
 
 - `raw/papers/`, `raw/notes/`, `raw/web/`
 - `.checkpoints/init-prepare.json` and `.checkpoints/init-sources.json` for resume, planning, and fan-out
-- `wiki/index.md` plus existing `wiki/topics/`, `wiki/ideas/`, `wiki/concepts/`, `wiki/claims/` for duplicate avoidance and scaffold alignment
+- `wiki/index.md` plus existing `wiki/topics/`, `wiki/ideas/`, `wiki/concepts/`, `wiki/methods/` for duplicate avoidance and scaffold alignment
 
 ### Writes
 
@@ -130,7 +130,7 @@ Then run:
 
 ### Step 4: Create scaffold pages before paper ingest
 
-Create one `wiki/Summary/{area}.md`, the needed `wiki/topics/{slug}.md`, and provisional `ideas/`, `concepts/`, and `claims/` from notes/web when warranted.
+Create one `wiki/Summary/{area}.md`, the needed `wiki/topics/{slug}.md`, and provisional `ideas/`, `concepts/`, and (optionally) `methods/` from notes/web when warranted.
 
 Rules:
 
@@ -144,8 +144,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - `topics/`: create when a direction is explicit or repeated
 - `ideas/`: create when the user states or strongly implies a research direction or hypothesis
 - `concepts/`: create only when the mechanism recurs across notes/web, or appears once in notes/web and once in the final paper set
-- `claims/`: create only from explicit assertive statements, never by inference
-- for notes/web-derived claims, use `status: proposed`, `confidence: 0.2`, `source_papers: []`, and `evidence: []`
+- `methods/`: do not create from `/init` unless the user explicitly names a reusable, citable method in notes/web; ingest is responsible for promoting paper methods into reusable method entities
 - `/prefill` is optional background seeding and is not part of `/init`
 - `/init` must not create `people/` pages directly and must not auto-create foundations
 
@@ -180,7 +179,7 @@ Parallel ingest contract:
 After all subagents complete:
 
 - merge worktree branches sequentially on `BASE_BRANCH`
-- resolve true concept / claim conflicts conservatively: merge, do not multiply near-duplicates
+- resolve true concept / method conflicts conservatively: merge, do not multiply near-duplicates
 - run:
 
 ```bash
@@ -224,7 +223,7 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - no skill other than `/prefill` may auto-create foundations
 - `/init` must not create `people/` pages directly
 - notes/web-derived pages are provisional and must carry the exact notice line above
-- paper evidence outranks notes/web for claim confidence and concept consolidation
+- paper evidence outranks notes/web for concept consolidation and method extraction
 - all paper ingest must run through parallel `/ingest` subagents with worktree isolation
 - Step 5 must read paper inputs from `.checkpoints/init-sources.json`, not by ad hoc folder scanning
 - exact deterministic planner policy belongs in `tools/init_discovery.py`, not in duplicated skill constants

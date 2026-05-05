@@ -13,7 +13,7 @@ wiki/
 ├── people/            ← researcher profiles
 ├── ideas/             ← research ideas (with lifecycle status)
 ├── experiments/       ← experiment records (wiki pages)
-├── claims/            ← testable research claims
+├── methods/           ← cross-paper reusable method entities
 ├── Summary/           ← domain-wide surveys
 ├── foundations/       ← background knowledge (terminal: receives inward links, writes none)
 ├── outputs/           ← generated artifacts (Related Work, paper drafts)

@@ -20,7 +20,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 ## Outputs
 
 - `wiki/ideas/{slug}.md` — 每个 idea 一个页面（status: proposed），包含 top ideas 和被淘汰的 ideas
-- `wiki/graph/edges.jsonl` — 新增 idea → claim/gap 的关系边
+- `wiki/graph/edges.jsonl` — 新增 idea → concept/topic 的关系边
 - `wiki/graph/context_brief.md` — 重建后的压缩上下文
 - `wiki/graph/open_questions.md` — 重建后的知识缺口图
 - **IDEA_REPORT**（输出到终端）— 管道执行摘要、排名结果、novelty 评分
@@ -31,22 +31,22 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/open_questions.md` — 知识缺口，驱动 idea 方向
 - `wiki/ideas/*.md` — 已有 ideas，特别是 status=failed 的 ideas 及 failure_reason（banlist）
-- `wiki/claims/*.md` — 当前 claims 状态，识别 weakly_supported 和 challenged claims
 - `wiki/papers/*.md` — 已有论文方法和结果
 - `wiki/concepts/*.md` — 技术概念，寻找跨领域组合机会
-- `wiki/topics/*.md` — 研究方向地图，SOTA 和 open problems
+- `wiki/methods/*.md` — 可复用 method，圈定候选灵感来源
+- `wiki/topics/*.md` — 研究方向地图，SOTA 和 open problems（含 `### Known gaps` 与 `### Methodological gaps`）
 - `wiki/experiments/*.md` — 已有实验结果，避免重复
 
 ### Writes
 - `wiki/ideas/{slug}.md` — 创建新 idea 页面
-- `wiki/graph/edges.jsonl` — 添加 idea → claim/gap 的关系边（addresses_gap, inspired_by）
+- `wiki/graph/edges.jsonl` — 添加 idea → concept/topic 的关系边（addresses_gap, inspired_by）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/graph/open_questions.md` — 重建
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
-- `addresses_gap`：idea → claim/topic（idea 针对的知识缺口）
-- `inspired_by`：idea → paper/concept（idea 的灵感来源）
+- `addresses_gap`：idea → concept/topic（idea 针对的知识缺口 — `origin_gaps` 字段）
+- `inspired_by`：idea → paper/method/concept（idea 的灵感来源）
 
 ## Workflow
 
@@ -61,7 +61,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
      跳过 wiki 内部上下文加载（为空无意义），标注 "cold-start mode: heavier external search"
    - **warm**：标准行为（当前默认）
    - **hot**：Phase 1 外部搜索缩减（WebSearch 查询从 5 降至 2，S2/DeepXiv limit 从 20 降至 10），
-     Phase 3 gap_alignment_bonus 从 +2 提升到 +3，优先解决 wiki 中已有的 weak claims
+     Phase 3 gap_alignment_bonus 从 +2 提升到 +3，优先解决 topic / concept open-problem 章节中已经枚举的 gap
 3. **Snapshot wiki 状态**（用于结束时的 Growth Report）：
    保存 maturity 返回的 JSON 到内存变量 `maturity_before`
 
@@ -75,7 +75,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 读取所有 `wiki/ideas/*.md`，提取：
      - status=failed 的 ideas → **banlist**（含 failure_reason）
      - status=proposed/in_progress 的 ideas → **active list**（避免重复）
-   - 读取 `wiki/claims/*.md`，找出 status=weakly_supported 或 challenged 的 claims → **weak claims list**
+   - 读取 `wiki/topics/*.md` 与 `wiki/concepts/*.md`：收集 `## Open problems` 下（包括 `### Known gaps` 与 `### Methodological gaps`）的 bullet → **gap candidates list**
    - 若 `direction` 指定，过滤与方向相关的子集
 
 2. **外部搜索**（使用 Agent tool 并行）：
@@ -116,14 +116,13 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 **遵循 `shared-references/cross-model-review.md`**：Claude 和 Review LLM 独立生成，不互相看到对方的结果。
 
 1. **Claude 生成 6-10 个 ideas**：
-   - 输入：景观报告 + wiki gaps + weak claims + banlist
+   - 输入：景观报告 + wiki gaps + active list + banlist
    - 策略：
      - 跨方向组合（Topic A 的方法 + Topic B 的问题）
-     - 填补 gap_map 中的空白
-     - 强化 weakly_supported claims
-     - 挑战 challenged claims 的替代假设
+     - 填补 gap_map 与 topic / concept open-problem 章节中的空白
+     - 反驳或替换 `### Methodological gaps` 下暴露的假设
      - SOTA 的已知 limitation → 改进方向
-   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、target claims、estimated feasibility（高/中/低）
+   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、`origin_gaps`（idea 针对的 concept / topic slug）、estimated feasibility（高/中/低）
 
 2. **Review LLM 独立生成 4-6 个 ideas**（并行执行）：
    ```
@@ -176,8 +175,8 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 3. **wiki 对齐检查**：
    - idea 是否解决 gap_map 中的已知缺口？（+分）
-   - idea 是否针对 weakly_supported claim？（+分）
-   - idea 是否与 wiki 已有知识构建连接？（+分）
+   - idea 是否针对某个 concept 的 `## Open problems` 或某个 topic 的 methodological gap？（+分）
+   - idea 是否基于 wiki 已有知识（papers / methods / concepts）构建？（+分）
 
 4. **筛选决策**：
    - 淘汰条件：feasibility=低 AND novelty 筛查发现相似已发表工作
@@ -191,13 +190,13 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 对 Phase 3 排名前 3 的 ideas 进行深度验证：
 
-1. **调用 /novelty**（逐个执行）：
+1. **调用 /novelty `--write`**（逐个执行）：
    ```
    对每个 top idea：
    Skill: novelty
-   Args: "<idea-title-and-hypothesis>"
+   Args: "<idea-slug>" --write
    ```
-   记录 novelty score（1-5）和建议
+   `--write` 标志会把得到的 `novelty_score`（1-5）写入 idea frontmatter。记录该分数用于 IDEA_REPORT。
 
 2. **调用 /review**（对 top 2 ideas）：
    ```
@@ -224,16 +223,17 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    # 生成 slug
    python3 tools/research_wiki.py slug "<idea-title>"
    ```
-   创建 `wiki/ideas/{slug}.md`，**严格遵循 CLAUDE.md 的 ideas template**（所有字段必填；`lint.py` 强制要求 `status` 和 `priority`）：
+   创建 `wiki/ideas/{slug}.md`，**严格遵循 schema** — frontmatter 对齐 `runtime/schema/entities.yaml::ideas`，正文对齐 `runtime/templates/ideas.md.tmpl`：
    ```yaml
    ---
    title: "<idea 标题>"
    slug: "<idea-slug>"
    status: proposed
-   origin: "ideate: <驱动该 idea 的 gap / 弱 claim / 论文的简短描述>"
-   origin_gaps: []           # [[claim-slug]] 列表 — 该 idea 针对的 claim 或 topic
-   tags: []                  # 2-5 个主题标签（从目标 claim / direction 继承）
-   domain: ""                # NLP / CV / ML Systems / Robotics（从 direction 继承）
+   origin: "ideate: <驱动该 idea 的 gap / open problem / 论文的简短描述>"
+   origin_gaps: []           # [[concept-slug]] 或 [[topic-slug]] 列表 — 该 idea 针对的 concept / topic
+   tags: []                  # 2-5 个主题标签（从 origin_gaps / direction 继承）
+   target_venue: ""          # NeurIPS / ICLR / ICML / ACL / COLM — 未定时留空
+   novelty_score: ""         # 1-5 — Phase 4 由 /novelty --write 写入；否则留空
    priority: 3               # 1-5 — 见下方 Priority 计算
    pilot_result: ""          # 留空，由 /exp-eval 填写
    failure_reason: ""        # proposed ideas 留空
@@ -250,21 +250,22 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - `-1` 若 `review_score <= 4`（major issues 降权）
    - Clamp 到 `[1, 5]`
 
-   **正文结构**（必须与 CLAUDE.md 模板严格一致 — 不要改名）：
+   **正文结构**（必须与 `runtime/templates/ideas.md.tmpl` 严格一致 — 不要改名）：
    ```markdown
    ## Motivation
-   哪个 gap / weakly_supported claim / 论文限制驱动了这个 idea。用 `[[slug]]` 引用 wiki 页面。
+   哪个 gap / open problem / 论文限制驱动了这个 idea。用 `[[slug]]` 引用 wiki 页面。
 
    ## Hypothesis
    1-2 句话陈述可验证的命题。
 
    ## Approach sketch
-   3-5 句描述提出的方法。任何借用现有工作的组件用 `[[paper-slug]]` 或 `[[concept-slug]]` 标注。
+   3-5 句描述提出的方法。任何借用现有工作的组件用 `[[paper-slug]]`、`[[method-slug]]` 或 `[[concept-slug]]` 标注。
 
-   ## Expected outcome
-   成功的表现（指标 / claim 状态变化），加上 Phase 4 的 novelty 与 review 总结：
-   - Novelty score: N/5 — <来自 /novelty 的一行理由>
-   - Review score: M/10 — <来自 /review 的一行总结>
+   ## Novelty argument
+   为何该 idea 真正新颖 —— /novelty 找到的最相近 prior work 是哪一项，差异维度在哪里。一段简短文字。
+
+   ## Target venue
+   计划投稿目标（如 NeurIPS 2026 / ICLR / ICML / ACL / COLM）。仍在打磨范围的 idea 可留空。
 
    ## Risks
    可行性评级（high/medium/low）+ top 2-3 风险。包含 /review 揭示的主要弱点。
@@ -287,10 +288,11 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 3. **添加 graph edges**：
    ```bash
-   # 对每个 idea
+   # 对每个 idea：origin_gaps 中的每个 concept/topic 都加一条 addresses_gap 边
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "ideas/{slug}" --to "claims/{target-claim}" \
+     --from "ideas/{slug}" --to "concepts/{origin-gap-slug}" \
      --type addresses_gap --evidence "Generated by ideate"
+   # ...gap 目标是 topic 时改为 topics/{origin-gap-slug}。
 
    python3 tools/research_wiki.py add-edge wiki/ \
      --from "ideas/{slug}" --to "papers/{source-paper}" \
@@ -342,7 +344,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    | Metric | Before | After | Delta |
    |--------|--------|-------|-------|
    | Papers | {before} | {after} | +{delta} |
-   | Claims | {before} | {after} | +{delta} |
+   | Methods | {before} | {after} | +{delta} |
    | Ideas | {before} | {after} | +{delta} |
    | Edges | {before} | {after} | +{delta} |
    | Maturity | {before_level} | {after_level} | {unchanged/upgraded} |
@@ -352,7 +354,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 ## Constraints
 
 - **wiki cold 时自动切换 cold-start mode**：外部搜索扩展（WebSearch 8 查询，S2/DeepXiv limit 30），不阻塞执行
-- **所有 idea 必须有 wiki 依据**：每个 idea 至少引用 2 个 wiki 页面（paper/concept/claim）
+- **所有 idea 必须有 wiki 依据**：每个 idea 至少引用 2 个 wiki 页面（paper / concept / method / topic）
 - **必须加载 banlist**：Phase 1 必须读取 failed ideas 的 failure_reason，Phase 2/3 必须检查重叠
 - **Review LLM 独立性**：Phase 2 中 Review LLM 不看 Claude 的 idea 列表（cross-model-review.md）
 - **被淘汰的 ideas 也写入 wiki**：status=failed + failure_reason，作为 anti-repetition 记忆

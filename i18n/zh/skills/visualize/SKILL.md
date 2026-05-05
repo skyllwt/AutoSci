@@ -13,7 +13,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 - `--obsidian`（可选）：生成或更新 `.obsidian/graph.json`，按实体类型分色组
 - `--canvas`（可选）：基于图谱数据生成 Obsidian Canvas（`.canvas`），边带类型标签
-- `--focus <node_id>`（可选）：把 Canvas 聚焦到某个具体节点（例如 `claims/my-claim`）
+- `--focus <node_id>`（可选）：把 Canvas 聚焦到某个具体节点（例如 `methods/my-method`）
 - `--depth N`（可选）：聚焦 Canvas 的 BFS 深度（默认：2）
 - `--types <list>`（可选）：把节点过滤到这些 page type，逗号分隔（例如 `papers,concepts`）
 - `--edge-types <list>`（可选）：把边过滤到这些语义类型，逗号分隔（例如 `builds_on,surveys`）
@@ -24,7 +24,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 - `wiki/.obsidian/graph.json` —— Obsidian 图谱颜色配置（按实体类型分色组）
 - `wiki/.obsidian/app.json` —— Obsidian 应用设置（仅当不存在时才创建）
 - `wiki/canvases/knowledge-map.canvas` —— 完整知识地图 Canvas，边带标签
-- `wiki/canvases/claim-evidence.canvas` —— 以 claim 为中心的子图 Canvas
+- `wiki/canvases/idea-evidence.canvas` —— 以 idea 为中心的子图 Canvas
 - `wiki/canvases/focus-{node-id}.canvas` —— 聚焦 Canvas（使用 `--focus` 时）
 - 终端输出：Obsidian 插件推荐与设置说明
 
@@ -155,7 +155,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 | `people`      | `#E76F51` | `"4"`             |
 | `ideas`       | `#A8DADC` | `"5"`             |
 | `experiments` | `#9B5DE5` | `"6"`             |
-| `claims`      | `#F9C74F` | `"3"`             |
+| `methods`     | `#84CC16` | `"3"`             |
 | `Summary`     | `#90BE6D` | `"4"`             |
 | `foundations` | `#B5B5B5` | `"6"`             |
 
@@ -169,7 +169,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 | 综述        | `surveys`                                                             | `#2A9D8F` |
 | 概念使用    | `introduces_concept`、`uses_concept`                                  | `#F4A261` |
 | 证据        | `supports`、`contradicts`、`tested_by`、`invalidates`                 | `#9B5DE5` |
-| Gap/Claim   | `addresses_gap`                                                       | `#F9C74F` |
+| Gap         | `addresses_gap`                                                       | `#F9C74F` |
 | Citation    | `cites`                                                               | `#B5B5B5` |
 
 ## Constraints

@@ -298,15 +298,23 @@ export async function viewEntity(mount, type, slug) {
 
 function renderIntentButtons(type, slug, fm) {
   const buttons = [];
-  if (type === "claims") {
+  if (type === "ideas") {
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="exp-design"
-                          data-context='{"target_claim":"${esc(slug)}"}'
-                          title="Design an experiment to test this claim">/exp-design</button>`);
+                          data-context='{"linked_idea":"${esc(slug)}"}'
+                          title="Design experiments for this idea">/exp-design</button>`);
+  }
+  if (type === "concepts") {
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="ideate"
-                          data-context='{"from_claim":"${esc(slug)}"}'
-                          title="Generate research ideas from this claim">/ideate</button>`);
+                          data-context='{"from_concept":"${esc(slug)}"}'
+                          title="Generate research ideas around this concept">/ideate</button>`);
+  }
+  if (type === "topics") {
+    buttons.push(`<button type="button" class="ghost-mini intent-btn"
+                          data-skill="ideate"
+                          data-context='{"from_topic":"${esc(slug)}"}'
+                          title="Generate research ideas under this topic">/ideate</button>`);
   }
   if (type === "papers") {
     const anchor = (fm && fm.arxiv) ? fm.arxiv : slug;
@@ -532,19 +540,20 @@ async function refreshGraphIndex() {
 // --- Phase 4 edit popover --------------------------------------------------
 
 const EDITABLE_FIELDS = {
-  papers: ["tags", "importance", "keywords", "code_url", "venue", "year"],
-  concepts: ["tags", "aliases", "maturity", "related_concepts"],
-  topics: ["tags", "my_involvement", "key_venues"],
-  people: ["tags", "affiliation", "homepage", "scholar"],
-  ideas: ["tags", "status", "priority", "failure_reason"],
+  papers: ["tags", "importance", "tldr", "contribution_type", "datasets", "code_url", "venue", "year"],
+  concepts: ["tags", "aliases", "maturity", "definition", "related_concepts"],
+  topics: ["tags", "key_venues"],
+  people: ["research_areas", "affiliation", "homepage", "scholar"],
+  ideas: ["tags", "status", "priority", "target_venue", "novelty_score", "failure_reason"],
   experiments: ["tags", "status", "outcome", "key_result"],
-  claims: ["tags", "status", "confidence", "conditions"],
+  methods: ["tags", "type", "code_repo", "source_papers"],
   Summary: ["tags", "scope", "key_topics"],
   foundations: ["tags", "aliases", "status"],
 };
 const LIST_FIELDS = new Set([
-  "tags", "keywords", "aliases", "related_concepts",
-  "key_venues", "key_topics", "conditions",
+  "tags", "aliases", "related_concepts", "research_areas",
+  "key_venues", "key_topics", "contribution_type", "datasets",
+  "source_papers",
 ]);
 
 function wireEditPopover(type, slug, fm) {

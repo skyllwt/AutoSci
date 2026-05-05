@@ -9,11 +9,10 @@
 | 正向操作（你在页面 A 上写什么） | 必须同步的反向操作（在同一 turn 里你在页面 B 上写什么） |
 |--------------------------------|--------------------------------------------------------|
 | `papers/P` 写 `Related: [[concept-K]]` | `concepts/K` 的 `key_papers` 追加 `P` |
-| `papers/P` 写 `[[person-R]]`（Key authors 段） | `people/R` 的 `Key papers` 追加 `P` |
-| `papers/P` 写 `supports: [[claim-C]]` | `claims/C` 的 `evidence` 追加 `{source: P, type: supports}` |
-| `papers/P` 写 `supports: [[claim-C]]` 但论文实际反驳该 claim | 在 evidence 条目里用 `type: contradicts` |
-| `claims/C` 写 `source_papers: [[paper-P]]` | `papers/P` 的 `## Related` 追加 `C` |
+| `papers/P` 写 `[[person-R]]`（任意正文章节） | `people/R` 的 `## Recent work` 追加 `[[P]]` |
 | `concepts/K` 写 `key_papers: [[paper-P]]` | `papers/P` 的 `## Related` 追加 `K` |
+| `methods/M` 写 `source_papers: [[paper-P]]` | `papers/P` 的 `## Related` 追加 `M` |
+| `methods/M` 写 `parent_methods: [[method-N]]` | `methods/N` 的 `child_methods` 追加 `M`（反之亦然） |
 | 任意页面写 `[[foundation-X]]` | **不写反向链接** —— foundation 是终端节点 |
 
 写了正向却没写反向，是 `/check` 报 `missing-field` 的最常见来源。把两边放在同一 turn 内做，整类错误就被消灭。
@@ -76,7 +75,7 @@ semantic edge 类型选择：
 1. 决定建立此链接。
 2. 在源页面写正向条目。
 3. 在目标页面写反向条目。
-4. 若该链接对应一条 semantic graph edge（paper↔concept、paper↔claim、paper↔paper、paper→foundation），通过 `tools/research_wiki.py add-edge` 写出。
+4. 若该链接对应一条 semantic graph edge（paper↔concept、paper↔paper、paper→foundation），通过 `tools/research_wiki.py add-edge` 写出。
 5. 若一条 paper reference 能解析到已有 paper 页面，通过 `tools/research_wiki.py add-citation` 写出 bibliographic 记录。
 
 这种做法让 `/check` 下一轮不会报半吊子链接。也让回滚变简单：若某篇论文 ingest 被中止，直接撤销该论文的编辑就能把两侧同时撤销。

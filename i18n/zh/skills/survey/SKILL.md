@@ -1,6 +1,6 @@
 ---
 description: 从 wiki 知识生成论文 Related Work 章节：主题分组 → 叙事结构 → LaTeX 输出，遵循 citation-verification 和 academic-writing
-argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--max-papers 30]
+argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--max-papers 30]
 ---
 
 # /survey
@@ -15,7 +15,7 @@ argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--m
 
 - `query`：以下之一：
   - 研究问题描述（自由文本，如 "parameter-efficient fine-tuning for LLMs"）
-  - claim slugs 列表（从 wiki/claims/ 中，用于围绕特定 claims 组织相关工作）
+  - idea slugs 列表（从 wiki/ideas/ 中，用于围绕特定 ideas 组织相关工作）
   - PAPER_PLAN.md 路径（从中提取 Related Work section 定义）
 - `--format`（可选，默认 `latex`）：输出格式
   - `latex`：`\cite{key}` 引用，可直接嵌入论文
@@ -32,11 +32,11 @@ argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--m
 ## Wiki Interaction
 
 ### Reads
-- `wiki/papers/*.md` — Problem、Key idea、Results、Related、My take
+- `wiki/papers/*.md` — Problem & Context、Key idea、Experiment & Results、Related、My take
 - `wiki/concepts/*.md` — Definition、Variants、Comparison、Known limitations
 - `wiki/topics/*.md` — Overview、Timeline、Open problems、Seminal works
-- `wiki/claims/*.md` — Statement、source_papers（若输入为 claim slugs）
-- `wiki/ideas/*.md` — Motivation（了解本文定位）
+- `wiki/ideas/*.md` — Hypothesis、Motivation、origin_gaps（若输入为 idea slugs）
+- `wiki/methods/*.md` — Mechanism、Procedure、source_papers（idea 引用的可复用方法）
 - `wiki/index.md` — 内容目录，按 importance 筛选
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/edges.jsonl` — 论文间语义关系（same_problem_as、similar_method_to、complementary_to、builds_on、compares_against、improves_on、challenges、surveys）
@@ -59,7 +59,7 @@ argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--m
 
 1. **解析输入**：
    - 若为自由文本：提取关键词，在 wiki/index.md 中匹配 tags 和 titles
-   - 若为 claim slugs：读取每个 claim 的 source_papers，收集相关论文
+   - 若为 idea slugs：读取每个 idea 的 `origin_gaps`（concepts/topics）→ 走到 `concepts.key_papers` 与 topic 的 seminal works 收集相关论文；同时读取 idea 的 `## Approach sketch` 引用的 methods，再从 `methods.source_papers` 拉论文
    - 若为 PAPER_PLAN 路径：读取 Related Work section 的 groupings 和 citations
 2. **读取 wiki/graph/context_brief.md** 获取全局上下文
 3. **读取 wiki/graph/edges.jsonl**：提取论文间语义关系（same_problem_as、similar_method_to、complementary_to、builds_on、compares_against、improves_on、challenges、surveys）
@@ -73,7 +73,7 @@ argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--m
 
 对候选论文列表中的每篇论文：
 
-1. 读取 `wiki/papers/{slug}.md`：重点读 Problem、Key idea、Results、My take
+1. 读取 `wiki/papers/{slug}.md`：重点读 Problem & Context、Key idea、Experiment & Results、My take
 2. 读取该论文关联的 `wiki/concepts/*.md`：重点读 Definition、Variants、Comparison
 3. 读取相关 `wiki/topics/*.md`：重点读 Timeline、Open problems
 
@@ -204,7 +204,7 @@ argument-hint: <research-question-or-claim-slugs> [--format latex|markdown] [--m
 
 ### Claude Code Native
 - `Read` — 读取 wiki 页面
-- `Glob` — 查找 wiki 页面
+- `Glob` — 查找 ideas、methods、concepts、topics、papers
 - `WebFetch` — DBLP / CrossRef BibTeX 获取（仅 --format latex）
 
 ### Shared References

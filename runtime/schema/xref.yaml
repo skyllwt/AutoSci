@@ -25,14 +25,9 @@ rules:
   - forward: { kind: papers,      body_section: Related,         target: concepts }
     reverse: { kind: concepts,    frontmatter_field: key_papers, action: append_slug }
 
-  # any paper-body wikilink to a person → people ## Key papers
+  # any paper-body wikilink to a person → people ## Recent work
   - forward: { kind: papers,      body_section: '*',             target: people }
-    reverse: { kind: people,      body_section: "Key papers",    action: append_slug }
-
-  # paper supports a claim (graph edge) → claims.evidence
-  - forward: { kind: papers,      edge_type: supports,           target: claims }
-    reverse: { kind: claims,      frontmatter_field: evidence,   action: append_record }
-    record:  { source: '{from}', type: supports, strength: moderate }
+    reverse: { kind: people,      body_section: "Recent work",   action: append_slug }
 
   # topics.key_people → people ## Research areas
   - forward: { kind: topics,      frontmatter_field: key_people, target: people }
@@ -42,21 +37,26 @@ rules:
   - forward: { kind: concepts,    frontmatter_field: key_papers, target: papers }
     reverse: { kind: papers,      body_section: Related,         action: append_slug }
 
-  # concepts.part_of → topics ## Overview
-  - forward: { kind: concepts,    frontmatter_field: part_of,    target: topics }
-    reverse: { kind: topics,      body_section: Overview,        action: append_slug }
+  # ideas.origin_gaps → concepts.linked_ideas
+  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: concepts }
+    reverse: { kind: concepts,    frontmatter_field: linked_ideas, action: append_slug }
 
-  # ideas.origin_gaps → claims ## Linked ideas
-  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: claims }
-    reverse: { kind: claims,      body_section: "Linked ideas",  action: append_slug }
+  # ideas.origin_gaps → topics.linked_ideas
+  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: topics }
+    reverse: { kind: topics,      frontmatter_field: linked_ideas, action: append_slug }
 
-  # experiments.target_claim → claims.evidence (with structured record)
-  - forward: { kind: experiments, frontmatter_field: target_claim, target: claims }
-    reverse: { kind: claims,      frontmatter_field: evidence,   action: append_record }
-    record:  { source: '{from}', type: tested_by, strength: moderate }
+  # experiments.linked_idea → ideas.linked_experiments
+  - forward: { kind: experiments, frontmatter_field: linked_idea, target: ideas }
+    reverse: { kind: ideas,       frontmatter_field: linked_experiments, action: append_slug }
 
-  # claims.source_papers → papers ## Related
-  - forward: { kind: claims,      frontmatter_field: source_papers, target: papers }
+  # methods.source_papers → papers ## Related
+  - forward: { kind: methods,     frontmatter_field: source_papers, target: papers }
     reverse: { kind: papers,      body_section: Related,         action: append_slug }
+
+  # methods.parent_methods ↔ methods.child_methods (each is the other's reverse)
+  - forward: { kind: methods,     frontmatter_field: parent_methods, target: methods }
+    reverse: { kind: methods,     frontmatter_field: child_methods,  action: append_slug }
+  - forward: { kind: methods,     frontmatter_field: child_methods,  target: methods }
+    reverse: { kind: methods,     frontmatter_field: parent_methods, action: append_slug }
 
 terminal_targets: [foundations]

@@ -14,7 +14,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ## Inputs
 
 - `artifact`: the artifact to improve, one of:
-  - slug of a wiki page (searched in ideas/experiments/claims/outputs/)
+  - slug of a wiki page (searched in ideas/experiments/methods/outputs/)
   - file path (e.g. `wiki/outputs/paper-draft-v1.md`)
 - `--max-rounds N` (optional, default 4): maximum iteration rounds
 - `--target-score N` (optional, default 8): target review score (1-10); stop when reached
@@ -24,7 +24,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ## Outputs
 
 - **Improved artifact** (wiki page or file, updated in place)
-- **Wiki entity updates** (if review finds claims needing strengthening or identifies gaps)
+- **Wiki entity updates** (if review finds ideas/methods needing strengthening or identifies gaps)
 - **REFINE_REPORT** (output to terminal):
   - Score trajectory across all rounds
   - Cumulative list of fixed issues
@@ -36,7 +36,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Reads
 - `wiki/ideas/*.md` — if artifact is an idea
 - `wiki/experiments/*.md` — if artifact is an experiment plan
-- `wiki/claims/*.md` — claims referenced by the review
+- `wiki/methods/*.md` — methods referenced by the review
 - `wiki/papers/*.md` — papers referenced by the review
 - `wiki/outputs/*.md` — if artifact is a paper draft or output
 - `wiki/graph/context_brief.md` — global context passed to /review
@@ -45,7 +45,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Writes
 - `wiki/ideas/{slug}.md` — if artifact is an idea, fix issues found by review
 - `wiki/experiments/{slug}.md` — if artifact is an experiment plan
-- `wiki/claims/{slug}.md` — if review finds a claim needing update (confidence adjustment, evidence note)
+- `wiki/methods/{slug}.md` — if review flags a method gap (e.g. missing source_papers, weak Procedure)
 - `wiki/outputs/*.md` — if artifact is a paper draft or output
 - `wiki/graph/edges.jsonl` — if new relationships are discovered during fixes
 - `wiki/graph/context_brief.md` — rebuild after each round if wiki changes were made
@@ -62,7 +62,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Step 1: Initialize
 
 1. **Locate artifact**:
-   - If slug: search sequentially in `wiki/ideas/`, `wiki/experiments/`, `wiki/claims/`, `wiki/outputs/`, `wiki/papers/` for `{slug}.md`
+   - If slug: search sequentially in `wiki/ideas/`, `wiki/experiments/`, `wiki/methods/`, `wiki/outputs/`, `wiki/papers/` for `{slug}.md`
    - If file path: read directly
    - Record artifact type and path
 2. **Read current content**: load full artifact text
@@ -91,7 +91,7 @@ Parse the review output and extract:
 - `verdict` (ready / needs-work / major-revision / rethink)
 - `weaknesses` (by severity: critical / major / minor)
 - `actionable_items` (ranked list)
-- `wiki_entity_mapping` (claims needing support, gaps identified)
+- `wiki_entity_mapping` (ideas/methods needing strengthening, gaps identified)
 
 #### 2b. Check Termination Conditions
 
@@ -113,14 +113,15 @@ Classify and handle each actionable item:
 - → Edit the artifact file directly
 
 **Category B — Wiki knowledge gaps (suggest external operations):**
-- Insufficient claim evidence → suggest running `/exp-design` or `/ingest`
+- Idea novelty argument too thin → suggest running `/novelty` rerun
+- Method has no source_papers → flag for `/ingest` review
 - Missing related work citations → suggest running `/ingest` to add papers
 - Requires experimental validation → suggest running `/exp-run`
 - → Record in `unresolved_issues`, list suggested operations in the report
-- → If claim confidence needs adjustment, update `wiki/claims/{slug}.md` directly
 
-**Category C — Claim status updates (Claude fixes wiki):**
-- Review says a claim's confidence should be lowered → update claim page
+**Category C — Idea / method updates (Claude fixes wiki):**
+- Review identifies a missing concept link in an idea's `origin_gaps` → add the link and write the reverse `linked_ideas`
+- Review finds a method missing parent/child relations → patch the method page
 - Review discovers a new gap → record to gap_map (via rebuild)
 - Review discovers a new relationship → add graph edge
 - → Update relevant wiki pages, record in `wiki_changes`
@@ -166,14 +167,14 @@ After iteration ends, generate the REFINE_REPORT:
 | Round | Issue | Severity | Fix applied |
 |-------|-------|----------|-------------|
 | 1 | Method description too vague | major | Added specific algorithm steps |
-| 1 | Claim confidence too high | major | Lowered [[claim-slug]] confidence 0.8→0.6 |
+| 1 | Idea novelty argument too thin | major | Flagged [[idea-slug]] for `/novelty` rerun |
 | 2 | Missing ablation design | minor | Added ablation plan |
 
 ## Wiki Changes Made
 
 | Page | Change | Round |
 |------|--------|-------|
-| `wiki/claims/{slug}.md` | confidence 0.8 → 0.6 | 1 |
+| `wiki/methods/{slug}.md` | added missing source_papers link | 1 |
 | `wiki/graph/edges.jsonl` | +1 edge (addresses_gap) | 2 |
 
 ## Unresolved Issues ({count})

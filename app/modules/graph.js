@@ -21,7 +21,7 @@ import {
 // colors. Future cleanup: serve config/visualize.json from a /api/visualize-
 // config endpoint and drop this local copy. For now, paste-sync.
 //
-// Trio (papers / concepts / claims) is tuned for high mutual hue contrast:
+// Trio (papers / concepts / methods) is tuned for high mutual hue contrast:
 // blue 210° + magenta 335° + lime 90° ≈ 120° apart pairwise on the wheel,
 // so the 3 most-frequent entity types are immediately distinguishable.
 const ENTITY_HEX = Object.freeze({
@@ -31,7 +31,7 @@ const ENTITY_HEX = Object.freeze({
   people: "#2ECC71",      // emerald
   ideas: "#F39C12",       // amber
   experiments: "#E74C3C", // red
-  claims: "#84CC16",      // lime green (was purple #9B59B6)
+  methods: "#84CC16",     // lime green
   Summary: "#1ABC9C",     // teal
   foundations: "#95A5A6", // gray
 });

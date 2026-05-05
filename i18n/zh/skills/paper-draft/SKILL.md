@@ -6,7 +6,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 # /paper-draft
 
 > 从 /paper-plan 生成的 PAPER_PLAN.md 起草完整 LaTeX 论文。
-> 逐 section 撰写：每个 section 从 wiki 读取 claims/experiments/papers/concepts 取材，
+> 逐 section 撰写：每个 section 从 wiki 读取 ideas/methods/experiments/papers/concepts 取材，
 > 生成 LaTeX + figures + tables。BibTeX 从 DBLP/CrossRef 获取（遵循 citation-verification），
 > 完成后执行 de-AI polish（遵循 academic-writing）。
 > 可选逐 section Review LLM review。输出可编译的 paper/ 目录。
@@ -37,12 +37,12 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 
 ### Reads
 - `wiki/outputs/paper-plan-*.md` — PAPER_PLAN（章节大纲、evidence map、figure plan、citation plan）
-- `wiki/claims/*.md` — target claims 的 Statement、Evidence summary、Conditions
+- `wiki/ideas/*.md` — Hypothesis、Novelty argument、Approach sketch、Motivation、Risks、Lessons learned
+- `wiki/methods/*.md` — Mechanism、Procedure、Assumptions、Tradeoff profile（支持 Method 撰写）
 - `wiki/experiments/*.md` — Results、Analysis、key_result、metrics 数据
 - `wiki/papers/*.md` — Method、Results、Related（作为引用内容和 baseline 参考）
-- `wiki/concepts/*.md` — Definition、Formal notation、Variants（支持 Method 撰写）
-- `wiki/topics/*.md` — Overview、Timeline、SOTA tracker（支持 Introduction 上下文）
-- `wiki/ideas/*.md` — Motivation、Hypothesis（支持 Introduction 的 gap 叙述）
+- `wiki/concepts/*.md` — Definition、Intuition、Variants、Comparison（支持 Method 撰写）
+- `wiki/topics/*.md` — Overview、Timeline、SOTA tracker、Open problems（支持 Introduction 上下文）
 - `wiki/people/*.md` — 人名和机构（引用格式）
 - `wiki/graph/edges.jsonl` — 关系图（构建论证逻辑链）
 - `wiki/graph/open_questions.md` — 已知局限（写 Limitations 和 Future Work）
@@ -79,7 +79,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
    - `templates/{venue}.sty` 或 `templates/{venue}/`
    - 若无模板：使用通用 article class，在 main.tex 中注明需要替换为正式模板
 5. 生成 `math_commands.tex`：
-   - 从 wiki/concepts/ 中收集所有 Formal notation
+   - 从 wiki/methods/（`## Mechanism`、`## Procedure`）和 wiki/concepts/（`## Definition`、`## Intuition`）收集 notation
    - 统一符号定义（向量、矩阵、集合、常用运算符）
 6. 生成 `main.tex` 骨架：
    ```latex
@@ -116,7 +116,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
    - 若过于复杂：生成 matplotlib Python 脚本 → 输出 PDF
    - 保存到 `paper/figures/{figure-name}.pdf`
 
-2. **Plot 类型**（实验结果图）：
+2. **Plot 类型**(实验结果图)：
    - 从 `wiki/experiments/{slug}.md` 提取数据
    - 生成 matplotlib 脚本（遵循 academic-writing 的 figure 设计规范）：
      - Colorblind-safe palette
@@ -141,17 +141,17 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 **3a. 收集素材**
 
 从 PAPER_PLAN 的 section 定义中提取：
-- 该 section 支撑的 claims
+- 该 section 支撑的 ideas
 - 对应的 wiki 页面列表
 - 计划的 figures/tables
 - 引用列表
 
-读取所有相关 wiki 页面的对应 section：
-- Introduction → wiki/ideas/{idea}.md#Motivation + wiki/topics/{topic}.md#Overview
+读取所有相关 wiki 页面的对应部分：
+- Introduction → wiki/ideas/{idea}.md（Hypothesis、Motivation、Novelty argument）+ wiki/topics/{topic}.md#Overview
 - Related Work → wiki/papers/*.md#Related + wiki/concepts/*.md#Comparison
-- Method → wiki/concepts/*.md#Formal_notation + wiki/claims/{claim}.md#Statement
+- Method → wiki/methods/{method}.md（## Mechanism + ## Procedure）+ wiki/concepts/{concept}.md（## Definition + ## Intuition）
 - Experiments → wiki/experiments/*.md#Results + wiki/experiments/*.md#Analysis
-- Conclusion → wiki/graph/open_questions.md + wiki/claims/*.md#Open_questions
+- Conclusion → wiki/ideas/*.md#Lessons_learned + wiki/concepts/*.md#Open_problems + wiki/topics/*.md#Open_problems + wiki/graph/open_questions.md
 
 **3b. 撰写 LaTeX**
 
@@ -161,7 +161,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 - 插入 `\ref{fig:name}` / `\ref{tab:name}` 引用 figures/tables
 - 使用 `math_commands.tex` 中定义的符号
 - 每段以 topic sentence 开头
-- Experiments section：claim-first 结构（"We claim X. To verify, we..."）
+- Experiments section：idea-first 结构（"Our hypothesis is X. To verify, we..."）
 
 **3c. De-AI Polish**
 
@@ -180,18 +180,18 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 ```
 mcp__llm-review__chat:
   system: "You are a senior ML researcher reviewing one section of a paper draft.
-           Focus on: clarity, logical flow, claim-evidence alignment, notation consistency.
+           Focus on: clarity, logical flow, idea-experiment alignment, notation consistency.
            Point out any remaining AI-sounding language patterns.
            Suggest specific rewrites for unclear passages."
   message: |
     ## Section: {section name}
     {LaTeX content}
 
-    ## Claims this section should support
-    {claims from matrix}
+    ## Ideas this section should support
+    {ideas from the plan's idea list}
 
     ## Review this section for:
-    1. Does it clearly support its target claims?
+    1. Does it clearly support its target ideas?
     2. Is the writing clear and precise?
     3. Any AI-generated language patterns remaining?
     4. Is the notation consistent with other sections?
@@ -222,7 +222,7 @@ mcp__llm-review__chat:
 ```
 mcp__llm-review__chat:
   system: "You are a senior ML researcher performing a final review of a complete paper draft.
-           Focus on: cross-section coherence, claim-evidence thread (does the paper prove what it claims?),
+           Focus on: cross-section coherence, idea-experiment thread (do the experiments back the central ideas?),
            narrative flow, notation consistency across sections, figure/table referencing.
            This is NOT a line-by-line review — focus on structural and argumentative issues."
   message: |
@@ -234,7 +234,7 @@ mcp__llm-review__chat:
 
     ## Review Focus
     1. Does the paper tell a coherent story from Introduction to Conclusion?
-    2. Are all claims from the matrix adequately supported in the text?
+    2. Are all ideas from the plan adequately supported in the text?
     3. Is there notation inconsistency between sections?
     4. Are all figures/tables referenced and discussed?
     5. Any redundancy between sections?
@@ -281,7 +281,7 @@ mcp__llm-review__chat:
 
 ## Constraints
 
-- **每个 section 从 wiki 取材**：不凭空生成内容。每个技术 claim 必须追溯到 wiki 页面
+- **每个 section 从 wiki 取材**：不凭空生成内容；每个技术陈述必须追溯到 wiki 页面
 - **BibTeX 遵循 citation-verification.md**：从 DBLP/CrossRef/S2 获取，不从 LLM 记忆生成
 - **de-AI polish 必选**：每个 section 写完后必须执行 polish pass，不可跳过
 - **figures 遵循 academic-writing.md**：colorblind-safe、font size >= 8pt、vector format preferred
@@ -296,7 +296,7 @@ mcp__llm-review__chat:
 
 - **PAPER_PLAN 找不到**：报错，建议先运行 /paper-plan
 - **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 /paper-plan
-- **wiki 页面找不到**（plan 引用的 claim/experiment/paper 不存在）：警告并跳过该引用，标注缺失
+- **wiki 页面找不到**（plan 引用的 idea/experiment/method/paper 不存在）：警告并跳过该引用，标注缺失
 - **figure 生成失败**（matplotlib 错误）：输出占位符 `% TODO: generate figure {name}`，继续其他 section
 - **BibTeX 全部获取失败**：使用 [UNCONFIRMED] 占位，在终端报告需要手动处理的数量
 - **Review LLM 不可用**（--review 模式）：跳过 section review 和 cross-review，标注「unreviewed」

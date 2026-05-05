@@ -21,12 +21,12 @@ argument-hint: "[topic] [--no-introduction]"
 
 ## Outputs
 
-- `wiki/` 骨架与 provisional 页面（Summary、topics、ideas、concepts、claims）
+- `wiki/` 骨架与 provisional 页面（Summary、topics、ideas、concepts）
 - `raw/tmp/` 与 `raw/discovered/` 预处理来源
 - 并行 `/ingest` 产出的最终论文页面
 - `.checkpoints/init-*.json` 清单，用于恢复与重放
 - 更新后的 `wiki/index.md`、`wiki/log.md`、`wiki/graph/*`
-- 重新生成的可视化产物：`wiki/.obsidian/graph.json`（按实体类型的 colorGroups）与 `wiki/canvases/*.canvas`（best-effort，见 Step 6）。交互式网页 Graph 视图由 `tools/serve.py`（SPA）提供服务，不再单独生成 HTML 文件。
+- 重新生成的可视化产物：`wiki/.obsidian/graph.json`（按实体类型的 colorGroups）与 `wiki/canvases/*.canvas`（best-effort，见 Step 6）。交互式网页 Graph 视图由 `tools/serve.py`（SPA）提供服务，不再单独生成产物。
 
 ## Wiki Interaction
 
@@ -34,7 +34,7 @@ argument-hint: "[topic] [--no-introduction]"
 
 - `raw/papers/`、`raw/notes/`、`raw/web/`
 - `.checkpoints/init-prepare.json` 与 `.checkpoints/init-sources.json`，供 resume、planning 与 fan-out 使用
-- `wiki/index.md` 以及已有 `wiki/topics/`、`wiki/ideas/`、`wiki/concepts/`、`wiki/claims/`
+- `wiki/index.md` 以及已有 `wiki/topics/`、`wiki/ideas/`、`wiki/concepts/`、`wiki/methods/`，用于去重与 scaffold 对齐
 
 ### Writes
 
@@ -130,7 +130,7 @@ export PYTHON_BIN
 
 ### Step 4: 在论文 ingest 前建立 scaffold 页面
 
-创建一篇 `wiki/Summary/{area}.md`、若干 `wiki/topics/{slug}.md`，以及来自 notes/web 的 provisional `ideas/`、`concepts/`、`claims/`。
+创建一篇 `wiki/Summary/{area}.md`、若干 `wiki/topics/{slug}.md`，以及来自 notes/web 的 provisional `ideas/`、`concepts/`，必要时还包括 `methods/`。
 
 规则：
 
@@ -144,8 +144,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - `topics/`：方向被明确提到或反复出现时创建
 - `ideas/`：用户明确提出或强烈暗示研究方向 / 假设时创建
 - `concepts/`：技术机制在 notes/web 中反复出现，或在 notes/web 与最终论文集中各出现至少一次时创建
-- `claims/`：只允许从显式断言创建，禁止靠推断补全
-- notes/web 派生 claim 使用 `status: proposed`、`confidence: 0.2`、`source_papers: []`、`evidence: []`
+- `methods/`：除非用户在 notes/web 中显式命名了一项可复用、可被引用的 method，否则 `/init` 不创建 `methods/`；把论文中的 method 推升为可复用 method 实体是 ingest 的职责
 - `/prefill` 只是可选背景预填充，不属于 `/init`
 - `/init` 不得直接创建 `people/` 页面，也不得自动创建 foundations
 
@@ -180,7 +179,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 全部子代理完成后：
 
 - 在 `BASE_BRANCH` 上按顺序 merge worktree branches
-- concept / claim 冲突默认保守合并，不要扩散 near-duplicate 页面
+- concept / method 冲突默认保守合并，不要扩散 near-duplicate 页面
 - 执行：
 
 ```bash
@@ -223,7 +222,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - 只有 `/prefill` 可以自动创建 foundations
 - `/init` 不得直接创建 `people/` 页面
 - notes/web 派生页面必须包含上面的 exact provisional notice
-- 对 claim 置信度与 concept 合并，论文证据永远高于 notes/web
+- 对 concept 合并与 method 抽取，论文证据永远高于 notes/web
 - 所有论文 ingest 必须通过并行 `/ingest` 子代理执行
 - Step 5 必须读取 `.checkpoints/init-sources.json`，不得临时扫描目录
 - 精确的 planner 常量属于 `tools/init_discovery.py`，不属于重复写在 skill 文档中的常量
