@@ -243,10 +243,10 @@ and are best run from WSL2 or Linux/macOS.
 | `/ideate` | Multi-phase idea generation from cross-topic connections |
 | `/novelty <idea>` | Multi-source novelty verification (web + S2 + wiki + review LLM) |
 | `/review <artifact>` | Cross-model adversarial review for any research artifact |
-| `/exp-design <idea>` | Claim-driven experiment + ablation design |
+| `/exp-design <idea>` | Idea-driven experiment + ablation design |
 | `/exp-run <experiment>` | Implement + deploy + monitor (local or remote GPU) |
 | `/exp-status` | Dashboard for running experiments; auto-collect results |
-| `/exp-eval <experiment>` | Verdict gate → auto-update claims/ideas/graph |
+| `/exp-eval <experiment>` | Verdict gate → auto-update the linked idea + graph |
 | `/refine <artifact>` | Multi-round: produce → review → fix → re-review |
 
 ### Phase 3: Writing & Submission
@@ -254,7 +254,7 @@ and are best run from WSL2 or Linux/macOS.
 | Command | What it does |
 |---------|-------------|
 | `/survey` | Generate Related Work from wiki knowledge |
-| `/paper-plan <claims>` | Outline from claim graph + evidence matrix |
+| `/paper-plan <ideas>` | Outline from validated-idea graph + evidence matrix |
 | `/paper-draft <plan>` | Draft LaTeX + figures, section by section |
 | `/paper-compile <dir>` | Compile → PDF, auto-fix, verify page/anonymity |
 | `/research <direction>` | End-to-end orchestrator with human gates |
@@ -266,13 +266,13 @@ and are best run from WSL2 or Linux/macOS.
 
 | Type | Directory | Purpose |
 |------|-----------|---------|
-| **Paper** | `papers/` | Structured summary with problem/method/results/limitations |
-| **Concept** | `concepts/` | Cross-paper technical concept with variants and comparisons |
-| **Topic** | `topics/` | Research direction map with SOTA tracker and open problems |
-| **Person** | `people/` | Researcher profile with key papers and collaborators |
-| **Idea** | `ideas/` | Research idea with lifecycle: proposed → tested → validated/failed |
-| **Experiment** | `experiments/` | Full record: hypothesis → setup → results → claim updates |
-| **Claim** | `claims/` | Testable claim with evidence list and confidence score |
+| **Paper** | `papers/` | Structured summary: problem/key idea/method/experiment+results/limitations + tldr/contribution_type/datasets |
+| **Concept** | `concepts/` | Cross-paper technical concept with variants, comparisons, definition, linked ideas |
+| **Topic** | `topics/` | Research direction map with SOTA tracker, key benchmarks, and open problems (split into known + methodological gaps) |
+| **Person** | `people/` | Researcher profile with research areas, recent work, and a researcher/team/organization type |
+| **Idea** | `ideas/` | Research idea with lifecycle, novelty argument & score, target venue |
+| **Experiment** | `experiments/` | Full record: hypothesis → setup → results → updates to the linked idea |
+| **Method** | `methods/` | Reusable, citable technique entity (cross-paper); links to source papers and parent/child methods |
 | **Summary** | `Summary/` | Domain-wide survey across topics |
 | **Foundation** | `foundations/` | Background knowledge (terminal: receives inward links, writes none) |
 
@@ -280,7 +280,7 @@ and are best run from WSL2 or Linux/macOS.
 
 Semantic relationships are stored in `graph/edges.jsonl`; bibliographic paper citations are stored separately in `graph/citations.jsonl`.
 
-Paper-paper semantic edges include `same_problem_as`, `similar_method_to`, `complementary_to`, `builds_on`, `compares_against`, `improves_on`, `challenges`, and `surveys`. Paper-concept edges use `introduces_concept`, `uses_concept`, `extends_concept`, and `critiques_concept`. Existing claim / experiment / idea / provenance edges remain available where appropriate.
+Paper-paper semantic edges include `same_problem_as`, `similar_method_to`, `complementary_to`, `builds_on`, `compares_against`, `improves_on`, `challenges`, and `surveys`. Paper-concept edges use `introduces_concept`, `uses_concept`, `extends_concept`, and `critiques_concept`. Workflow edges (`supports`, `contradicts`, `tested_by`, `invalidates`, `addresses_gap`, `inspired_by`, `derived_from`) span experiments, ideas, methods, and concepts.
 
 All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian for visual graph exploration.
 
@@ -303,7 +303,7 @@ OmegaWiki/
 │   ├── people/                  #   Researcher profiles
 │   ├── ideas/                   #   Research ideas (with lifecycle)
 │   ├── experiments/             #   Experiment records
-│   ├── claims/                  #   Testable research claims
+│   ├── methods/                 #   Reusable cross-paper method entities
 │   ├── Summary/                 #   Domain-wide surveys
 │   ├── foundations/             #   Background knowledge (terminal pages)
 │   ├── outputs/                 #   Generated artifacts
@@ -535,13 +535,13 @@ claude
 | `/ideate` | 跨方向构思研究 idea |
 | `/novelty` | 多源新颖性验证 |
 | `/review` | 跨模型评审 |
-| `/exp-design` | Claim 驱动实验设计 |
+| `/exp-design` | idea 驱动的实验设计 |
 | `/exp-run` | 部署 + 监控实验 |
 | `/exp-status` | 实验状态看板 |
-| `/exp-eval` | 裁决 → 更新 claims |
+| `/exp-eval` | 裁决 → 自动更新关联 idea |
 | `/refine` | 多轮迭代改进 |
 | `/survey` | 生成 Related Work |
-| `/paper-plan` | Claim 图谱 → 论文提纲 |
+| `/paper-plan` | idea 图谱 + 实验证据 → 论文提纲 |
 | `/paper-draft` | 提纲 + wiki → LaTeX 草稿 |
 | `/paper-compile` | 编译 → PDF，自动修复 |
 | `/research` | 端到端研究编排器 |

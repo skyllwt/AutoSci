@@ -1,5 +1,5 @@
 ---
-description: Ingest a paper into the wiki — creates pages (papers + concepts + people + claims) and builds all cross-references and graph edges. Trigger whenever the user says "ingest", "add this paper", drops a `.pdf` / `.tex` / arXiv URL, or asks to fold a paper into the knowledge base.
+description: Ingest a paper into the wiki — creates pages (papers + concepts + methods + people) and builds all cross-references and graph edges. Trigger whenever the user says "ingest", "add this paper", drops a `.pdf` / `.tex` / arXiv URL, or asks to fold a paper into the knowledge base.
 argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 ---
 
@@ -10,7 +10,7 @@ Turn one paper into a fully wired set of wiki pages. Emit well-formed entities a
 Use these local references on demand:
 
 - `references/pdf-preprocessing.md` — arXiv-ID recovery, tex fetching, prepare-paper handoff for direct PDF drops
-- `references/dedup-policy.md` — merge-vs-create decision rule for concepts and claims, and the line that separates `/ingest` shape checks from `/check` semantic audits
+- `references/dedup-policy.md` — merge-vs-create decision rule for concepts and methods, and the line that separates `/ingest` shape checks from `/check` semantic audits
 - `references/cross-references.md` — forward/reverse link matrix and paper-to-paper edge-type selection
 - `references/init-mode.md` — manifest-driven handoff from `/init` and parallel-safety conventions
 - `references/error-handling.md` — source parse, API, and slug-collision fallbacks
@@ -25,7 +25,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 ## Outputs
 
-- One fully-wired paper page plus linked entities (concepts, claims, people)
+- One fully-wired paper page plus linked entities (concepts, methods, people)
 - Graph edges and citations appended via `tools/research_wiki.py`
 - Terminal summary with page counts and suggested follow-up ingests
 
@@ -36,7 +36,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 - `wiki/index.md` for existing slugs and tags
 - `wiki/papers/*.md` to detect an already-ingested paper
 - `wiki/concepts/*.md` and `wiki/foundations/*.md` for dedup matches
-- `wiki/claims/*.md` for dedup matches
+- `wiki/methods/*.md` for dedup matches against existing reusable methods
 - `wiki/people/*.md` for existing authors
 - `wiki/topics/*.md` to place the paper under existing topics
 - `wiki/graph/open_questions.md` to notice when the paper addresses a known gap
@@ -45,8 +45,8 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 - `wiki/papers/{slug}.md` — CREATE
 - `wiki/concepts/{slug}.md` — CREATE (new) or EDIT (append `key_papers`, aliases, variants)
-- `wiki/claims/{slug}.md` — CREATE (new) or EDIT (append `evidence` entry)
-- `wiki/people/{slug}.md` — CREATE (importance ≥ 4 only) or EDIT (append `Key papers`)
+- `wiki/methods/{slug}.md` — CREATE (new, only when the method is named, reusable, and citable across papers) or EDIT (append `source_papers`)
+- `wiki/people/{slug}.md` — CREATE (importance ≥ 4 only) or EDIT (append into `## Recent work`)
 - `wiki/topics/{slug}.md` — EDIT only (no CREATE from `/ingest`)
 - `wiki/graph/edges.jsonl` — APPEND via tool
 - `wiki/graph/citations.jsonl` — APPEND via tool
@@ -60,7 +60,6 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 - `paper → concept`: `introduces_concept` / `uses_concept` / `extends_concept` / `critiques_concept` with `confidence`
 - `paper → foundation`: `derived_from` (foundation is terminal; no reverse link)
-- `paper → claim`: `supports` / `contradicts`
 - `paper → paper`: `same_problem_as` / `similar_method_to` / `complementary_to` / `builds_on` / `compares_against` / `improves_on` / `challenges` / `surveys` with `confidence`
 - bibliographic `paper → paper`: `cites` in `graph/citations.jsonl`
 
@@ -127,30 +126,43 @@ Raw persistence rule: never copy or duplicate a file already under `raw/discover
    "$PYTHON_BIN" tools/fetch_deepxiv.py social <arxiv-id>
    ```
 
-   `brief` seeds the Key-idea section; `head` sanity-checks your tex parsing against the section structure; `social` is an auxiliary importance signal.
+   `brief` seeds the Key-idea section AND the new `tldr` frontmatter field; `head` sanity-checks your tex parsing against the section structure; `social` is an auxiliary importance signal.
 
 ### Step 3: Write the paper page
 
 Open `runtime/schema/entities.yaml` (papers section) for the field set and `runtime/templates/papers.md.tmpl` for body section order. Fill every required frontmatter field; leave `cited_by` empty for now (step 5 backfills it).
 
+Three frontmatter fields the new schema requires you to populate even though they are not lint-required (so existing pages do not break, but new ingests must:):
+
+- `tldr` — one-sentence summary of the paper, suitable as a search/preview line. NOT a multi-paragraph abstract; one sentence.
+- `contribution_type` — list of contribution kinds drawn from the closed set `[method, theory, benchmark, analysis, application, system, position, survey]`. A paper may have several (e.g. method + benchmark). Do not invent new values.
+- `datasets` — list of dataset / benchmark names the paper uses or introduces (e.g. `MMLU`, `BFCL`, `AppWorld`). Use `[]` when the paper introduces no concrete dataset; do not fabricate.
+
 Before writing, run a **shape check** on the frontmatter you are about to emit — no more than this:
 
 - every required key is present and non-empty
-- `importance` ∈ {1,2,3,4,5}; `status` on claims ∈ the documented set; `maturity` on concepts ∈ the documented set; claim `confidence` ∈ [0,1]
+- `importance` ∈ {1,2,3,4,5}; `maturity` on concepts ∈ the documented set; `type` on methods ∈ the documented set
+- `contribution_type` items all come from the enum above
 - YAML parses
 
 The shape check is intentionally narrow. Backlink symmetry, dangling-node detection, and cross-entity consistency are `/check`'s job, not this skill's.
 
-Body sections to populate: Problem, Key idea, Method, Results, Limitations, Open questions, My take, Related.
+Body sections to populate, in this order: `Problem & Context`, `Key idea`, `Method`, `Experiment & Results`, `Limitations`, `Open questions`, `My take`, `Related`.
 
-### Step 4: Concepts, claims, people
+Section semantics:
+
+- **Problem & Context** — what the paper attacks AND where the field stood before this paper. Two-in-one section.
+- **Experiment & Results** — setup, primary metrics, and results in one place. Do not stop at "they beat the baseline"; cite the numbers and their conditions.
+
+### Step 4: Concepts, methods, people
 
 Follow `references/dedup-policy.md`. In short:
 
-1. For each candidate concept or claim, call the matching `find-similar-*` tool first.
-2. Prefer merging into the top result. Create a new page only when the tool returns no acceptable candidate and the paper's importance justifies it.
-3. For each entity you write or edit, write the reverse link in the same turn. The obligation matrix lives in `references/cross-references.md`.
-4. Create a `wiki/people/{slug}.md` only for papers with importance ≥ 4. Otherwise append to existing author pages only.
+1. For each candidate concept, call `find-similar-concept` first.
+2. For each candidate method (named, reusable technique that other papers could cite), check `wiki/methods/` for an existing entry by name + tags. There is no `find-similar-method` tool — do a directory scan and a manual title/alias compare against `runtime/schema/entities.yaml`'s `methods.name` field.
+3. Prefer merging into the top result. Create a new page only when no acceptable candidate exists and the paper's importance justifies it. The `## Method` body section on the paper page is **always** filled (it is this paper's own method narrative); a separate `wiki/methods/{slug}.md` is only created when the technique is namable, reusable, and likely to be referenced by other papers.
+4. For each entity you write or edit, write the reverse link in the same turn. The obligation matrix lives in `references/cross-references.md`.
+5. Create a `wiki/people/{slug}.md` only for papers with importance ≥ 4. Otherwise append the paper's `[[paper-slug]]` to existing author pages' `## Recent work` only. People entities use `research_areas` (list_str) and a `type.kind` enum (`researcher` / `team` / `organization`); only assign `type.kind = team` or `organization` when the byline itself names the team or organization (do not infer it from a researcher's affiliation).
 
 ### Step 5: Paper-to-paper edges and `cited_by`
 
@@ -168,10 +180,10 @@ Skip this whole step in INIT MODE — the parent `/init` handles it at fan-in.
 
 ### Step 6: Topics and index
 
-1. Match the paper's domain and tags against existing `wiki/topics/*.md`. For each match:
+1. Match the paper's tags against existing `wiki/topics/*.md`. For each match:
    - importance ≥ 4 → append to the topic's `## Seminal works`
    - importance < 4 → append under `## SOTA tracker` or `## Recent work` by year
-   - if the paper directly addresses a listed open problem, annotate that line on the topic page
+   - if the paper directly addresses a listed open problem (under `## Open problems` / `### Known gaps` / `### Methodological gaps`), annotate that line on the topic page
 2. Do not create new topic pages from `/ingest` — topic creation belongs to `/init` and `/edit`.
 3. Append new or edited page entries to `wiki/index.md` under their category headings. Format: each entity kind is a top-level YAML key (matching `runtime/schema/entities.yaml`), with `- slug: <slug>` entries beneath.
 
@@ -206,7 +218,7 @@ When active, regenerate Canvas + HTML (best-effort; visualize failure must not f
 Emit one compact summary covering: pages created, pages updated, graph edges added, contradictions surfaced (if any), and high-citation references not yet in the wiki (suggested follow-up ingests). Close with:
 
 ```
-Wiki: +1 paper, +{N} claims, +{M} concepts, +{K} edges
+Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 ```
 
 ### Step 9: Optional discovery (only if `--discover` is set)
@@ -235,9 +247,10 @@ Append the markdown output to the report under a heading like "Related papers yo
 - In INIT MODE, do not write reverse links into pages that already exist (created by a sibling worktree or scaffold). Record the relationship via `tools/research_wiki.py add-edge` only; the parent `/init` backfills reverse links during fan-in.
 - Source priority: `.tex` > `.pdf` > vision API fallback. Never ingest from a PDF when a usable `.tex` is available.
 - Ingest is conservative about new entities:
-  - importance < 4: at most **1** new concept and **1** new claim per paper
-  - importance ≥ 4: at most **3** new concepts and **2** new claims per paper
-  - Any further candidates must be merged into their nearest `find-similar-*` result, or left out for `/check` to flag. Rationale and matching rules: `references/dedup-policy.md`.
+  - importance < 4: at most **1** new concept and **1** new method per paper
+  - importance ≥ 4: at most **3** new concepts and **2** new methods per paper
+  - Any further candidates must be merged into their nearest existing entry, or left out for `/check` to flag. Rationale and matching rules: `references/dedup-policy.md`.
+- A `methods/` page is only justified when the technique is **named**, **reusable**, and **citable** by a future paper. The paper page's own `## Method` body section captures this paper's method narrative; do not duplicate it as a methods entity unless the method earns reuse.
 - `/ingest` runs a shape check on its own output (required keys, enum ranges, YAML parses) and stops there. Backlink symmetry, dangling nodes, and full semantic audits belong to `/check`. Do not re-implement them here.
 - Assume another `/ingest` may run concurrently in a sibling worktree. All shared-file writes (`graph/edges.jsonl`, `graph/citations.jsonl`, `index.md`, `log.md`) must go through `tools/research_wiki.py` or use append-only semantics. See `references/init-mode.md`.
 - In INIT MODE, skip `fetch_s2.py citations`, `fetch_s2.py references`, and the `rebuild-*` commands — the parent `/init` runs them once after fan-in.
@@ -253,7 +266,6 @@ See `references/error-handling.md`. Highlights: source parse failures cascade te
 
 - `"$PYTHON_BIN" tools/research_wiki.py slug "<title>"`
 - `"$PYTHON_BIN" tools/research_wiki.py find-similar-concept wiki/ "<title>" --aliases "<a,b,c>"`
-- `"$PYTHON_BIN" tools/research_wiki.py find-similar-claim wiki/ "<title>" --tags "<a,b,c>"`
 - `"$PYTHON_BIN" tools/research_wiki.py add-edge wiki/ --from <id> --to <id> --type <type> --evidence "<text>" [--confidence high|medium|low]`
   - `--confidence high|medium|low` is required for paper-paper and paper-concept semantic edges.
 - `"$PYTHON_BIN" tools/research_wiki.py add-citation wiki/ --from papers/<citing> --to papers/<cited> --source semantic_scholar`

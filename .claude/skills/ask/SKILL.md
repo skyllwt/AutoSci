@@ -7,8 +7,8 @@ argument-hint: <question>
 
 > Ask a question to the wiki knowledge base. The LLM reads context_brief.md for global context,
 > retrieves relevant pages, synthesizes an answer with citations. Good answers can be
-> crystallized back into the wiki — written to outputs/ or as new concept/claim pages —
-> so exploration compounds like ingestion does.
+> crystallized back into the wiki — written to outputs/, as new concept pages, or appended
+> to an existing idea/method/output note — so exploration compounds like ingestion does.
 
 ## Inputs
 
@@ -22,19 +22,19 @@ argument-hint: <question>
 - **If crystallize**:
   - `wiki/outputs/{query-slug}.md` — query result page (default crystallize target)
   - or `wiki/concepts/{slug}.md` — if the answer reveals a new cross-paper concept
-  - or `wiki/claims/{slug}.md` — if the answer surfaces a new verifiable assertion
+  - or appended to an existing `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — if the answer adds a finding to an existing entity
   - updated `wiki/graph/edges.jsonl` (relationships produced by crystallize)
   - updated `wiki/index.md` and `wiki/log.md`
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/graph/context_brief.md` — global compressed context (claims, gaps, failed ideas, papers, edges)
+- `wiki/graph/context_brief.md` — global compressed context (ideas, gaps, failed ideas, papers, edges)
 - `wiki/index.md` — page catalog for locating relevant pages
 - `wiki/graph/open_questions.md` — open questions, helps identify whether the question touches known gaps
 - `wiki/papers/*.md` — paper pages relevant to the question
 - `wiki/concepts/*.md` — concept pages relevant to the question
-- `wiki/claims/*.md` — claim pages relevant to the question
+- `wiki/methods/*.md` — method pages relevant to the question
 - `wiki/topics/*.md` — topic pages relevant to the question
 - `wiki/people/*.md` — if the question involves specific researchers
 - `wiki/ideas/*.md` — if the question involves research ideas or failed ideas
@@ -44,7 +44,7 @@ argument-hint: <question>
 ### Writes (crystallize mode only)
 - `wiki/outputs/{query-slug}.md` — CREATE (query result page)
 - `wiki/concepts/{slug}.md` — CREATE (newly discovered concept) or EDIT (supplement existing concept)
-- `wiki/claims/{slug}.md` — CREATE (newly discovered assertion) or EDIT (add evidence)
+- `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — EDIT (append finding to existing page)
 - `wiki/graph/edges.jsonl` — APPEND (relationships produced by crystallize)
 - `wiki/graph/context_brief.md` — REBUILD (if crystallize created new pages)
 - `wiki/graph/open_questions.md` — REBUILD (if crystallize created new pages)
@@ -54,9 +54,8 @@ argument-hint: <question>
 ### Graph edges created (crystallize only)
 - `output → paper`: `derived_from` (papers cited in the answer)
 - `output → concept`: `derived_from` (concepts cited in the answer)
-- `output → claim`: `derived_from` (claims cited in the answer)
+- `output → idea` / `output → method`: `derived_from` (ideas or methods cited in the answer)
 - `concept → paper`: `supports` (if a new concept is generalized from papers)
-- `claim → paper`: `supports` (if a new claim is extracted from papers)
 
 ## Workflow
 
@@ -65,7 +64,7 @@ Set `WIKI_ROOT=wiki/`.
 
 ### Step 1: Load Global Context
 
-1. Read `wiki/graph/context_brief.md` — get compressed snapshot of wiki's current knowledge (claims, gaps, papers, edges)
+1. Read `wiki/graph/context_brief.md` — get compressed snapshot of wiki's current knowledge (ideas, gaps, papers, edges)
 2. Read `wiki/graph/open_questions.md` — understand known open questions and knowledge gaps
 3. If both are missing, rebuild first:
    ```bash
@@ -76,7 +75,7 @@ Set `WIKI_ROOT=wiki/`.
 ### Step 2: Retrieve Relevant Pages
 
 1. Read `wiki/index.md`, match relevant slugs against question keywords
-2. Extract claims and papers semantically related to the question from context_brief.md
+2. Extract ideas, methods, and papers semantically related to the question from context_brief.md
 3. Sort by relevance, select top-K pages (K ≤ 15 to avoid exceeding context window)
 4. Read full content of selected pages
 5. If the question involves relationships (e.g. "difference between X and Y"), additionally read edges connecting X and Y from `wiki/graph/edges.jsonl`
@@ -85,11 +84,11 @@ Set `WIKI_ROOT=wiki/`.
 
 1. Synthesize an answer to the user's question based on collected page content
 2. Answer requirements:
-   - **Cited**: every key claim must include a `[[slug]]` wikilink pointing to its source page
+   - **Cited**: every key statement must include a `[[slug]]` wikilink pointing to its source page
    - **Structured**: organize output according to `--format` parameter (markdown / table / timeline / bullets)
    - **Acknowledge uncertainty**: clearly flag "insufficient evidence in wiki" for parts with weak support
    - **Flag knowledge gaps**: if the question touches a known gap in open_questions.md, call it out explicitly
-   - **Cite claim confidence**: when referencing claims, note their confidence and status
+   - **Cite idea status**: when referencing ideas, note their `status` and `novelty_score`
 3. If the question exceeds the wiki's current knowledge, honestly say so and suggest:
    - which papers to ingest to fill the gap
    - possible search directions (arXiv keywords, Semantic Scholar queries)
@@ -100,7 +99,7 @@ Set `WIKI_ROOT=wiki/`.
 2. Signals that crystallize is worthwhile:
    - The answer synthesizes information from multiple papers, forming a new cross-paper insight
    - The answer reveals a concept not yet explicitly recorded in the wiki
-   - The answer surfaces a new verifiable assertion (claim)
+   - The answer adds a finding that strengthens an existing idea, method, or output note
    - The answer addresses a known gap in open_questions.md
 3. Signals that crystallize is not worthwhile:
    - The answer merely restates the content of a single page
@@ -140,13 +139,13 @@ Choose the crystallize target based on answer content:
 4. Add graph edges (concept → papers)
 5. Append reverse links to relevant paper pages under `## Related`
 
-**Case C — Create new claim:**
-1. If the answer surfaces a new assertion: create `wiki/claims/{slug}.md` using the CLAUDE.md claim template
-2. status: proposed (synthesized from query, not direct experimental evidence)
-3. confidence: set initial value based on strength of cited evidence
-4. source_papers: extracted from answer citations
-5. Add graph edges (claim → papers)
-6. Append reverse links to relevant paper pages under `## Related`
+**Case C — Append finding to an existing idea, method, or output note:**
+1. If the answer extends a finding tied to an existing entity, append a short paragraph (with `[[slug]]` citations) to the appropriate section:
+   - `wiki/ideas/{slug}.md` → `## Lessons learned` or `## Pilot results`
+   - `wiki/methods/{slug}.md` → `## Limitations` or `## Tradeoff profile`
+   - `wiki/outputs/{slug}.md` → end of the body
+2. Add graph edges from the touched page to the cited papers/concepts/methods (`derived_from`)
+3. Do not create a new entity; this case only enriches an existing one
 
 ### Step 6: Update Navigation and Graph (crystallize only)
 
@@ -182,7 +181,7 @@ Output a summary including:
 - **graph/ only via tools**: do not hand-edit files under `graph/`
 - **Crystallize requires confirmation**: unless the user explicitly specifies `--crystallize`, only recommend but do not write
 - **Context limit**: retrieve at most 15 pages to stay within context window
-- **Cite claim confidence**: when referencing claims, always note their confidence value and status
+- **Cite idea status**: when referencing ideas, always note their `status` and `novelty_score`
 - **Flag gaps**: if the question touches a known gap in open_questions.md, explicitly call it out
 - **outputs/ frontmatter must include query and source_pages**: ensures traceability
 

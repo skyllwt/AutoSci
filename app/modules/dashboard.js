@@ -1,6 +1,6 @@
 // Dashboard view: research-lifecycle overview.
 //
-// 8 widgets, each fed by one read endpoint or by state.entitiesByType
+// Several widgets, each fed by one read endpoint or by state.entitiesByType
 // (already loaded at boot). All charts are pure HTML/CSS — no chart lib.
 
 import { marked } from "https://cdn.jsdelivr.net/npm/marked@14.1.4/lib/marked.esm.js";
@@ -14,17 +14,6 @@ import { resolveWikilinks } from "./wikilink.js";
 
 marked.use({ gfm: true, breaks: false });
 
-const CLAIM_STATUSES = [
-  "proposed", "weakly_supported", "supported", "challenged", "deprecated",
-];
-const CLAIM_STATUS_COLORS = {
-  proposed: "#94a3b8",
-  weakly_supported: "#fbbf24",
-  supported: "#22c55e",
-  challenged: "#f97316",
-  deprecated: "#94a3b8",
-};
-
 const IDEA_STATUSES = [
   "proposed", "in_progress", "tested", "validated", "failed",
 ];
@@ -36,6 +25,8 @@ const IDEA_STATUS_COLORS = {
   failed: "#ef4444",
 };
 
+const NOVELTY_BIN_LABELS = ["1", "2", "3", "4", "5"];
+
 export async function viewDashboard(mount) {
   mount.innerHTML = `<div class="dashboard"><p class="muted">loading dashboard&hellip;</p></div>`;
 
@@ -45,7 +36,7 @@ export async function viewDashboard(mount) {
     getLog(50).catch(() => ({ entries: [] })),
   ]);
 
-  const claims = state.entitiesByType.claims || [];
+  const methods = state.entitiesByType.methods || [];
   const experiments = state.entitiesByType.experiments || [];
   const ideas = state.entitiesByType.ideas || [];
 
@@ -55,8 +46,8 @@ export async function viewDashboard(mount) {
       ${renderHeadline()}
       ${renderMaturity(maturity)}
       <div class="dash-row">
-        ${renderClaimsByStatus(claims)}
-        ${renderConfidenceHistogram(claims)}
+        ${renderMethodsByType(methods)}
+        ${renderNoveltyHistogram(ideas)}
       </div>
       ${renderExperimentsTable(experiments)}
       ${renderIdeasPipeline(ideas)}
@@ -138,7 +129,7 @@ function renderHeadline() {
   const cells = [
     { label: "Papers", value: counts.papers || 0, color: "#4A90D9" },
     { label: "Concepts", value: counts.concepts || 0, color: "#EC4899" },
-    { label: "Claims", value: counts.claims || 0, color: "#84CC16" },
+    { label: "Methods", value: counts.methods || 0, color: "#84CC16" },
     { label: "People", value: counts.people || 0, color: "#2ECC71" },
     { label: "Experiments", value: counts.experiments || 0, color: "#E74C3C" },
     { label: "Ideas", value: counts.ideas || 0, color: "#F39C12" },
@@ -182,69 +173,89 @@ function renderMaturity(m) {
         coverage ${score.toFixed(3)} ·
         density ${(m.graph_density || 0).toFixed(4)} ·
         ${m.papers || 0} papers ·
-        ${m.claims || 0} claims ·
+        ${m.ideas || 0} ideas ·
         ${m.experiments_completed || 0} completed experiments
       </p>
     </section>
   `;
 }
 
-// --- 3. Claims by status ----------------------------------------------------
+// --- 3. Methods by type -----------------------------------------------------
 
-function renderClaimsByStatus(claims) {
-  const buckets = Object.fromEntries(CLAIM_STATUSES.map((s) => [s, 0]));
-  for (const c of claims) {
-    const s = c.status || "proposed";
-    if (s in buckets) buckets[s]++;
-    else buckets.proposed++;
+const METHOD_TYPE_COLORS = {
+  architecture: "#4A90D9",
+  training:     "#22c55e",
+  inference:    "#3b82f6",
+  evaluation:   "#fbbf24",
+  data:         "#a855f7",
+  benchmark:    "#ec4899",
+  system:       "#f97316",
+  optimization: "#10b981",
+  prompting:    "#14b8a6",
+  protocol:     "#6366f1",
+  other:        "#94a3b8",
+};
+
+function renderMethodsByType(methods) {
+  const buckets = new Map();
+  for (const m of methods) {
+    const t = (m.type || "other");
+    buckets.set(t, (buckets.get(t) || 0) + 1);
   }
-  const total = claims.length || 1;
-  const rows = CLAIM_STATUSES.map((s) => {
-    const n = buckets[s];
-    const pct = (n / total) * 100;
+  if (methods.length === 0) {
     return `
-      <div class="bar-row">
-        <span class="bar-label">${esc(s)}</span>
-        <div class="bar-track">
-          <div class="bar-fill" style="width:${pct.toFixed(1)}%; background:${CLAIM_STATUS_COLORS[s]}"></div>
-        </div>
-        <span class="bar-num">${n}</span>
-      </div>
+      <section class="dash-card half">
+        <h3>Methods by type <span class="muted small">(0)</span></h3>
+        <p class="muted">No method pages yet. <code>/ingest</code> creates them when a paper introduces a reusable, namable method.</p>
+      </section>
     `;
-  }).join("");
+  }
+  const total = methods.length || 1;
+  const rows = [...buckets.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => {
+      const pct = (n / total) * 100;
+      return `
+        <div class="bar-row">
+          <span class="bar-label">${esc(t)}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${pct.toFixed(1)}%; background:${METHOD_TYPE_COLORS[t] || "#94a3b8"}"></div>
+          </div>
+          <span class="bar-num">${n}</span>
+        </div>
+      `;
+    }).join("");
   return `
     <section class="dash-card half">
-      <h3>Claims by status <span class="muted small">(${claims.length})</span></h3>
+      <h3>Methods by type <span class="muted small">(${methods.length})</span></h3>
       <div class="bars">${rows}</div>
     </section>
   `;
 }
 
-// --- 4. Confidence histogram ------------------------------------------------
+// --- 4. Idea novelty histogram ---------------------------------------------
 
-function renderConfidenceHistogram(claims) {
-  const bins = new Array(10).fill(0);
-  for (const c of claims) {
-    if (typeof c.confidence !== "number") continue;
-    const idx = Math.min(9, Math.max(0, Math.floor(c.confidence * 10)));
+function renderNoveltyHistogram(ideas) {
+  const bins = new Array(5).fill(0); // novelty_score 1..5
+  for (const i of ideas) {
+    if (typeof i.novelty_score !== "number") continue;
+    const idx = Math.min(4, Math.max(0, Math.floor(i.novelty_score - 1)));
     bins[idx]++;
   }
   const max = Math.max(1, ...bins);
   const cols = bins.map((n, i) => {
     const h = (n / max) * 100;
-    const lo = (i / 10).toFixed(1);
-    const hi = ((i + 1) / 10).toFixed(1);
     return `
-      <div class="hist-col" title="${lo}–${hi}: ${n}">
+      <div class="hist-col" title="${NOVELTY_BIN_LABELS[i]}/5: ${n} idea(s)">
         <div class="hist-bar" style="height:${h.toFixed(1)}%"></div>
-        <div class="hist-tick">${lo}</div>
+        <div class="hist-tick">${NOVELTY_BIN_LABELS[i]}</div>
       </div>
     `;
   }).join("");
-  const withConf = claims.filter((c) => typeof c.confidence === "number").length;
+  const scored = ideas.filter((i) => typeof i.novelty_score === "number").length;
   return `
     <section class="dash-card half">
-      <h3>Claim confidence <span class="muted small">(${withConf} of ${claims.length} claims)</span></h3>
+      <h3>Idea novelty <span class="muted small">(${scored} of ${ideas.length} scored)</span></h3>
       <div class="histogram">${cols}</div>
     </section>
   `;
@@ -265,7 +276,7 @@ function renderExperimentsTable(exps) {
     <tr>
       <td><a href="#/reader/experiments/${esc(e.slug)}">${esc(e.title || e.slug)}</a></td>
       <td><span class="chip status">${esc(e.status || "—")}</span></td>
-      <td>${e.target_claim ? `<a href="#/reader/claims/${esc(e.target_claim)}">${esc(e.target_claim)}</a>` : '<span class="muted">—</span>'}</td>
+      <td>${e.linked_idea ? `<a href="#/reader/ideas/${esc(e.linked_idea)}">${esc(e.linked_idea)}</a>` : '<span class="muted">—</span>'}</td>
       <td class="muted small">${esc(e.started || e.date_planned || "—")}</td>
       <td class="muted small">${e.estimated_hours ? esc(String(e.estimated_hours)) + "h" : "—"}</td>
     </tr>
@@ -274,7 +285,7 @@ function renderExperimentsTable(exps) {
     <section class="dash-card">
       <h3>Experiments <span class="muted small">(${exps.length})</span></h3>
       <table class="dash-table">
-        <thead><tr><th>Slug</th><th>Status</th><th>Target claim</th><th>Started</th><th>Est.</th></tr></thead>
+        <thead><tr><th>Slug</th><th>Status</th><th>Linked idea</th><th>Started</th><th>Est.</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </section>
@@ -403,7 +414,7 @@ const QUICK_ACTIONS = [
   { skill: "check",      desc: "Lint + audit the whole wiki" },
   { skill: "ideate",     desc: "Generate research ideas from open questions" },
   { skill: "discover",   desc: "Find related papers via citation graph" },
-  { skill: "exp-design", desc: "Plan an experiment for a target claim" },
+  { skill: "exp-design", desc: "Plan an experiment for a linked idea" },
 ];
 
 function renderQuickActions() {

@@ -1,8 +1,8 @@
 // Single source of truth for ΩmegaWiki entity-type schema constants.
 //
-// These mirror tools/visualize.py:ENTITY_DIRS and the 9 page types declared in
+// These mirror tools/visualize.py:ENTITY_DIRS and the page types declared in
 // runtime/schema/entities.yaml (the SSOT). They are the project's schema, not
-// user data — every user's wiki has the same 9 directory names.
+// user data — every user's wiki has the same set of directory names.
 //
 // Future-proofing: if a new entity type is ever added (e.g. `protocols`),
 // extend it here in one place and all views pick it up automatically.
@@ -10,7 +10,7 @@
 // Canonical directory names, exact case (note: "Summary" is capitalized).
 export const ENTITY_DIRS = Object.freeze([
   "papers", "concepts", "topics", "people",
-  "ideas", "experiments", "claims", "Summary", "foundations",
+  "ideas", "experiments", "methods", "Summary", "foundations",
 ]);
 
 // Set form for fast `has()` checks (router uses this).
@@ -20,7 +20,7 @@ export const VALID_TYPES = new Set(ENTITY_DIRS);
 // multiple entity types. Papers/concepts/topics rank highest because those
 // are the most-referenced surfaces; foundations is terminal.
 export const TYPE_PRECEDENCE = Object.freeze([
-  "papers", "concepts", "topics", "claims", "people",
+  "papers", "concepts", "topics", "methods", "people",
   "ideas", "experiments", "Summary", "foundations",
 ]);
 
@@ -32,7 +32,7 @@ export const ENTITY_LABEL = Object.freeze({
   people: "People",
   ideas: "Ideas",
   experiments: "Experiments",
-  claims: "Claims",
+  methods: "Methods",
   Summary: "Summary",
   foundations: "Foundations",
 });
@@ -42,7 +42,7 @@ export const ENTITY_LABEL = Object.freeze({
 // declared per-edge in runtime/schema/edges.yaml::workflow.
 export const EDGE_WORKFLOW_COLORS = Object.freeze({
   ingest: "#5B8BD9",
-  claim_evidence: "#59C189",
+  evidence: "#59C189",
   experiment: "#E6A23C",
   idea: "#F5A623",
   provenance: "#999999",
@@ -65,9 +65,10 @@ export const EDGE_TYPE_WORKFLOW = Object.freeze({
   extends_concept: "ingest",
   critiques_concept: "ingest",
   cites: "ingest",
-  // claim evidence
-  supports: "claim_evidence",
-  contradicts: "claim_evidence",
+  // evidence — supports/contradicts now travel between ideas, methods, and papers
+  // (the legacy standalone claim entity was retired in the schema refactor).
+  supports: "evidence",
+  contradicts: "evidence",
   // experiment
   tested_by: "experiment",
   invalidates: "experiment",

@@ -13,7 +13,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ## Inputs
 
 - `artifact`：要改进的制品，以下之一：
-  - wiki 页面的 slug（从 ideas/experiments/claims/outputs/ 中查找）
+  - wiki 页面的 slug（从 ideas/experiments/methods/outputs/ 中查找）
   - 文件路径（如 `wiki/outputs/paper-draft-v1.md`）
 - `--max-rounds N`（可选，默认 4）：最大迭代轮次
 - `--target-score N`（可选，默认 8）：目标 review 评分（1-10），达到后停止
@@ -23,7 +23,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ## Outputs
 
 - **改进后的 artifact**（wiki 页面或文件，原地更新）
-- **wiki 实体更新**（若 review 发现 claim 需加强或 gap 被识别）
+- **wiki 实体更新**（若 review 发现 idea/method 需加强或 gap 被识别）
 - **REFINE_REPORT**（输出到终端）：
   - 每轮的评分变化轨迹
   - 累计修复的 issues 列表
@@ -35,7 +35,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Reads
 - `wiki/ideas/*.md` — 若 artifact 是 idea
 - `wiki/experiments/*.md` — 若 artifact 是 experiment plan
-- `wiki/claims/*.md` — review 引用的 claims
+- `wiki/methods/*.md` — review 引用的 methods
 - `wiki/papers/*.md` — review 引用的 papers
 - `wiki/outputs/*.md` — 若 artifact 是 paper draft 或 output
 - `wiki/graph/context_brief.md` — 传递给 /review 的全局上下文
@@ -44,7 +44,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Writes
 - `wiki/ideas/{slug}.md` — 若 artifact 是 idea，修复 review 发现的问题
 - `wiki/experiments/{slug}.md` — 若 artifact 是 experiment plan
-- `wiki/claims/{slug}.md` — 若 review 发现 claim 需要更新（confidence 调整、evidence 补充说明）
+- `wiki/methods/{slug}.md` — 若 review 指出 method 缺口（如 source_papers 缺失、Procedure 偏弱）
 - `wiki/outputs/*.md` — 若 artifact 是 paper draft 或 output
 - `wiki/graph/edges.jsonl` — 若修复过程中发现新关系
 - `wiki/graph/context_brief.md` — 每轮结束后重建（若 wiki 有变更）
@@ -61,7 +61,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 ### Step 1: 初始化
 
 1. **定位 artifact**：
-   - 若为 slug：按顺序在 `wiki/ideas/`、`wiki/experiments/`、`wiki/claims/`、`wiki/outputs/`、`wiki/papers/` 中查找 `{slug}.md`
+   - 若为 slug：按顺序在 `wiki/ideas/`、`wiki/experiments/`、`wiki/methods/`、`wiki/outputs/`、`wiki/papers/` 中查找 `{slug}.md`
    - 若为文件路径：直接读取
    - 记录 artifact 类型和路径
 2. **读取当前内容**：加载 artifact 完整文本
@@ -90,7 +90,7 @@ Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 - `verdict`（ready / needs-work / major-revision / rethink）
 - `weaknesses`（按 severity: critical / major / minor）
 - `actionable_items`（排序列表）
-- `wiki_entity_mapping`（claims needing support, gaps identified）
+- `wiki_entity_mapping`（ideas/methods needing strengthening, gaps identified）
 
 #### 2b. 检查终止条件
 
@@ -112,14 +112,15 @@ Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 - → 直接编辑 artifact 文件
 
 **Category B — wiki 知识缺口（建议外部操作）：**
-- claim 的 evidence 不足 → 建议运行 `/exp-design` 或 `/ingest`
+- idea 的 novelty 论证薄弱 → 建议重新运行 `/novelty`
+- method 缺少 source_papers → 标记给 `/ingest` 复查
 - 缺少相关工作引用 → 建议运行 `/ingest` 补充论文
 - 需要实验验证 → 建议运行 `/exp-run`
 - → 记录到 `unresolved_issues`，在报告中列出建议操作
-- → 若 claim confidence 需要调整，直接更新 `wiki/claims/{slug}.md`
 
-**Category C — claim 状态更新（Claude 修复 wiki）：**
-- review 指出某个 claim 的 confidence 应调低 → 更新 claim 页面
+**Category C — idea / method 更新（Claude 修复 wiki）：**
+- review 指出 idea 的 `origin_gaps` 缺少某个 concept 链接 → 补上链接并写入反向 `linked_ideas`
+- review 发现 method 缺少 parent/child 关系 → 修补 method 页面
 - review 发现新的 gap → 记录到 gap_map（通过 rebuild）
 - review 发现新的关系 → 添加 graph edge
 - → 更新相关 wiki 页面，记录到 `wiki_changes`
@@ -165,14 +166,14 @@ python3 tools/research_wiki.py rebuild-open-questions wiki/
 | Round | Issue | Severity | Fix applied |
 |-------|-------|----------|-------------|
 | 1 | 方法描述不够具体 | major | 补充了具体算法步骤 |
-| 1 | claim confidence 过高 | major | 调低 [[claim-slug]] confidence 0.8→0.6 |
+| 1 | idea novelty 论证薄弱 | major | 已标记 [[idea-slug]] 重跑 `/novelty` |
 | 2 | 缺少 ablation 设计 | minor | 添加了 ablation 计划 |
 
 ## Wiki Changes Made
 
 | Page | Change | Round |
 |------|--------|-------|
-| `wiki/claims/{slug}.md` | confidence 0.8 → 0.6 | 1 |
+| `wiki/methods/{slug}.md` | 补全缺失的 source_papers 链接 | 1 |
 | `wiki/graph/edges.jsonl` | +1 edge (addresses_gap) | 2 |
 
 ## Unresolved Issues ({count})

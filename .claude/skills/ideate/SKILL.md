@@ -20,7 +20,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 ## Outputs
 
 - `wiki/ideas/{slug}.md` — one page per idea (status: proposed), covering both top ideas and eliminated ideas
-- `wiki/graph/edges.jsonl` — new idea → claim/gap relationship edges
+- `wiki/graph/edges.jsonl` — new idea → concept/topic relationship edges
 - `wiki/graph/context_brief.md` — rebuilt compressed context
 - `wiki/graph/open_questions.md` — rebuilt knowledge gap map
 - **IDEA_REPORT** (printed to terminal) — pipeline execution summary, ranked results, novelty scores
@@ -31,22 +31,22 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/open_questions.md` — knowledge gaps, drives idea direction
 - `wiki/ideas/*.md` — existing ideas, especially status=failed ideas and their failure_reason (banlist)
-- `wiki/claims/*.md` — current claims status, identifies weakly_supported and challenged claims
 - `wiki/papers/*.md` — existing paper methods and results
 - `wiki/concepts/*.md` — technical concepts, find cross-domain combination opportunities
-- `wiki/topics/*.md` — research direction maps, SOTA and open problems
+- `wiki/methods/*.md` — reusable methods, scope candidate inspirations
+- `wiki/topics/*.md` — research direction maps, SOTA and open problems (including `### Known gaps` and `### Methodological gaps`)
 - `wiki/experiments/*.md` — existing experiment results, avoid duplication
 
 ### Writes
 - `wiki/ideas/{slug}.md` — create new idea pages
-- `wiki/graph/edges.jsonl` — add idea → claim/gap relationship edges (addresses_gap, inspired_by)
+- `wiki/graph/edges.jsonl` — add idea → concept/topic relationship edges (addresses_gap, inspired_by)
 - `wiki/graph/context_brief.md` — rebuild
 - `wiki/graph/open_questions.md` — rebuild
 - `wiki/log.md` — append operation log
 
 ### Graph edges created
-- `addresses_gap`: idea → claim/topic (knowledge gap the idea targets)
-- `inspired_by`: idea → paper/concept (source of inspiration for the idea)
+- `addresses_gap`: idea → concept/topic (knowledge gap the idea targets — `origin_gaps` field)
+- `inspired_by`: idea → paper/method/concept (source of inspiration for the idea)
 
 ## Workflow
 
@@ -61,7 +61,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
      skip wiki internal context loading (empty, no value), annotate "cold-start mode: heavier external search"
    - **warm**: standard behavior (current default)
    - **hot**: reduce Phase 1 external search (WebSearch queries from 5 to 2, S2/DeepXiv limit from 20 to 10),
-     raise Phase 3 gap_alignment_bonus from +2 to +3, prioritize resolving weak claims already in the wiki
+     raise Phase 3 gap_alignment_bonus from +2 to +3, prioritize ideas that close gaps already enumerated in topic / concept open-problem sections
 3. **Snapshot wiki state** (for the Growth Report at the end):
    Save the JSON returned by maturity to memory variable `maturity_before`
 
@@ -75,7 +75,7 @@ Goal: build a comprehensive view of the target domain, including existing work, 
    - Read all `wiki/ideas/*.md`, extract:
      - status=failed ideas → **banlist** (with failure_reason)
      - status=proposed/in_progress ideas → **active list** (avoid duplication)
-   - Read `wiki/claims/*.md`, find claims with status=weakly_supported or challenged → **weak claims list**
+   - Read `wiki/topics/*.md` and `wiki/concepts/*.md`: collect bullet items under `## Open problems` (including `### Known gaps` and `### Methodological gaps`) → **gap candidates list**
    - If `direction` is specified, filter to the relevant subset
 
 2. **External search** (run in parallel using Agent tool):
@@ -116,14 +116,13 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 **Follow `shared-references/cross-model-review.md`**: Claude and Review LLM generate independently without seeing each other's output.
 
 1. **Claude generates 6–10 ideas**:
-   - Input: landscape report + wiki gaps + weak claims + banlist
+   - Input: landscape report + wiki gaps + active list + banlist
    - Strategies:
      - Cross-domain combination (method from Topic A + problem from Topic B)
-     - Fill gaps in the gap_map
-     - Strengthen weakly_supported claims
-     - Alternative hypotheses that challenge challenged claims
+     - Fill gaps in the gap_map and topic/concept open-problem sections
+     - Refute or replace assumptions surfaced under `### Methodological gaps`
      - Known limitations of SOTA → improvement directions
-   - Each idea includes: title, hypothesis (1–2 sentences), approach sketch (3–5 sentences), target claims, estimated feasibility (high/medium/low)
+   - Each idea includes: title, hypothesis (1–2 sentences), approach sketch (3–5 sentences), `origin_gaps` (concept / topic slugs the idea targets), estimated feasibility (high/medium/low)
 
 2. **Review LLM independently generates 4–6 ideas** (run in parallel):
    ```
@@ -176,8 +175,8 @@ Apply the following checks to each candidate idea:
 
 3. **Wiki alignment check**:
    - Does the idea address a known gap in the gap_map? (+score)
-   - Does the idea target a weakly_supported claim? (+score)
-   - Does the idea build on existing wiki knowledge? (+score)
+   - Does the idea target a concept's `## Open problems` or a topic's methodological gap? (+score)
+   - Does the idea build on existing wiki knowledge (papers / methods / concepts)? (+score)
 
 4. **Filter decision**:
    - Eliminate if: feasibility=low AND quick novelty screening found similar published work
@@ -191,13 +190,13 @@ Apply the following checks to each candidate idea:
 
 Apply deep validation to the top 3 ideas from Phase 3:
 
-1. **Call /novelty** (one at a time):
+1. **Call /novelty `--write`** (one at a time):
    ```
    For each top idea:
    Skill: novelty
-   Args: "<idea-title-and-hypothesis>"
+   Args: "<idea-slug>" --write
    ```
-   Record novelty score (1–5) and recommendations
+   The `--write` flag persists the resulting `novelty_score` (1–5) into the idea's frontmatter. Record the score for the IDEA_REPORT.
 
 2. **Call /review** (for top 2 ideas):
    ```
@@ -224,16 +223,17 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    # generate slug
    python3 tools/research_wiki.py slug "<idea-title>"
    ```
-   Create `wiki/ideas/{slug}.md` **following the CLAUDE.md ideas template exactly** (all fields required; `lint.py` enforces `status` and `priority`):
+   Create `wiki/ideas/{slug}.md` **following the schema exactly** — frontmatter mirrors `runtime/schema/entities.yaml::ideas`, body matches `runtime/templates/ideas.md.tmpl`:
    ```yaml
    ---
    title: "<idea title>"
    slug: "<idea-slug>"
    status: proposed
-   origin: "ideate: <short description of the driving gap / weak claim / paper>"
-   origin_gaps: []           # [[claim-slug]] list — claims or topics this idea targets
-   tags: []                  # 2-5 topic tags (inherit from target claims / direction)
-   domain: ""                # NLP / CV / ML Systems / Robotics (inherit from direction)
+   origin: "ideate: <short description of the driving gap / open problem / paper>"
+   origin_gaps: []           # [[concept-slug]] or [[topic-slug]] list — concepts/topics this idea targets
+   tags: []                  # 2-5 topic tags (inherit from origin_gaps / direction)
+   target_venue: ""          # NeurIPS / ICLR / ICML / ACL / COLM — leave empty if undecided
+   novelty_score: ""         # 1-5 — written by /novelty --write in Phase 4; leave empty otherwise
    priority: 3               # 1-5 — see Priority computation below
    pilot_result: ""          # empty until /exp-eval fills it
    failure_reason: ""        # empty for proposed ideas
@@ -250,21 +250,22 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    - `-1` if `review_score <= 4` (major issues downgrade)
    - Clamp to `[1, 5]`
 
-   **Body sections** (exactly match the CLAUDE.md template — do not rename):
+   **Body sections** (exactly match `runtime/templates/ideas.md.tmpl` — do not rename):
    ```markdown
    ## Motivation
-   Which gap / weakly_supported claim / paper limitation drives this idea. Reference wiki pages via `[[slug]]`.
+   Which gap / open problem / paper limitation drives this idea. Reference wiki pages via `[[slug]]`.
 
    ## Hypothesis
    1-2 sentences stating the testable proposition.
 
    ## Approach sketch
-   3-5 sentences on the proposed method. Reference `[[paper-slug]]` or `[[concept-slug]]` for any component borrowed from existing work.
+   3-5 sentences on the proposed method. Reference `[[paper-slug]]`, `[[method-slug]]`, or `[[concept-slug]]` for any component borrowed from existing work.
 
-   ## Expected outcome
-   What success looks like (metric / claim status change), plus the Phase 4 novelty & review summary:
-   - Novelty score: N/5 — <one-line reason from /novelty>
-   - Review score: M/10 — <one-line summary from /review>
+   ## Novelty argument
+   Why this idea is genuinely new — what closest prior work (from /novelty) it differs from, and on which axis. One short paragraph.
+
+   ## Target venue
+   The intended publication target (e.g. NeurIPS 2026 / ICLR / ICML / ACL / COLM). May be left blank for ideas still being scoped.
 
    ## Risks
    Feasibility rating (high/medium/low) + top 2-3 risks. Include the main weaknesses surfaced by /review.
@@ -287,10 +288,11 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
 
 3. **Add graph edges**:
    ```bash
-   # for each idea
+   # for each idea: addresses_gap edge for every concept/topic in origin_gaps
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "ideas/{slug}" --to "claims/{target-claim}" \
+     --from "ideas/{slug}" --to "concepts/{origin-gap-slug}" \
      --type addresses_gap --evidence "Generated by ideate"
+   # ...or topics/{origin-gap-slug} when the gap target is a topic.
 
    python3 tools/research_wiki.py add-edge wiki/ \
      --from "ideas/{slug}" --to "papers/{source-paper}" \
@@ -342,7 +344,7 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    | Metric | Before | After | Delta |
    |--------|--------|-------|-------|
    | Papers | {before} | {after} | +{delta} |
-   | Claims | {before} | {after} | +{delta} |
+   | Methods | {before} | {after} | +{delta} |
    | Ideas | {before} | {after} | +{delta} |
    | Edges | {before} | {after} | +{delta} |
    | Maturity | {before_level} | {after_level} | {unchanged/upgraded} |
@@ -352,7 +354,7 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
 ## Constraints
 
 - **Auto-switch to cold-start mode when wiki is cold**: expand external search (WebSearch 8 queries, S2/DeepXiv limit 30), do not block execution
-- **Every idea must have wiki grounding**: each idea must reference at least 2 wiki pages (paper/concept/claim)
+- **Every idea must have wiki grounding**: each idea must reference at least 2 wiki pages (paper / concept / method / topic)
 - **Banlist must be loaded**: Phase 1 must read failed ideas' failure_reason; Phase 2/3 must check for overlap
 - **Review LLM independence**: in Phase 2, Review LLM does not see Claude's idea list (cross-model-review.md)
 - **Eliminated ideas are also written to wiki**: status=failed + failure_reason, as anti-repetition memory

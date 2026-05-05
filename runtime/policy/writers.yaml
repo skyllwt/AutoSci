@@ -33,16 +33,20 @@ fields:
   papers.slug:              { writers: [ingest], frozen_after_first_write: true }
   papers.cited_by:          { writers: [ingest] }
 
-  # Claim confidence is recomputed whenever evidence changes.
-  claims.confidence:        { writers: [ingest, exp-eval, refine] }
-  claims.status:            { writers: [ingest, exp-eval, refine] }
-  claims.evidence:          { writers: [ingest, exp-eval] }   # otherwise via xref
+  # Method provenance — set when a method is first lifted out of a paper.
+  # /init may seed provisional methods from notes/web; /ingest is the
+  # primary writer once a paper introduces or reuses the method.
+  methods.source_papers:    { writers: [ingest, init, edit] }
+  methods.parent_methods:   { writers: [ingest, edit] }
+  methods.child_methods:    { writers: [ingest, edit] }
 
-  # Idea lifecycle.
+  # Idea lifecycle and judgement scores.
   ideas.status:             { writers: [ideate, exp-eval, refine] }
   ideas.failure_reason:     { writers: [exp-eval] }
   ideas.date_resolved:      { writers: [exp-eval] }
   ideas.pilot_result:       { writers: [exp-eval] }
+  ideas.target_venue:       { writers: [ideate] }
+  ideas.novelty_score:      { writers: [ideate, novelty] }
 
   # Experiment lifecycle.
   experiments.status:       { writers: [exp-design, exp-run, exp-status, exp-eval] }
@@ -73,7 +77,10 @@ edges:
   extends_concept:          [ingest]
   critiques_concept:        [ingest]
 
-  # Workflow edges — multiple skills can produce these.
+  # Workflow edges — multiple skills can produce these. The endpoints are
+  # broad ('*' on both ends in edges.yaml), so a single edge type can serve
+  # several workflows. Listed writers reflect the canonical producers; /edit
+  # remains the manual escape hatch.
   supports:                 [ingest, exp-eval]
   contradicts:              [ingest]
   tested_by:                [exp-design]

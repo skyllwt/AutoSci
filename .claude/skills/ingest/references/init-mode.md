@@ -15,7 +15,7 @@ In INIT MODE:
 - conflict-prone topic writes are **skipped** — if multiple parallel ingests all try to append to the same topic, they will merge-conflict. Let the parent handle topic updates after fan-in, or defer them to `/edit`.
 - **skip reverse-link edits to existing pages** — do not append `key_papers` to an existing concept page, do not append to `## Key papers` or `## Related` of an existing paper page, and do not append to an existing people page. Record the relationship via `tools/research_wiki.py add-edge` instead. The parent `/init` rebuilds these backlinks during fan-in.
 
-Everything else — paper page creation, concept/claim dedup via `find-similar-*`, people page creation, paper `## Related` links, graph edges for concept/claim/foundation — still runs per subagent.
+Everything else — paper page creation, concept dedup via `find-similar-concept` and method dedup via manual scan of `wiki/methods/`, people page creation, paper `## Related` links, graph edges for concept/method/foundation — still runs per subagent.
 
 ## Detecting INIT MODE
 

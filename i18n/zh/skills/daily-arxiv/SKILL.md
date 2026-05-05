@@ -20,7 +20,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 
 - `raw/discovered/{slug}/` 或 `raw/discovered/{slug}.pdf` — 每篇 auto-ingest 论文对应的抓取原始来源
 - `wiki/papers/{slug}.md` — 高相关论文页面（通过 /ingest 创建）
-- 相应的 concepts/、people/、claims/ 页面（通过 /ingest 创建）
+- 相应的 concepts/、people/、methods/ 页面（通过 /ingest 创建）
 - 更新的 `wiki/topics/*.md` — SOTA tracker 标注（若检测到 SOTA 更新）
 - 更新的 `wiki/graph/` — edges.jsonl, context_brief.md, open_questions.md（通过 /ingest 维护）
 - 更新的 `wiki/index.md` 和 `wiki/log.md`
@@ -38,7 +38,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 - `wiki/papers/{slug}.md` — 通过 /ingest CREATE
 - `wiki/concepts/{slug}.md` — 通过 /ingest CREATE/EDIT
 - `wiki/people/{slug}.md` — 通过 /ingest CREATE/EDIT
-- `wiki/claims/{slug}.md` — 通过 /ingest CREATE/EDIT
+- `wiki/methods/{slug}.md` — 通过 /ingest CREATE/EDIT（论文引入或复用的可命名方法）
 - `wiki/topics/{slug}.md` — EDIT（SOTA tracker 标注）
 - `wiki/graph/edges.jsonl` — 通过 /ingest APPEND
 - `wiki/graph/context_brief.md` — REBUILD（最终一次）
@@ -47,7 +47,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 - `wiki/log.md` — APPEND
 
 ### Graph edges created
-- 通过 /ingest 创建的所有 edges（paper → concept, paper → claim 等）
+- 通过 /ingest 创建的所有 edges（paper → paper 关系、paper → concept、method → paper 等）
 
 ## Workflow
 
@@ -120,7 +120,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
      python3 tools/init_discovery.py download --raw-root raw --arxiv-id <arxiv_id> --title "<title>"
      ```
    - 把返回的 `canonical_ingest_path`（位于 `raw/discovered/`）传给 `/ingest`，不要直接传裸 arXiv URL
-   - /ingest 会完成完整的 wiki 纳入流程（paper + concepts + people + claims + cross-refs + graph）
+   - /ingest 会完成完整的 wiki 纳入流程（paper + concepts + people + methods + cross-refs + graph）
    - 每篇成功后记录 checkpoint：
      ```bash
      python3 tools/research_wiki.py checkpoint-save wiki/ "daily-arxiv-{date}" "{arxiv_id}"

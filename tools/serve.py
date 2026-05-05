@@ -731,9 +731,14 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     @staticmethod
     def _intent_ideate(body: dict) -> dict:
-        from_claim = (body.get("from_claim") or "").strip()
-        if from_claim:
-            return {"command": f"/ideate --from-claim {from_claim}"}
+        # Concept and topic pages can seed an ideate run by passing the slug
+        # under the matching key. Only one is honoured per call.
+        from_concept = (body.get("from_concept") or "").strip()
+        if from_concept:
+            return {"command": f"/ideate --from-concept {from_concept}"}
+        from_topic = (body.get("from_topic") or "").strip()
+        if from_topic:
+            return {"command": f"/ideate --from-topic {from_topic}"}
         return {"command": "/ideate"}
 
     @staticmethod
@@ -748,12 +753,12 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     @staticmethod
     def _intent_exp_design(body: dict) -> dict:
-        claim = (body.get("target_claim") or "").strip()
-        if claim:
-            return {"command": f"/exp-design --target-claim {claim}"}
+        idea = (body.get("linked_idea") or "").strip()
+        if idea:
+            return {"command": f"/exp-design --linked-idea {idea}"}
         return {
-            "command": "/exp-design --target-claim <claim-slug>",
-            "message": "Run from a claim page or pass --target-claim explicitly.",
+            "command": "/exp-design --linked-idea <idea-slug>",
+            "message": "Run from an idea page or pass --linked-idea explicitly.",
         }
 
     # --- /api/log ------------------------------------------------------------

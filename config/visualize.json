@@ -6,7 +6,7 @@
     "people":       { "hex": "#2ECC71", "rgb": 3066993 },
     "ideas":        { "hex": "#F39C12", "rgb": 15965202 },
     "experiments":  { "hex": "#E74C3C", "rgb": 15158460 },
-    "claims":       { "hex": "#84CC16", "rgb": 8702998 },
+    "methods":      { "hex": "#84CC16", "rgb": 8702998 },
     "Summary":      { "hex": "#1ABC9C", "rgb": 1763716 },
     "foundations":  { "hex": "#95A5A6", "rgb": 9807270 }
   },

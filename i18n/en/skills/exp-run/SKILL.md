@@ -44,11 +44,10 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/{slug}.md` — experiment config: setup, metrics, baseline, hypothesis, target_claim
-- `wiki/claims/{target-claim}.md` — target claim context (understand experiment purpose)
-- `wiki/ideas/{linked-idea}.md` — linked idea's approach sketch (guide code implementation)
+- `wiki/experiments/{slug}.md` — experiment config: setup, metrics, baseline, hypothesis, linked_idea
+- `wiki/ideas/{linked-idea}.md` — linked idea's approach sketch (guide code implementation, understand experiment purpose)
 - `wiki/papers/*.md` — related papers' method details and hyperparameters (implementation reference)
-- `wiki/experiments/*.md` — other experiments on the same claim (reference setup, avoid known mistakes)
+- `wiki/experiments/*.md` — other experiments on the same idea (reference setup, avoid known mistakes)
 
 ### Writes
 - `experiments/code/{slug}/` — experiment code directory (Phase 1, deploy / full mode)
@@ -60,7 +59,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/log.md` — append operation log
 
 ### Graph edges created
-- **None**. The tested_by edges between experiments and claims are created by /exp-design.
+- **None**. The tested_by edges between experiments and ideas are created by /exp-design.
 
 ## Workflow
 
@@ -81,7 +80,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 2. **Load implementation context**:
    - Read linked idea's approach sketch (implementation guide)
    - Read related papers' method descriptions (algorithm details)
-   - Read other experiments on the same claim (reference code structure)
+   - Read other experiments on the same idea (reference code structure)
 
 3. **Write experiment code** to `experiments/code/{slug}/`:
    - `train.py`: generate training/evaluation script based on setup config, including:
@@ -326,7 +325,7 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update claims in wiki
+   - Run `/exp-eval {slug}` to update the linked idea in wiki
    - {if succeeded: proceed to next experiment in plan}
    - {if failed: analyze failure, consider /exp-design revision}
    ```
@@ -356,7 +355,7 @@ done
 - **Collect mode only accepts running experiments**: if status is planned, prompt to deploy first; if completed, note it is already done
 - **Collect mode: do not write wiki when alive**: only report progress, do not modify any wiki files
 - **Code goes in experiments/code/{slug}/**: do not write to project root or any other location
-- **Do not update claims**: experiment results are written only to experiments/ pages; claim updates are handled by /exp-eval
+- **Do not update the linked idea's status**: experiment results are written only to experiments/ pages; idea updates are handled by /exp-eval
 - **Sanity check must pass**: Phase 1 sanity failure blocks deployment (unless user explicitly overrides)
 - **Results must be saved**: all experiment results saved as JSON in `results/{slug}/seed_{N}.json`
 - **Multi-seed results use mean**: report mean ± std, not single-run results

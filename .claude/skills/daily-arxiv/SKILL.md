@@ -20,7 +20,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 
 - `raw/discovered/{slug}/` or `raw/discovered/{slug}.pdf` — fetched source artifact for each auto-ingested paper
 - `wiki/papers/{slug}.md` — highly relevant paper pages (created via /ingest)
-- Corresponding `concepts/`, `people/`, `claims/` pages (created via /ingest)
+- Corresponding `concepts/`, `people/`, `methods/` pages (created via /ingest)
 - Updated `wiki/topics/*.md` — SOTA tracker annotations (if SOTA update detected)
 - Updated `wiki/graph/` — edges.jsonl, context_brief.md, open_questions.md (maintained via /ingest)
 - Updated `wiki/index.md` and `wiki/log.md`
@@ -38,7 +38,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 - `wiki/papers/{slug}.md` — CREATE via /ingest
 - `wiki/concepts/{slug}.md` — CREATE/EDIT via /ingest
 - `wiki/people/{slug}.md` — CREATE/EDIT via /ingest
-- `wiki/claims/{slug}.md` — CREATE/EDIT via /ingest
+- `wiki/methods/{slug}.md` — CREATE/EDIT via /ingest
 - `wiki/topics/{slug}.md` — EDIT (SOTA tracker annotations)
 - `wiki/graph/edges.jsonl` — APPEND via /ingest
 - `wiki/graph/context_brief.md` — REBUILD (once at the end)
@@ -47,7 +47,7 @@ argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
 - `wiki/log.md` — APPEND
 
 ### Graph edges created
-- All edges created by /ingest (paper → concept, paper → claim, etc.)
+- All edges created by /ingest (paper → concept, paper → method, etc.)
 
 ## Workflow
 
@@ -120,7 +120,7 @@ For each new paper, LLM assesses relevance based on title and abstract vs. the r
      python3 tools/init_discovery.py download --raw-root raw --arxiv-id <arxiv_id> --title "<title>"
      ```
    - Pass the returned `canonical_ingest_path` from `raw/discovered/` into `/ingest`, not the bare arXiv URL
-   - /ingest completes the full wiki incorporation flow (paper + concepts + people + claims + cross-refs + graph)
+   - /ingest completes the full wiki incorporation flow (paper + concepts + people + methods + cross-refs + graph)
    - After each success, record checkpoint:
      ```bash
      python3 tools/research_wiki.py checkpoint-save wiki/ "daily-arxiv-{date}" "{arxiv_id}"

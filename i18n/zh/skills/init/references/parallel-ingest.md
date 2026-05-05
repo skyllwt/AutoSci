@@ -51,7 +51,7 @@ git worktree add -b "$WT_BRANCH" "$WT_PATH" "$BASE_COMMIT"
 全部子代理完成后：
 
 1. 如有需要先切回 `BASE_BRANCH`，再按 planner 顺序在该 branch 上逐个 merge worktree branch。
-2. concept / claim 冲突默认保守合并，不要扩散 near-duplicate 页面。
+2. concept / method 冲突默认保守合并，不要扩散 near-duplicate 页面。
 3. 只 merge 已经产生 ingest commit 的 worktree branch。若某个 branch 没有提交结果，应先停止并修复，而不是硬合并。
 4. 运行：
 

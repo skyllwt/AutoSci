@@ -6,8 +6,8 @@ argument-hint: <question>
 # /ask
 
 > 对 wiki 知识库提问。LLM 读取 context_brief.md 获取全局上下文，检索相关页面，
-> 综合回答并附带引用。好的回答可以 crystallize 回 wiki——写入 outputs/ 或创建新的
-> concept/claim 页面，让探索成果像 ingest 一样持续积累。
+> 综合回答并附带引用。好的回答可以 crystallize 回 wiki——写入 outputs/、创建新的
+> concept 页面，或追加到已有的 idea/method/output 笔记上，让探索成果像 ingest 一样持续积累。
 
 ## Inputs
 
@@ -21,19 +21,19 @@ argument-hint: <question>
 - **若 crystallize**：
   - `wiki/outputs/{query-slug}.md` — 查询结果页面（默认 crystallize 目标）
   - 或 `wiki/concepts/{slug}.md` — 若回答揭示了新的跨论文概念
-  - 或 `wiki/claims/{slug}.md` — 若回答发现了可验证的新断言
+  - 或追加到已有的 `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — 若回答为已有实体补充了新发现
   - 更新的 `wiki/graph/edges.jsonl`（crystallize 产生的关系）
   - 更新的 `wiki/index.md` 和 `wiki/log.md`
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/graph/context_brief.md` — 全局压缩上下文（claims, gaps, failed ideas, papers, edges）
+- `wiki/graph/context_brief.md` — 全局压缩上下文（ideas, gaps, failed ideas, papers, edges）
 - `wiki/index.md` — 页面目录，用于定位相关页面
 - `wiki/graph/open_questions.md` — 开放问题，辅助判断问题是否涉及已知知识缺口
 - `wiki/papers/*.md` — 与问题相关的论文页面
 - `wiki/concepts/*.md` — 与问题相关的概念页面
-- `wiki/claims/*.md` — 与问题相关的 claim 页面
+- `wiki/methods/*.md` — 与问题相关的 method 页面
 - `wiki/topics/*.md` — 与问题相关的 topic 页面
 - `wiki/people/*.md` — 若问题涉及特定研究者
 - `wiki/ideas/*.md` — 若问题涉及研究想法或 failed ideas
@@ -43,7 +43,7 @@ argument-hint: <question>
 ### Writes（仅 crystallize 模式）
 - `wiki/outputs/{query-slug}.md` — CREATE（查询结果页面）
 - `wiki/concepts/{slug}.md` — CREATE（新发现概念）或 EDIT（补充已有概念）
-- `wiki/claims/{slug}.md` — CREATE（新发现断言）或 EDIT（补充 evidence）
+- `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — EDIT（向已有页面追加新发现）
 - `wiki/graph/edges.jsonl` — APPEND（crystallize 产生的关系）
 - `wiki/graph/context_brief.md` — REBUILD（若 crystallize 创建了新页面）
 - `wiki/graph/open_questions.md` — REBUILD（若 crystallize 创建了新页面）
@@ -53,9 +53,8 @@ argument-hint: <question>
 ### Graph edges created（仅 crystallize）
 - `output → paper`: `derived_from`（回答引用的论文）
 - `output → concept`: `derived_from`（回答引用的概念）
-- `output → claim`: `derived_from`（回答引用的 claim）
+- `output → idea` / `output → method`: `derived_from`（回答引用的 idea 或 method）
 - `concept → paper`: `supports`（若新概念从论文中归纳）
-- `claim → paper`: `supports`（若新 claim 从论文中提取）
 
 ## Workflow
 
@@ -64,7 +63,7 @@ argument-hint: <question>
 
 ### Step 1: 加载全局上下文
 
-1. 读取 `wiki/graph/context_brief.md`——获取 wiki 当前知识的压缩快照（claims, gaps, papers, edges）
+1. 读取 `wiki/graph/context_brief.md`——获取 wiki 当前知识的压缩快照（ideas, gaps, papers, edges）
 2. 读取 `wiki/graph/open_questions.md`——了解已知的开放问题和知识缺口
 3. 若两者都不存在，先重建：
    ```bash
@@ -75,7 +74,7 @@ argument-hint: <question>
 ### Step 2: 检索相关页面
 
 1. 读取 `wiki/index.md`，基于 question 关键词匹配相关 slugs
-2. 从 context_brief.md 中提取与 question 语义相关的 claims 和 papers
+2. 从 context_brief.md 中提取与 question 语义相关的 ideas、methods 和 papers
 3. 按相关性排序，选取 top-K 页面（K ≤ 15，避免上下文过长）
 4. 读取选中页面的完整内容
 5. 若 question 涉及关系（如 "X 和 Y 的区别"），额外读取 `wiki/graph/edges.jsonl` 中连接 X 和 Y 的边
@@ -88,7 +87,7 @@ argument-hint: <question>
    - **有结构**：根据 `--format` 参数组织输出（markdown / table / timeline / bullets）
    - **识别不确定性**：对 wiki 中证据不足的部分明确标注 "wiki 中尚无充分证据"
    - **标注知识缺口**：若问题触及 open_questions.md 中的已知缺口，明确指出
-   - **引用 claim confidence**：涉及 claim 时注明其 confidence 和 status
+   - **引用 idea 状态**：涉及 idea 时注明其 `status` 和 `novelty_score`
 3. 若问题超出 wiki 当前知识范围，坦诚告知并建议：
    - 需要 ingest 哪些论文来填补
    - 可能的搜索方向（arXiv 关键词、Semantic Scholar 查询）
@@ -99,7 +98,7 @@ argument-hint: <question>
 2. Crystallize 值得的信号：
    - 回答综合了多篇论文的信息，形成了新的跨论文洞察
    - 回答揭示了一个 wiki 中尚未显式记录的概念
-   - 回答发现了一个可验证的新断言（claim）
+   - 回答为已有的 idea、method 或 output 笔记补充了新发现
    - 回答回应了 open_questions.md 中的一个已知缺口
 3. Crystallize 不值得的信号：
    - 回答只是复述了单一页面的内容
@@ -139,13 +138,13 @@ argument-hint: <question>
 4. 添加 graph edges（concept → papers）
 5. 在相关 paper 页面的 `## Related` 追加反向链接
 
-**Case C — 创建新 claim：**
-1. 若回答发现新断言：按 CLAUDE.md claim 模板创建 `wiki/claims/{slug}.md`
-2. status: proposed（从查询综合得出，非直接实验证据）
-3. confidence: 基于引用 evidence 的强度设置初始值
-4. source_papers: 从回答引用中提取
-5. 添加 graph edges（claim → papers）
-6. 在相关 paper 页面的 `## Related` 追加反向链接
+**Case C — 向已有 idea、method 或 output 笔记追加发现：**
+1. 若回答扩展了与已有实体相关的发现，向对应章节追加一段（带 `[[slug]]` 引用）：
+   - `wiki/ideas/{slug}.md` → `## Lessons learned` 或 `## Pilot results`
+   - `wiki/methods/{slug}.md` → `## Limitations` 或 `## Tradeoff profile`
+   - `wiki/outputs/{slug}.md` → 正文末尾
+2. 从被修改的页面向引用的 papers/concepts/methods 添加 graph edges（`derived_from`）
+3. 不创建新实体；本 case 仅丰富已有实体
 
 ### Step 6: 更新导航与图谱（仅 crystallize）
 
@@ -181,7 +180,7 @@ argument-hint: <question>
 - **graph/ 仅通过 tools 维护**：不得手动编辑 `graph/` 下的文件
 - **Crystallize 需确认**：除非用户显式指定 `--crystallize`，否则仅建议但不执行写入
 - **上下文限制**：检索页面数量 ≤ 15，避免超出上下文窗口
-- **claim confidence 引用**：涉及 claim 时必须注明其 confidence 值和 status
+- **idea 状态引用**：涉及 idea 时必须注明其 `status` 和 `novelty_score`
 - **gap 标注**：若问题涉及 open_questions.md 中的已知缺口，必须明确指出
 - **outputs/ frontmatter 必须包含 query 和 source_pages**：确保可追溯
 

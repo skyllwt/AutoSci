@@ -9,11 +9,10 @@ Mirrors the matrix in the root `CLAUDE.md` ("Cross-Reference Rules"), trimmed to
 | Forward action (what you write on page A) | Required reverse action (what you also write on page B in the same turn) |
 |-------------------------------------------|--------------------------------------------------------------------------|
 | `papers/P` writes `Related: [[concept-K]]` | `concepts/K` appends `P` to `key_papers` |
-| `papers/P` writes `[[person-R]]` (in Key authors) | `people/R` appends `P` to `Key papers` |
-| `papers/P` writes `supports: [[claim-C]]` | `claims/C` appends `{source: P, type: supports}` to `evidence` |
-| `papers/P` writes `supports: [[claim-C]]` but paper contradicts claim | use `type: contradicts` in the evidence entry |
-| `claims/C` writes `source_papers: [[paper-P]]` | `papers/P` appends `C` to `## Related` |
+| `papers/P` writes `[[person-R]]` (any body section) | `people/R` appends `[[P]]` to `## Recent work` |
 | `concepts/K` writes `key_papers: [[paper-P]]` | `papers/P` appends `K` to `## Related` |
+| `methods/M` writes `source_papers: [[paper-P]]` | `papers/P` appends `M` to `## Related` |
+| `methods/M` writes `parent_methods: [[method-N]]` | `methods/N` appends `M` to `child_methods` (and vice versa) |
 | any page writes `[[foundation-X]]` | **no reverse link** — foundations are terminal |
 
 Writing a forward link without its reverse is the most common way `/check` surfaces `missing-field` errors. Doing both together eliminates the class entirely.
@@ -89,7 +88,7 @@ For every link `/ingest` writes, the reverse should land in the same turn. In pr
 1. Decide on the link.
 2. Write the forward entry on the originating page.
 3. Write the reverse entry on the target page.
-4. If the link also corresponds to a semantic graph edge (paper↔concept, paper↔claim, paper↔paper, paper→foundation), emit it via `tools/research_wiki.py add-edge`.
+4. If the link also corresponds to a semantic graph edge (paper↔concept, paper↔paper, paper→foundation), emit it via `tools/research_wiki.py add-edge`.
 5. If a paper reference resolves to an existing paper page, emit the bibliographic row via `tools/research_wiki.py add-citation`.
 
 This pattern keeps `/check` from flagging half-written links in its next run. It also makes rollbacks straightforward: if a paper ingest is aborted, you can undo both sides together by reverting the paper's edits.

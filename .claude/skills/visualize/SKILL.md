@@ -14,7 +14,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 - `--obsidian` (optional): Generate/update `.obsidian/graph.json` with entity-type color groups
 - `--canvas` (optional): Generate Obsidian Canvas (`.canvas`) from graph data with labeled edges
-- `--focus <node_id>` (optional): Center canvas on a specific node (e.g., `claims/my-claim`)
+- `--focus <node_id>` (optional): Center canvas on a specific node (e.g., `methods/my-method`)
 - `--depth N` (optional): BFS depth for focused canvas (default: 2)
 - `--types <list>` (optional): Filter nodes to these page types, comma-separated (e.g., `papers,concepts`)
 - `--edge-types <list>` (optional): Filter edges to these semantic types, comma-separated (e.g., `builds_on,surveys`)
@@ -25,7 +25,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 - `wiki/.obsidian/graph.json` — Obsidian graph color configuration (per-entity-type color groups)
 - `wiki/.obsidian/app.json` — Obsidian app settings (only if not exists)
 - `wiki/canvases/knowledge-map.canvas` — Full knowledge map Canvas with labeled edges
-- `wiki/canvases/claim-evidence.canvas` — Claim-centric subgraph Canvas
+- `wiki/canvases/idea-evidence.canvas` — Idea-centric subgraph Canvas
 - `wiki/canvases/focus-{node-id}.canvas` — Focused Canvas (when --focus is used)
 - Console output: Obsidian plugin recommendations and setup instructions
 
@@ -168,7 +168,7 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 | `people`      | `#E76F51` | `"4"`             |
 | `ideas`       | `#A8DADC` | `"5"`             |
 | `experiments` | `#9B5DE5` | `"6"`             |
-| `claims`      | `#F9C74F` | `"3"`             |
+| `methods`     | `#84CC16` | `"3"`             |
 | `Summary`     | `#90BE6D` | `"4"`             |
 | `foundations` | `#B5B5B5` | `"6"`             |
 
@@ -182,7 +182,7 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 | Survey      | `surveys`                                                            | `#2A9D8F` |
 | Concept use | `introduces_concept`, `uses_concept`                                 | `#F4A261` |
 | Evidence    | `supports`, `contradicts`, `tested_by`, `invalidates`                | `#9B5DE5` |
-| Gap/Claim   | `addresses_gap`                                                      | `#F9C74F` |
+| Gap         | `addresses_gap`                                                      | `#F9C74F` |
 | Citation    | `cites`                                                              | `#B5B5B5` |
 
 ## Constraints

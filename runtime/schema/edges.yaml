@@ -5,7 +5,7 @@
 #   direction   directed | symmetric           -- symmetric edges are stored once
 #                                                 with sorted endpoints
 #   workflow    which subsystem owns this edge type
-#               (ingest | claim_evidence | experiment | idea | provenance | citation)
+#               (ingest | evidence | experiment | idea | provenance | citation)
 #   attributes  schema for edge-record fields beyond from/to/type
 #
 # Storage location of each edge type is decided in conventions.yaml::edge_storage.
@@ -115,21 +115,21 @@ critiques_concept:
     evidence:   { type: str, required: true }
 
 # -----------------------------------------------------------------------------
-# Workflow edges (claims / experiments / ideas / provenance)
+# Workflow edges (evidence / experiments / ideas / provenance)
 # Endpoints stay broad because these span multiple entity kinds.
 # -----------------------------------------------------------------------------
 
 supports:
   endpoints: { from: '*', to: '*' }
   direction: directed
-  workflow:  claim_evidence
+  workflow:  evidence
   attributes:
     evidence: { type: str }
 
 contradicts:
   endpoints: { from: '*', to: '*' }
   direction: directed
-  workflow:  claim_evidence
+  workflow:  evidence
   attributes:
     evidence: { type: str }
 

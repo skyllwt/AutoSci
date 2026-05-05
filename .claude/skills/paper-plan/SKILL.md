@@ -1,32 +1,32 @@
 ---
-description: Compile a paper outline from the claim graph — evidence map → narrative structure → section plan + figure plan + citation plan, Review LLM review mandatory
-argument-hint: <claim-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
+description: Compile a paper outline from the idea graph — evidence map → narrative structure → section plan + figure plan + citation plan, Review LLM review mandatory
+argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
 ---
 
 # /paper-plan
 
-> Compile a paper outline from the wiki's claim graph.
-> Input target claims (status: supported or weakly_supported), specify the target venue,
+> Compile a paper outline from the wiki's idea graph.
+> Input target ideas (status: validated or in-progress with succeeded experiments), specify the target venue,
 > compile an evidence map from the wiki → determine narrative structure → generate a section outline + figure plan + citation plan.
 > Review LLM review is a mandatory step (acting as area chair to assess outline persuasiveness).
 > Output PAPER_PLAN.md to wiki/outputs/.
 >
-> Key distinction: the outline is claim-graph-driven — each section exists because it supports a claim,
+> Key distinction: the outline is idea-graph-driven — each section exists because it supports an idea (or its evidence/methods),
 > not because paper convention requires that section.
 
 ## Inputs
 
-- `claims`: list of target claim slugs (space-separated)
-  - each claim should have status `supported` or `weakly_supported`
-  - if `proposed` or `challenged` claims are included, warn but continue
+- `ideas`: list of target idea slugs (space-separated)
+  - each idea should have `status: validated` or be `in_progress` with at least one `succeeded` experiment
+  - if `proposed` or `invalidated` ideas are included, warn but continue
 - `--venue` (required): target venue, determines page limit and format requirements
   - supported: `ICLR` / `NeurIPS` / `ICML` / `ACL` / `CVPR` / `IEEE`
-- `--title` (optional): working title; if omitted, generated from target claims
+- `--title` (optional): working title; if omitted, generated from target ideas
 
 ## Outputs
 
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — complete paper plan (PAPER_PLAN.md)
-- `wiki/graph/edges.jsonl` — new derived_from edges (plan → source claims/papers)
+- `wiki/graph/edges.jsonl` — new derived_from edges (plan → source ideas/papers)
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/log.md` — appended log entry
 - **PAPER_PLAN_REPORT** (printed to terminal) — plan summary
@@ -34,12 +34,12 @@ argument-hint: <claim-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--tit
 ## Wiki Interaction
 
 ### Reads
-- `wiki/claims/*.md` — status, confidence, evidence list, conditions of target claims
-- `wiki/experiments/*.md` — supporting experiments for claims (results, metrics, key_result)
+- `wiki/ideas/*.md` — Hypothesis, Motivation, Approach sketch, Novelty argument, status, novelty_score, target_venue, linked_experiments, origin_gaps
+- `wiki/experiments/*.md` — supporting experiments (linked via `linked_idea`); results, metrics, key_result
+- `wiki/methods/*.md` — methods referenced by the idea's Approach sketch (Mechanism, Procedure, source_papers)
 - `wiki/papers/*.md` — evidence source papers (Method, Results, Related)
-- `wiki/concepts/*.md` — technical concepts involved (supports Method section writing)
-- `wiki/topics/*.md` — research direction context (supports Introduction positioning)
-- `wiki/ideas/*.md` — motivation and hypothesis of original ideas
+- `wiki/concepts/*.md` — concepts the idea's `origin_gaps` points to (Definition, Variants, Comparison)
+- `wiki/topics/*.md` — topics the idea's `origin_gaps` points to (Overview, Open problems)
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/open_questions.md` — knowledge gaps (annotate paper limitations)
 - `wiki/graph/edges.jsonl` — relationship graph (build narrative logic chain)
@@ -53,66 +53,63 @@ argument-hint: <claim-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--tit
 - `wiki/log.md` — appended operation log
 
 ### Graph edges created
-- `derived_from`: paper-plan → claims (which claims the plan is derived from)
+- `derived_from`: paper-plan → ideas (which ideas the plan is derived from)
 - `derived_from`: paper-plan → papers (which papers the plan cites)
 
 ## Workflow
 
 **Precondition**: confirm the working directory is the wiki project root (the directory containing `wiki/`, `raw/`, `tools/`).
 
-### Step 1: Load Claim Graph
+### Step 1: Load Idea Graph
 
-1. Read `wiki/claims/{slug}.md` for all target claims
-2. For each claim, collect its evidence list:
-   - each evidence item's source (paper slug or experiment slug)
-   - evidence type (supports / contradicts / tested_by / invalidates)
-   - evidence strength (weak / moderate / strong)
-3. For each evidence source, read the corresponding wiki page:
-   - `wiki/experiments/{source}.md` → key_result, metrics, outcome
-   - `wiki/papers/{source}.md` → Method, Results
-4. Load relevant edges from `wiki/graph/edges.jsonl` to build relationships between claims
-5. Read `wiki/graph/context_brief.md` for global context
-6. Read `wiki/graph/open_questions.md` to annotate known limitations
+1. Read `wiki/ideas/{slug}.md` for all target ideas
+2. For each idea, traverse:
+   - `linked_experiments` → read each `wiki/experiments/{slug}.md` (key_result, metrics, outcome)
+   - `origin_gaps` → read each `wiki/concepts/{slug}.md` and `wiki/topics/{slug}.md` (background context)
+   - `## Approach sketch` body wikilinks → read each `wiki/methods/{slug}.md` and `wiki/papers/{slug}.md`
+3. Read `wiki/graph/context_brief.md` for global context
+4. Read `wiki/graph/open_questions.md` to annotate known limitations
+5. Load relevant edges from `wiki/graph/edges.jsonl` to build relationships between ideas
 
 **Validation**:
-- If any target claim has status `proposed`: warn "claim is unvalidated; paper may lack evidence support"
-- If any target claim has confidence < 0.5: warn "claim confidence is low; consider running more experiments first"
-- If no experiment evidence supports any claim: error "at least one experimental result is required to plan a paper"
+- If any target idea has `status: proposed`: warn "idea is unvalidated; paper may lack evidence support"
+- If any target idea has empty `novelty_score` OR `novelty_score <= 2`: warn "idea novelty is thin; consider running `/novelty` first"
+- If no `linked_experiments` resolve to a `succeeded` outcome for any target idea: error "at least one supporting experiment is required to plan a paper"
 
 ### Step 2: Compile Evidence Map from Wiki
 
-Generate a structured matrix mapping claims → evidence → sections:
+Generate a structured matrix mapping ideas → evidence → sections:
 
 ```markdown
-| Claim | Status | Confidence | Evidence Sources | Strength | Paper Section |
-|-------|--------|-----------|-----------------|----------|---------------|
-| [[primary-claim]] | supported | 0.85 | exp-main, paper-A | strong | Method + Exp 5.2 |
-| [[supporting-claim-1]] | supported | 0.75 | exp-ablation-1 | moderate | Exp 5.3 (Ablation) |
-| [[supporting-claim-2]] | weakly_supported | 0.55 | exp-scaling | weak | Exp 5.4 (Scaling) |
+| Idea | Status | linked experiments | Methods/Concepts | Section |
+|------|--------|--------------------|------------------|---------|
+| [[primary-idea]] | validated | [[exp-main]] (succeeded), [[exp-ablation-1]] (succeeded) | [[method-core]], [[concept-foundation]] | Method + Exp 5.2 |
+| [[supporting-idea-1]] | validated | [[exp-ablation-2]] (succeeded) | [[method-component]] | Exp 5.3 (Ablation) |
+| [[supporting-idea-2]] | in_progress | [[exp-scaling]] (inconclusive) | [[concept-scaling]] | Exp 5.4 (Scaling) |
 ```
 
-Map claims to paper structure along each dimension:
-- **Target claim** → core contribution, drives Abstract + Introduction + Method
-- **Decomposition claims** → factor contributions, drives Ablation subsections
-- **Contextual claims** → background knowledge, drives Related Work + Introduction
+Map ideas to paper structure along each dimension:
+- **Primary idea** → core contribution, drives Abstract + Introduction + Method
+- **Decomposition ideas** → factor contributions, drives Ablation subsections
+- **Concepts/topics from origin_gaps** → background knowledge, drives Related Work + Introduction
 
 ### Step 3: Determine Narrative Structure
 
 Follow the hourglass principle in `shared-references/academic-writing.md`:
 
 1. **Identify the paper's core storyline**:
-   - Gap (extracted from ideas/ motivation or gap_map)
-   - Solution (extracted from target claim's approach)
-   - Evidence (extracted from experiments' results)
-   - Impact (inferred from claim confidence + scope)
+   - Gap (extracted from idea's `## Motivation` and `origin_gaps`)
+   - Solution (extracted from idea's `## Approach sketch` and linked methods)
+   - Evidence (extracted from `linked_experiments` results)
+   - Impact (inferred from idea `novelty_score` + experiment scope)
 
 2. **Determine the narrative angle**:
    - What problem does the paper solve? (problem-driven vs. method-driven vs. data-driven)
    - Who is the primary audience? (theory / systems / applications)
    - How does it differentiate from the 3 most relevant recent papers?
 
-3. **Establish section → claim mapping**:
-   Every section must support at least one claim. A section with no claim support is filler and should be removed.
+3. **Establish section → idea mapping**:
+   Every section must support at least one idea (or its supporting evidence/methods). A section with no idea support is filler and should be removed.
 
 ### Step 4: Generate Section Outline
 
@@ -121,9 +118,9 @@ Generate the outline according to venue format requirements; each section includ
 ```markdown
 ## 1. Introduction (1.5 pages)
 
-### Claims addressed
-- Gap claim: {existing approaches lack X because Y}
-- Contribution claim: [[primary-claim]]
+### Ideas addressed
+- Gap framing: {existing approaches lack X because Y} (from `origin_gaps`)
+- Primary contribution idea: [[primary-idea]]
 
 ### Paragraph plan
 1. Broad context: {field importance, recent progress}
@@ -146,16 +143,16 @@ Generate the outline according to venue format requirements; each section includ
 - Direction B: {papers, our position}
 - Direction C: {papers, our position}
 
-### Claims addressed
-- Contextual claims distinguishing from prior work
+### Ideas addressed
+- Background concepts/topics from each idea's `origin_gaps` distinguishing this work from prior work
 
 ---
 
 ## 3. Method (2-3 pages)
 
-### Claims addressed
-- [[primary-claim]]: section 3.1-3.2
-- [[supporting-claim-1]]: section 3.3
+### Ideas addressed
+- [[primary-idea]]: section 3.1-3.2 (Approach sketch + referenced [[method-slug]])
+- [[supporting-idea-1]]: section 3.3
 
 ### Subsection plan
 - 3.1 Problem formulation: notation, objective
@@ -171,10 +168,10 @@ Generate the outline according to venue format requirements; each section includ
 
 ## 4. Experiments (2-3 pages)
 
-### Claims addressed
-- [[primary-claim]]: section 4.2 (main results)
-- [[supporting-claim-1]]: section 4.3 (ablation)
-- [[supporting-claim-2]]: section 4.4 (scaling)
+### Ideas addressed
+- [[primary-idea]]: section 4.2 (main results)
+- [[supporting-idea-1]]: section 4.3 (ablation)
+- [[supporting-idea-2]]: section 4.4 (scaling)
 
 ### Subsection plan
 - 4.1 Setup: datasets, baselines, metrics, implementation details
@@ -195,10 +192,10 @@ Generate the outline according to venue format requirements; each section includ
 - {one sentence the reader should remember}
 
 ### Limitations
-- {from gap_map or claim conditions}
+- {from gap_map or each idea's `## Risks`}
 
 ### Future work
-- {from gap_map open questions}
+- {from gap_map open questions and each idea's `## Lessons learned`}
 ```
 
 **Page budget**: allocated by `--venue` (refer to the venue table in academic-writing.md); total section pages <= venue main-body limit.
@@ -252,7 +249,7 @@ Following `shared-references/citation-verification.md`:
 mcp__llm-review__chat:
   system: "You are an area chair at {venue} reviewing a paper outline.
            Assess: Is the narrative convincing? Does every section serve a clear purpose?
-           Are the experiments sufficient to support the claims?
+           Are the experiments sufficient to support the paper's central ideas?
            Is the related work coverage adequate?
            Are there obvious gaps that reviewers will attack?
            Provide specific suggestions for strengthening the outline."
@@ -271,7 +268,7 @@ mcp__llm-review__chat:
 
     ## Questions for Review
     1. Is the narrative arc (gap → solution → evidence → impact) convincing?
-    2. Are any claims under-supported? Which experiments are missing?
+    2. Are any ideas under-supported? Which experiments are missing?
     3. Is the related work grouping appropriate? Missing directions?
     4. Will the page budget work? Any section too long/short?
     5. Are the figures/tables sufficient to tell the story?
@@ -288,7 +285,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
 2. **Write PAPER_PLAN.md**:
    Create `wiki/outputs/paper-plan-{slug}-{date}.md` containing:
-   - Metadata (venue, title, date, target claims)
+   - Metadata (venue, title, date, target ideas)
    - Evidence Map (Step 2)
    - Complete section outline (Step 4, with Review LLM revisions)
    - Figure/Table Plan (Step 5)
@@ -297,10 +294,10 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
 3. **Add graph edges**:
    ```bash
-   # plan → target claim
+   # plan → target idea
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "claims/{primary-claim}" \
-     --type derived_from --evidence "Paper plan built from this claim"
+     --from "outputs/paper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
+     --type derived_from --evidence "Paper plan built from this idea"
 
    # plan → key papers
    python3 tools/research_wiki.py add-edge wiki/ \
@@ -316,7 +313,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 5. **Append log**:
    ```bash
    python3 tools/research_wiki.py log wiki/ \
-     "paper-plan | {venue} paper outline for [[{slug}]] | claims: {claim-list} | citations: {verified}/{total}"
+     "paper-plan | {venue} paper outline for [[{slug}]] | ideas: {idea-list} | citations: {verified}/{total}"
    ```
 
 6. **Print PAPER_PLAN_REPORT to terminal**:
@@ -329,15 +326,15 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    - Page limit: {N} pages
    - Date: {date}
 
-   ## Claims → Sections
-   | Claim | Confidence | Section |
-   |-------|-----------|---------|
-   | [[primary]] | 0.85 | Method + Exp 5.2 |
-   | [[supporting-1]] | 0.75 | Exp 5.3 |
+   ## Ideas → Sections
+   | Idea | Status / Novelty | Section |
+   |------|------------------|---------|
+   | [[primary]] | validated / 4 | Method + Exp 5.2 |
+   | [[supporting-1]] | validated / 3 | Exp 5.3 |
 
    ## Page Budget
-   | Section | Pages | Claims |
-   |---------|-------|--------|
+   | Section | Pages | Ideas |
+   |---------|-------|-------|
    | Introduction | 1.5 | gap, contribution |
    | Related Work | 1.0 | context |
    | Method | 2.5 | primary, supporting |
@@ -356,25 +353,25 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 ## Constraints
 
 - **--venue is required**: page limits and format requirements vary significantly by venue; cannot be omitted
-- **At least one experiment evidence**: purely theoretical claims are insufficient for an empirical paper; at least one experimental result is required
+- **At least one experiment evidence**: purely theoretical ideas are insufficient for an empirical paper; at least one supporting experiment is required
 - **Page budget must be feasible**: total section pages <= venue main-body limit; otherwise adjust (compress or move to appendix)
 - **Review LLM review is mandatory**: cannot be skipped; catching problems at the outline stage has the lowest cost
 - **All citations from wiki**: every paper in the citation plan must exist in wiki/papers/
-- **claim → section mapping must be complete**: every target claim must appear in at least one section
-- **Every section must have a claim**: a section with no claim support is filler and should be removed or merged
+- **idea → section mapping must be complete**: every target idea must appear in at least one section
+- **Every section must have an idea**: a section with no idea support is filler and should be removed or merged
 - **Graph edges via tools/research_wiki.py**: do not manually edit edges.jsonl
 - **Citations use [[slug]]**: all citations in the outline use wikilink syntax
 
 ## Error Handling
 
-- **Insufficient claim status**: if all claims are `proposed`, error "claims are unvalidated; run experiments first"
+- **Insufficient idea status**: if all ideas are `proposed`, error "ideas are unvalidated; run experiments first"
 - **No experiment evidence**: error "at least one experimental result is required"; suggest running /exp-design + /exp-run first
 - **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider /ingest of more papers first"
 - **Page budget exceeded**: automatically move lower-priority sections to appendix plan; report the adjustment
 - **Review LLM unavailable**: fall back to Claude self-review; report annotated "single-model review — cross-model verification unavailable"
 - **BibTeX fetch failed**: mark [UNCONFIRMED]; summarize in the citation plan report
 - **Slug conflict**: append date suffix
-- **Target claim not found**: error; list candidates in wiki/claims/
+- **Target idea not found**: error; list candidates in wiki/ideas/
 
 ## Dependencies
 
@@ -390,7 +387,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
 ### Claude Code Native
 - `Read` — read wiki pages
-- `Glob` — find claims, experiments, papers
+- `Glob` — find ideas, experiments, methods, papers
 - `WebFetch` — DBLP / CrossRef BibTeX fetch (Step 6)
 
 ### Shared References

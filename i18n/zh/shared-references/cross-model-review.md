@@ -42,7 +42,7 @@ The reviewer must **NOT** receive:
 - Phase 2: The Review LLM generates ideas from the same landscape context as Claude, but does NOT see Claude's idea list. Merge happens after both complete independently.
 
 ### In `/exp-eval` (impartial verdict)
-- Step 2: Send experiment results + claim + context to the Review LLM. Do NOT include Claude's interpretation of the results.
+- Step 2: Send experiment results + the linked idea's hypothesis + context to the Review LLM. Do NOT include Claude's interpretation of the results.
 
 ---
 
