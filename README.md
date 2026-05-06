@@ -115,6 +115,21 @@
 
 ---
 
+## 🆕 What's New
+
+### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
+
+Your research graph now has two ways to explore:
+
+- **Web UI** — run `python3 tools/serve.py`, open `http://localhost:8765/#/graph`. Click any node to highlight its neighborhood via BFS, filter by entity type or edge category, double-click to open the full page in the Reader.
+- **Obsidian** — run `/visualize --obsidian` to generate a color-coded graph config, or `/visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
+
+### 🔬 2026-05-06 · Methods — Reusable Techniques are Now First-Class
+
+Architectures, training recipes, evaluation protocols, and other reusable techniques now live in `wiki/methods/` as proper wiki entities — with their own pages, source-paper links, and parent/child method chains.
+
+---
+
 ## What is ΩmegaWiki?
 
 Andrej Karpathy proposed LLM-Wiki: an LLM that **builds and maintains a persistent, structured wiki** from your sources — not a throwaway RAG answer, but compounding knowledge that grows smarter with every paper you feed it.
@@ -345,19 +360,6 @@ OmegaWiki/
 ```
 
 ---
-
-## Roadmap
-
-- [x] Wiki knowledge engine (20+ CLI commands, 9 entity types, semantic graph + citation layer)
-- [x] 24 Claude Code skills (full research lifecycle)
-- [x] Cross-model review (any OpenAI-compatible API)
-- [x] Daily arXiv automation (GitHub Actions)
-- [x] Remote GPU experiment support
-- [x] Bilingual i18n (EN + ZH)
-- [ ] Demo dataset (example wiki with pre-ingested papers)
-- [ ] LaTeX venue templates (NeurIPS, ICML, ACL, etc.)
-- [ ] Multi-user collaboration
-- [ ] More language support
 
 ## Contributing
 
