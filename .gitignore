@@ -63,8 +63,8 @@ wiki/ideas/*
 !wiki/ideas/.gitkeep
 wiki/experiments/*
 !wiki/experiments/.gitkeep
-wiki/claims/*
-!wiki/claims/.gitkeep
+wiki/methods/*
+!wiki/methods/.gitkeep
 wiki/Summary/*
 !wiki/Summary/.gitkeep
 wiki/foundations/*
