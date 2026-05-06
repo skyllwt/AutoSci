@@ -1,6 +1,6 @@
 ---
 description: 把一篇论文 ingest 进 wiki —— 建立 papers + concepts + people + claims 页面，并完成所有双向交叉引用与 graph edge。当用户说 "ingest"、"加入这篇论文"、丢 `.pdf` / `.tex` / arXiv URL 或要求把论文折叠进知识库时触发。
-argument-hint: <local-path-or-arXiv-URL> [--discover]
+argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 ---
 
 # /ingest
@@ -21,6 +21,7 @@ argument-hint: <local-path-or-arXiv-URL> [--discover]
 
 - `source`：四种之一 —— arXiv URL（例如 `https://arxiv.org/abs/2106.09685`）、本地 `.tex`、本地 `.pdf`、或 `/init` 通过 `.checkpoints/init-sources.json` 交接的 `canonical_ingest_path`（见 `references/init-mode.md`）
 - `--discover`（可选，默认 **关闭**）：在最终 report 之后调用 `/discover --anchor <this-paper's-arxiv-id>`，把 shortlist 作为 "接下来可能想 ingest 的相关论文" 附在 report 里。从不自动 ingest 推荐结果。INIT MODE 下自动跳过。视为用户可见参数：不得仅根据仓库状态擅自开启。
+- `--visualize`（可选，默认 **关闭**）：在 Step 7 rebuild 之后通过 `tools/visualize.py generate-canvas` 重新生成 Canvas 可视化产物。INIT MODE 下自动跳过 —— 由上层 `/init` 在 fan-in 时统一处理可视化。视为用户可见参数：不得仅根据仓库状态擅自开启。（交互式网页 Graph 视图位于 SPA 的 `app/modules/graph.js`，由 `tools/serve.py` 服务，直接读取 `wiki/graph/`，不需要每次 ingest 单独重生成。）
 
 ## Outputs
 
@@ -53,6 +54,7 @@ argument-hint: <local-path-or-arXiv-URL> [--discover]
 - `wiki/graph/open_questions.md` —— REBUILD（INIT MODE 下跳过）
 - `wiki/index.md` —— APPEND
 - `wiki/log.md` —— 通过工具 APPEND
+- `wiki/canvases/*.canvas` —— CREATE/OVERWRITE（仅当 `--visualize` 开启且非 INIT MODE）
 
 ### 会新增的 Graph edges
 
@@ -186,6 +188,19 @@ INIT MODE 下整步跳过 —— 由上层 `/init` 在 fan-in 时统一处理。
 "$PYTHON_BIN" tools/research_wiki.py rebuild-open-questions wiki/
 ```
 
+### Step 7.5: 可选的可视化（仅当 `--visualize` 开启）
+
+只有用户显式传 `--visualize` 时才执行本步。INIT MODE 下也一律跳过 —— `/init` 父流程在 fan-in 时统一重生成 Canvas，单个子代理不应重复执行从而引入并发写。
+
+开启后，重新生成 Canvas（best-effort；visualize 失败不应让 `/ingest` 失败）：
+
+```bash
+"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
+  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+```
+
+`--obsidian` 不在这里重新生成 —— `wiki/.obsidian/graph.json` 是项目级静态配置，只有在 `config/visualize.json` 调色板变化时才需要重写；那种情况下手动跑 `/visualize --obsidian`。
+
 ### Step 8: 汇报
 
 输出一个紧凑 summary：新建的页面、编辑的页面、新增的 graph edge、发现的 contradiction（如有）、尚未 ingest 的高引用 references（后续 `/ingest` 建议）。末尾一行：
@@ -226,6 +241,7 @@ Wiki: +1 paper, +{N} claims, +{M} concepts, +{K} edges
 - `/ingest` 只对自己写出的内容做形状检查（必需字段、枚举取值、YAML 可解析），到此为止。反向链接对称性、dangling node、完整语义审计属于 `/check`，不要在本 skill 内重复实现。
 - 必须假设有其他 `/ingest` 在并行 worktree 中同时运行 —— 批量 ingest 已在路线图上。所有对共享文件（`graph/edges.jsonl`、`graph/citations.jsonl`、`index.md`、`log.md`）的写入必须经过 `tools/research_wiki.py` 或采用 append-only 语义。详见 `references/init-mode.md`。
 - INIT MODE 下跳过 `fetch_s2.py citations`、`fetch_s2.py references`，以及 `rebuild-*` 命令 —— 由上层 `/init` 在 fan-in 后统一运行。
+- INIT MODE 下也跳过 Step 7.5 的可视化重生成（无论 `--visualize` 是否开启）；由上层 `/init` 在 fan-in 时统一调用 visualize，避免 sibling worktree 间的并发写。
 
 ## Error Handling
 
@@ -249,6 +265,7 @@ Wiki: +1 paper, +{N} claims, +{M} concepts, +{K} edges
 - `"$PYTHON_BIN" tools/fetch_s2.py paper|citations|references <arxiv-id>`
 - `"$PYTHON_BIN" tools/fetch_deepxiv.py brief|head|social <arxiv-id>`
 - `"$PYTHON_BIN" tools/discover.py from-anchors --id <arxiv-id> --wiki-root wiki --limit 10 --output-checkpoint .checkpoints/ --markdown` —— 仅当 `--discover` 开启
+- `"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/` —— 仅当 `--visualize` 开启且非 INIT MODE
 
 ### Shared References
 

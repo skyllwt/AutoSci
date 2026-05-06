@@ -1,6 +1,6 @@
 ---
 description: Ingest a paper into the wiki — creates pages (papers + concepts + people + claims) and builds all cross-references and graph edges. Trigger whenever the user says "ingest", "add this paper", drops a `.pdf` / `.tex` / arXiv URL, or asks to fold a paper into the knowledge base.
-argument-hint: <local-path-or-arXiv-URL> [--discover]
+argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 ---
 
 # /ingest
@@ -21,6 +21,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 - `source`: one of — arXiv URL (e.g. `https://arxiv.org/abs/2106.09685`), local `.tex`, local `.pdf`, or a `canonical_ingest_path` handed off by `/init` via `.checkpoints/init-sources.json`(see `references/init-mode.md`)
 - `--discover` (optional, default **off**): after the final report, invoke `/discover --anchor <this-paper's-arxiv-id>` and append the shortlist to the report as "Related papers you may want to ingest next". Never auto-ingests the suggestions. Skipped automatically in INIT MODE. Treat this as a user-owned flag: do not set it based on repo state.
+- `--visualize` (optional, default **off**): after Step 7 rebuild, regenerate Canvas visualization artifacts via `tools/visualize.py generate-canvas`. Skipped automatically in INIT MODE — the parent `/init` handles visualization once at fan-in. Treat this as a user-owned flag: do not set it based on repo state. (The interactive web Graph view lives in the SPA at `app/modules/graph.js`, served by `tools/serve.py`; it reads `wiki/graph/` live and needs no per-ingest regeneration.)
 
 ## Outputs
 
@@ -53,6 +54,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 - `wiki/graph/open_questions.md` — REBUILD (skipped in INIT MODE)
 - `wiki/index.md` — APPEND
 - `wiki/log.md` — APPEND via tool
+- `wiki/canvases/*.canvas` — CREATE/OVERWRITE (only when `--visualize` is set and not in INIT MODE)
 
 ### Graph edges created
 
@@ -186,6 +188,19 @@ Unless in INIT MODE:
 "$PYTHON_BIN" tools/research_wiki.py rebuild-open-questions wiki/
 ```
 
+### Step 7.5: Optional visualization (only if `--visualize` is set)
+
+Skip this step unless the user explicitly passed `--visualize`. Also skip it in INIT MODE — `/init`'s parent process regenerates Canvas + HTML once at fan-in, so individual subagents must not duplicate the work and risk concurrent writes.
+
+When active, regenerate Canvas + HTML (best-effort; visualize failure must not fail `/ingest`):
+
+```bash
+"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
+  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+```
+
+`--obsidian` is not regenerated here — `wiki/.obsidian/graph.json` is project-level static config that only changes when `config/visualize.json` palette changes; run `/visualize --obsidian` manually for that case.
+
 ### Step 8: Report
 
 Emit one compact summary covering: pages created, pages updated, graph edges added, contradictions surfaced (if any), and high-citation references not yet in the wiki (suggested follow-up ingests). Close with:
@@ -226,6 +241,7 @@ Append the markdown output to the report under a heading like "Related papers yo
 - `/ingest` runs a shape check on its own output (required keys, enum ranges, YAML parses) and stops there. Backlink symmetry, dangling nodes, and full semantic audits belong to `/check`. Do not re-implement them here.
 - Assume another `/ingest` may run concurrently in a sibling worktree. All shared-file writes (`graph/edges.jsonl`, `graph/citations.jsonl`, `index.md`, `log.md`) must go through `tools/research_wiki.py` or use append-only semantics. See `references/init-mode.md`.
 - In INIT MODE, skip `fetch_s2.py citations`, `fetch_s2.py references`, and the `rebuild-*` commands — the parent `/init` runs them once after fan-in.
+- In INIT MODE, also skip Step 7.5 visualization regardless of whether `--visualize` was set; the parent `/init` regenerates Canvas + HTML once at fan-in to avoid concurrent writes from sibling worktrees.
 
 ## Error Handling
 
@@ -249,6 +265,7 @@ See `references/error-handling.md`. Highlights: source parse failures cascade te
 - `"$PYTHON_BIN" tools/fetch_s2.py paper|citations|references <arxiv-id>`
 - `"$PYTHON_BIN" tools/fetch_deepxiv.py brief|head|social <arxiv-id>`
 - `"$PYTHON_BIN" tools/discover.py from-anchors --id <arxiv-id> --wiki-root wiki --limit 10 --output-checkpoint .checkpoints/ --markdown` — only when `--discover` is set
+- `"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/` — only when `--visualize` is set and not in INIT MODE
 
 ### Shared References
 
@@ -259,6 +276,7 @@ See `references/error-handling.md`. Highlights: source parse failures cascade te
 - `/init` — calls `/ingest` in parallel subagents via INIT MODE
 - `/check` — audits wiki state after `/ingest` completes; owns every semantic check `/ingest` intentionally does not perform
 - `/discover` — optional follow-up when `--discover` is set; produces a shortlist of related papers the user may want to ingest next
+- `/visualize` — Step 7.5 (when `--visualize` is set and not in INIT MODE) regenerates Canvas + HTML by calling `tools/visualize.py` directly (best-effort)
 
 ### External APIs
 

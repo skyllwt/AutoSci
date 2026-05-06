@@ -1,0 +1,16 @@
+{
+  "entity_colors": {
+    "papers":       { "hex": "#4A90D9", "rgb": 4886745 },
+    "concepts":     { "hex": "#EC4899", "rgb": 15485081 },
+    "topics":       { "hex": "#E67E22", "rgb": 15105058 },
+    "people":       { "hex": "#2ECC71", "rgb": 3066993 },
+    "ideas":        { "hex": "#F39C12", "rgb": 15965202 },
+    "experiments":  { "hex": "#E74C3C", "rgb": 15158460 },
+    "claims":       { "hex": "#84CC16", "rgb": 8702998 },
+    "Summary":      { "hex": "#1ABC9C", "rgb": 1763716 },
+    "foundations":  { "hex": "#95A5A6", "rgb": 9807270 }
+  },
+  "edge_type_arrows": true,
+  "canvas_layout": "force-directed",
+  "web_library": "cytoscape"
+}

@@ -2397,11 +2397,14 @@ def set_meta(path: str, field: str, value: str, append: bool = False) -> None:
         print(json.dumps({"status": "error", "message": str(e)}))
         sys.exit(1)
 
-    # Atomic write via temp file + rename
+    # Atomic write via temp file + replace.
+    # Path.rename() raises FileExistsError on Windows when the target
+    # exists (which is always, for set-meta). Path.replace() is atomic
+    # on POSIX and overwrites on Windows — works on both.
     tmp = p.with_suffix(".tmp")
     try:
         tmp.write_text(new_content, encoding="utf-8")
-        tmp.rename(p)
+        tmp.replace(p)
     finally:
         if tmp.exists():
             tmp.unlink()
