@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-06
+
+### Added
+
+- **Knowledge graph visualization** (`/visualize`): two output modes — Web SPA (Cytoscape, served by `tools/serve.py`) with BFS-highlight, entity/edge filtering, and in-app Reader; Obsidian mode (`--obsidian` / `--canvas`) generating color-coded graph config and force-layout Canvas files with labeled semantic edges.
+- **Local research dashboard** (`#/dashboard` in web UI): paper ingestion timeline, method-type breakdown, novelty histogram, and experiment status charts.
+
 ### Changed (BREAKING)
 
 - **Replace `claims` entity with `methods` entity.** The wiki no longer carries a separate testable-claim entity; verifiable hypotheses now live on `ideas` pages, and reusable techniques are first-class via `wiki/methods/*.md` (with `name`, `slug`, `type` enum, `source_papers`, `parent_methods`, `child_methods`, `code_repo`).
