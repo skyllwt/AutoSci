@@ -1,0 +1,188 @@
+# entities.yaml — Node contract for the 9 wiki entity types.
+#
+# Field attributes:
+#   type           str | int | float | bool | date | enum | object | link
+#                  | list_str | list_int | list_link | list_object
+#   required       boolean, default false
+#   default        literal value used by `lint --fix`
+#   range          [min, max] for int / float
+#   values         [...] for enum
+#   to             entity kind (or list of kinds) for link / list_link
+#   required_when  { other_field: value } for conditional required
+#   fields         nested schema for object
+#   item           per-element schema for list_object
+#
+# `terminal: true` means the entity writes no outward links (xref reverse-rule exempt).
+
+papers:
+  dir: wiki/papers/
+  fields:
+    title:       { type: str, required: true }
+    slug:        { type: str, required: true }
+    arxiv:       { type: str }
+    venue:       { type: str }
+    year:        { type: int }
+    tags:        { type: list_str, required: true, default: [] }
+    importance:  { type: int, range: [1, 5], required: true, default: 3 }
+    date_added:  { type: date }
+    source_type: { type: enum, values: [tex, pdf] }
+    s2_id:       { type: str }
+    keywords:    { type: list_str, default: [] }
+    domain:      { type: str }
+    code_url:    { type: str }
+    cited_by:    { type: list_link, to: papers, default: [] }
+
+concepts:
+  dir: wiki/concepts/
+  fields:
+    title:            { type: str, required: true }
+    aliases:          { type: list_str, default: [] }
+    tags:             { type: list_str, required: true, default: [] }
+    maturity:         { type: enum, values: [stable, active, emerging, deprecated],
+                        required: true, default: active }
+    key_papers:       { type: list_link, to: papers, required: true, default: [] }
+    first_introduced: { type: str }
+    date_updated:     { type: date }
+    related_concepts: { type: list_link, to: concepts, default: [] }
+    part_of:          { type: list_link, to: topics, default: [] }
+
+topics:
+  dir: wiki/topics/
+  fields:
+    title:          { type: str, required: true }
+    tags:           { type: list_str, required: true, default: [] }
+    my_involvement: { type: enum, values: [none, reading, side-project, main-focus],
+                      default: none }
+    sota_updated:   { type: date }
+    key_venues:     { type: list_str, default: [] }
+    related_topics: { type: list_link, to: topics, default: [] }
+    key_people:     { type: list_link, to: people, default: [] }
+
+people:
+  dir: wiki/people/
+  fields:
+    name:         { type: str, required: true }
+    affiliation:  { type: str }
+    tags:         { type: list_str, required: true, default: [] }
+    homepage:     { type: str }
+    scholar:      { type: str }
+    date_updated: { type: date }
+
+ideas:
+  dir: wiki/ideas/
+  fields:
+    title:              { type: str, required: true }
+    slug:               { type: str, required: true }
+    status:             { type: enum,
+                          values: [proposed, in_progress, tested, validated, failed],
+                          required: true, default: proposed }
+    origin:             { type: str, required: true }
+    origin_gaps:        { type: list_link, to: claims, default: [] }
+    tags:               { type: list_str, required: true, default: [] }
+    domain:             { type: str }
+    priority:           { type: int, range: [1, 5], required: true, default: 3 }
+    pilot_result:       { type: str }
+    failure_reason:     { type: str, required_when: { status: failed } }
+    linked_experiments: { type: list_link, to: experiments, default: [] }
+    date_proposed:      { type: date }
+    date_resolved:      { type: date }
+  lifecycle:
+    transitions:
+      proposed:    [in_progress]
+      in_progress: [tested]
+      tested:      [validated, failed]
+
+experiments:
+  dir: wiki/experiments/
+  fields:
+    title:           { type: str, required: true }
+    slug:            { type: str, required: true }
+    status:          { type: enum, values: [planned, running, completed, abandoned],
+                       required: true, default: planned }
+    target_claim:    { type: link, to: claims, required: true }
+    hypothesis:      { type: str, required: true }
+    tags:            { type: list_str, required: true, default: [] }
+    domain:          { type: str }
+    setup:
+      type: object
+      fields:
+        model:     { type: str }
+        dataset:   { type: str }
+        hardware:  { type: str }
+        framework: { type: str }
+    metrics:         { type: list_str, default: [] }
+    baseline:        { type: str }
+    outcome:         { type: enum, values: [succeeded, failed, inconclusive] }
+    key_result:      { type: str }
+    linked_idea:     { type: link, to: ideas }
+    date_planned:    { type: date }
+    date_completed:  { type: date }
+    run_log:         { type: str }
+    started:         { type: str }
+    estimated_hours: { type: int }
+    remote:
+      type: object
+      fields:
+        server:    { type: str }
+        gpu:       { type: str }
+        session:   { type: str }
+        started:   { type: str }
+        completed: { type: str }
+  lifecycle:
+    transitions:
+      planned: [running]
+      running: [completed, abandoned]
+
+claims:
+  dir: wiki/claims/
+  fields:
+    title:         { type: str, required: true }
+    slug:          { type: str, required: true }
+    status:        { type: enum,
+                     values: [proposed, weakly_supported, supported, challenged, deprecated],
+                     required: true, default: proposed }
+    confidence:    { type: float, range: [0.0, 1.0], required: true, default: 0.5 }
+    tags:          { type: list_str, required: true, default: [] }
+    domain:        { type: str }
+    source_papers: { type: list_link, to: papers, required: true, default: [] }
+    evidence:
+      type: list_object
+      required: true
+      default: []
+      item:
+        source:   { type: link, to: [papers, experiments] }
+        type:     { type: enum, values: [supports, contradicts, tested_by, invalidates] }
+        strength: { type: enum, values: [weak, moderate, strong] }
+        detail:   { type: str }
+    conditions:    { type: str }
+    date_proposed: { type: date }
+    date_updated:  { type: date }
+  lifecycle:
+    transitions:
+      proposed:           [weakly_supported, challenged]
+      weakly_supported:   [supported, challenged, deprecated]
+      supported:          [challenged, deprecated]
+      challenged:         [weakly_supported, supported, deprecated]
+
+Summary:
+  dir: wiki/Summary/
+  fields:
+    title:        { type: str, required: true }
+    scope:        { type: str, required: true }
+    key_topics:   { type: list_link, to: topics, required: true, default: [] }
+    paper_count:  { type: int }
+    date_updated: { type: date }
+
+foundations:
+  dir: wiki/foundations/
+  terminal: true
+  fields:
+    title:            { type: str, required: true }
+    slug:             { type: str, required: true }
+    domain:           { type: str, required: true }
+    status:           { type: enum, values: [mainstream, historical],
+                        required: true, default: mainstream }
+    aliases:          { type: list_str, default: [] }
+    first_introduced: { type: str }
+    date_updated:     { type: date }
+    source_url:       { type: str }

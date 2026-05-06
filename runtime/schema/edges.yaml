@@ -1,0 +1,181 @@
+# edges.yaml — Relation contract for graph edges (incl. citations).
+#
+# Each edge type declares:
+#   endpoints   { from: <kind>, to: <kind> }  -- '*' means any kind
+#   direction   directed | symmetric           -- symmetric edges are stored once
+#                                                 with sorted endpoints
+#   workflow    which subsystem owns this edge type
+#               (ingest | claim_evidence | experiment | idea | provenance | citation)
+#   attributes  schema for edge-record fields beyond from/to/type
+#
+# Storage location of each edge type is decided in conventions.yaml::edge_storage.
+
+# -----------------------------------------------------------------------------
+# Paper ↔ Paper semantic edges  (written by /ingest)
+# -----------------------------------------------------------------------------
+
+same_problem_as:
+  endpoints: { from: papers, to: papers }
+  direction: symmetric
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+similar_method_to:
+  endpoints: { from: papers, to: papers }
+  direction: symmetric
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+complementary_to:
+  endpoints: { from: papers, to: papers }
+  direction: symmetric
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+builds_on:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+compares_against:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+improves_on:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+challenges:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+surveys:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+# -----------------------------------------------------------------------------
+# Paper → Concept semantic edges  (written by /ingest)
+# -----------------------------------------------------------------------------
+
+introduces_concept:
+  endpoints: { from: papers, to: concepts }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+uses_concept:
+  endpoints: { from: papers, to: concepts }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+extends_concept:
+  endpoints: { from: papers, to: concepts }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+critiques_concept:
+  endpoints: { from: papers, to: concepts }
+  direction: directed
+  workflow:  ingest
+  attributes:
+    confidence: { type: enum, values: [high, medium, low], required: true }
+    evidence:   { type: str, required: true }
+
+# -----------------------------------------------------------------------------
+# Workflow edges (claims / experiments / ideas / provenance)
+# Endpoints stay broad because these span multiple entity kinds.
+# -----------------------------------------------------------------------------
+
+supports:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  claim_evidence
+  attributes:
+    evidence: { type: str }
+
+contradicts:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  claim_evidence
+  attributes:
+    evidence: { type: str }
+
+tested_by:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  experiment
+  attributes:
+    evidence: { type: str }
+
+invalidates:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  experiment
+  attributes:
+    evidence: { type: str }
+
+addresses_gap:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  idea
+  attributes:
+    evidence: { type: str }
+
+derived_from:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  provenance
+  attributes:
+    evidence: { type: str }
+
+inspired_by:
+  endpoints: { from: '*', to: '*' }
+  direction: directed
+  workflow:  idea
+  attributes:
+    evidence: { type: str }
+
+# -----------------------------------------------------------------------------
+# Bibliographic citation
+# -----------------------------------------------------------------------------
+
+cites:
+  endpoints: { from: papers, to: papers }
+  direction: directed
+  workflow:  citation
+  attributes:
+    source: { type: enum, values: [semantic_scholar, parsed_bib, manual], required: true }
+    date:   { type: date }

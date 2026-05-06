@@ -65,11 +65,15 @@ from pathlib import Path
 # Constants
 # ---------------------------------------------------------------------------
 
-# Schema constants are re-exported from _schemas so this module and lint.py
-# share a single source of truth — see tools/_schemas.py.
-from _schemas import (  # noqa: E402
+# Schema API lives in runtime/loader.py — single source for both this file and
+# tools/lint.py.  The 3-line bridge below makes runtime/ importable from tools/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from runtime.loader import (  # noqa: E402
     CITATION_SOURCES,
+    CONVENTIONS,
     EDGE_CONFIDENCE_VALUES,
+    EDGES,
+    ENTITIES,
     ENTITY_DIRS,
     SYMMETRIC_EDGE_TYPES,
     VALID_EDGE_TYPES,
@@ -79,6 +83,8 @@ from _schemas import (  # noqa: E402
     edge_is_symmetric,
     edge_legacy_replacement_message,
     edge_requires_confidence,
+    validate_edge_attributes,
+    validate_lifecycle_transition,
 )
 
 DERIVED_DIR = "graph"
@@ -209,51 +215,41 @@ def _validate_node_refs(root: Path, *node_ids: str) -> list[str]:
     return warnings
 
 
-def _semantic_edge_warnings(edge_type: str, from_id: str, to_id: str,
-                            confidence: str = "",
-                            evidence: str = "") -> list[str]:
-    warnings: list[str] = []
+def _edge_topology_issues(edge_type: str, from_id: str, to_id: str,
+                          legacy_check: bool = False) -> list[str]:
+    """Endpoint / self-edge / legacy checks (the parts that aren't attribute-level)."""
+    issues: list[str] = []
     from_kind = _node_kind(from_id)
     to_kind = _node_kind(to_id)
 
+    if legacy_check and edge_is_legacy_for_endpoint(edge_type, from_kind, to_kind):
+        issues.append(edge_legacy_replacement_message(edge_type, from_kind, to_kind))
     if not edge_endpoint_matches(edge_type, from_kind, to_kind):
         expected_from = edge_expected_endpoint(edge_type, "from")
         expected_to = edge_expected_endpoint(edge_type, "to")
-        warnings.append(f"{edge_type} should connect {expected_from}/* -> {expected_to}/*")
+        issues.append(f"{edge_type} should connect {expected_from}/* -> {expected_to}/*")
     if (edge_expected_endpoint(edge_type, "from") == "papers"
             and edge_expected_endpoint(edge_type, "to") == "papers"
             and from_id == to_id):
-        warnings.append(f"{edge_type} should not connect a paper to itself")
-    if edge_requires_confidence(edge_type) and not confidence:
-        warnings.append(f"{edge_type} should include confidence=high|medium|low")
-    if edge_requires_confidence(edge_type) and not evidence.strip():
-        warnings.append(f"{edge_type} should include evidence text")
-    return warnings
+        issues.append(f"{edge_type} should not connect a paper to itself")
+    return issues
+
+
+def _semantic_edge_warnings(edge_type: str, from_id: str, to_id: str,
+                            confidence: str = "",
+                            evidence: str = "") -> list[str]:
+    return (_edge_topology_issues(edge_type, from_id, to_id, legacy_check=False)
+            + validate_edge_attributes(edge_type,
+                                       {"confidence": confidence, "evidence": evidence}))
 
 
 def _semantic_edge_errors(edge_type: str, from_id: str, to_id: str,
                           confidence: str = "",
                           evidence: str = "") -> list[str]:
     """Hard validation for new writes. Legacy graph rows remain lint-readable."""
-    errors: list[str] = []
-    from_kind = _node_kind(from_id)
-    to_kind = _node_kind(to_id)
-
-    if edge_is_legacy_for_endpoint(edge_type, from_kind, to_kind):
-        errors.append(edge_legacy_replacement_message(edge_type, from_kind, to_kind))
-    if not edge_endpoint_matches(edge_type, from_kind, to_kind):
-        expected_from = edge_expected_endpoint(edge_type, "from")
-        expected_to = edge_expected_endpoint(edge_type, "to")
-        errors.append(f"{edge_type} must connect {expected_from}/* -> {expected_to}/*")
-    if (edge_expected_endpoint(edge_type, "from") == "papers"
-            and edge_expected_endpoint(edge_type, "to") == "papers"
-            and from_id == to_id):
-        errors.append(f"{edge_type} must not connect a paper to itself")
-    if edge_requires_confidence(edge_type) and not confidence:
-        errors.append(f"{edge_type} requires --confidence high|medium|low")
-    if edge_requires_confidence(edge_type) and not evidence.strip():
-        errors.append(f"{edge_type} requires --evidence text")
-    return errors
+    return (_edge_topology_issues(edge_type, from_id, to_id, legacy_check=True)
+            + validate_edge_attributes(edge_type,
+                                       {"confidence": confidence, "evidence": evidence}))
 
 
 def _canonical_edge_ids(from_id: str, to_id: str, edge_type: str,
@@ -1484,11 +1480,12 @@ def get_maturity(wiki_root: str, as_json: bool = False) -> dict:
         for e in edges
     )
 
-    # Total entities across all dirs
+    # Total entities counted toward maturity. Terminal kinds (foundations) are
+    # excluded by their `terminal: true` flag; 'Summary' maps to the 'summaries'
+    # stats key for grammatical consistency in the output.
     total_entities = sum(
-        stats.get(k, 0) for k in
-        ("papers", "concepts", "topics", "people",
-         "ideas", "experiments", "claims", "summaries")
+        stats.get("summaries" if k == "Summary" else k, 0)
+        for k, e in ENTITIES.items() if not e.get("terminal")
     )
 
     # Graph density: edges / max(1, N*(N-1))
@@ -1558,22 +1555,12 @@ def get_maturity(wiki_root: str, as_json: bool = False) -> dict:
 # Lifecycle: transition
 # ---------------------------------------------------------------------------
 
+# Lifecycle transitions are declared in runtime/schema/entities.yaml — derived
+# here so adding a new lifecycle requires only a YAML edit.
 TRANSITIONS: dict[str, dict[str, list[str]]] = {
-    "ideas": {
-        "proposed": ["in_progress"],
-        "in_progress": ["tested"],
-        "tested": ["validated", "failed"],
-    },
-    "experiments": {
-        "planned": ["running"],
-        "running": ["completed", "abandoned"],
-    },
-    "claims": {
-        "proposed": ["weakly_supported", "challenged"],
-        "weakly_supported": ["supported", "challenged", "deprecated"],
-        "supported": ["challenged", "deprecated"],
-        "challenged": ["weakly_supported", "supported", "deprecated"],
-    },
+    kind: e['lifecycle']['transitions']
+    for kind, e in ENTITIES.items()
+    if 'lifecycle' in e
 }
 
 # Fields auto-set on transition
