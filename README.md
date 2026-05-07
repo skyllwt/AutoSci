@@ -299,6 +299,12 @@ Paper-paper semantic edges include `same_problem_as`, `similar_method_to`, `comp
 
 All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian for visual graph exploration.
 
+### Interoperability & Data Model
+
+ΩmegaWiki stores everything as plain Markdown with YAML frontmatter in `wiki/`, using standard `[[wikilink]]` syntax. Obsidian is optional and used mainly for visualization; any Markdown workspace (Foam, VS Code, etc.) can open the vault without conversion. The canonical graph lives in `wiki/graph/edges.jsonl` with edge types defined in `runtime/schema/edges.yaml`, which keeps traversal/analytics straightforward for external tools.
+
+Tags are first-class schema fields in frontmatter (`runtime/schema/entities.yaml`), and `/check` (backed by `tools/lint.py`) reports broken links, orphan pages, and graph inconsistencies so stub links are easy to spot. Destructive cleanup is explicit via `tools/reset_wiki.py` (no hidden soft-delete; rely on Git history to roll back). When you need semantic discovery beyond explicit links, the pipeline can optionally call external search APIs (Semantic Scholar / DeepXiv) through `/discover` and `/daily-arxiv` without changing the on-disk format.
+
 ## Automation
 
 **GitHub Actions** runs `/daily-arxiv` at UTC 00:00 daily:
