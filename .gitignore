@@ -34,3 +34,6 @@ Thumbs.db
 
 # Raw data (large files managed separately)
 raw/papers/*.pdf
+
+# /init checkpoint scratch state
+wiki/.checkpoints/
