@@ -33,6 +33,7 @@ import math
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -121,16 +122,30 @@ def _merge_candidate(existing: dict[str, Any], incoming: dict[str, Any]) -> None
         "openreview",
         "site",
         "pdf",
+        "project",
+        "github",
+        "review",
+        "metareview",
         "_papercopilot_id",
         "_track",
+        "_primary_area",
+        "_topic",
         "_status",
     ):
         if not existing.get(key) and incoming.get(key):
             existing[key] = incoming[key]
     if not existing.get("authors") and incoming.get("authors"):
         existing["authors"] = incoming["authors"]
-    if not existing.get("fields_of_study") and incoming.get("fields_of_study"):
-        existing["fields_of_study"] = incoming["fields_of_study"]
+    for key in ("fields_of_study", "keywords"):
+        if incoming.get(key):
+            merged = list(existing.get(key) or [])
+            seen = {_title_key(str(value)) for value in merged}
+            for value in incoming.get(key) or []:
+                marker = _title_key(str(value))
+                if marker and marker not in seen:
+                    seen.add(marker)
+                    merged.append(value)
+            existing[key] = merged
     # Numeric fields: prefer the larger reading (S2 is authoritative; DeepXiv often lacks them).
     for key in ("max_h_index", "citation_count", "influential_citation_count"):
         existing[key] = max(existing.get(key) or 0, incoming.get(key) or 0)
@@ -144,6 +159,15 @@ def _merge_candidate(existing: dict[str, Any], incoming: dict[str, Any]) -> None
             float(existing.get("_papercopilot_rating") or 0),
             float(incoming.get("_papercopilot_rating") or 0),
         )
+    if "_papercopilot_replies_avg" in existing or "_papercopilot_replies_avg" in incoming:
+        existing["_papercopilot_replies_avg"] = max(
+            float(existing.get("_papercopilot_replies_avg") or 0),
+            float(incoming.get("_papercopilot_replies_avg") or 0),
+        )
+    if "_wiki_relevance" in existing or "_wiki_relevance" in incoming:
+        if float(incoming.get("_wiki_relevance") or 0) > float(existing.get("_wiki_relevance") or 0):
+            existing["_wiki_relevance"] = incoming.get("_wiki_relevance")
+            existing["_wiki_matched_terms"] = incoming.get("_wiki_matched_terms") or []
     # Influential-edge is a union: if any anchor↔candidate edge was flagged influential,
     # the candidate keeps the flag even when other channels surfaced it without the flag.
     existing["is_influential_edge"] = bool(existing.get("is_influential_edge") or incoming.get("is_influential_edge"))
@@ -169,7 +193,6 @@ def _dedupe(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
 _PAPER_COPILOT_ALIASES: dict[str, str] = {
     "neurips": "nips",
 }
-_PAPER_COPILOT_OPENREVIEW_VENUES = {"iclr", "icml", "neurips", "nips"}
 _PAPER_COPILOT_BASE_URL = (
     "https://raw.githubusercontent.com/papercopilot/paperlists/main"
 )
@@ -213,6 +236,37 @@ def _first_text(raw: dict[str, Any], *keys: str) -> str:
             continue
         text = str(value).strip()
         if text:
+            return text
+    return ""
+
+
+def _normalize_url_text(value: Any) -> str:
+    if value is None or isinstance(value, (dict, list)):
+        return ""
+    text = str(value).strip()
+    if not text or text in {";", ";;"}:
+        return ""
+    if text.lower().startswith("www."):
+        text = f"https://{text}"
+    parsed = urllib.parse.urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return text
+
+
+def _first_url(raw: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        text = _normalize_url_text(raw.get(key))
+        if text:
+            return text
+    return ""
+
+
+def _first_url_containing(raw: dict[str, Any], needle: str, *keys: str) -> str:
+    needle = needle.lower()
+    for key in keys:
+        text = _normalize_url_text(raw.get(key))
+        if text and needle in text.lower():
             return text
     return ""
 
@@ -265,6 +319,19 @@ def _parse_rating(value: Any) -> float:
         return 0.0
 
 
+def _unique_text_values(*values: Any, separators: str = r"[;,]") -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        for text in _split_text_values(value, separators=separators):
+            key = _title_key(text)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(text)
+    return out
+
+
 def _extract_arxiv_id_from_record(raw: dict[str, Any]) -> str:
     external_ids = raw.get("externalIds") or raw.get("external_ids") or {}
     if isinstance(external_ids, dict):
@@ -289,17 +356,25 @@ def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int
     if not title:
         return {}
     authors = _split_text_values(raw.get("authors") or raw.get("author"), separators=r";")
-    keyword_list = _split_text_values(raw.get("keywords") or raw.get("keyword"))
+    keyword_list = _unique_text_values(
+        raw.get("keywords"),
+        raw.get("keyword"),
+        raw.get("primary_area"),
+        raw.get("primaryArea"),
+        raw.get("topic"),
+        raw.get("topics"),
+    )
     pc_id = str(raw.get("id") or "").strip()
     arxiv_id = _extract_arxiv_id_from_record(raw)
     s2_id = _first_text(raw, "paperId", "s2_id", "s2Id", "semantic_scholar_id")
-    openreview = _first_text(raw, "openreview", "openreview_url")
-    canonical_venue = _PAPER_COPILOT_ALIASES.get(venue.lower(), venue.lower())
-    if not openreview and pc_id and canonical_venue in _PAPER_COPILOT_OPENREVIEW_VENUES:
-        openreview = f"https://openreview.net/forum?id={pc_id}"
-    site = _first_text(raw, "site", "homepage", "project")
-    pdf = _first_text(raw, "pdf", "pdf_url")
-    url = _first_text(raw, "url") or openreview or site or pdf
+    openreview = _first_url_containing(raw, "openreview.net", "openreview", "openreview_url", "site", "url")
+    site = _first_url(raw, "site")
+    pdf = _first_url(raw, "pdf", "pdf_url")
+    url = _first_url(raw, "url")
+    project = _first_url(raw, "project")
+    github = _first_url(raw, "github")
+    site = site or project
+    url = url or site or openreview or pdf
     citation_count = _parse_int(
         raw.get("gs_citation")
         or raw.get("citation_count")
@@ -307,6 +382,7 @@ def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int
         or raw.get("citations")
     )
     review_count = _parse_int(raw.get("review_count") or raw.get("reviews_count") or raw.get("num_reviews"))
+    replies_avg = _parse_rating(raw.get("replies_avg") or raw.get("reply_avg"))
     rating_avg = _parse_rating(raw.get("rating_avg") or raw.get("rating"))
     record_year = _parse_int(raw.get("year")) or year
     return {
@@ -314,7 +390,7 @@ def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int
         "arxiv_id": arxiv_id,
         "title": title,
         "abstract": str(raw.get("abstract") or "").strip(),
-        "tldr": "",
+        "tldr": _first_text(raw, "tldr", "tl_dr", "summary"),
         "year": record_year,
         "venue": str(raw.get("venue") or venue).strip(),
         "authors": authors,
@@ -322,11 +398,16 @@ def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int
         "citation_count": citation_count,
         "influential_citation_count": 0,
         "fields_of_study": keyword_list,
+        "keywords": keyword_list,
         "publication_types": [],
         "url": url,
         "openreview": openreview,
         "site": site,
         "pdf": pdf,
+        "project": project,
+        "github": github,
+        "review": _first_url(raw, "review"),
+        "metareview": _first_url(raw, "metareview", "meta_review"),
         "is_influential_edge": False,
         "_sources": ["papercopilot"],
         "_anchors": [],
@@ -334,7 +415,10 @@ def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int
         "_papercopilot_id": pc_id,
         "_papercopilot_rating": rating_avg,
         "_papercopilot_review_count": review_count,
+        "_papercopilot_replies_avg": replies_avg,
         "_track": str(raw.get("track") or "").strip(),
+        "_primary_area": str(raw.get("primary_area") or raw.get("primaryArea") or "").strip(),
+        "_topic": str(raw.get("topic") or raw.get("topics") or "").strip(),
         "_status": str(raw.get("status") or raw.get("decision") or "").strip(),
     }
 
@@ -537,8 +621,17 @@ def _candidate_relevance_terms(candidate: dict[str, Any]) -> Counter[str]:
     _add_weighted_terms(counts, candidate.get("title", ""), 4.0)
     _add_weighted_terms(counts, candidate.get("abstract", ""), 1.0)
     _add_weighted_terms(counts, candidate.get("tldr", ""), 1.5)
-    _add_weighted_terms(counts, " ".join(candidate.get("fields_of_study") or []), 2.0)
+    keyword_terms: list[str] = []
+    seen_keywords: set[str] = set()
+    for value in list(candidate.get("fields_of_study") or []) + list(candidate.get("keywords") or []):
+        marker = _title_key(str(value))
+        if marker and marker not in seen_keywords:
+            seen_keywords.add(marker)
+            keyword_terms.append(str(value))
+    _add_weighted_terms(counts, " ".join(keyword_terms), 2.0)
     _add_weighted_terms(counts, str(candidate.get("_track") or ""), 1.2)
+    _add_weighted_terms(counts, str(candidate.get("_primary_area") or ""), 1.5)
+    _add_weighted_terms(counts, str(candidate.get("_topic") or ""), 1.5)
     return counts
 
 
@@ -696,19 +789,35 @@ def _rating_score(rating: float) -> float:
     return min(1.0, max(0.0, float(rating or 0)) / 10.0)
 
 
+def _status_score(status: str) -> float:
+    """Use Paper Copilot decision/status as a small venue-mode tie-breaker."""
+    text = (status or "").lower()
+    if not text:
+        return 0.5
+    if any(marker in text for marker in ("reject", "withdraw", "desk")):
+        return 0.0
+    if "workshop" in text:
+        return 0.65
+    if any(marker in text for marker in ("oral", "spotlight")):
+        return 1.0
+    if any(marker in text for marker in ("accept", "poster", "main")):
+        return 0.85
+    return 0.5
+
+
 def _score_venue(c: dict[str, Any]) -> float:
     """Rank venue-mode candidates by wiki relevance + secondary signals."""
     rel = float(c.get("_wiki_relevance", 0.0))
     influence = _influence_score(0, c.get("citation_count", 0))
     fresh = _freshness_score(c.get("year"))
     rating = _rating_score(c.get("_papercopilot_rating", 0))
-    diversity = _channel_diversity_score(c)
+    status = _status_score(str(c.get("_status") or ""))
     return (
         0.50 * rel
         + 0.20 * influence
         + 0.15 * fresh
         + 0.10 * rating
-        + 0.05 * diversity
+        + 0.05 * status
     )
 
 
@@ -724,6 +833,9 @@ def _rationale_venue(c: dict[str, Any]) -> str:
     rating = c.get("_papercopilot_rating")
     if rating:
         bits.append(f"rating {round(float(rating), 1)}")
+    status = c.get("_status")
+    if status:
+        bits.append(status)
     track = c.get("_track")
     if track:
         bits.append(track)
@@ -928,11 +1040,6 @@ def build_shortlist(
             rel, matched = _wiki_relevance_score(c, wiki_corpus)
             c["_wiki_relevance"] = rel
             c["_wiki_matched_terms"] = matched
-        if candidates and max(float(c.get("_wiki_relevance", 0.0)) for c in candidates) <= 0:
-            raise ValueError(
-                "No venue candidates matched the existing wiki relevance corpus. "
-                "Expand the wiki or use topic mode."
-            )
     else:
         raise ValueError(f"unknown mode: {mode}")
 
@@ -944,6 +1051,12 @@ def build_shortlist(
     wiki_dedup_count = before_wiki_filter_count - len(candidates)
 
     if mode == "venue":
+        candidates = [c for c in candidates if float(c.get("_wiki_relevance", 0.0)) > 0]
+        if not candidates:
+            raise ValueError(
+                "No venue candidates matched the existing wiki relevance corpus after filtering existing wiki papers. "
+                "Expand the wiki or use topic mode."
+            )
         for c in candidates:
             c["_score"] = round(_score_venue(c), 4)
             c["_rationale"] = _rationale_venue(c)
@@ -1111,13 +1224,16 @@ def main() -> None:
     elif args.command == "from-venue":
         if not args.wiki_root:
             parser.error("from-venue requires --wiki-root")
-        payload = build_shortlist(
-            mode="venue",
-            venue=args.venue,
-            year=args.year,
-            wiki_root=args.wiki_root,
-            limit=args.limit,
-        )
+        try:
+            payload = build_shortlist(
+                mode="venue",
+                venue=args.venue,
+                year=args.year,
+                wiki_root=args.wiki_root,
+                limit=args.limit,
+            )
+        except (RuntimeError, ValueError) as exc:
+            parser.error(str(exc))
         seed_slug = _slugify(f"{args.venue}-{args.year}")
     else:
         parser.error(f"unknown command: {args.command}")

@@ -31,9 +31,11 @@ Venue 模式：
 2. **Citation count** —— Paper Copilot 可用的引用字段，做对数缩放，作为次级信号。
 3. **Freshness** —— 轻量 tie-breaker；venue 运行通常固定一个年份，所以它一般影响不大。
 4. **Paper Copilot rating / review metadata** —— 存在时仅作次级 tie-breaker。
-5. **Source diversity** —— 当前 venue 模式要求只用 Paper Copilot，因此这个信号基本不移动结果。
+5. **Paper Copilot status / decision** —— 小权重 tie-breaker；wiki 相关性接近时，accepted / oral / spotlight 记录会排在 rejected 或 withdrawn 记录前面。
 
 Venue 模式使用 Paper Copilot 的公开 GitHub JSON 数据（`papercopilot/paperlists`）作为 venue/year 论文列表来源，不抓取 live website，也不把完整数据集 vendor 进仓库。
+
+Paper Copilot normalization 不能丢掉来源中明确存在、会影响相关性判断的字段。应尽量把 title、abstract、TLDR、keywords / primary area / topic、track、status、citations、ratings、review metadata，以及论文 URL（`url`、`site`、`openreview`、`pdf`，有 project/GitHub 链接时也保留）写入 shortlist payload。这些字段要么直接参与打分，要么作为次级证据展示给用户。
 
 ### 为什么同时使用聚合 influence 和 per-edge influence？
 

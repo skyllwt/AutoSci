@@ -230,7 +230,7 @@ and are best run from WSL2 or Linux/macOS.
 | `/prefill <domain>` | Optionally seed `foundations/` with background knowledge |
 | `/init [topic]` | Bootstrap a full wiki from user raw sources plus optional discovery |
 | `/ingest <source>` | Parse a paper → wiki pages + cross-references |
-| `/discover` | Recommend ranked next-read papers from anchors, a topic, or the current wiki |
+| `/discover` | Recommend ranked next-read papers from anchors, a topic, the current wiki, or a venue/year |
 | `/edit <request>` | Add/remove sources or update wiki content |
 | `/ask <question>` | Query the wiki, crystallize answers back |
 | `/check` | Health scan: broken links, missing cross-refs, consistency |
@@ -551,7 +551,7 @@ claude
 | `/prefill` | 可选地预填 `foundations/` 背景知识 |
 | `/init` | 基于用户 raw 素材并按需做外部发现来搭建 wiki |
 | `/ingest` | 消化论文，创建页面 + 交叉引用 |
-| `/discover` | 从 anchor、topic 或当前 wiki 推荐排序后的下一批待读论文 |
+| `/discover` | 从 anchor、topic、当前 wiki 或 venue/year 推荐排序后的下一批待读论文 |
 | `/edit` | 增删 raw 或更新 wiki |
 | `/ask` | 对 wiki 提问 |
 | `/check` | wiki 健康检查 |

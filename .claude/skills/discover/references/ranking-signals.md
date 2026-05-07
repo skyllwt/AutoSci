@@ -31,9 +31,11 @@ Venue mode:
 2. **Citation count** — Paper Copilot's available citation field, log-scaled as a secondary signal.
 3. **Freshness** — mild tie-breaker; most venue runs use one year, so this normally does not move much.
 4. **Paper Copilot rating / review metadata** — used only as secondary tie-breakers when present.
-5. **Source diversity** — negligible for venue mode today because Paper Copilot is the required source.
+5. **Paper Copilot status / decision** — small tie-breaker so accepted/oral/spotlight records edge out rejected or withdrawn records at similar wiki relevance.
 
 Venue mode uses Paper Copilot's public GitHub JSON data (`papercopilot/paperlists`) for the venue/year list and does not scrape the live website or vendor the dataset.
+
+Paper Copilot normalization must not drop relevance-bearing fields documented by the source. Preserve title, abstract, TLDR, keywords / primary area / topic, track, status, citations, ratings, review metadata, and paper URLs (`url`, `site`, `openreview`, `pdf`, project/GitHub links when present) in the shortlist payload where practical. These fields are either ranked directly or left visible as secondary evidence for the user.
 
 ### Why aggregate influence AND per-edge influence?
 

@@ -80,10 +80,17 @@ class DiscoverVenueTests(unittest.TestCase):
             "title": "Efficient Retrieval Augmented Reasoning",
             "author": "Ada Lovelace; Grace Hopper",
             "keywords": "retrieval, generation; adapters",
+            "primary_area": "Language Models",
+            "topic": "RAG",
+            "tldr": "A concise summary.",
             "pdf": "https://arxiv.org/pdf/2401.12345",
+            "openreview": "https://openreview.net/forum?id=abc123",
+            "review": "https://openreview.net/forum?id=abc123&noteId=review",
+            "metareview": "https://openreview.net/forum?id=abc123&noteId=meta",
             "gs_citation": "1,234",
             "rating_avg": [7.5, 1.0],
             "review_count": "4",
+            "replies_avg": "6",
             "status": "Poster",
         }
 
@@ -92,11 +99,74 @@ class DiscoverVenueTests(unittest.TestCase):
         self.assertEqual(norm["paperId"], "abc123")
         self.assertEqual(norm["arxiv_id"], "2401.12345")
         self.assertEqual(norm["authors"], ["Ada Lovelace", "Grace Hopper"])
-        self.assertEqual(norm["fields_of_study"], ["retrieval", "generation", "adapters"])
+        self.assertEqual(
+            norm["fields_of_study"],
+            ["retrieval", "generation", "adapters", "Language Models", "RAG"],
+        )
+        self.assertEqual(norm["keywords"], norm["fields_of_study"])
+        self.assertEqual(norm["tldr"], "A concise summary.")
+        self.assertEqual(norm["review"], "https://openreview.net/forum?id=abc123&noteId=review")
+        self.assertEqual(norm["metareview"], "https://openreview.net/forum?id=abc123&noteId=meta")
         self.assertEqual(norm["citation_count"], 1234)
         self.assertEqual(norm["_papercopilot_rating"], 7.5)
         self.assertEqual(norm["_papercopilot_review_count"], 4)
+        self.assertEqual(norm["_papercopilot_replies_avg"], 6.0)
+        self.assertEqual(norm["_primary_area"], "Language Models")
+        self.assertEqual(norm["_topic"], "RAG")
         self.assertEqual(norm["openreview"], "https://openreview.net/forum?id=abc123")
+
+    def test_papercopilot_id_is_not_synthesized_as_openreview_url(self) -> None:
+        norm = discover._normalize_papercopilot_record(
+            {
+                "id": "abc123",
+                "title": "Venue Paper Without Explicit OpenReview URL",
+                "pdf": "https://arxiv.org/pdf/2401.12345",
+            },
+            venue="neurips",
+            year=2024,
+        )
+
+        self.assertEqual(norm["paperId"], "abc123")
+        self.assertEqual(norm["openreview"], "")
+        self.assertEqual(norm["url"], "https://arxiv.org/pdf/2401.12345")
+
+    def test_papercopilot_url_fields_are_normalized(self) -> None:
+        norm = discover._normalize_papercopilot_record(
+            {
+                "id": "urlcase",
+                "title": "Venue Paper With Messy URLs",
+                "url": "www.example.org/paper",
+                "site": ";",
+                "pdf": ";;",
+                "openreview": "www.openreview.net/forum?id=urlcase",
+                "review": "see openreview.net but not a url",
+                "metareview": "https://openreview.net/forum?id=urlcase&noteId=meta",
+            },
+            venue="neurips",
+            year=2024,
+        )
+
+        self.assertEqual(norm["url"], "https://www.example.org/paper")
+        self.assertEqual(norm["openreview"], "https://www.openreview.net/forum?id=urlcase")
+        self.assertEqual(norm["site"], "")
+        self.assertEqual(norm["pdf"], "")
+        self.assertEqual(norm["review"], "")
+        self.assertEqual(norm["metareview"], "https://openreview.net/forum?id=urlcase&noteId=meta")
+
+    def test_existing_papercopilot_site_prevents_bogus_openreview_synthesis(self) -> None:
+        norm = discover._normalize_papercopilot_record(
+            {
+                "id": "59aa76267c",
+                "title": "A Bayesian Approach to Diffusion Models of Decision-Making and Response Time",
+                "site": "https://papers.nips.cc/paper_files/paper/2006/hash/4b86ca48-Abstract.html",
+                "pdf": "https://papers.nips.cc/paper_files/paper/2006/file/4b86ca48-Paper.pdf",
+            },
+            venue="neurips",
+            year=2006,
+        )
+
+        self.assertEqual(norm["openreview"], "")
+        self.assertEqual(norm["url"], "https://papers.nips.cc/paper_files/paper/2006/hash/4b86ca48-Abstract.html")
 
     def test_non_openreview_venue_does_not_synthesize_openreview_url(self) -> None:
         norm = discover._normalize_papercopilot_record(
@@ -258,6 +328,54 @@ class DiscoverVenueTests(unittest.TestCase):
             self.assertFalse((wiki / "log.md").exists())
             self.assertFalse((Path(tmp) / "raw").exists())
 
+    def test_venue_relevance_guard_runs_after_wiki_dedup(self) -> None:
+        records = [
+            {
+                "id": "duplicate",
+                "title": "Existing Venue Paper",
+                "abstract": "Retrieval augmented generation paper already present in the wiki.",
+            },
+            {
+                "id": "offtopic",
+                "title": "Catalyst Geometry for Battery Electrolytes",
+                "abstract": "Polymer conductivity, lithium cathodes, anodes, and electrochemical cells.",
+                "rating_avg": 9.0,
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            wiki = Path(tmp) / "wiki"
+            papers = wiki / "papers"
+            concepts = wiki / "concepts"
+            papers.mkdir(parents=True)
+            concepts.mkdir(parents=True)
+            (papers / "existing.md").write_text(
+                "---\n"
+                "title: Existing Venue Paper\n"
+                "---\n"
+                "# Existing Venue Paper\n"
+                "Retrieval augmented generation, adapters, long context, factual grounding, "
+                "open domain question answering, citation attribution, reranking, chunking, "
+                "knowledge intensive tasks, reasoning traces, vector search, dense retrieval.\n",
+                encoding="utf-8",
+            )
+            (concepts / "rag.md").write_text(
+                "# Retrieval Augmented Generation\n"
+                "Adapters, grounding, reranking, long context reasoning, dense retrieval, "
+                "faithfulness, query rewriting, answer synthesis, attribution, knowledge editing.\n",
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(discover, "_fetch_papercopilot", return_value=records):
+                with self.assertRaisesRegex(ValueError, "after filtering existing wiki papers"):
+                    discover.build_shortlist(
+                        mode="venue",
+                        venue="neurips",
+                        year=2024,
+                        wiki_root=wiki,
+                        limit=5,
+                    )
+
     def test_from_venue_help_omits_anchor_only_limit(self) -> None:
         proc = subprocess.run(
             [sys.executable, str(TOOLS / "discover.py"), "from-venue", "--help"],
@@ -268,6 +386,31 @@ class DiscoverVenueTests(unittest.TestCase):
         )
 
         self.assertNotIn("--per-anchor-limit", proc.stdout)
+
+    def test_from_venue_sparse_cli_fails_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            wiki = Path(tmp) / "wiki"
+            (wiki / "papers").mkdir(parents=True)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(TOOLS / "discover.py"),
+                    "from-venue",
+                    "--venue",
+                    "neurips",
+                    "--year",
+                    "2024",
+                    "--wiki-root",
+                    str(wiki),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("Wiki too sparse", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
 
 
 if __name__ == "__main__":

@@ -63,4 +63,4 @@ Prefer anchor mode. Anchors are a much stronger signal than a topic string. Ment
 
 ## What if the user gave both a venue and a topic?
 
-Prefer venue mode if the user explicitly named a venue and year. The topic can be mentioned in the report, but venue mode's ranking is driven by wiki relevance, not by the topic string. If the wiki is too sparse for venue mode, fall back to topic mode and note the venue preference in the report.
+Prefer venue mode if the user explicitly named a venue and year. The topic can be mentioned in the report, but venue mode's ranking is driven by wiki relevance, not by the topic string. If the wiki is too sparse for venue mode, stop with a clear sparse-wiki failure and suggest ingesting more papers or running a separate topic discovery; do not silently fall back to an unpersonalized venue ranking.

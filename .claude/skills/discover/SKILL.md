@@ -154,7 +154,7 @@ When `/ingest` is invoked with the optional `--discover` flag (default off), it 
 - **S2 unavailable, DeepXiv available (topic mode)**: continue with DeepXiv only; note the degradation in the report.
 - **S2 returns zero recommendations for an anchor**: keep going with the remaining anchors; if all anchors return zero, treat as total failure.
 - **`--from-wiki` finds no anchorable papers** (`wiki/papers/` empty or all missing `arxiv_id`): tell the user the wiki is too sparse for wiki-mode discovery and suggest topic mode.
-- **`--from-venue` with a sparse wiki** (too few terms extracted from wiki content): fail clearly and suggest ingesting papers or using topic mode. Venue mode relies on existing wiki content for relevance; without it the ranking would be arbitrary.
+- **`from-venue` with a sparse wiki** (too few terms extracted from wiki content): fail clearly and suggest ingesting papers or using topic mode. Venue mode relies on existing wiki content for relevance; without it the ranking would be arbitrary.
 - **Anchor ID is malformed or unknown**: S2 will return 404; surface the bad ID in the report and continue with any remaining anchors.
 
 ## Dependencies
@@ -176,4 +176,4 @@ When `/ingest` is invoked with the optional `--discover` flag (default off), it 
 
 - Semantic Scholar — recommendations (`/recommendations/v1/papers/forpaper/{id}`, `POST /recommendations/v1/papers/`), search, paper detail (via `tools/fetch_s2.py`)
 - DeepXiv — search fallback in topic mode (via `tools/fetch_deepxiv.py`, optional; graceful fallback when unavailable)
-- Paper Copilot — public GitHub raw JSON (`papercopilot/paperlists`) for venue/year paper lists. Live-site scraping is not used.
+- Paper Copilot — public GitHub raw JSON (`papercopilot/paperlists`) for venue/year paper lists. Live-site scraping is not used; do not vendor the dataset. Venue normalization should preserve documented relevance fields such as title, abstract, TLDR, keywords / primary area / topic, track, status, citations, ratings, reviews, and paper URLs when present.
