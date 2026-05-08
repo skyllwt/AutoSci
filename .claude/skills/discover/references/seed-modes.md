@@ -55,8 +55,6 @@ Triggers:
 
 Venue mode fetches the full paper list for that venue/year from Paper Copilot's public GitHub JSON source (`papercopilot/paperlists`), normalizes each record, and ranks them by relevance to the user's existing wiki content. It requires a non-sparse wiki — if the wiki is too empty, the tool fails clearly rather than returning an unpersonalized list.
 
-Venue mode does **not** use Semantic Scholar or DeepXiv. It does not write to `wiki/` or `raw/`.
-
 ## What if the user gave both an anchor and a topic?
 
 Prefer anchor mode. Anchors are a much stronger signal than a topic string. Mention the topic in the user-facing report so they know it was noted, but the discovery itself runs through `from-anchors`.

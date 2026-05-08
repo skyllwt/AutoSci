@@ -10,7 +10,7 @@ argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str>
 Use these local references on demand:
 
 - `references/seed-modes.md` — when to pick anchor / topic / wiki / venue mode and how to translate the user's phrasing into one
-- `references/ranking-signals.md` — what `tools/discover.py` scores on and why discovery does **not** share `/init`'s survey preference
+- `references/ranking-signals.md` — what `tools/discover.py` scores on.
 - `references/wiki-dedup.md` — how candidates are filtered against `wiki/papers/` and what to do with matches
 
 ## Inputs
@@ -28,9 +28,9 @@ Exactly one of `--anchor`, `--topic`, `--from-wiki`, or `--venue` must be given.
 
 - `.checkpoints/discover-{seed-slug}-{YYYY-MM-DD}.json` — full shortlist payload, machine-readable; the seed slug is derived from the first anchor or the topic
 - a human-readable markdown summary printed to the user with rationale per candidate
-- `wiki/log.md` — one append line via `tools/research_wiki.py log` for anchor/topic/wiki runs only
+- `wiki/log.md` — one append line via `tools/research_wiki.py log`.
 
-`/discover` does not write anywhere else in `wiki/` and does not touch `raw/`. `from-venue` is stricter: it does not write to `wiki/` at all, including `wiki/log.md`. Whether to actually pull a candidate into the wiki is the caller's decision (a follow-up `/ingest`).
+`/discover` does not write anywhere else in `wiki/` and does not touch `raw/`.
 
 ## Wiki Interaction
 
@@ -42,8 +42,7 @@ Exactly one of `--anchor`, `--topic`, `--from-wiki`, or `--venue` must be given.
 
 ### Writes
 
-- anchor/topic/wiki runs: `wiki/log.md` — APPEND via `tools/research_wiki.py log`
-- venue runs: none
+- `wiki/log.md` — APPEND via `tools/research_wiki.py log`
 
 ### Graph edges created
 
@@ -115,7 +114,7 @@ Append a short "next step" hint:
 To ingest a candidate: /ingest https://arxiv.org/abs/<arxiv-id>
 ```
 
-Do not ingest anything yourself. The user picks.
+**Do not ingest anything yourself. The user picks.**
 
 ### Step 4: Log
 
@@ -133,14 +132,10 @@ Skip this step for `from-venue`; venue discovery must not write to `wiki/` or `r
 
 When `/ingest` is invoked with the optional `--discover` flag (default off), it calls `/discover` after the final report, with the just-ingested paper's arXiv ID as the single anchor. The shortlist is appended to `/ingest`'s report under a "Related papers you may want to ingest next" heading. `/ingest` never auto-ingests anything from this list.
 
-### From `/init`
-
-`/init` does not call `/discover`. `/init`'s planner (`tools/init_discovery.py plan`) has its own scoring that favors surveys, broad coverage, and seed anchors — appropriate for bootstrapping a wiki. `/discover`'s ranking is intentionally different (no survey preference; weights anchor similarity and influential citations) and would dilute `/init`'s shortlist if substituted in. Keep them separate.
-
 ## Constraints
 
 - **Never auto-ingest**: `/discover` returns a shortlist and stops. Even when called by `/ingest --discover`, the caller surfaces results and the user decides what to ingest.
-- **No content writes to `wiki/`**: paper pages, concepts, claims, graph edges all belong to `/ingest`. Anchor/topic/wiki runs may append `wiki/log.md`; `from-venue` must not write to `wiki/` at all.
+- **No content writes to `wiki/`**: paper pages, concepts, claims, graph edges all belong to `/ingest`. Only append to `wiki/log.md`.
 - **No writes to `raw/`**: `/discover` does not download papers. The user runs `/ingest <arxiv-url>` afterwards if they want a candidate.
 - **Always dedupe against the wiki**: pass `--wiki-root wiki` so the shortlist contains only papers not yet in the wiki. Surfacing duplicates is the most common low-quality failure mode.
 - **Ranking is discovery-specific**: do not import or duplicate `tools/init_discovery.py`'s scoring helpers. The two skills have different objectives — `/init` wants broad foundational coverage; `/discover` wants relevant *next reads*. See `references/ranking-signals.md`.

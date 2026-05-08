@@ -46,16 +46,6 @@ They answer different questions:
 
 A paper can score high on one and low on the other. Example: a well-known benchmark paper has a high aggregate count (everyone cites it) but rarely a True edge from a method paper (the benchmark is used, not built upon). Our ranking uses both, so benchmarks surface when there's no better signal, but papers the anchor literally built on outrank them.
 
-## What discovery does **not** score on
-
-This is where `/discover` deliberately differs from `/init`'s planner (`tools/init_discovery.py`):
-
-- **No survey preference**. `/init` favors survey/review papers because a fresh wiki benefits from them as anchor coverage. `/discover` is invoked when a user already knows the area (anchor mode) or is exploring (topic mode); they rarely need yet another survey, and surfacing surveys above novel work would be noise.
-- **No "older canonical anchor" bonus**. `/init`'s bootstrap mode promotes one older citation-heavy paper to broaden coverage. `/discover` users typically want forward-looking recommendations, not foundational re-anchoring.
-- **No notes/web priority terms**. `/init` reads `raw/notes/` and `raw/web/` to extract the user's stated intent. `/discover` does not — its inputs are explicit (anchor, topic, or wiki state).
-
-If a future ranking signal seems shared between `/init` and `/discover`, prefer keeping two implementations rather than extracting a shared scorer. The objectives genuinely differ; a shared scorer would force one skill to compromise.
-
 ## Field-set restrictions on S2 endpoints
 
 `tools/fetch_s2.py` uses two field sets:
