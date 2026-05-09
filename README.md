@@ -117,6 +117,10 @@
 
 ## 🆕 What's New
 
+### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
+
+Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
+
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
 Your research graph now has two ways to explore:
