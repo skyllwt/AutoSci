@@ -233,7 +233,7 @@ Revise the experiment plan based on Review LLM feedback (add missing experiments
    (to be filled after /exp-run)
 
    ## Idea updates
-   (to be filled after /exp-eval — records the linked idea's status / pilot_result transition; not a separate claim entity)
+   (to be filled after /exp-eval — records the linked idea's status / pilot_result transition)
 
    ## Follow-up
    {contingency plans: what to do if success / failure}

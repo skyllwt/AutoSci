@@ -19,7 +19,7 @@ argument-hint: <experiment-slug> [--auto]
 ## Outputs
 
 - `wiki/ideas/{linked-idea}.md` — updated `status`, `pilot_result`, `failure_reason`, `date_resolved`
-- `wiki/experiments/{slug}.md` — `## Idea updates` section filled in (records the linked idea's status / pilot_result transition; replaces the legacy `## Claim updates` heading)
+- `wiki/experiments/{slug}.md` — `## Idea updates` section filled in (records the linked idea's status / pilot_result transition)
 - `wiki/graph/edges.jsonl` — new `supports` / `invalidates` edges added (experiment → idea)
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/graph/open_questions.md` — rebuilt
@@ -213,7 +213,7 @@ Record Review LLM's verdict.
 
 #### All Paths (common steps)
 
-1. **Fill in the `## Idea updates` section of the experiment page** (records changes to the linked idea, not a separate claim entity):
+1. **Fill in the `## Idea updates` section of the experiment page** (records changes to the linked idea):
    ```markdown
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}

@@ -25,7 +25,7 @@ schedule:
 
 profile:
   # true = infer interests from wiki/papers, wiki/topics, wiki/concepts,
-  # wiki/claims, wiki/ideas, and wiki/log.md.
+  # wiki/methods, wiki/ideas, and wiki/log.md.
   derive_from_wiki: true
   positive_topics: []
   negative_topics: []

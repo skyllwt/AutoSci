@@ -19,7 +19,7 @@ argument-hint: <experiment-slug> [--auto]
 ## Outputs
 
 - `wiki/ideas/{linked-idea}.md` — 更新 `status`、`pilot_result`、`failure_reason`、`date_resolved`
-- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section（记录 linked idea 的 status / pilot_result 变化；旧名为 `## Claim updates`）
+- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section（记录 linked idea 的 status / pilot_result 变化）
 - `wiki/graph/edges.jsonl` — 新增 `supports` / `invalidates` 边（experiment → idea）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/graph/open_questions.md` — 重建
@@ -213,7 +213,7 @@ mcp__llm-review__chat:
 
 #### 所有路径通用
 
-1. **更新实验页面的 `## Idea updates` section**（记录 linked idea 的更新；不再有独立的 claim 实体）：
+1. **更新实验页面的 `## Idea updates` section**（记录 linked idea 的更新）：
    ```markdown
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}

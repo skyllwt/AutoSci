@@ -233,7 +233,7 @@ mcp__llm-review__chat:
    (to be filled after /exp-run)
 
    ## Idea updates
-   (to be filled after /exp-eval — 记录 linked idea 的 status / pilot_result 变化；不再有独立的 claim 实体)
+   (to be filled after /exp-eval — 记录 linked idea 的 status / pilot_result 变化)
 
    ## Follow-up
    {contingency plans: what to do if success / failure}
