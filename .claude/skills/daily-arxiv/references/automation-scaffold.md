@@ -39,8 +39,10 @@ Recommendation/ingest:
 - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — optional OpenAI-compatible LLM
   for `inform` recommendation when Claude Code is not available.
 - `LLM_FALLBACK_MODEL` — optional fallback for the OpenAI-compatible LLM.
-- `SEMANTIC_SCHOLAR_API_KEY` — optional, improves S2 rate limits.
-- `DEEPXIV_TOKEN` — optional, enables DeepXiv enrichment when available.
+- `SEMANTIC_SCHOLAR_API_KEY` — required for daily-cadence runs. Anonymous-tier S2 rate limits time the prepare step out against ~1000 candidates.
+- `DEEPXIV_TOKEN` — required for daily-cadence runs to enable DeepXiv enrichment without anonymous-tier throttling.
+
+These two API keys must also be exposed as workflow env vars (see *Workflow Env Exposures* below). Storing them as repo secrets is necessary but not sufficient.
 
 SMTP delivery:
 
@@ -52,6 +54,27 @@ SMTP delivery:
 - `DAILY_ARXIV_EMAIL_TO`
 
 Do not store secrets in `config/daily-arxiv.yml`.
+
+## Workflow Env Exposures
+
+`.github/workflows/daily-arxiv.yml` must reference S2/DeepXiv secrets in the
+job-level `env:` block; otherwise the runner's process environment never
+receives them and the Python prepare step silently drops to anonymous mode:
+
+```yaml
+jobs:
+  daily-arxiv:
+    env:
+      SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+      DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
+```
+
+`/daily-arxiv setup` auto-patches the workflow to add either line if
+missing — users should not have to hand-edit YAML for this. A `gh secret
+set` paired with a missing exposure is the most common reason the daily
+run rate-limits out (the tester sees their secrets configured and
+assumes the workflow can read them), so `setup` eliminates the gap
+rather than just reporting it.
 
 ## Artifacts
 

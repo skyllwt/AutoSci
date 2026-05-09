@@ -32,7 +32,10 @@ on:
         default: true
 
 permissions:
+  # contents: write — auto-ingest commit step pushes to main.
+  # id-token: write — claude-code-action exchanges OIDC for an app token.
   contents: write
+  id-token: write
 
 concurrency:
   group: daily-arxiv-${{ github.ref }}
@@ -44,6 +47,10 @@ jobs:
     env:
       HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
+      # Repo secrets must be exposed as env vars here for the Python steps;
+      # otherwise S2/DeepXiv calls run anonymous and hit rate-limit walls.
+      SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+      DEEPXIV_TOKEN: ${{ secrets.DEEPXIV_TOKEN }}
 
     steps:
       - name: Checkout
@@ -198,8 +205,13 @@ jobs:
 
             If the mode is "inform", do not ingest or mutate the wiki. Keep borderline papers as "maybe".
           claude_args: |
-            --max-turns 20
-            --allowedTools "Read,Write,Edit,Bash"
+            # 100 turns fits the decision step plus one full /ingest cycle
+            # (~40–50 tool calls per paper); raise if max_auto_ingest > 1.
+            # allowedTools must include Skill or /ingest cannot be invoked;
+            # TodoWrite and Agent support /ingest's task tracking and
+            # subagent fan-out.
+            --max-turns 100
+            --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
 
       - name: Note skipped Claude recommendation
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH != 'true'
@@ -257,6 +269,8 @@ jobs:
 
       - name: Commit auto-ingest changes
         if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [ "$DAILY_ARXIV_MODE" != "auto-ingest" ]; then
@@ -273,6 +287,9 @@ jobs:
           fi
 
           git commit -m "daily-arxiv auto-ingest"
+          # claude-code-action clears the auth header that actions/checkout
+          # installed; re-embed GITHUB_TOKEN before pushing.
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push
 
       - name: Send digest e-mail

@@ -15,9 +15,11 @@ Load references only when needed:
 ## Commands
 
 - `/daily-arxiv`: run a one-off recommendation pass now. If `config/daily-arxiv.yml` is missing, infer defaults from the wiki and continue.
-- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`, check `.github/workflows/daily-arxiv.yml`, and explain required secrets.
+- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required secrets. See *Setup Workflow* below for the exact patch procedure.
 - `/daily-arxiv status`: inspect config, workflow presence, schedule, mode, API/e-mail secret availability, and recent artifacts when available.
 - `/daily-arxiv disable`: set `schedule.enabled: false` in config or tell the user what to change; manual `/daily-arxiv` must still work.
+
+> When running `setup` or `status`, treat S2/DeepXiv repo secrets as required (not optional) for any daily-cadence pipeline, and point the user at [`docs/daily-arxiv-deployment.md`](../../../docs/daily-arxiv-deployment.md) for the full setup checklist and symptom-keyed troubleshooting.
 
 ## Inputs
 
@@ -27,6 +29,30 @@ Load references only when needed:
 - `--max-recommendations N`: maximum papers shown in the digest; config/default is 10.
 - `--max-auto-ingest N`: cap for high-confidence auto-ingest; config/default is 1.
 - `--send-email true|false`: workflow/setup preference for SMTP delivery.
+
+## Setup Workflow
+
+Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo is a no-op.
+
+1. **Config**: if `config/daily-arxiv.yml` is missing, copy from `config/daily-arxiv.yml.example`. If present, leave it alone (the user's preferences are durable).
+
+2. **Workflow file**: confirm `.github/workflows/daily-arxiv.yml` exists. If absent, point the user at `docs/daily-arxiv-deployment.md` and stop — re-creating the workflow from scratch is out of scope for setup.
+
+3. **Workflow env exposures (auto-patch)**: in `.github/workflows/daily-arxiv.yml`, locate the `daily-arxiv:` job's `env:` block. Use the Edit tool to ensure both lines are present as siblings of `HAS_CLAUDE_CODE_AUTH`:
+
+   ```yaml
+   SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+   DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
+   ```
+
+   - If both lines already exist, do nothing.
+   - If only one is missing, append the missing line.
+   - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` flags. Do not touch any other step.
+   - After any patch, tell the user what was changed and remind them to commit.
+
+4. **Secrets check**: list which of `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets the user has configured. Use `gh secret list` when available; otherwise instruct the user to run it. Surface any missing-but-required secrets with the exact `gh secret set` command they need.
+
+5. **Summary**: report what was created, patched, and what the user still needs to do (install the GitHub App, set missing secrets, verify with one `gh workflow run daily-arxiv.yml`).
 
 ## Run Workflow
 
