@@ -501,7 +501,7 @@ Then run `claude` as usual. / 保存后正常运行 `claude` 即可。
 
 ## Community / 交流群
 
-<img src="assets/wechat_group.png" width="240" alt="WeChat Group QR Code">
+<img src="assets/1群二维码.jpg" width="240" alt="WeChat Group QR Code">
 
 Scan to join the ΩmegaWiki WeChat group / 扫码加入微信交流群
 
