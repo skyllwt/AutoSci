@@ -7,7 +7,7 @@ the skill judges relevance and action. The tool ranking is only a sorting aid.
 
 1. Resolve `config/daily-arxiv.yml`; missing config means inferred defaults.
 2. Fetch recent arXiv papers and dedupe against known wiki arXiv IDs.
-3. Build a wiki profile from papers, topics, concepts, claims, ideas, open
+3. Build a wiki profile from papers, topics, concepts, methods, ideas, open
    questions, recent log entries, and optional profile preferences.
 4. Enrich candidates with available Semantic Scholar and DeepXiv evidence.
 5. Let the LLM assign final decisions and rationales.
@@ -18,7 +18,7 @@ the skill judges relevance and action. The tool ranking is only a sorting aid.
 Use existing integrations before adding new logic:
 
 - arXiv: title, authors, category, date, URL, abstract.
-- Wiki: anchors, topics, concepts, claims, ideas, open questions, recent ingests.
+- Wiki: anchors, topics, concepts, methods, ideas, open questions, recent ingests.
 - Semantic Scholar: paper metadata, citation counts, influential counts, fields
   of study, TLDR, and recommendations from wiki anchors.
 - DeepXiv: trending rank, social impact, brief/TLDR, keywords, and paper
@@ -62,7 +62,7 @@ or available credentials. The user/config/workflow input must choose it.
 ## Auto-Ingest Guardrails
 
 - `/ingest` owns all paper incorporation. `/daily-arxiv` must not hand-write
-  paper pages, concepts, claims, people, graph files, or index entries.
+  paper pages, concepts, methods, people, graph files, or index entries.
 - Invoke `/ingest` sequentially; parallel ingest is out of scope.
 - Preserve failures in `llm-decisions.json` and the final digest via
   `ingest_status` or `ingest_error`.

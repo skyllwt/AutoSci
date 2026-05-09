@@ -54,7 +54,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
 ## Wiki Interaction
 
-读取 `wiki/index.md`、`wiki/papers/`、`wiki/topics/`、`wiki/concepts/`、`wiki/claims/`、`wiki/ideas/`、`wiki/log.md` 来构建兴趣 profile 和去重。
+读取 `wiki/index.md`、`wiki/papers/`、`wiki/topics/`、`wiki/concepts/`、`wiki/methods/`、`wiki/ideas/`、`wiki/log.md` 来构建兴趣 profile 和去重。
 
 inform 运行只写 `.daily-arxiv/` 下的 scratch 文件。`auto-ingest` 中所有持久 wiki/raw 变更都必须来自 `/ingest`。
 

@@ -201,7 +201,7 @@ jobs:
               ]
             }
 
-            If the context mode is "auto-ingest", mark only high-confidence selected papers as "ingest", never more than config.max_auto_ingest. Invoke /ingest sequentially for those selected papers using their arXiv URLs. Do not hand-write wiki pages, graph files, paper pages, concepts, claims, or index entries. Record "ingest_status" or "ingest_error" in the matching decision after each attempt.
+            If the context mode is "auto-ingest", mark only high-confidence selected papers as "ingest", never more than config.max_auto_ingest. Invoke /ingest sequentially for those selected papers using their arXiv URLs. Do not hand-write wiki pages, graph files, paper pages, concepts, methods, or index entries. Record "ingest_status" or "ingest_error" in the matching decision after each attempt.
 
             If the mode is "inform", do not ingest or mutate the wiki. Keep borderline papers as "maybe".
           claude_args: |

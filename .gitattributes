@@ -4,7 +4,7 @@
 #   - wiki/log.md            : every ingest appends a "## [date] ingest | ..." line
 #   - wiki/graph/edges.jsonl : every add-edge appends a JSON line
 #   - wiki/graph/citations.jsonl : every add-citation appends a JSON line
-#   - wiki/index.md          : every paper/concept/claim adds a YAML entry
+#   - wiki/index.md          : every paper/concept/method adds a YAML entry
 #
 # When 10 parallel subagents (one per paper) write to these files in their own
 # git worktrees and we then merge the worktree branches sequentially, git's

@@ -488,7 +488,7 @@ def build_wiki_profile(wiki_root: Path, cfg: dict[str, Any]) -> dict[str, Any]:
     papers = _read_markdown_cards(wiki_root / "papers", limit=12)
     topics = _read_markdown_cards(wiki_root / "topics", limit=12)
     concepts = _read_markdown_cards(wiki_root / "concepts", limit=12)
-    claims = _read_markdown_cards(wiki_root / "claims", limit=8)
+    methods = _read_markdown_cards(wiki_root / "methods", limit=8)
     ideas = _read_markdown_cards(wiki_root / "ideas", limit=8)
     log_path = wiki_root / "log.md"
     log_text = log_path.read_text(encoding="utf-8", errors="ignore") if log_path.exists() else ""
@@ -497,7 +497,7 @@ def build_wiki_profile(wiki_root: Path, cfg: dict[str, Any]) -> dict[str, Any]:
     profile_cfg = cfg.get("profile", {})
     text_parts = []
     if profile_cfg.get("derive_from_wiki", True):
-        for collection in (papers, topics, concepts, claims, ideas):
+        for collection in (papers, topics, concepts, methods, ideas):
             text_parts.extend(f"{card.get('title', '')} {card.get('preview', '')}" for card in collection)
         text_parts.append(recent_log)
     text_parts.extend(profile_cfg.get("positive_topics") or [])
@@ -512,10 +512,10 @@ def build_wiki_profile(wiki_root: Path, cfg: dict[str, Any]) -> dict[str, Any]:
         for card in papers
         if card.get("arxiv_id")
     ]
-    all_cards = papers + topics + concepts + claims + ideas
+    all_cards = papers + topics + concepts + methods + ideas
     return {
         "wiki_root": str(wiki_root),
-        "is_sparse": not bool(papers or topics or concepts or claims or ideas),
+        "is_sparse": not bool(papers or topics or concepts or methods or ideas),
         "anchors": anchors,
         "keywords": keywords,
         "positive_preferences": profile_cfg.get("positive_topics") or [],
@@ -523,7 +523,7 @@ def build_wiki_profile(wiki_root: Path, cfg: dict[str, Any]) -> dict[str, Any]:
         "papers": papers,
         "topics": topics,
         "concepts": concepts,
-        "claims": claims,
+        "methods": methods,
         "ideas": ideas,
         "open_questions": _extract_open_questions(all_cards, recent_log),
         "recent_log": recent_log,
@@ -1153,7 +1153,7 @@ def _compact_llm_context(context: dict[str, Any], limit: int | None = None) -> d
             "topics": (wiki_profile.get("topics") or [])[:8],
             "concepts": (wiki_profile.get("concepts") or [])[:8],
             "ideas": (wiki_profile.get("ideas") or [])[:6],
-            "claims": (wiki_profile.get("claims") or [])[:6],
+            "methods": (wiki_profile.get("methods") or [])[:6],
             "recent_log": wiki_profile.get("recent_log", ""),
         },
         "candidates": compact_candidates,

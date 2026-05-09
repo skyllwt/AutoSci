@@ -242,6 +242,17 @@ Actions secrets. In CI inform mode, recommendations can use Claude Code auth
 > See [`docs/daily-arxiv-deployment.md`](docs/daily-arxiv-deployment.md) for
 > the GitHub Actions setup checklist and symptom-keyed troubleshooting.
 
+<details>
+<summary><b>Sample digest</b></summary>
+
+<div align="center">
+<img src="assets/daily-arxiv-demo.png" width="720" alt="Sample /daily-arxiv digest">
+</div>
+
+A real `/daily-arxiv` run: ranked recommendations with scores, rationales, wiki connections, and an auto-ingest section.
+
+</details>
+
 ## Skills
 
 24 slash commands spanning the full research lifecycle:
@@ -570,6 +581,17 @@ GitHub Actions 每天 UTC 00:17（北京时间 08:17）运行 `/daily-arxiv` 推
 启用邮件时，在 repo **Settings → Secrets** 添加：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`DAILY_ARXIV_EMAIL_TO`。
 
 CI inform mode 可使用 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 启动 Claude Code，也可使用 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 接入任意 OpenAI-compatible provider。`auto-ingest` 是显式模式，并且需要 Claude Code，因为普通 API LLM 不能调用 `/ingest` 这类 slash skill。手动触发时可设置 `send_email=false`，用于无 SMTP secrets 的 dry run。
+
+<details>
+<summary><b>Digest 示例 / Sample digest</b></summary>
+
+<div align="center">
+<img src="assets/daily-arxiv-demo.png" width="720" alt="/daily-arxiv digest 示例">
+</div>
+
+一次真实的 `/daily-arxiv` 运行结果：带分数、理由、wiki 关联以及 auto-ingest 区块的推荐 digest。
+
+</details>
 
 ### 24 个 Skill 命令
 

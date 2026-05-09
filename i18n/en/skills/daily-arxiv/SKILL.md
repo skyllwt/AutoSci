@@ -80,7 +80,7 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
 
 ## Wiki Interaction
 
-Reads `wiki/index.md`, `wiki/papers/`, `wiki/topics/`, `wiki/concepts/`, `wiki/claims/`, `wiki/ideas/`, and `wiki/log.md` to build the interest profile and dedupe candidates.
+Reads `wiki/index.md`, `wiki/papers/`, `wiki/topics/`, `wiki/concepts/`, `wiki/methods/`, `wiki/ideas/`, and `wiki/log.md` to build the interest profile and dedupe candidates.
 
 Writes only scratch files under `.daily-arxiv/` during inform runs. In `auto-ingest`, all durable wiki/raw mutations must come from `/ingest`.
 

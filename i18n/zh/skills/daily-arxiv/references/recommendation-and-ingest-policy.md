@@ -7,7 +7,7 @@
 
 1. 解析 `config/daily-arxiv.yml`；缺失时使用推断默认值。
 2. 拉取最近 arXiv 论文，并按 wiki 已知 arXiv ID 去重。
-3. 从 papers、topics、concepts、claims、ideas、open questions、recent log
+3. 从 papers、topics、concepts、methods、ideas、open questions、recent log
    和可选 profile 偏好构建 wiki profile。
 4. 用可用的 Semantic Scholar 和 DeepXiv evidence 增强候选。
 5. 由 LLM 给出最终 decisions 和 rationales。
@@ -18,7 +18,7 @@
 新增逻辑前先使用已有集成：
 
 - arXiv：title、authors、category、date、URL、abstract。
-- Wiki：anchors、topics、concepts、claims、ideas、open questions、recent ingests。
+- Wiki：anchors、topics、concepts、methods、ideas、open questions、recent ingests。
 - Semantic Scholar：paper metadata、citation counts、influential counts、
   fields of study、TLDR，以及来自 wiki anchors 的 recommendations。
 - DeepXiv：trending rank、social impact、brief/TLDR、keywords，以及可用时的论文结构。
@@ -61,7 +61,7 @@ OpenAI-compatible 第三方 LLM 只支持 `inform` mode，通过
 ## Auto-Ingest Guardrails
 
 - `/ingest` 负责所有论文纳入。`/daily-arxiv` 不得手写 paper pages、
-  concepts、claims、people、graph files 或 index entries。
+  concepts、methods、people、graph files 或 index entries。
 - 顺序调用 `/ingest`；parallel ingest 不在 scope 内。
 - 通过 `ingest_status` 或 `ingest_error` 在 `llm-decisions.json` 和最终
   digest 中保留失败信息。
