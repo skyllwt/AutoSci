@@ -31,7 +31,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ## Outputs
 
-- **Wiki updates** (delegated to sub-skills): ideas/, experiments/, claims/, outputs/, graph/
+- **Wiki updates** (delegated to sub-skills): ideas/, experiments/, methods/, outputs/, graph/
 - **wiki/outputs/pipeline-progress.md** — pipeline progress snapshot (for recovery)
 - **wiki/outputs/PIPELINE_REPORT.md** — full pipeline report
 - **paper/ directory** (if not --skip-paper) — submittable paper
@@ -42,9 +42,9 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 ### Reads
 - `wiki/graph/context_brief.md` — global context (passed to sub-skills)
 - `wiki/graph/open_questions.md` — knowledge gaps (passed to /ideate)
-- `wiki/ideas/*.md` — Gate 1 selection, Stage 4 verdict
+- `wiki/ideas/*.md` — Gate 1 selection, Stage 4 verdict, Stage 5 paper planning
 - `wiki/experiments/*.md` — Stage 3-4 status checks
-- `wiki/claims/*.md` — Stage 4 verdict, Stage 5 paper planning
+- `wiki/methods/*.md` — Stage 5 paper writing context
 - `wiki/outputs/pipeline-progress.md` — --start-from state recovery
 - `wiki/papers/*.md` — Stage 5 paper writing context
 
@@ -52,7 +52,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - `wiki/outputs/pipeline-progress.md` — save progress at each Gate (wiki entity writes are delegated to sub-skills)
 - `wiki/outputs/PIPELINE_REPORT.md` — final report
 - `wiki/log.md` — append log entries
-- All other wiki entity writes are delegated to sub-skills (do not directly write to ideas/experiments/claims/)
+- All other wiki entity writes are delegated to sub-skills (do not directly write to ideas/experiments/methods/)
 
 ### Graph edges created
 - None directly — all graph edges are delegated to sub-skills (/ideate, /exp-design, /exp-eval each create their own edges)
@@ -90,7 +90,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 3. **Check recovery** (when `--start-from` is specified):
    - If `wiki/outputs/pipeline-progress.md` exists:
-     - Read progress file, restore idea_slug, experiment_slugs, stage3a_deployed, claim_slugs, monitoring_cron_id
+     - Read progress file, restore idea_slug, experiment_slugs, stage3a_deployed, linked_idea_slugs, monitoring_cron_id
      - Jump to specified stage
    - If progress file does not exist: report error and exit; prompt user to run the full pipeline first
    - **`--start-from stage3-check`**: equivalent to calling `/exp-status --pipeline {slug}`; display status then exit
@@ -110,7 +110,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    idea_slug: ""
    experiment_slugs: []
    stage3a_deployed: []
-   claim_slugs: []
+   linked_idea_slugs: []
    iteration_count: 0
    ---
    ## Stage Log
@@ -178,7 +178,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    Output to terminal:
    ```
    Bootstrap complete:
-   Papers: {N} | Claims: {M} | Concepts: {K} | Edges: {E}
+   Papers: {N} | Concepts: {K} | Methods: {Mt} | Edges: {E}
    Maturity: cold → {new_level}
    Proceeding to Stage 1: Idea Discovery...
    ```
@@ -342,13 +342,13 @@ Skill: exp-eval
 Args: "{experiment_slug}" --auto
 ```
 
-**Evaluate whether claims are sufficient**:
-1. Read the latest status of all target claims
+**Evaluate whether the linked idea is sufficient**:
+1. Read the latest status of the primary linked idea (and any supporting ideas)
 2. Determine whether iteration is needed:
-   - **Claims sufficient** (primary claim confidence >= 0.7 and status is supported or weakly_supported) → proceed to Gate 2
-   - **Claims insufficient** (confidence < 0.4 or status is challenged) → enter iteration
+   - **Sufficient** (primary linked idea has been transitioned to `validated`, OR ≥1 supporting experiment has `outcome=succeeded`) → proceed to Gate 2
+   - **Insufficient** (idea remains `proposed` and all linked experiments are `failed`/`inconclusive`, or idea is `invalidated`) → enter iteration
 
-**Iteration path** (when claims are insufficient, up to 1 retry):
+**Iteration path** (when insufficient, up to 1 retry):
 1. Analyze the cause of failure
 2. Call `/refine` to improve the experiment plan:
    ```
@@ -359,7 +359,7 @@ Args: "{experiment_slug}" --auto
 4. Maximum 2 iterations (prevents infinite loops); each stage has at most 1 auto-retry
 
 **After completion**:
-- Update pipeline-progress: Stage 4 → completed, record claim_slugs
+- Update pipeline-progress: Stage 4 → completed, record linked_idea_slugs
 
 ### Gate 2: Confirm Paper Ready
 
@@ -368,10 +368,10 @@ Args: "{experiment_slug}" --auto
 **If `--auto` mode**: automatically continue, enter Stage 5
 
 **If interactive mode**:
-- Display claim status summary:
+- Display idea status summary:
   ```
-  Claim: {slug} | Status: {status} | Confidence: {confidence}
-  Evidence: {count} sources ({strong}/{moderate}/{weak})
+  Idea: {slug} | Status: {status} | Novelty: {novelty_score}
+  Linked experiments: {count} ({succeeded}/{inconclusive}/{failed})
   ```
 - Use AskUserQuestion to prompt user: ready for paper / need more experiments / stop here
 - If "need more experiments": return to Stage 2 for replanning
@@ -387,8 +387,9 @@ Call sub-skills in sequence: /paper-plan → /paper-draft → /refine → /paper
 **5a. Call /paper-plan**:
 ```
 Skill: paper-plan
-Args: "{claim_slugs}" --venue {venue}
+Args: "{linked_idea_slugs}" --venue {venue}
 ```
+(passes the validated idea slug(s) collected in Stage 4 to /paper-plan)
 
 **5b. Call /paper-draft**:
 ```
@@ -437,10 +438,10 @@ Generate `wiki/outputs/PIPELINE_REPORT.md`:
 - **Priority**: {N}
 - **Novelty score**: {score}
 
-## Claims Trail
-| Claim | Initial Status | Final Status | Confidence (proposed → supported) |
-|-------|---------------|-------------|-----------------------------------|
-| [[{slug}]] | proposed | supported | 0.3 → 0.8 |
+## Idea Trail
+| Idea | Initial Status | Final Status | Novelty (start → end) |
+|------|----------------|--------------|------------------------|
+| [[{slug}]] | proposed | validated | 3 → 4 |
 
 ## Experiment Results
 | Experiment | Outcome | Key Result |
@@ -449,12 +450,12 @@ Generate `wiki/outputs/PIPELINE_REPORT.md`:
 
 ## Iteration History
 - Total iterations: {N}
-- Reason for iteration: {claims insufficient / ...}
+- Reason for iteration: {idea evidence insufficient / ...}
 
 ## Deliverables
-- Ideas: +{N} created
+- Ideas: +{N} created, {N} validated
 - Experiments: +{N} created, {N} completed
-- Claims: {N} updated
+- Methods: +{N} created/updated
 - Graph edges: +{N}
 - Paper: paper/main.pdf (if applicable)
 
@@ -462,7 +463,7 @@ Generate `wiki/outputs/PIPELINE_REPORT.md`:
 | Metric | Before | After | Delta |
 |--------|--------|-------|-------|
 | Papers | {N} | {N} | +{N} |
-| Claims | {N} | {N} | +{N} |
+| Methods | {N} | {N} | +{N} |
 | Ideas | {N} | {N} | +{N} |
 | Experiments | {N} | {N} | +{N} |
 | Edges | {N} | {N} | +{N} |
@@ -477,7 +478,7 @@ Generate `wiki/outputs/PIPELINE_REPORT.md`:
 Append log:
 ```bash
 python3 tools/research_wiki.py log wiki/ \
-  "research | completed | idea: {slug} | claims: {N} updated | paper: {yes/no}"
+  "research | completed | idea: {slug} | linked ideas: {N} updated | paper: {yes/no}"
 ```
 
 Update pipeline-progress: status: completed
@@ -491,7 +492,7 @@ Update pipeline-progress: status: completed
 - **Stage 3b ends the session**: after Stage 3b completes, the current session ends; do not continue waiting for experiments
 - **Maximum 2 iterations**: Stage 4 iterates at most 2 times to prevent infinite loops
 - **--auto does not skip computation**: auto mode skips human confirmation but skips no computation steps
-- **--skip-paper still runs Stage 4 /exp-eval**: claim updates must be completed even when not writing a paper
+- **--skip-paper still runs Stage 4 /exp-eval**: idea/experiment updates must be completed even when not writing a paper
 - **Pass sub-skill parameters through**: correctly pass domain, --venue, and other parameters to sub-skills
 - **Log every Stage**: append a log.md audit entry after each Stage completes
 - **Do not re-run completed stages**: --start-from skips already-completed stages
@@ -501,7 +502,7 @@ Update pipeline-progress: status: completed
 ## Error Handling
 
 - **pipeline-progress missing but --start-from specified**: report error; prompt user to run the full pipeline first
-- **pipeline-progress corrupted or malformed**: attempt to infer progress from current wiki state (read ideas/experiments/claims statuses), recover to the nearest Gate
+- **pipeline-progress corrupted or malformed**: attempt to infer progress from current wiki state (read ideas/experiments statuses), recover to the nearest Gate
 - **Sub-skill call fails**: record error to pipeline-progress, report the failed stage, suggest --start-from to resume
 - **All ideas generation fails**: terminate pipeline; suggest the user adjust the research direction
 - **All experiment deploys fail**: terminate pipeline (Stage 3a); generate failure report; suggest checking GPU/SSH configuration
@@ -510,7 +511,7 @@ Update pipeline-progress: status: completed
 - **Gate user selects stop**: save progress to pipeline-progress; generate partial report
 - **RESEARCH_BRIEF.md malformed**: fall back to plain-text direction; ignore structured fields
 - **Wiki empty (no papers/concepts)**: auto-trigger Stage 0 Bootstrap (search + auto-ingest 5 papers)
-- **Claims still insufficient after iteration**: annotate report with "claims insufficient after max iterations"; let user decide whether to continue
+- **Idea evidence still insufficient after iteration**: annotate report with "idea evidence insufficient after max iterations"; let user decide whether to continue
 - **User selects view status (auto-recovery detection [3])**: call `/exp-status --pipeline {slug}` then exit without starting a new pipeline
 
 ## Dependencies
@@ -543,6 +544,6 @@ Update pipeline-progress: status: completed
 ### Claude Code Native
 - `Read` — read pipeline-progress, wiki pages, RESEARCH_BRIEF
 - `Write` — write pipeline-progress, PIPELINE_REPORT
-- `Glob` — find experiments, ideas, claims
+- `Glob` — find experiments, ideas, methods
 - `Skill` — call sub-skills (core capability)
 - `AskUserQuestion` — user interaction at Gates and auto-recovery detection

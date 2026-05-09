@@ -13,7 +13,7 @@ wiki/
 ├── people/            ← 研究者追踪
 ├── ideas/             ← 研究想法（带生命周期状态）
 ├── experiments/       ← 实验记录（wiki 页面）
-├── claims/            ← 可验证的研究断言
+├── methods/           ← 跨论文可复用的方法实体
 ├── Summary/           ← 领域全景综述
 ├── foundations/       ← 领域基础知识（终端：只接受入链，不写出链）
 ├── outputs/           ← 生成物（Related Work、论文草稿）

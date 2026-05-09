@@ -15,7 +15,7 @@
 - **跳过** 易冲突的 topic 写入 —— 多个并行 ingest 同时 append 相同 topic 会引发 merge 冲突。让上层在 fan-in 后处理 topic 更新，或交给 `/edit`。
 - **跳过对已有页面的反向链接编辑** —— 不要向已有 concept 页面追加 `key_papers`，不要向已有 paper 页面的 `## Key papers` 或 `## Related` 追加内容，也不要向已有 people 页面追加内容。只通过 `tools/research_wiki.py add-edge` 记录关系。上层 `/init` 在 fan-in 后统一重建这些反向链接。
 
-其余一切（paper 页面创建、`find-similar-*` 去重、people 页面创建、paper 的 `## Related` 链接、concept / claim / foundation 的 graph edge）在每个子代理内正常执行。
+其余一切（paper 页面创建、通过 `find-similar-concept` 做 concept 去重、通过手工扫描 `wiki/methods/` 做 method 去重、people 页面创建、paper 的 `## Related` 链接、concept / method / foundation 的 graph edge）在每个子代理内正常执行。
 
 ## 如何识别 INIT MODE
 

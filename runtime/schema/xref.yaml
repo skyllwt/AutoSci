@@ -1,0 +1,62 @@
+# xref.yaml — Bidirectional link contract.
+#
+# Whenever entity A writes a forward link to entity B, the reverse update on B
+# is required.  Each rule has:
+#
+#   forward.kind                     source entity kind
+#   forward.<frontmatter_field |     where the forward link lives:
+#            body_section       |       a frontmatter list field, OR
+#            edge_type>                 a body section (use '*' for any), OR
+#                                       a graph edge type
+#   forward.target                   target entity kind
+#
+#   reverse.kind                     target entity kind (same as forward.target)
+#   reverse.<frontmatter_field |     where the reverse update goes
+#            body_section>
+#   reverse.action                   append_slug | append_record
+#   record                           record template (only for append_record);
+#                                    {from} expands to the source slug
+#
+# Foundations are terminal: any link to foundations writes no reverse.
+
+rules:
+
+  # papers ## Related → concepts.key_papers
+  - forward: { kind: papers,      body_section: Related,         target: concepts }
+    reverse: { kind: concepts,    frontmatter_field: key_papers, action: append_slug }
+
+  # any paper-body wikilink to a person → people ## Recent work
+  - forward: { kind: papers,      body_section: '*',             target: people }
+    reverse: { kind: people,      body_section: "Recent work",   action: append_slug }
+
+  # topics.key_people → people ## Research areas
+  - forward: { kind: topics,      frontmatter_field: key_people, target: people }
+    reverse: { kind: people,      body_section: "Research areas", action: append_slug }
+
+  # concepts.key_papers → papers ## Related
+  - forward: { kind: concepts,    frontmatter_field: key_papers, target: papers }
+    reverse: { kind: papers,      body_section: Related,         action: append_slug }
+
+  # ideas.origin_gaps → concepts.linked_ideas
+  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: concepts }
+    reverse: { kind: concepts,    frontmatter_field: linked_ideas, action: append_slug }
+
+  # ideas.origin_gaps → topics.linked_ideas
+  - forward: { kind: ideas,       frontmatter_field: origin_gaps, target: topics }
+    reverse: { kind: topics,      frontmatter_field: linked_ideas, action: append_slug }
+
+  # experiments.linked_idea → ideas.linked_experiments
+  - forward: { kind: experiments, frontmatter_field: linked_idea, target: ideas }
+    reverse: { kind: ideas,       frontmatter_field: linked_experiments, action: append_slug }
+
+  # methods.source_papers → papers ## Related
+  - forward: { kind: methods,     frontmatter_field: source_papers, target: papers }
+    reverse: { kind: papers,      body_section: Related,         action: append_slug }
+
+  # methods.parent_methods ↔ methods.child_methods (each is the other's reverse)
+  - forward: { kind: methods,     frontmatter_field: parent_methods, target: methods }
+    reverse: { kind: methods,     frontmatter_field: child_methods,  action: append_slug }
+  - forward: { kind: methods,     frontmatter_field: child_methods,  target: methods }
+    reverse: { kind: methods,     frontmatter_field: parent_methods, action: append_slug }
+
+terminal_targets: [foundations]

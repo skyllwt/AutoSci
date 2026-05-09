@@ -1,11 +1,11 @@
 ---
-description: 解析审稿意见 → 原子化 concerns (Rvx-Cy) → 映射到 wiki claims → 检查 evidence → Review LLM stress-test → 生成 rebuttal
+description: 解析审稿意见 → 原子化 concerns (Rvx-Cy) → 映射到 wiki ideas/methods → 检查 evidence → Review LLM stress-test → 生成 rebuttal
 argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---
 
 # /rebuttal
 
-> 解析审稿意见，将每条 concern 原子化（Rvx-Cy 编号）并映射到 wiki claim，
+> 解析审稿意见，将每条 concern 原子化（Rvx-Cy 编号）并映射到 wiki idea 或 method，
 > 检查 evidence 是否充分（追溯到 wiki experiments），
 > 用 Review LLM 模拟审稿人追问（stress-test，评分 1-5），生成正式版（纯文本）和富文本版 rebuttal。
 > 安全检查确保 no fabrication, no overpromise, full coverage。
@@ -27,26 +27,26 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 - **wiki/outputs/rebuttal-{slug}.md** — 富文本版 rebuttal（含 [[wikilinks]]、evidence 追溯、分析表格）
 - **wiki/outputs/rebuttal-{slug}.txt** — 正式版 rebuttal（plain text，适合 submission system 粘贴）
-- **wiki/claims/*.md** — 若 concern 暴露 evidence gap，在 `## Open questions` 追加建议
+- **wiki/ideas/*.md** / **wiki/methods/*.md** — 若 concern 暴露 evidence gap，在对应章节追加建议（idea 写入 `## Risks` / `## Lessons learned`；method 写入 `## Limitations`）
 - **wiki/log.md** — 追加日志
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/claims/*.md` — 映射 concerns 到 claims，检查 evidence 充分性
-- `wiki/experiments/*.md` — 查找支持 claim 的实验 result
+- `wiki/ideas/*.md` — 把 concern 映射到 idea，检查 linked experiments 与 novelty 论证
+- `wiki/methods/*.md` — 把 concern 映射到 method，检查 Mechanism / Procedure / Limitations
+- `wiki/experiments/*.md` — 通过 `linked_idea` 找到支持 idea 的实验 result
 - `wiki/papers/*.md` — 查找引用的论文上下文
 - `wiki/concepts/*.md` — 理解 method 相关 concerns 的概念背景
-- `wiki/ideas/*.md` — 查找 idea 的 motivation 和 pilot results
 - `wiki/outputs/PAPER_PLAN.md` — 了解论文结构（来自 /paper-plan，若有 --paper-slug）
 - `wiki/graph/context_brief.md` — 全局上下文
-- `wiki/graph/edges.jsonl` — claim-experiment-paper 关系
+- `wiki/graph/edges.jsonl` — idea-experiment-paper-method 关系
 - `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test 独立性
 
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — 富文本版
 - `wiki/outputs/rebuttal-{slug}.txt` — formal 纯文本版
-- `wiki/claims/*.md` — 在 `## Open questions` 追加 reviewer 发现的 gap（不直接修改 confidence/status，仅建议）
+- `wiki/ideas/*.md` / `wiki/methods/*.md` — 在 idea 的 `## Risks` / `## Lessons learned` 或 method 的 `## Limitations` 追加 reviewer 发现的 gap；不得静默翻转 idea 的 status，只能标注 concern
 - `wiki/log.md` — 追加日志
 
 ### Graph edges created
@@ -94,32 +94,31 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 4. **输出**：原子化 concern 列表，每个包含 {id (Rvx-Cy), reviewer, type, severity, text}
 
-### Step 3: 映射 Concerns 到 Wiki Claims
+### Step 3: 映射 Concerns 到 Wiki Ideas / Methods
 
 对每个 concern：
 
-1. **查找关联 claim**：
+1. **查找关联 idea 或 method**：
    - 从 concern 文本提取关键词
-   - 在 `wiki/claims/*.md` 中搜索匹配的 claim
-   - 读取 `wiki/graph/edges.jsonl` 查找 claim-experiment 关系
-   - 若找不到直接匹配：标注 "unmapped"（无直接 claim 对应）
+   - 在 `wiki/ideas/*.md` 与 `wiki/methods/*.md` 中搜索匹配项（假设/结果类质疑映射到 idea；设计/算法类质疑映射到 method）
+   - 读取 `wiki/graph/edges.jsonl` 查找 idea↔experiment 与 method↔paper 关系
+   - 若找不到直接匹配：标注 "unmapped"（无直接实体对应）
 
 2. **检查 Evidence Status**：
-   - 读取 claim 的 evidence 列表
-   - 统计 strong/moderate/weak evidence 数量
-   - 查找关联 experiments 的 results
+   - 对 idea：读取 `linked_experiments`，统计 succeeded/inconclusive/failed 结果数量；读取 `novelty_score` 与 `status`
+   - 对 method：读取 `source_papers` 与 `## Limitations`
    - **判断**：
-     - 充分（sufficient）：strong >= 1 或 moderate >= 2
-     - 部分充分（partial）：有 evidence 但强度不够
-     - 不足（insufficient）：无 evidence 或只有 weak
-     - 矛盾：有 invalidates 类型 evidence
+     - 充分（sufficient）：linked idea 至少有 1 个 succeeded experiment，或 method 有 source paper 支持
+     - 部分充分（partial）：有 experiments 但结果好坏混合
+     - 不足（insufficient）：无支持实验或 source 覆盖薄弱
+     - 矛盾（contradicted）：以 failed/inconclusive 为主
 
 3. **输出**：
 
-| Concern ID | Reviewer | Type | Severity | Claim mapped | Evidence Status | Strategy |
-|------------|----------|------|----------|--------------|-----------------|----------|
-| Rv1-C1 | R1 | method | critical | [[claim-slug]] | sufficient | A |
-| Rv1-C2 | R1 | missing | major | [[claim-slug]] | insufficient | B |
+| Concern ID | Reviewer | Type | Severity | Entity mapped | Evidence Status | Strategy |
+|------------|----------|------|----------|---------------|-----------------|----------|
+| Rv1-C1 | R1 | method | critical | [[method-slug]] | sufficient | A |
+| Rv1-C2 | R1 | missing | major | [[idea-slug]] | insufficient | B |
 | Rv2-C1 | R2 | novelty | major | unmapped | — | D |
 
 ### Step 4: 起草 Rebuttal 回应
@@ -158,7 +157,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - [ ] No fabrication：不伪造数据或实验结果
 - [ ] No overpromise：只承诺具体可执行的补充实验
 - [ ] 引用的数据在 wiki/experiments/ 中有记录
-- [ ] 若 claim 已 challenged/deprecated，不假装它是 supported
+- [ ] 若 linked idea 的 `status: invalidated` 或其 experiments 不确定，不得假装它已被支持
 
 ### Step 5: Review LLM Stress-Test
 
@@ -237,10 +236,10 @@ Additional Experiments (if applicable):
 # Rebuttal Analysis: {paper title}
 
 ## Coverage Summary
-| Concern ID | Type | Severity | Claim | Evidence Status | Review LLM Score | Strategy |
-|------------|------|----------|-------|-----------------|------------|----------|
-| Rv1-C1 | method | critical | [[claim-slug]] | sufficient | 4/5 | A |
-| Rv1-C2 | missing | major | [[claim-slug]] | insufficient | 3/5 | B |
+| Concern ID | Type | Severity | Entity | Evidence Status | Review LLM Score | Strategy |
+|------------|------|----------|--------|-----------------|------------------|----------|
+| Rv1-C1 | method | critical | [[method-slug]] | sufficient | 4/5 | A |
+| Rv1-C2 | missing | major | [[idea-slug]] | insufficient | 3/5 | B |
 
 ## Responses
 ### Reviewer 1
@@ -248,9 +247,9 @@ Additional Experiments (if applicable):
 **[Rv1-C2]** ...
 
 ## Evidence Gap Analysis
-| Claim | Confidence | Gap | Needed |
-|-------|-----------|-----|--------|
-| [[claim-slug]] | 0.5 | No ablation on dataset X | Run ablation experiment |
+| Entity | Status / Novelty | Gap | Needed |
+|--------|------------------|-----|--------|
+| [[idea-slug]] | proposed / novelty 2 | No ablation on dataset X | Run ablation experiment |
 
 ## Action Items
 
@@ -262,12 +261,12 @@ Additional Experiments (if applicable):
 ### Wiki Updates
 | Page | Update | Reason |
 |------|--------|--------|
-| claims/{slug} | Add open question | Rv2-C1 evidence gap |
+| ideas/{slug} | Append concern to `## Risks` | Rv2-C1 evidence gap |
 
 ### Suggested Experiments
-| Experiment | Target Claim | Suggested by |
+| Experiment | Linked Idea | Suggested by |
 |-----------|-------------|--------------|
-| ablation-dataset-x | [[claim-slug]] | Rv1-C2 |
+| ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
 → Run `/exp-design ablation-dataset-x` to design follow-up
 
@@ -280,17 +279,18 @@ Additional Experiments (if applicable):
 - [x] No fabrication: all cited data exists in wiki/experiments
 - [x] No overpromise: all committed experiments are specific and feasible
 - [x] Full coverage: {N}/{N} concerns addressed (no omissions)
-- [x] Challenged claims not presented as supported
+- [x] Invalidated/inconclusive ideas not presented as supported
 ```
 
 **6c. 最终安全检查**：
 - **Full coverage**：确认每个 concern 都有回应（无遗漏）
 - **No fabrication**：每个引用的数据点在 wiki/experiments/ 中有记录（可追溯）
 - **No overpromise**：补充实验的承诺是具体可行的
-- **Honesty on weak claims**：若 claim confidence < 0.4，不假装 evidence 充分
+- **Honesty on weak ideas**：若 linked idea 的 `novelty_score <= 2` 或其 linked experiments 结果不确定，不得假装 evidence 充分
 
 **6d. 更新 wiki**：
-- 若有 evidence gap 的 claims：在 `wiki/claims/{slug}.md` 的 `## Open questions` 追加 reviewer 指出的 gap
+- 对存在 evidence gap 的 idea：在 `wiki/ideas/{slug}.md` 的 `## Risks`（或 `## Lessons learned`）追加 reviewer 指出的 gap
+- 对覆盖薄弱的 method：在 `wiki/methods/{slug}.md` 的 `## Limitations` 追加 concern
 - 追加日志：
   ```bash
   python3 tools/research_wiki.py log wiki/ \
@@ -303,7 +303,7 @@ Additional Experiments (if applicable):
 - **No overpromise**：只承诺具体可执行的补充实验。用 "we will run ablation on X with setup Y" 而非 "we will investigate"
 - **Full coverage**：每个 reviewer concern (Rvx-Cy) 必须有回应，不得遗漏。coverage 不足时阻止输出
 - **Evidence 追溯**：每条回应引用的 evidence 必须可追溯到 wiki 页面，标注来源 slug
-- **不直接修改 wiki claims**：rebuttal 只在 claims 的 Open questions 追加建议，不修改 confidence/status
+- **不静默翻转 linked idea 的 status**：rebuttal 只在 idea 的 `## Risks` / `## Lessons learned` 或 method 的 `## Limitations` 追加 concern；status 转换由 `/exp-eval` 负责
 - **Review LLM 独立性**：stress-test 时遵循 cross-model-review.md，不向 Review LLM 透露回应策略
 - **Concern ID 格式**：严格使用 Rvx-Cy 格式（Rv1-C1, Rv1-C2, Rv2-C1），确保可追溯
 - **具体承诺**：所有修改承诺和实验计划必须具体（specific Section、具体 dataset、明确 metric）
@@ -313,10 +313,10 @@ Additional Experiments (if applicable):
 
 - **审稿文件找不到**：报错，列出 raw/reviews/ 下可用文件
 - **审稿格式无法解析**：降级为纯文本处理，由 LLM 提取 concerns，在报告中标注
-- **concern 映射不到 claim（unmapped）**：标注 "unmapped"，仍然回应（基于论文内容而非 wiki claim）
+- **concern 映射不到 idea 或 method（unmapped）**：标注 "unmapped"，仍然回应（基于论文内容而非 wiki 实体）
 - **Review LLM stress-test 不可用**：跳过 Step 5，在报告中标注 "stress-test skipped: Review LLM unavailable"
 - **evidence 严重不足**：若 >50% concerns 的 evidence 为 insufficient，警告用户并建议先补充实验
-- **wiki 为空**：警告 wiki 知识库为空，建议先运行 /ingest 填充 claims 和 experiments
+- **wiki 为空**：警告 wiki 知识库为空，建议先运行 /ingest 填充 ideas、methods 与 experiments
 - **所有回应被 Review LLM 评为 1-2 分**：终止输出，报告需要重新分析，建议先补充实验
 
 ## Dependencies
@@ -332,7 +332,7 @@ Additional Experiments (if applicable):
 ### Claude Code Native
 - `Read` — 读取审稿意见、wiki 页面、shared references
 - `Write` — 写入 rebuttal-{slug}.md、rebuttal-{slug}.txt
-- `Glob` — 查找 claims、experiments
+- `Glob` — 查找 ideas、methods、experiments
 - `Grep` — 在 wiki 中搜索 concern 关键词
 
 ### Shared References

@@ -51,7 +51,7 @@ git worktree add -b "$WT_BRANCH" "$WT_PATH" "$BASE_COMMIT"
 After all agents complete:
 
 1. Switch the main workspace back to `BASE_BRANCH` if needed, then merge worktree branches sequentially there in planner order.
-2. Resolve true concept/claim conflicts conservatively: merge, do not multiply near-duplicates.
+2. Resolve true concept/method conflicts conservatively: merge, do not multiply near-duplicates.
 3. Merge only committed worktree branches. A branch with no ingest commit is an error to stop and fix, not something to merge through.
 3. Run:
 

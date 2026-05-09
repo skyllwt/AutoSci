@@ -5,16 +5,16 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 # /review
 
-> Review any research artifact (idea, proposal, experiment plan, paper draft, claim) using cross-model review.
+> Review any research artifact (idea, proposal, experiment plan, paper draft, method) using cross-model review.
 > Uses Review LLM as an independent reviewer. Outputs a structured score, actionable improvement suggestions,
-> and a mapping to wiki entities (which claims need strengthening, which gaps are discovered).
+> and a mapping to wiki entities (which ideas/methods need strengthening, which gaps are discovered).
 > Supports three difficulty levels (standard / hard / adversarial) and four review focuses.
 > Can be used standalone or called by /ideate, /refine, /exp-design.
 
 ## Inputs
 
 - `artifact`: the artifact to review, one of:
-  - slug of a wiki page (e.g. `sparse-lora-for-edge-devices`, searched in ideas/experiments/claims/)
+  - slug of a wiki page (e.g. `sparse-lora-for-edge-devices`, searched in ideas/experiments/methods/)
   - file path (e.g. `wiki/outputs/paper-draft-v1.md`)
   - free text (directly pasted proposal or idea description)
 - `--difficulty` (optional, default `standard`):
@@ -23,7 +23,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - `adversarial`: multi-round dialogue (up to 3 rounds), Review LLM additionally attempts to find fatal flaws, simulating the harshest reviewer
 - `--focus` (optional, default comprehensive review):
   - `method`: focus on technical correctness, novelty, and feasibility of method design
-  - `evidence`: focus on sufficiency of evidence, experimental rigor, claim support
+  - `evidence`: focus on sufficiency of evidence, experimental rigor, idea/method support
   - `writing`: focus on clarity, structural organization, and argumentative logic
   - `completeness`: focus on missing content (related work, ablations, baselines)
 
@@ -35,7 +35,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - Weaknesses (list of issues, ranked by severity)
   - Questions (reviewer questions)
   - Actionable Suggestions (improvement suggestions ranked by priority)
-  - Wiki Entity Mapping (which claims need strengthening, which gaps were found)
+  - Wiki Entity Mapping (which ideas/methods need strengthening, which gaps were found)
   - Verdict: `ready` / `needs-work` / `major-revision` / `rethink`
 - If `--difficulty >= hard`: additionally includes multi-round dialogue history and final revised score
 - This skill **does not directly modify the wiki**, but outputs a list of suggested wiki updates
@@ -45,7 +45,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 ### Reads
 - `wiki/papers/*.md` — locate papers cited by the artifact, verify citation accuracy
 - `wiki/concepts/*.md` — understand technical concepts involved in the artifact
-- `wiki/claims/*.md` — check the current status and confidence of claims the artifact depends on
+- `wiki/methods/*.md` — check the current status of methods the artifact depends on
 - `wiki/experiments/*.md` — find related experiment results
 - `wiki/ideas/*.md` — if reviewing an idea, check its context
 - `wiki/graph/context_brief.md` — global context
@@ -66,17 +66,17 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 ### Step 1: Load Context
 
 1. **Parse artifact**:
-   - If slug: search sequentially in `wiki/ideas/`, `wiki/experiments/`, `wiki/claims/`, `wiki/papers/`, `wiki/outputs/` for `{slug}.md`
+   - If slug: search sequentially in `wiki/ideas/`, `wiki/experiments/`, `wiki/methods/`, `wiki/papers/`, `wiki/outputs/` for `{slug}.md`
    - If file path: read directly
    - If free text: use directly
-2. **Determine artifact type**: idea / experiment / claim / paper-draft / proposal / other
+2. **Determine artifact type**: idea / experiment / method / paper-draft / proposal / other
 3. **Load relevant wiki context**:
    - Read `wiki/graph/context_brief.md` for global perspective
    - Read `wiki/graph/open_questions.md` for knowledge gap list
    - Load relevant wiki pages by artifact type:
-     - idea → its origin_gaps claims, related papers
-     - experiment → its target_claim, related experiments
-     - claim → its evidence sources, related papers and experiments
+     - idea → its origin_gaps (concepts/topics), related papers
+     - experiment → its linked_idea, related experiments
+     - method → its source_papers and parent_methods
      - paper-draft → all wiki pages it cites
 4. **Read cross-model-review.md**: confirm Review LLM independence principle
 5. **Build reviewer system prompt** (based on --focus):
@@ -95,7 +95,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
    **Focus-specific additions:**
    - `method`: additionally assess technical correctness, novelty of approach, feasibility, comparison to alternatives
-   - `evidence`: additionally assess experimental rigor, statistical significance, claim-evidence alignment, missing controls
+   - `evidence`: additionally assess experimental rigor, statistical significance, idea-evidence alignment, missing controls
    - `writing`: additionally assess clarity, logical flow, notation consistency, figure quality, related work coverage
    - `completeness`: additionally assess missing baselines, missing ablations, missing datasets, missing related work, reproducibility
 
@@ -118,7 +118,7 @@ mcp__llm-review__chat:
     {artifact full text}
 
     ## Context from Knowledge Base
-    {relevant wiki context: related claims with status/confidence, related experiments, gap map entries}
+    {relevant wiki context: related ideas/methods with status, related experiments, gap map entries}
 
     ## Review Instructions
     Please provide:
@@ -127,7 +127,7 @@ mcp__llm-review__chat:
     3. **Questions** (things that are unclear or need clarification)
     4. **Score** (1-10 with one-sentence justification)
     5. **Verdict**: ready / needs-work / major-revision / rethink
-    6. **Claim-level feedback**: For each claim referenced in the artifact, assess whether the evidence is sufficient. List any claims that need stronger support.
+    6. **Idea-/method-level feedback**: For each idea or method referenced in the artifact, assess whether the evidence/justification is sufficient. List any ideas or methods that need stronger support.
     7. **Knowledge gaps identified**: Any open questions or missing knowledge that would strengthen this work.
 ```
 
@@ -173,7 +173,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 # Review Report: {artifact title}
 
 ## Meta
-- **Artifact type**: {idea / experiment / claim / paper-draft / proposal}
+- **Artifact type**: {idea / experiment / method / paper-draft / proposal}
 - **Difficulty**: {standard / hard / adversarial}
 - **Focus**: {method / evidence / writing / completeness / comprehensive}
 - **Reviewer**: Review LLM (configured in `.env`)
@@ -210,10 +210,11 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 
 ## Wiki Entity Mapping
 
-### Claims needing stronger support
-| Claim | Current confidence | Issue | Suggested action |
-|-------|-------------------|-------|------------------|
-| [[claim-slug]] | 0.6 | Evidence is indirect | Run targeted experiment |
+### Ideas / methods needing stronger support
+| Entity | Signal | Issue | Suggested action |
+|--------|--------|-------|------------------|
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run /novelty rerun |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun /check |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
@@ -221,8 +222,8 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 | {description} | [[slug]] | /ingest, /exp-run, or /query |
 
 ### Suggested wiki updates
-- `wiki/claims/{slug}.md`: update confidence, add evidence note
 - `wiki/ideas/{slug}.md`: add risk factor from review
+- `wiki/methods/{slug}.md`: tighten Tradeoff profile / Limitations
 - `wiki/graph/open_questions.md`: will be updated on next rebuild
 
 ## Dialogue History (hard/adversarial only)
@@ -247,7 +248,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 - **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. /refine)
 - **Scores must have justification**: scores without a rationale are not accepted
 - **Weaknesses must have fixes**: every weakness must include a specific, actionable fix suggestion; vague criticism is not accepted
-- **Claim-level mapping is required**: output must include the Wiki Entity Mapping section, mapping review findings to specific wiki entities
+- **Entity-level mapping is required**: output must include the Wiki Entity Mapping section, mapping review findings to specific wiki entities (ideas, methods, etc.)
 - **Adversarial mode must search for fatal flaws**: e.g. fully published identical work, incorrect proofs, data leakage
 - **Multi-round dialogue capped at 3 rounds**: prevents infinite loops; output current state if 3 rounds do not converge
 - **Use [[slug]] when referencing wiki pages**: all references to wiki pages use wikilink syntax

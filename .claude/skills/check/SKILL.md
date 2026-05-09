@@ -1,17 +1,16 @@
 ---
-description: Scan the full wiki to detect health issues and produce a tiered fix-recommendation report (covers all 9 entity types + graph consistency)
+description: Scan the full wiki to detect health issues and produce a tiered fix-recommendation report (covers all entity types in runtime/schema/entities.yaml + graph consistency)
 ---
 
 # /check
 
 > Scans the full wiki to detect structural, link, field, and graph health issues, and generates a tiered fix-recommendation report.
-> Covers all 9 entity types, including claims confidence plausibility, idea failure-reason completeness,
-> experiment-claim link validity, and graph edge consistency.
+> Covers every entity type declared in `runtime/schema/entities.yaml` (papers, concepts, topics, people, ideas, experiments, methods, Summary, foundations), plus graph edge / citation consistency. Highlights include: idea novelty-score plausibility, idea failure-reason completeness, experiment `linked_idea` validity.
 
 ## Inputs
 
 - Full wiki directory (default `wiki/`)
-- Optional: `--json` flag (output JSON format via tools/lint.py)
+- Optional: `--json` flag (output JSON format via `tools/lint.py`)
 - Optional: `--fix` flag (auto-fix deterministic issues)
 - Optional: `--fix --dry-run` (preview fixes without applying them)
 - Optional: `--suggest` flag (show recommendations for issues that cannot be auto-fixed)
@@ -28,16 +27,17 @@ description: Scan the full wiki to detect health issues and produce a tiered fix
 - `wiki/concepts/*.md` — concept page fields and links
 - `wiki/topics/*.md` — topic page fields and links
 - `wiki/people/*.md` — people page fields and links
-- `wiki/ideas/*.md` — idea status, failure_reason, origin_gaps
-- `wiki/experiments/*.md` — experiment status, target_claim, outcome
-- `wiki/claims/*.md` — claim confidence, status, evidence, source_papers
+- `wiki/ideas/*.md` — idea status, novelty_score, failure_reason, origin_gaps, target_venue
+- `wiki/experiments/*.md` — experiment status, linked_idea, outcome
+- `wiki/methods/*.md` — method type, source_papers, parent/child chains
 - `wiki/Summary/*.md` — survey page fields
+- `wiki/foundations/*.md` — foundations (terminal — incoming-link checks only)
 - `wiki/graph/edges.jsonl` — semantic graph edge consistency check
 - `wiki/graph/citations.jsonl` — bibliographic citation consistency check
 - `wiki/index.md` — cross-check page completeness
 
 ### Writes
-- Does not directly modify wiki content (reports only, no fixes)
+- Does not directly modify wiki content (reports only, unless `--fix` is set)
 - `wiki/log.md` — records lint result summary via `tools/research_wiki.py log`
 
 ## Workflow
@@ -72,41 +72,47 @@ The automated tool checks:
 
 1. **Broken wikilinks**: `[[slug]]` target file does not exist
 2. **Orphan pages**: pages with no incoming links
-3. **Missing required fields** (all 9 entity types):
+3. **Missing required fields** (per entity declared in `runtime/schema/entities.yaml`). Authoritative source: `runtime.loader.REQUIRED_FIELDS`. Current set:
    - papers: title, slug, tags, importance
    - concepts: title, tags, maturity, key_papers
    - topics: title, tags
-   - people: name, tags
+   - people: name
+   - methods: name, slug, type, tags
    - Summary: title, scope, key_topics
    - ideas: title, slug, status, origin, tags, priority
-   - experiments: title, slug, status, target_claim, hypothesis, tags
-   - claims: title, slug, status, confidence, tags, source_papers, evidence
+   - experiments: title, slug, status, linked_idea, hypothesis, tags
+   - foundations: title, slug, domain, status
 
 ### Step 3: Field Value Validation (automated coverage)
 
-1. **Enum value checks**:
+1. **Enum value checks** (sourced from `runtime.loader.VALID_VALUES`):
    - papers.importance ∈ {1,2,3,4,5}
    - concepts.maturity ∈ {stable, active, emerging, deprecated}
    - ideas.status ∈ {proposed, in_progress, tested, validated, failed}
    - ideas.priority ∈ {1,2,3,4,5}
    - experiments.status ∈ {planned, running, completed, abandoned}
    - experiments.outcome ∈ {succeeded, failed, inconclusive}
-   - claims.status ∈ {proposed, weakly_supported, supported, challenged, deprecated}
-2. **Claim confidence** ∈ [0.0, 1.0]
+   - methods.type ∈ {architecture, training, inference, evaluation, data, benchmark, system, optimization, prompting, protocol, other}
+   - foundations.status ∈ {mainstream, historical}
+2. **Idea novelty_score** (when present) ∈ [1, 5] (integer)
 3. **Idea failure_reason**: must be non-empty when status=failed (anti-repetition memory)
-4. **Experiment target_claim**: the referenced claim must exist
+4. **Experiment linked_idea**: the referenced idea page must exist
 
 ### Step 4: Cross Reference Symmetry (automated coverage)
 
-Check all bidirectional link rules defined in CLAUDE.md:
+Check all bidirectional link rules defined in `runtime/schema/xref.yaml`:
 
 | Forward link | Reverse link checked |
-|----------|---------------|
-| concepts.key_papers → papers | papers.Related contains concept link |
-| papers → people (wikilink) | people.Key papers contains paper |
-| claims.source_papers → papers | papers.Related contains claim link |
-| ideas.origin_gaps → claims | claims.Linked ideas contains idea |
-| experiments.target_claim → claims | claims.evidence contains experiment |
+|--------------|---------------------|
+| `papers ## Related → concepts` | `concepts.key_papers` contains paper slug |
+| `papers wikilink → people` | `people ## Recent work` contains paper slug |
+| `topics.key_people → people` | `people ## Research areas` contains topic slug |
+| `concepts.key_papers → papers` | `papers ## Related` contains concept slug |
+| `ideas.origin_gaps → concepts` | `concepts.linked_ideas` contains idea slug |
+| `ideas.origin_gaps → topics` | `topics.linked_ideas` contains idea slug |
+| `experiments.linked_idea → ideas` | `ideas.linked_experiments` contains experiment slug |
+| `methods.source_papers → papers` | `papers ## Related` contains method slug |
+| `methods.parent_methods ↔ methods.child_methods` | reciprocity |
 
 ### Step 5: Graph Edge Consistency (automated coverage)
 
@@ -122,15 +128,16 @@ Check all bidirectional link rules defined in CLAUDE.md:
 Items detectable by the automated tool:
 1. Papers with importance=5 have no concept page referencing them
 2. Concepts with maturity=stable have only 1 key_paper
-3. Topics have empty Open problems sections
+3. Topics have empty `## Open problems` sections (also flag empty `### Known gaps` / `### Methodological gaps` subsections)
 
-Additional LLM judgments (requires reading content):
+Additional LLM judgments (require reading content):
 1. **Concept near-duplicate detection**: scan all concept page titles + aliases and assess whether any pairs are semantically identical or highly similar (e.g. "attention mechanism" and "self-attention"). Output merge recommendations for suspected duplicates.
-2. Contradictory statement detection (inconsistent descriptions of the same fact across different pages)
-3. SOTA records not updated in over 6 months
-4. people Recent work not updated in over 6 months
-5. Claim confidence inconsistent with evidence quantity/strength
-6. High-priority idea stuck in proposed status for a long time
+2. **Method near-duplicate detection**: same exercise across `wiki/methods/*.md`, comparing `name` + `tags` + `## Mechanism` summaries.
+3. Contradictory statement detection (inconsistent descriptions of the same fact across different pages)
+4. SOTA records not updated in over 6 months
+5. People `## Recent work` not updated in over 6 months
+6. Idea novelty_score inconsistent with the strength of its `## Novelty argument` (low score + bold argument, or high score + thin argument)
+7. High-priority idea stuck in proposed status for a long time without `linked_experiments`
 
 ### Step 7: Generate Report
 
@@ -152,8 +159,8 @@ Output sorted by priority:
 ```
 
 Classification:
-- **🔴 Fix Immediately**: broken links, missing required fields, invalid enum values, failed idea without failure_reason, invalid JSON in edges, confidence out of range
-- **🟡 Recommended Fixes**: xref asymmetry, dangling graph edges, broken claim references, unknown edge types
+- **🔴 Fix Immediately**: broken links, missing required fields, invalid enum values, failed idea without failure_reason, invalid JSON in edges, novelty_score out of range
+- **🟡 Recommended Fixes**: xref asymmetry, dangling graph edges, broken `linked_idea` references, unknown edge types
 - **🔵 Optional Improvements**: orphan pages, quality suggestions, empty sections
 
 Append log:

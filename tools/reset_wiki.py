@@ -25,11 +25,10 @@ import shutil
 import sys
 from pathlib import Path
 
-ENTITY_DIRS = [
-    "papers", "concepts", "topics", "people",
-    "ideas", "experiments", "claims", "Summary",
-    "foundations",
-]
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from runtime.loader import ENTITIES  # noqa: E402
+
+ENTITY_DIRS = list(ENTITIES.keys())
 RAW_SUBDIRS = ["papers", "discovered", "tmp", "notes", "web"]
 ALL_SCOPES = ["wiki", "raw", "log", "checkpoints"]
 
