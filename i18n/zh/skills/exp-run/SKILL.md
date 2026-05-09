@@ -55,7 +55,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
   - `experiments/code/{slug}/config.yaml` — 超参数配置文件
   - `experiments/code/{slug}/run.sh` — 启动封装脚本（含 CUDA_VISIBLE_DEVICES 等）
   - `experiments/code/{slug}/requirements.txt` — 依赖（若与主项目不同）
-- `wiki/experiments/{slug}.md` — 更新 status、outcome、key_result、date_completed、run_log、remote 块
+- `wiki/experiments/{slug}.md` — 更新 status、outcome、key_result、date_completed、run_log、remote 块（deploy / collect 模式）
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
@@ -354,7 +354,7 @@ done
 - **collect 模式只接受 running 实验**：若 status 为 planned，提示先 deploy；若为 completed，提示已完成
 - **collect 模式：alive 时不写 wiki**：仅报告进度，不修改任何 wiki 文件
 - **代码统一写入 experiments/code/{slug}/**：不写到项目根目录或其他位置
-- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status / pilot_result 由 /exp-eval 负责更新
+- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status 由 /exp-eval 负责更新
 - **sanity check 必须通过**：Phase 1 sanity 失败则不部署（除非用户明确 override）
 - **结果文件必须保存**：所有实验结果以 JSON 格式保存在 `results/{slug}/seed_{N}.json`
 - **多 seed 结果取均值**：报告 mean ± std，不报告单次运行

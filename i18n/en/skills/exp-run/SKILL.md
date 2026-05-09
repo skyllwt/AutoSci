@@ -55,7 +55,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
   - `experiments/code/{slug}/config.yaml` — hyperparameter config file
   - `experiments/code/{slug}/run.sh` — launch wrapper script (includes CUDA_VISIBLE_DEVICES etc.)
   - `experiments/code/{slug}/requirements.txt` — dependencies (if different from main project)
-- `wiki/experiments/{slug}.md` — update status, outcome, key_result, date_completed, run_log, remote block
+- `wiki/experiments/{slug}.md` — update status, outcome, key_result, date_completed, run_log, remote block (deploy / collect mode)
 - `wiki/log.md` — append operation log
 
 ### Graph edges created
