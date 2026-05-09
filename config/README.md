@@ -4,6 +4,18 @@ This directory contains configuration templates. Copy them to the correct locati
 
 ## Files
 
+### `daily-arxiv.yml.example`
+
+Daily arXiv recommendation preferences. Copy to `config/daily-arxiv.yml`:
+
+```bash
+cp config/daily-arxiv.yml.example config/daily-arxiv.yml
+```
+
+This file stores non-secret settings such as mode, categories, recommendation
+caps, schedule, and profile hints. Keep API keys and SMTP credentials in `.env`
+or GitHub Actions secrets.
+
 ### `.env.example`
 
 Environment variables for API keys. Copy to project root:
@@ -64,4 +76,6 @@ Then edit `config/server.yaml` with your server's SSH details, GPU info, conda e
 
 ## All Done by `setup.sh`
 
-If you ran `setup.sh`, both files are already copied to the right locations. You only need to edit `.env` if you want to add optional API keys.
+If you ran `setup.sh`, `.env` and `.claude/settings.local.json` are already
+copied to the right locations. `daily-arxiv.yml` and `server.yaml` are optional
+and can be created later when you use those features.

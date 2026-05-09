@@ -221,11 +221,26 @@ and are best run from WSL2 or Linux/macOS.
 | Key | Required? | How to get | What it enables |
 |-----|-----------|-----------|-----------------|
 | `ANTHROPIC_API_KEY` | **Yes** | `claude login` (automatic) | Powers all Claude Code skills |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
 
 > **Cross-model review**: ΩmegaWiki uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in Claude-only mode.
+
+### Daily arXiv Recommendations
+
+`/daily-arxiv` runs a one-off fresh-paper recommendation pass even before
+automation is configured. To schedule the same pipeline in GitHub Actions, copy
+`config/daily-arxiv.yml.example` to `config/daily-arxiv.yml`, then run
+`/daily-arxiv setup`. The config stores non-secret preferences such as mode,
+categories, caps, and schedule; SMTP/API credentials stay in `.env` or GitHub
+Actions secrets. In CI inform mode, recommendations can use Claude Code auth
+(`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`) or the OpenAI-compatible
+`LLM_*` review model; auto-ingest still requires Claude Code.
+
+> See [`docs/daily-arxiv-deployment.md`](docs/daily-arxiv-deployment.md) for
+> the GitHub Actions setup checklist and symptom-keyed troubleshooting.
 
 ## Skills
 
@@ -254,7 +269,7 @@ and are best run from WSL2 or Linux/macOS.
 
 | Command | What it does |
 |---------|-------------|
-| `/daily-arxiv` | Auto-fetch & filter new arXiv papers (+ GitHub Actions cron) |
+| `/daily-arxiv` | Run/manage a daily arXiv recommendation feed (+ optional GitHub Actions scheduler) |
 | `/ideate` | Multi-phase idea generation from cross-topic connections |
 | `/novelty <idea>` | Multi-source novelty verification (web + S2 + wiki + review LLM) |
 | `/review <artifact>` | Cross-model adversarial review for any research artifact |
@@ -301,10 +316,13 @@ All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian fo
 
 ## Automation
 
-**GitHub Actions** runs `/daily-arxiv` at UTC 00:00 daily:
+**GitHub Actions** runs the `/daily-arxiv` recommendation pipeline at UTC 00:17 daily (08:17 Beijing time):
 
-1. Add `ANTHROPIC_API_KEY` to repo **Settings → Secrets**
-2. `.github/workflows/daily-arxiv.yml` fetches arXiv, runs ingestion, auto-commits
+1. Add SMTP secrets to repo **Settings → Secrets** when e-mail delivery is enabled: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `DAILY_ARXIV_EMAIL_TO`
+2. Optional inform-mode LLM recommendation: add `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, or `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` for any OpenAI-compatible provider
+3. `.github/workflows/daily-arxiv.yml` fetches arXiv, deduplicates against the wiki, builds a recommendation context, uploads artifacts, and sends the digest by SMTP
+
+`auto-ingest` mode is explicit and requires Claude Code in CI, because plain API LLMs cannot invoke slash skills such as `/ingest`. Use manual dispatch with `send_email=false` for a dry run without SMTP secrets.
 
 ## Project Structure
 
@@ -327,7 +345,7 @@ OmegaWiki/
 │   └── log.md                   #   Chronological log
 ├── raw/                         # Source materials
 │   ├── papers/                  #   User-owned .tex / .pdf files
-│   ├── discovered/              #   /init and /daily-arxiv-downloaded external papers
+│   ├── discovered/              #   external papers from /init and explicit /daily-arxiv auto-ingest
 │   ├── tmp/                     #   generated prepared local sidecars for /init and direct local /ingest
 │   ├── notes/                   #   User-owned .md notes
 │   └── web/                     #   User-owned HTML / Markdown
@@ -540,9 +558,18 @@ claude
 | Key | 必须？ | 获取方式 | 用途 |
 |-----|--------|---------|------|
 | `ANTHROPIC_API_KEY` | **是** | `claude login` | 驱动所有 Skill |
+| `CLAUDE_CODE_OAUTH_TOKEN` | 可选 | `claude setup-token` | Pro/Max 用户的 GitHub Actions Claude Code auth |
 | `SEMANTIC_SCHOLAR_API_KEY` | 可选 | [semanticscholar.org](https://www.semanticscholar.org/product/api)（免费） | 引用图谱、论文搜索 |
 | `DEEPXIV_TOKEN` | 可选 | `setup.sh` 自动注册 | 语义搜索、热门趋势 |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 任意 OpenAI 兼容 API | 跨模型评审 |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 任意 OpenAI 兼容 API | 跨模型评审；`/daily-arxiv` inform 推荐 |
+
+### 自动化
+
+GitHub Actions 每天 UTC 00:17（北京时间 08:17）运行 `/daily-arxiv` 推荐 pipeline：拉取 arXiv、按 wiki 去重、构建 recommendation context、上传 artifacts，并可通过 SMTP 发送 digest 邮件。
+
+启用邮件时，在 repo **Settings → Secrets** 添加：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`DAILY_ARXIV_EMAIL_TO`。
+
+CI inform mode 可使用 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 启动 Claude Code，也可使用 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 接入任意 OpenAI-compatible provider。`auto-ingest` 是显式模式，并且需要 Claude Code，因为普通 API LLM 不能调用 `/ingest` 这类 slash skill。手动触发时可设置 `send_email=false`，用于无 SMTP secrets 的 dry run。
 
 ### 24 个 Skill 命令
 
@@ -557,7 +584,7 @@ claude
 | `/edit` | 增删 raw 或更新 wiki |
 | `/ask` | 对 wiki 提问 |
 | `/check` | wiki 健康检查 |
-| `/daily-arxiv` | 每日 arXiv 新论文（CI 自动） |
+| `/daily-arxiv` | 运行/管理每日 arXiv 推荐 feed（可选 CI 定时） |
 | `/ideate` | 跨方向构思研究 idea |
 | `/novelty` | 多源新颖性验证 |
 | `/review` | 跨模型评审 |

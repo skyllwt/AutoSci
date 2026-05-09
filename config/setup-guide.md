@@ -110,10 +110,12 @@ without seeing Claude's prior analysis, improving review quality.
 - `/paper-draft` — review each section
 - `/rebuttal` — stress-test rebuttal responses
 - `/refine` — review in multi-round improve cycle
+- `/daily-arxiv` — inform-mode recommendation in CI when Claude Code is unavailable
 
 **Without these keys**: Skills skip the cross-model review step and proceed with
-Claude-only analysis. Everything still works, but you lose the independent second-opinion.
-The `/review` skill will note that cross-model review is unavailable.
+Claude-only analysis or deterministic fallback. Everything still works, but you
+lose the independent second-opinion. The `/review` skill will note that
+cross-model review is unavailable.
 
 **Works with any OpenAI-compatible API**:
 

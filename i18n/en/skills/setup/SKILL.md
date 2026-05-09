@@ -173,7 +173,8 @@ offer to let the user paste a token manually instead.
 
 **Explain**: "The Review LLM connects ΩmegaWiki to a second AI model for independent
 adversarial review. It's used by /review, /novelty, /ideate, /paper-plan, /paper-draft,
-/rebuttal, /refine, /exp-eval, and /exp-design. Works with any OpenAI-compatible API.
+/rebuttal, /refine, /exp-eval, /exp-design, and /daily-arxiv inform recommendations.
+Works with any OpenAI-compatible API.
 Without it, those skills skip the cross-model review step (everything still works)."
 
 **Present the provider table** from `config/setup-guide.md` (Key 3 section).

@@ -1,0 +1,43 @@
+# config/daily-arxiv.yml - daily arXiv recommendation preferences
+# Copy to config/daily-arxiv.yml and edit. Do not put secrets in this file.
+
+# inform: recommend and notify only.
+# auto-ingest: let /daily-arxiv invoke /ingest for high-confidence picks.
+# In CI inform mode, recommendation can use Claude Code auth
+# (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) or the OpenAI-compatible
+# LLM_API_KEY / LLM_BASE_URL / LLM_MODEL secrets.
+mode: inform
+
+# Fresh-paper window and source categories.
+hours: 24
+categories: [cs.LG, cs.CV, cs.CL, cs.AI, stat.ML]
+
+# Digest and auto-ingest caps.
+max_recommendations: 10
+max_auto_ingest: 1
+
+email:
+  enabled: true
+
+schedule:
+  enabled: true
+  cron: "17 0 * * *"
+
+profile:
+  # true = infer interests from wiki/papers, wiki/topics, wiki/concepts,
+  # wiki/claims, wiki/ideas, and wiki/log.md.
+  derive_from_wiki: true
+  positive_topics: []
+  negative_topics: []
+  positive_papers: []
+  negative_papers: []
+
+enrichment:
+  semantic_scholar: true
+  deepxiv: true
+  s2_anchor_limit: 5
+  s2_candidate_limit: 12
+  s2_recommendation_limit: 50
+  deepxiv_brief_limit: 8
+  deepxiv_trending_days: 7
+  deepxiv_trending_limit: 50
