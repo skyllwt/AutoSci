@@ -1,7 +1,7 @@
 ---
 title: "PTM-aware degrader target nomination with ΔpTernary noise-floor calibration"
 slug: "ptm-aware-degrader-target-nomination"
-status: proposed
+status: in_progress
 origin: "ideate: weakly_supported claim/ptm-protein-isoforms-enable-selective-drug + Phase-1 finding that all current PROTAC ternary predictors are PTM-blind on the POI side"
 origin_gaps: [[ptm-protein-isoforms-enable-selective-drug]], [[e3-ligase-deregulation-cancer-alters-substrate]]
 tags: [drug-design, ptm-isoforms, protac, ternary-complex, e3-ligase]
@@ -9,7 +9,7 @@ domain: "Computational Biology / ML for Science"
 priority: 5
 pilot_result: ""
 failure_reason: ""
-linked_experiments: []
+linked_experiments: [[deepternary-baseline-ternarydb-crbn-vhl-reproduction]], [[phase0-noise-floor-calibration-deepternary-ptm-perturbations]], [[calibrated-deltapternary-phospho-protac-ranking]], [[ablation-uncalibrated-vs-calibrated-deltapternary]], [[ablation-boltz2-ptm-vs-md-relaxed-route]], [[ablation-deepternary-vs-protac-stan-scorer]], [[robustness-cross-ptm-type-ubiq-methyl]], [[robustness-mutant-isoform-track-y220c-r175h]]
 date_proposed: 2026-04-30
 date_resolved: ""
 ---

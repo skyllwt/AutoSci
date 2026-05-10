@@ -220,7 +220,7 @@ ideas:
   - slug: ptm-aware-degrader-target-nomination
     title: "PTM-aware degrader target nomination with ΔpTernary noise-floor calibration"
     tags: [drug-design, ptm-isoforms, protac, ternary-complex, e3-ligase]
-    status: proposed
+    status: in_progress
     domain: Computational Biology / ML for Science
     priority: 5
   - slug: ptm-conditioned-ensemble-prediction
@@ -241,98 +241,58 @@ ideas:
     status: failed
     domain: Computational Biology / ML for Science
     priority: 1
-  - slug: alphafold2-enables-large-scale-structural-modeling
-    title: "AlphaFold2 enables large-scale structural modeling of human PPI network"
-    tags: [alphafold2, protein-protein-interaction, interactome, structural-biology]
-    status: validated
-    priority: 3
-    domain: Computational Biology
-  - slug: deep-learning-ensembles-outperform-classical-ml
-    title: "Deep-learning ensembles with sequence-only input outperform feature-engineered classical ML for PTM site prediction across most PTM types"
-    tags: [deep-learning, ptm, bioinformatics, ensembles, benchmarking]
-    status: tested
-    priority: 3
-    domain: Bioinformatics
-  - slug: deep-learning-predicts-protein-structure-atomic
-    title: "Deep learning can predict protein structure at near-experimental atomic accuracy from sequence alone"
-    tags: [protein-structure-prediction, deep-learning, casp14, alphafold, atomic-accuracy]
-    status: validated
-    priority: 3
-    domain: Structural Biology / ML for Science
-  - slug: diffusion-based-generation-eliminates-need-equivariant
-    title: "Diffusion-based atom-coordinate generation eliminates the need for equivariant frame-based structure modules"
-    tags: [diffusion, equivariance, structure-prediction, alphafold]
-    status: tested
-    priority: 3
-    domain: ML for Science
-  - slug: e3-ligase-deregulation-cancer-alters-substrate
-    title: "E3 ligase deregulation in cancer alters substrate stability and is therapeutically exploitable in a context-dependent manner"
-    tags: [ubiquitin-ligase, cancer, drug-target, oncogene, tumour-suppressor]
-    status: validated
-    priority: 3
-    domain: Cancer biology / Molecular oncology
-  - slug: e3-ubiquitin-ligase-substrate-network-predicted
-    title: "Heterogeneous biological evidence integrated by naive Bayes predicts human E3-substrate interactions at proteome scale"
-    tags: [bioinformatics, ubiquitination, e3-ligase, naive-bayes, prediction]
-    status: validated
-    priority: 3
-    domain: computational biology
-  - slug: equivariant-3d-models-improve-quantum-chemistry-not-uniformly-drug-discovery
-    title: "Equivariant 3D neural networks reliably outperform 2D-graph baselines for quantum-chemistry targets but not consistently for drug-discovery property prediction"
-    tags: [equivariant-message-passing, quantum-chemistry, drug-discovery, molecular-property-prediction, ablation]
-    status: validated
-    priority: 3
-    domain: ML for Molecules
-  - slug: geometric-priors-improve-molecular-modelling
-    title: "Geometric priors (equivariance / invariance) systematically improve neural-network modelling of molecular systems"
-    tags: [geometric-deep-learning, equivariance, molecular-modelling]
-    status: validated
-    priority: 3
-    domain: ML for Molecules
-  - slug: high-throughput-y2h-recovers-novel-disease-associated-ppis
-    title: "Stringent high-throughput Y2H recovers many novel disease-associated human PPIs at low inspection bias"
-    tags: [protein-protein-interaction, interactome, yeast-two-hybrid, disease-genetics]
-    status: validated
-    priority: 3
-    domain: Computational Biology
-  - slug: msa-depth-bounds-structure-prediction-accuracy
-    title: "MSA depth bounds the achievable accuracy of MSA-conditioned protein structure predictors"
-    tags: [msa, protein-structure-prediction, evolutionary-information, scaling, alphafold]
-    status: validated
-    priority: 3
-    domain: Structural Biology / ML for Science
-  - slug: multi-omics-ml-network-pharmacology-enables
-    title: "Integrating multi-omics data with machine learning and network-pharmacology models enables identification of multi-target therapeutic strategies that single-omics analysis cannot recover"
-    tags: [multi-omics, machine-learning, network-pharmacology, targeted-therapy, biomarker-discovery]
-    status: tested
-    priority: 3
-    domain: Computational Biology
-  - slug: plddt-and-pae-are-complementary-confidence-metrics
-    title: "pLDDT and PAE are complementary confidence metrics — pLDDT for per-residue local accuracy, PAE for pairwise relative-position accuracy"
-    tags: [confidence-metrics, alphafold, structural-biology]
-    status: validated
-    priority: 3
-    domain: Structural Bioinformatics
-  - slug: precomputed-structure-databases-enable-proteome-scale-biology
-    title: "Pre-computed AlphaFold-predicted structure databases enable proteome-scale structural biology that on-demand prediction cannot"
-    tags: [structural-biology, databases, alphafold, infrastructure]
-    status: validated
-    priority: 3
-    domain: Structural Bioinformatics
-  - slug: ptm-protein-isoforms-enable-selective-drug
-    title: "PTM protein isoforms enable selective drug design beyond wild-type targets"
-    tags: [drug-design, posttranslational-modification, ptm-isoforms, selectivity, allosteric-inhibitor, covalent-inhibitor, protac]
-    status: tested
-    priority: 3
-    domain: Computational Drug Design / Chemical Biology
-  - slug: single-deep-learning-model-predict-diverse
-    title: "A single deep-learning model can predict diverse biomolecular complexes at high accuracy"
-    tags: [structure-prediction, biomolecular-complexes, alphafold, generalist-model]
-    status: validated
-    priority: 3
-    domain: Computational Biology / ML for Science
 
+  - slug: md-relaxed-phospho-route-comparable-to-native-ptm-tokens
+    title: "MD-relaxed phospho-structure fallback yields ΔpTernary signal comparable to native CCD-PTM-token Boltz-2 prediction"
+    tags: [protac, ternary-complex, ptm-isoforms, boltz-2, molecular-dynamics, ptm-conditioning]
+    status: proposed
+    priority: 3    domain: Computational Drug Design / Chemical Biology
+  - slug: noise-floor-calibrated-deltapternary-improves-ranking
+    title: "Noise-floor-calibrated ΔpTernary improves PTM-isoform degrader ranking precision over uncalibrated raw ΔpTernary"
+    tags: [protac, ternary-complex, ptm-isoforms, calibration, deepternary, protac-stan]
+    status: proposed
+    priority: 3    domain: Computational Drug Design / Chemical Biology
 experiments:
+  - slug: ablation-boltz2-ptm-vs-md-relaxed-route
+    title: "Ablation: Boltz-2 native CCD-PTM-token route vs MD-relaxed phospho-structure route for ΔpTernary"
+    tags: [ablation, boltz-2, molecular-dynamics, ptm-conditioning, deepternary, route-comparison]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: ablation-deepternary-vs-protac-stan-scorer
+    title: "Ablation: DeepTernary vs PROTAC-STAN scorer substitution on the same calibrated ΔpTernary protocol"
+    tags: [ablation, scorer-substitution, deepternary, protac-stan, deltapternary, ptm-isoforms, phospho-protac]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: ablation-uncalibrated-vs-calibrated-deltapternary
+    title: "Ablation: uncalibrated raw ΔpTernary vs noise-floor-calibrated ΔpTernary on the same phospho-PROTAC track"
+    tags: [ablation, calibration, deepternary, deltapternary, ptm-isoforms, phospho-protac]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: calibrated-deltapternary-phospho-protac-ranking
+    title: "Calibrated ΔpTernary ranking on the phospho-PROTAC held-out track"
+    tags: [validation, deepternary, boltz-2, phospho-protac, ranking, deltapternary, ptm-isoforms]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: deepternary-baseline-ternarydb-crbn-vhl-reproduction
+    title: "DeepTernary baseline reproduction on TernaryDB CRBN+VHL test split"
+    tags: [baseline, deepternary, ternarydb, crbn, vhl, reproduction]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: phase0-noise-floor-calibration-deepternary-ptm-perturbations
+    title: "Phase-0 noise-floor calibration of ΔpTernary under random size-matched POI surface perturbations (DeepTernary)"
+    tags: [calibration, noise-floor, deepternary, ternarydb, ptm-perturbation, phase-0]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: robustness-cross-ptm-type-ubiq-methyl
+    title: "Robustness: cross-PTM-type generalization of calibrated ΔpTernary (ubiquitylation + methylation tracks)"
+    tags: [robustness, generalization, ubiquitylation, methylation, deepternary, deltapternary, ptm-isoforms]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
+  - slug: robustness-mutant-isoform-track-y220c-r175h
+    title: "Robustness: mutant-isoform PROTAC track (p53-Y220C, p53-R175H) reported separately from PTM track"
+    tags: [robustness, mutant-isoform, p53-y220c, p53-r175h, deltapternary, separation-of-tracks]
+    status: planned
+    domain: Computational Drug Design / Chemical Biology
 
 Summary:
   - slug: medpredict

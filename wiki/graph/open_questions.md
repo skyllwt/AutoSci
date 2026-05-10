@@ -125,5 +125,7 @@ _Auto-generated open questions. Do not edit._
 - [concept/yeast-two-hybrid-system] Can Y2H variants be engineered to recover transmembrane and lipid-bilayer-resident interactions at scale?
 - [claim/deep-learning-ensembles-outperform-classical-ml] Deep-learning ensembles with sequence-only input outperform feature-engineered classical ML for PTM site prediction across most PTM types (status: weakly_supported)
 - [claim/diffusion-based-generation-eliminates-need-equivariant] Diffusion-based atom-coordinate generation eliminates the need for equivariant frame-based structure modules (status: weakly_supported)
+- [claim/md-relaxed-phospho-route-comparable-to-native-ptm-tokens] MD-relaxed phospho-structure fallback yields ΔpTernary signal comparable to native CCD-PTM-token Boltz-2 prediction (status: proposed)
 - [claim/multi-omics-ml-network-pharmacology-enables] Integrating multi-omics data with machine learning and network-pharmacology models enables identification of multi-target therapeutic strategies that single-omics analysis cannot recover (status: weakly_supported)
+- [claim/noise-floor-calibrated-deltapternary-improves-ranking] Noise-floor-calibrated ΔpTernary improves PTM-isoform degrader ranking precision over uncalibrated raw ΔpTernary (status: proposed)
 - [claim/ptm-protein-isoforms-enable-selective-drug] PTM protein isoforms enable selective drug design beyond wild-type targets (status: weakly_supported)

@@ -19,3 +19,5 @@
 ## [2026-04-30] ideate | direction: structure-aware PTM modelling for drug discovery | 3 ideas proposed (priorities 5/4/5), 2 ideas filtered out as failed (banlist) | maturity: warm
 
 ## [2026-05-10] refactor | claims-to-ideas migration: 15 wiki/claims/*.md → wiki/ideas/ (status mapped supported→validated, weakly_supported→tested), wiki/claims/ deleted, edges.jsonl 21 claims/ refs → ideas/, index.md claims: section merged into ideas:
+## [2026-05-02] check | report: 0 🔴, 0 🟡, 11 🔵
+## [2026-05-02] exp-design | 8 experiments designed for idea ptm-aware-degrader-target-nomination | claims: ptm-protein-isoforms-enable-selective-drug (target), noise-floor-calibrated-deltapternary-improves-ranking (decomp, new), md-relaxed-phospho-route-comparable-to-native-ptm-tokens (decomp, new) | total budget ≈104 GPU-h | run order Stage 0 sanity → Stage 1 baseline → Stage 2a Phase-0 noise-floor → Stage 2b primary validation → Stage 3 ablations → Stage 4 robustness

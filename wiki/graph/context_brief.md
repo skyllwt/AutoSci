@@ -2,21 +2,21 @@
 
 _Auto-generated compressed context. Do not edit._
 
-## Claims (15 total)
+## Claims (17 total)
 - [weakly_supported] PTM protein isoforms enable selective drug design beyond wild-type targets (conf: 0.6)
 - [supported] AlphaFold2 enables large-scale structural modeling of human PPI network (conf: 0.75)
 - [weakly_supported] Diffusion-based atom-coordinate generation eliminates the need for equivariant frame-based structure modules (conf: 0.55)
 - [supported] E3 ligase deregulation in cancer alters substrate stability and is therapeutically exploitable in a context-dependent manner (conf: 0.85)
 - [supported] MSA depth bounds the achievable accuracy of MSA-conditioned protein structure predictors (conf: 0.85)
+- [proposed] Noise-floor-calibrated ΔpTernary improves PTM-isoform degrader ranking precision over uncalibrated raw ΔpTernary (conf: 0.3)
 - [weakly_supported] Deep-learning ensembles with sequence-only input outperform feature-engineered classical ML for PTM site prediction across most PTM types (conf: 0.6)
 - [supported] Deep learning can predict protein structure at near-experimental atomic accuracy from sequence alone (conf: 0.92)
 - [supported] Heterogeneous biological evidence integrated by naive Bayes predicts human E3-substrate interactions at proteome scale (conf: 0.75)
 - [supported] Equivariant 3D neural networks reliably outperform 2D-graph baselines for quantum-chemistry targets but not consistently for drug-discovery property prediction (conf: 0.7)
 - [supported] Geometric priors (equivariance / invariance) systematically improve neural-network modelling of molecular systems (conf: 0.75)
 - [supported] Stringent high-throughput Y2H recovers many novel disease-associated human PPIs at low inspection bias (conf: 0.8)
-- [weakly_supported] Integrating multi-omics data with machine learning and network-pharmacology models enables identification of multi-target therapeutic strategies that single-omics analysis cannot recover (conf: 0.55)
-- [supported] pLDDT and PAE are complementary confidence metrics — pLDDT for per-residue local accuracy, PAE for pairwise relative-position accuracy (conf: 0.9)
-- [supported] Pre-computed AlphaFold-predicted structure databases enable proteome-scale structural
+- [proposed] MD-relaxed phospho-structure fallback yields ΔpTernary signal comparable to native CCD-PTM-token Boltz-2 prediction (conf: 0.3)
+- [weakly_supported] Integrating multi-omics data with machine learning and network-pharmacology models enables identification of multi-target therapeutic strategies that single-omics analysis cannot re
 ## Open Gaps
 _Auto-generated open questions. Do not edit._
 - [paper/accurate-structure-prediction-biomolecular-interactions-alphafold] Can a generative structure predictor be coupled to an MSA-resampling or ensemble-sampling scheme to recover dynamical / multi-state behaviour rather than collapsing to a single PDB-like snapshot?
@@ -40,12 +40,12 @@ _Auto-generated open questions. Do not edit._
 - [4] Ubiquitin ligases in oncogenic transformation and cancer therapy (Cancer biology / Molecular oncology)
 - [2] From Data to Cure: A Comprehensive Exploration of Multi-omics Data Analysis for Targeted Therapies (Computational Biology)
 - [3] MusiteDeep: a deep-learning based webserver for protein post-translational modification site prediction and visualization (Bioinformatics)
-## Recent Relationships (57 total)
-  papers/highly-accurate-protein-structure-prediction-alphafold --supports--> claims/deep-learning-predicts-protein-structure-atomic
-  papers/highly-accurate-protein-structure-prediction-alphafold --supports--> claims/msa-depth-bounds-structure-prediction-accuracy
-  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --introduces_concept--> concepts/pairformer-module
-  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --introduces_concept--> concepts/diffusion-based-structure-prediction
-  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --introduces_concept--> concepts/biomolecular-complex-prediction-unified-deep-learning
-  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --supports--> claims/single-deep-learning-model-predict-diverse
-  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --supports--> claims/diffusion-based-generation-eliminates-need-equivariant
-  papers/acc
+## Recent Relationships (65 total)
+  papers/accurate-structure-prediction-biomolecular-interactions-alphafold --improves_on--> papers/highly-accurate-protein-structure-prediction-alphafold
+  ideas/ptm-aware-degrader-target-nomination --addresses_gap--> claims/ptm-protein-isoforms-enable-selective-drug
+  ideas/ptm-aware-degrader-target-nomination --addresses_gap--> claims/e3-ligase-deregulation-cancer-alters-substrate
+  ideas/ptm-aware-degrader-target-nomination --inspired_by--> papers/drug-design-targeting-active-posttranslational-modification
+  ideas/ptm-aware-degrader-target-nomination --inspired_by--> papers/integrated-bioinformatics-platform-investigating-human-e3
+  ideas/ptm-aware-degrader-target-nomination --inspired_by--> papers/accurate-structure-prediction-biomolecular-interactions-alphafold
+  ideas/ptm-conditioned-ensemble-prediction --addresses_gap--> claims/diffusion-based-generation-eliminates-need-equivariant
+  ideas/ptm-conditioned-ensemble-prediction --addresses_gap--> claims/msa-depth-bounds-structure-p
