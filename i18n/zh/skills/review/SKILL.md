@@ -5,16 +5,16 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 # /review
 
-> 对任意研究制品（idea、proposal、experiment plan、paper draft、claim）进行跨模型审查。
+> 对任意研究制品（idea、proposal、experiment plan、paper draft、method）进行跨模型审查。
 > 使用 Review LLM 作为独立审稿人，输出结构化评分、可操作的改进建议，以及与 wiki 实体的映射
-> （哪些 claims 需要加强，哪些 gaps 被发现）。
+> （哪些 ideas/methods 需要加强，哪些 gaps 被发现）。
 > 支持三种难度级别（standard / hard / adversarial）和四种审查焦点。
 > 可独立使用，也被 /ideate、/refine、/exp-design 调用。
 
 ## Inputs
 
 - `artifact`：要审查的制品，以下之一：
-  - wiki 页面的 slug（如 `sparse-lora-for-edge-devices`，从 ideas/experiments/claims/ 中查找）
+  - wiki 页面的 slug（如 `sparse-lora-for-edge-devices`，从 ideas/experiments/methods/ 中查找）
   - 文件路径（如 `wiki/outputs/paper-draft-v1.md`）
   - 自由文本（直接粘贴的 proposal 或 idea 描述）
 - `--difficulty`（可选，默认 `standard`）：
@@ -23,7 +23,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - `adversarial`：多轮对话（最多 3 轮），Review LLM 额外尝试找致命缺陷，模拟最严苛的审稿人
 - `--focus`（可选，默认全面审查）：
   - `method`：聚焦方法设计的正确性、创新性、可行性
-  - `evidence`：聚焦证据是否充分、实验是否严谨、claim 是否 well-supported
+  - `evidence`：聚焦证据是否充分、实验是否严谨、idea/method 是否得到充分支撑
   - `writing`：聚焦表达清晰度、结构组织、论证逻辑
   - `completeness`：聚焦是否遗漏关键内容（相关工作、ablation、baseline）
 
@@ -35,7 +35,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - Weaknesses（缺点列表，按严重程度排序）
   - Questions（审稿人的疑问）
   - Actionable Suggestions（可操作的改进建议，按优先级排序）
-  - Wiki Entity Mapping（哪些 claims 需要加强，哪些 gaps 被发现）
+  - Wiki Entity Mapping（哪些 ideas/methods 需要加强，哪些 gaps 被发现）
   - Verdict：`ready` / `needs-work` / `major-revision` / `rethink`
 - 若 `--difficulty >= hard`：额外包含多轮对话记录和最终修正后的评分
 - 该 skill **不直接修改 wiki**，但会输出建议的 wiki 更新列表
@@ -45,7 +45,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 ### Reads
 - `wiki/papers/*.md` — 查找制品引用的论文，验证引用正确性
 - `wiki/concepts/*.md` — 理解制品涉及的技术概念
-- `wiki/claims/*.md` — 检查制品依赖的 claims 当前状态和 confidence
+- `wiki/methods/*.md` — 检查制品依赖的 methods 当前状态
 - `wiki/experiments/*.md` — 查找相关实验结果
 - `wiki/ideas/*.md` — 如果审查的是 idea，检查其上下文
 - `wiki/graph/context_brief.md` — 获取全局上下文
@@ -66,17 +66,17 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 ### Step 1: 加载上下文
 
 1. **解析 artifact**：
-   - 若为 slug：按顺序在 `wiki/ideas/`、`wiki/experiments/`、`wiki/claims/`、`wiki/papers/`、`wiki/outputs/` 中查找 `{slug}.md`
+   - 若为 slug：按顺序在 `wiki/ideas/`、`wiki/experiments/`、`wiki/methods/`、`wiki/papers/`、`wiki/outputs/` 中查找 `{slug}.md`
    - 若为文件路径：直接读取
    - 若为自由文本：直接使用
-2. **确定 artifact 类型**：idea / experiment / claim / paper-draft / proposal / other
+2. **确定 artifact 类型**：idea / experiment / method / paper-draft / proposal / other
 3. **加载相关 wiki 上下文**：
    - 读取 `wiki/graph/context_brief.md` 获取全局视角
    - 读取 `wiki/graph/open_questions.md` 获取知识缺口列表
    - 根据 artifact 类型，加载相关 wiki 页面：
-     - idea → 其 origin_gaps 对应的 claims，相关 papers
-     - experiment → 其 target_claim，相关 experiments
-     - claim → 其 evidence 来源，相关 papers 和 experiments
+     - idea → 其 origin_gaps（concepts/topics）、相关 papers
+     - experiment → 其 linked_idea、相关 experiments
+     - method → 其 source_papers 和 parent_methods
      - paper-draft → 其引用的所有 wiki 页面
 4. **读取 cross-model-review.md**：确认 Review LLM 独立性原则
 5. **构建 reviewer system prompt**（根据 --focus）：
@@ -95,7 +95,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
    **Focus-specific additions：**
    - `method`：额外要求评估 technical correctness, novelty of approach, feasibility, comparison to alternatives
-   - `evidence`：额外要求评估 experimental rigor, statistical significance, claim-evidence alignment, missing controls
+   - `evidence`：额外要求评估 experimental rigor, statistical significance, idea-evidence alignment, missing controls
    - `writing`：额外要求评估 clarity, logical flow, notation consistency, figure quality, related work coverage
    - `completeness`：额外要求评估 missing baselines, missing ablations, missing datasets, missing related work, reproducibility
 
@@ -118,7 +118,7 @@ mcp__llm-review__chat:
     {artifact full text}
 
     ## Context from Knowledge Base
-    {relevant wiki context: related claims with status/confidence, related experiments, gap map entries}
+    {relevant wiki context: related ideas/methods with status, related experiments, gap map entries}
 
     ## Review Instructions
     Please provide:
@@ -127,7 +127,7 @@ mcp__llm-review__chat:
     3. **Questions** (things that are unclear or need clarification)
     4. **Score** (1-10 with one-sentence justification)
     5. **Verdict**: ready / needs-work / major-revision / rethink
-    6. **Claim-level feedback**: For each claim referenced in the artifact, assess whether the evidence is sufficient. List any claims that need stronger support.
+    6. **Idea-/method-level feedback**: For each idea or method referenced in the artifact, assess whether the evidence/justification is sufficient. List any ideas or methods that need stronger support.
     7. **Knowledge gaps identified**: Any open questions or missing knowledge that would strengthen this work.
 ```
 
@@ -173,10 +173,10 @@ mcp__llm-review__chat:
 # Review Report: {artifact title}
 
 ## Meta
-- **Artifact type**: {idea / experiment / claim / paper-draft / proposal}
+- **Artifact type**: {idea / experiment / method / paper-draft / proposal}
 - **Difficulty**: {standard / hard / adversarial}
 - **Focus**: {method / evidence / writing / completeness / 全面}
-- **Reviewer**: Review LLM
+- **Reviewer**: Review LLM（在 `.env` 中配置）
 - **Rounds**: {1 for standard, N for hard/adversarial}
 
 ## Score: {final score}/10 — {verdict}
@@ -210,10 +210,11 @@ mcp__llm-review__chat:
 
 ## Wiki Entity Mapping
 
-### Claims needing stronger support
-| Claim | Current confidence | Issue | Suggested action |
-|-------|-------------------|-------|------------------|
-| [[claim-slug]] | 0.6 | Evidence is indirect | Run targeted experiment |
+### Ideas / methods needing stronger support
+| Entity | Signal | Issue | Suggested action |
+|--------|--------|-------|------------------|
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run /novelty rerun |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun /check |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
@@ -221,8 +222,8 @@ mcp__llm-review__chat:
 | {描述} | [[slug]] | /ingest, /exp-run, or /query |
 
 ### Suggested wiki updates
-- `wiki/claims/{slug}.md`: update confidence, add evidence note
 - `wiki/ideas/{slug}.md`: add risk factor from review
+- `wiki/methods/{slug}.md`: tighten Tradeoff profile / Limitations
 - `wiki/graph/open_questions.md`: will be updated on next rebuild
 
 ## Dialogue History (hard/adversarial only)
@@ -247,7 +248,7 @@ mcp__llm-review__chat:
 - **不修改 wiki**：review 只输出建议，不直接修改任何 wiki 页面。wiki 修改由调用方（如 /refine）执行
 - **score 必须有 justification**：不接受没有理由的分数
 - **weakness 必须有 fix**：每个 weakness 必须附带具体的、可操作的修复建议，不接受空洞批评
-- **claim-level mapping 必须**：输出必须包含 Wiki Entity Mapping 部分，将 review 发现映射到具体 wiki 实体
+- **entity-level mapping 必须**：输出必须包含 Wiki Entity Mapping 部分，将 review 发现映射到具体 wiki 实体（ideas、methods 等）
 - **adversarial 模式必须搜索致命缺陷**：如已发表的完全相同工作、证明错误、数据泄露等
 - **多轮对话最多 3 轮**：防止无限循环，若 3 轮后仍未收敛则以当前状态输出
 - **引用 wiki 页面时使用 [[slug]]**：所有对 wiki 页面的引用使用 wikilink 语法

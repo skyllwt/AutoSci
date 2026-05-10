@@ -132,7 +132,7 @@ When `/ingest` is invoked with the optional `--discover` flag (default off), it 
 ## Constraints
 
 - **Never auto-ingest**: `/discover` returns a shortlist and stops. Even when called by `/ingest --discover`, the caller surfaces results and the user decides what to ingest.
-- **No writes to `wiki/` other than `log.md`**: paper pages, concepts, claims, graph edges all belong to `/ingest`.
+- **No writes to `wiki/` other than `log.md`**: paper pages, concepts, methods, graph edges all belong to `/ingest`.
 - **No writes to `raw/`**: `/discover` does not download papers. The user runs `/ingest <arxiv-url>` afterwards if they want a candidate.
 - **Always dedupe against the wiki**: pass `--wiki-root wiki` so the shortlist contains only papers not yet in the wiki. Surfacing duplicates is the most common low-quality failure mode.
 - **Ranking is discovery-specific**: do not import or duplicate `tools/init_discovery.py`'s scoring helpers. The two skills have different objectives — `/init` wants broad foundational coverage; `/discover` wants relevant *next reads*. See `references/ranking-signals.md`.

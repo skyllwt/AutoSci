@@ -1,0 +1,30 @@
+# conventions.yaml — System-level constants that schema cannot derive.
+
+# How a slug is shaped.  Generation rule: paper title keywords, hyphen-joined,
+# all lowercase.  This regex validates the result.
+slug_rule: "^[a-z0-9]+(-[a-z0-9]+)*$"
+
+# Where an entity page lives, given its kind and slug.
+path_pattern: "wiki/{kind}/{slug}.md"
+
+# How wikilinks resolve.  `[[slug]]` matches by trying each entity dir until a
+# `{slug}.md` file is found.
+wikilink_syntax: "[[slug]]"
+
+# All schema dates are ISO 8601 calendar dates.
+date_format: "YYYY-MM-DD"
+
+# Append-only log line grammar.
+log_grammar: "## [{date}] {skill} | {details}"
+
+# File-system ownership rules.
+ownership:
+  user_owned:  [raw/papers, raw/notes, raw/web]   # skills must not overwrite
+  tools_only:  [wiki/graph]                       # only via tools/research_wiki.py
+  append_only: [wiki/log.md]                      # never rewritten in place
+
+# Where each edge type is physically stored.
+edge_storage:
+  default: wiki/graph/edges.jsonl
+  exceptions:
+    cites: wiki/graph/citations.jsonl

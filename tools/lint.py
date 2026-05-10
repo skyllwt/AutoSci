@@ -4,13 +4,13 @@
 Checks performed:
   1. Broken wikilinks: [[slug]] target file does not exist
   2. Orphan pages: pages with zero incoming links
-  3. Missing required YAML frontmatter fields per entity type (all 9 types)
+  3. Missing required YAML frontmatter fields per entity type (one per
+     entity declared in runtime/schema/entities.yaml)
   4. Cross-reference asymmetry: forward link without matching reverse link
-  5. Field value validation: enum values, ranges (confidence, importance, status)
-  6. Claim checks: confidence range, evidence structure, status consistency
-  7. Idea checks: failure_reason required when status=failed
-  8. Experiment checks: target_claim required, outcome values
-  9. Graph edge and citation consistency: from/to nodes exist as wiki pages
+  5. Field value validation: enum values, ranges (importance, status, etc.)
+  6. Idea checks: failure_reason required when status=failed
+  7. Experiment checks: linked_idea required, outcome values
+  8. Graph edge and citation consistency: from/to nodes exist as wiki pages
 
 Usage:
     python3 tools/lint.py                      # lint wiki/ in current dir
@@ -30,23 +30,29 @@ import re
 import sys
 from pathlib import Path
 
-# Schema constants — single source of truth shared with research_wiki.py.
-# See tools/_schemas.py for the spec; do not duplicate the definitions here.
-from _schemas import (
+# Schema API lives in runtime/loader.py — single source for both this file and
+# research_wiki.py.  The 3-line bridge below makes runtime/ importable from
+# tools/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from runtime.loader import (  # noqa: E402
     CITATION_EDGE_TYPES,
     CITATION_SOURCES,
     EDGE_CONFIDENCE_VALUES,
+    EDGES,
+    ENTITIES,
     ENTITY_DIRS,
     FIELD_DEFAULTS,
     REQUIRED_FIELDS,
     VALID_EDGE_TYPES,
     VALID_VALUES,
+    XREF,
     edge_endpoint_matches,
     edge_expected_endpoint,
     edge_is_symmetric,
     edge_is_legacy_for_endpoint,
     edge_legacy_replacement_message,
     edge_requires_confidence,
+    validate_edge_attributes,
 )
 
 WIKILINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
@@ -54,14 +60,26 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
 
 
 class LintIssue:
+    """A single lint finding.
+
+    `data` is an internal structured payload consumed by the auto-fixers; it
+    lets a fixer dispatch on schema metadata (the matched xref rule, the
+    missing field name, etc.) instead of regex-parsing the human-readable
+    message back into structure. It is intentionally not serialized in
+    `to_dict()` — the JSON output is a stable user-facing API, while `data`
+    is an implementation detail that may change as the schema evolves.
+    """
+
     def __init__(self, level: str, category: str, file: str, message: str,
-                 fixable: bool = False, suggestion: str = ""):
+                 fixable: bool = False, suggestion: str = "",
+                 data: dict | None = None):
         self.level = level      # 🔴 🟡 🔵
         self.category = category
         self.file = file
         self.message = message
         self.fixable = fixable          # can --fix auto-repair this?
         self.suggestion = suggestion    # human-readable suggestion for non-fixable issues
+        self.data = data or {}          # structured fixer payload — see class docstring
 
     def __str__(self):
         return f"{self.level} [{self.category}] {self.file}: {self.message}"
@@ -158,15 +176,22 @@ def check_missing_fields(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIss
 
         for field in REQUIRED_FIELDS.get(page_type, []):
             if field not in fm:
-                fixable = field in FIELD_DEFAULTS.get(page_type, {})
-                suggestion = ""
+                defaults = FIELD_DEFAULTS.get(page_type, {})
+                fixable = field in defaults
                 if fixable:
-                    suggestion = f"Add '{field}: {FIELD_DEFAULTS[page_type][field]}' to frontmatter"
+                    suggestion = f"Add '{field}: {defaults[field]}' to frontmatter"
                 else:
-                    suggestion = f"Add required field '{field}' to frontmatter (needs manual value)"
-                issues.append(LintIssue("🔴", "missing-field", rel,
-                                        f"Missing required field: {field}",
-                                        fixable=fixable, suggestion=suggestion))
+                    suggestion = (f"Add required field '{field}' to frontmatter "
+                                  f"(needs manual value)")
+                issues.append(LintIssue(
+                    "🔴", "missing-field", rel,
+                    f"Missing required field: {field}",
+                    fixable=fixable, suggestion=suggestion,
+                    data={
+                        "page_type": page_type,
+                        "field": field,
+                        "default": defaults.get(field),
+                    }))
     return issues
 
 
@@ -223,7 +248,7 @@ def check_field_values(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue
             "concepts": [("maturity", "concepts.maturity")],
             "ideas": [("status", "ideas.status"), ("priority", "ideas.priority")],
             "experiments": [("status", "experiments.status"), ("outcome", "experiments.outcome")],
-            "claims": [("status", "claims.status")],
+            "methods": [("type", "methods.type")],
             "foundations": [("status", "foundations.status")],
         }
 
@@ -233,141 +258,238 @@ def check_field_values(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue
                 issues.append(LintIssue("🔴", "invalid-value", rel,
                                         f"{field}={val!r} not in {VALID_VALUES[valid_key]}"))
 
-        # Claim confidence range check
-        if page_type == "claims":
-            val = extract_frontmatter_value(content, "confidence")
-            if val is not None:
+        # Idea novelty_score range check (1-5)
+        if page_type == "ideas":
+            val = extract_frontmatter_value(content, "novelty_score")
+            if val is not None and val != "":
                 try:
-                    conf = float(val)
-                    if not (0.0 <= conf <= 1.0):
+                    score = int(val)
+                    if not (1 <= score <= 5):
                         issues.append(LintIssue("🔴", "invalid-value", rel,
-                                                f"confidence={conf} out of range [0.0, 1.0]"))
+                                                f"novelty_score={score} out of range [1, 5]"))
                 except ValueError:
                     issues.append(LintIssue("🔴", "invalid-value", rel,
-                                            f"confidence={val!r} is not a number"))
+                                            f"novelty_score={val!r} is not an integer"))
 
     return issues
 
 
-def check_idea_failure_reason(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]:
-    """Check that failed ideas have failure_reason filled."""
+def check_required_when(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]:
+    """Generic conditional-required check.
+
+    Scans every entity field with a `required_when: { other_field: value }`
+    declaration in entities.yaml.  Replaces the old hardcoded
+    check_idea_failure_reason — adding a new conditional-required rule now
+    requires only a YAML edit.
+    """
     issues = []
     for slug, fpath in pages.items():
-        if fpath.parent.name != "ideas":
+        kind = fpath.parent.name
+        ent = ENTITIES.get(kind)
+        if not ent:
             continue
         content = fpath.read_text(encoding="utf-8")
         rel = str(fpath.relative_to(wiki_dir))
-        status = extract_frontmatter_value(content, "status")
-        if status == "failed":
-            reason = extract_frontmatter_value(content, "failure_reason")
-            if not reason:
-                issues.append(LintIssue("🔴", "missing-failure-reason", rel,
-                                        "status=failed but failure_reason is empty "
-                                        "(anti-repetition memory requires recording why)"))
+        for fname, fspec in ent['fields'].items():
+            condition = fspec.get('required_when')
+            if not condition:
+                continue
+            matches = all(
+                extract_frontmatter_value(content, cf) == cv
+                for cf, cv in condition.items()
+            )
+            if matches and not extract_frontmatter_value(content, fname):
+                cond_str = ", ".join(f"{k}={v}" for k, v in condition.items())
+                issues.append(LintIssue("🔴", "missing-required-when", rel,
+                                        f"{fname} is required when {cond_str}"))
     return issues
 
 
-def check_experiment_claim_link(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]:
-    """Check that experiments have valid target_claim references."""
+def check_link_field_targets(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]:
+    """Verify that frontmatter `type: link` field values reference existing pages.
+
+    Generic single-link target validator (formerly hardcoded per entity)
+    over every link-typed field declared in entities.yaml.  list_link is left to
+    check_broken_links which already handles [[wikilink]] syntax in lists.
+    """
     issues = []
     for slug, fpath in pages.items():
-        if fpath.parent.name != "experiments":
+        kind = fpath.parent.name
+        ent = ENTITIES.get(kind)
+        if not ent:
             continue
         content = fpath.read_text(encoding="utf-8")
         rel = str(fpath.relative_to(wiki_dir))
-        target = extract_frontmatter_value(content, "target_claim")
-        if target:
-            claim_path = wiki_dir / "claims" / f"{target}.md"
-            if not claim_path.exists():
-                issues.append(LintIssue("🟡", "broken-claim-ref", rel,
-                                        f"target_claim={target!r} but claims/{target}.md not found"))
+        for fname, fspec in ent['fields'].items():
+            if fspec.get('type') != 'link':
+                continue
+            target = extract_frontmatter_value(content, fname)
+            if not target:
+                continue
+            target_kinds = fspec.get('to')
+            if isinstance(target_kinds, str):
+                target_kinds = [target_kinds]
+            if not any((wiki_dir / k / f"{target}.md").exists() for k in target_kinds):
+                issues.append(LintIssue("🟡", "broken-link-field", rel,
+                                        f"{fname}={target!r} not found in {target_kinds}"))
     return issues
+
+
+def _extract_list_field_slugs(content: str, field: str) -> list[str]:
+    """Pull bare slugs from a flow-style YAML list `field: [a, "b", 'c']`.
+
+    Anchored to start-of-line (MULTILINE) so it only matches a top-level
+    frontmatter/body field, not an incidental occurrence inside prose. Splits
+    on `,` (slugs are hyphen-separated, never contain whitespace, so comma is
+    the unambiguous separator) and strips surrounding quotes — without quote
+    stripping, `key_papers: ["paper-a"]` would yield `'"paper-a"'` and silently
+    miss every wikilink check.
+    """
+    out: list[str] = []
+    pat = re.compile(rf"^{re.escape(field)}:\s*\[(.*?)\]", re.MULTILINE)
+    for match in pat.finditer(content):
+        for raw in match.group(1).split(","):
+            slug = raw.strip().strip('"').strip("'").strip()
+            if slug:
+                out.append(slug)
+    return out
+
+
+def _extract_forward_targets(content: str, forward: dict, source_slug: str,
+                             source_kind: str, wiki_dir: Path) -> list[str]:
+    """Return target slugs from a single forward-link declaration."""
+    target_kind = forward['target']
+    if 'frontmatter_field' in forward:
+        field = forward['frontmatter_field']
+        # link (single value) or list_link (list)
+        val = extract_frontmatter_value(content, field)
+        # Skip list-format values for single-file check
+        if val and not val.startswith("["):
+            if (wiki_dir / target_kind / f"{val}.md").exists():
+                return [val]
+        return _extract_list_field_slugs(content, field)
+    if 'body_section' in forward:
+        sect = forward['body_section']
+        # body wikilinks; '*' = any body section
+        targets = []
+        for match in WIKILINK_RE.finditer(content):
+            t = match.group(1).strip()
+            if (wiki_dir / target_kind / f"{t}.md").exists():
+                targets.append(t)
+        return targets
+    if 'edge_type' in forward:
+        edge_type = forward['edge_type']
+        edges_path = wiki_dir / 'graph' / 'edges.jsonl'
+        if not edges_path.exists():
+            return []
+        targets = []
+        source_id = f"{source_kind}/{source_slug}"
+        for line in edges_path.read_text().split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                e = json_module.loads(line)
+            except json_module.JSONDecodeError:
+                continue
+            if e.get('type') != edge_type or e.get('from') != source_id:
+                continue
+            to = str(e.get('to', ''))
+            if '/' in to:
+                targets.append(to.split('/', 1)[1])
+        return targets
+    return []
+
+
+def _has_reverse(target_path: Path, source_slug: str, reverse: dict) -> bool:
+    """Check whether the target page records the reverse reference back to source."""
+    content = target_path.read_text(encoding="utf-8")
+    # Both append_slug and append_record reduce to "source slug appears somewhere
+    # in the target field/section".  The structured-record case (any list-of-dict
+    # field) checks the source_slug substring rather than parsing the YAML list.
+    if 'frontmatter_field' in reverse:
+        field = reverse['frontmatter_field']
+        # Check field's flow-style list, or value, contains source_slug
+        for match in re.finditer(rf"{re.escape(field)}:\s*\[(.*?)\]", content,
+                                 flags=re.DOTALL):
+            if source_slug in match.group(1):
+                return True
+        # Or block-style: scan section starting with `field:`
+        m = re.search(rf"^{re.escape(field)}:\s*$\n((?:[ -].*\n?)+)",
+                      content, flags=re.MULTILINE)
+        if m and source_slug in m.group(1):
+            return True
+        # Or single-value field
+        val = extract_frontmatter_value(content, field)
+        return bool(val) and source_slug in val
+    if 'body_section' in reverse:
+        sect = reverse['body_section']
+        # Find `## sect` block
+        pat = rf"^##\s+{re.escape(sect)}\s*$\n(.*?)(?=^##\s|\Z)"
+        m = re.search(pat, content, flags=re.MULTILINE | re.DOTALL)
+        if not m:
+            return False
+        body = m.group(1)
+        return f"[[{source_slug}]]" in body or f"[[{source_slug}|" in body \
+               or source_slug in body
+    return True   # unknown reverse spec — don't flag
+
+
+def _describe_reverse(reverse: dict) -> str:
+    if 'frontmatter_field' in reverse:
+        return f"frontmatter `{reverse['frontmatter_field']}`"
+    if 'body_section' in reverse:
+        return f"body section `## {reverse['body_section']}`"
+    return "<unknown>"
 
 
 def check_xref_asymmetry(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]:
-    """Check cross-reference symmetry for key bidirectional rules.
+    """Generic forward → reverse link checker.
 
-    Note: foundations/ pages are single-direction by design — other pages may
-    link to them, but foundations never write reverse links. Do not add a
-    `foundations` source branch here, and do not target `foundations/` from
-    any reverse-link lookup.
+    Reads runtime/schema/xref.yaml and walks every rule.  Each rule maps a
+    forward link source (frontmatter field, body section, or graph edge) to a
+    required reverse update on the target.  Adding a new xref rule requires
+    only a YAML edit.
+
+    Foundations are exempt (declared in xref.yaml::terminal_targets).
     """
     issues = []
+    rules = XREF.get('rules', [])
+    terminal = set(XREF.get('terminal_targets', []))
 
-    for slug, fpath in pages.items():
-        content = fpath.read_text(encoding="utf-8")
-        rel = str(fpath.relative_to(wiki_dir))
-        page_type = fpath.parent.name
+    for rule in rules:
+        forward = rule['forward']
+        reverse = rule['reverse']
+        target_kind = forward['target']
+        if target_kind in terminal:
+            continue
+        forward_kind = forward['kind']
 
-        # concepts key_papers ↔ papers Related
-        if page_type == "concepts":
-            for match in re.finditer(r"key_papers:\s*\[(.*?)\]", content):
-                for ref in re.findall(r"(\S+)", match.group(1)):
-                    ref = ref.strip(",").strip()
-                    if not ref:
-                        continue
-                    ref_path = wiki_dir / "papers" / f"{ref}.md"
-                    if ref_path.exists():
-                        ref_content = ref_path.read_text(encoding="utf-8")
-                        if f"[[{slug}]]" not in ref_content and f"[[{slug}|" not in ref_content:
-                            issues.append(LintIssue("🟡", "xref-asymmetry", rel,
-                                                    f"key_papers has {ref} but papers/{ref}.md doesn't link back to [[{slug}]]",
-                                                    fixable=True))
-
-        # papers → people (author refs) ↔ people Key papers
-        if page_type == "papers":
-            for match in WIKILINK_RE.finditer(content):
-                target = match.group(1).strip()
-                target_path = wiki_dir / "people" / f"{target}.md"
-                if target_path.exists():
-                    ref_content = target_path.read_text(encoding="utf-8")
-                    if f"[[{slug}]]" not in ref_content and f"[[{slug}|" not in ref_content:
-                        issues.append(LintIssue("🟡", "xref-asymmetry", rel,
-                                                f"links to people/{target} but person doesn't link back to [[{slug}]]",
-                                                fixable=True))
-
-        # claims source_papers ↔ papers Related
-        if page_type == "claims":
-            for match in re.finditer(r"source_papers:\s*\[(.*?)\]", content):
-                for ref in re.findall(r"(\S+)", match.group(1)):
-                    ref = ref.strip(",").strip()
-                    if not ref:
-                        continue
-                    ref_path = wiki_dir / "papers" / f"{ref}.md"
-                    if ref_path.exists():
-                        ref_content = ref_path.read_text(encoding="utf-8")
-                        if f"[[{slug}]]" not in ref_content and f"[[{slug}|" not in ref_content:
-                            issues.append(LintIssue("🟡", "xref-asymmetry", rel,
-                                                    f"source_papers has {ref} but papers/{ref}.md doesn't link back to [[{slug}]]",
-                                                    fixable=True))
-
-        # ideas origin_gaps ↔ claims Linked ideas
-        if page_type == "ideas":
-            for match in re.finditer(r"origin_gaps:\s*\[(.*?)\]", content):
-                for ref in re.findall(r"(\S+)", match.group(1)):
-                    ref = ref.strip(",").strip()
-                    if not ref:
-                        continue
-                    ref_path = wiki_dir / "claims" / f"{ref}.md"
-                    if ref_path.exists():
-                        ref_content = ref_path.read_text(encoding="utf-8")
-                        if f"[[{slug}]]" not in ref_content and f"[[{slug}|" not in ref_content:
-                            issues.append(LintIssue("🟡", "xref-asymmetry", rel,
-                                                    f"origin_gaps has {ref} but claims/{ref}.md doesn't link back to [[{slug}]]",
-                                                    fixable=True))
-
-        # experiments target_claim ↔ claims evidence
-        if page_type == "experiments":
-            target = extract_frontmatter_value(content, "target_claim")
-            if target:
-                ref_path = wiki_dir / "claims" / f"{target}.md"
-                if ref_path.exists():
-                    ref_content = ref_path.read_text(encoding="utf-8")
-                    if slug not in ref_content:
-                        issues.append(LintIssue("🟡", "xref-asymmetry", rel,
-                                                f"target_claim={target} but claims/{target}.md doesn't reference this experiment",
-                                                fixable=True))
-
+        for slug, fpath in pages.items():
+            if fpath.parent.name != forward_kind:
+                continue
+            content = fpath.read_text(encoding="utf-8")
+            rel = str(fpath.relative_to(wiki_dir))
+            for target_slug in _extract_forward_targets(
+                    content, forward, slug, forward_kind, wiki_dir):
+                target_path = wiki_dir / target_kind / f"{target_slug}.md"
+                if not target_path.exists():
+                    continue
+                if not _has_reverse(target_path, slug, reverse):
+                    issues.append(LintIssue(
+                        "🟡", "xref-asymmetry", rel,
+                        f"{forward_kind}/{slug} → {target_kind}/{target_slug} "
+                        f"forward link exists but reverse {_describe_reverse(reverse)} "
+                        f"missing",
+                        fixable=True,
+                        data={
+                            "source_kind": forward_kind,
+                            "source_slug": slug,
+                            "target_kind": target_kind,
+                            "target_slug": target_slug,
+                            "reverse": reverse,
+                            "record_template": rule.get("record"),
+                        }))
     return issues
 
 
@@ -451,20 +573,10 @@ def check_graph_edges(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]
                     issues.append(LintIssue("🟡", "noncanonical-symmetric-edge",
                                             f"graph/edges.jsonl:{line_num}",
                                             "symmetric paper edge endpoints should be sorted"))
-            confidence = edge.get("confidence", "")
-            if edge_requires_confidence(edge_type):
-                if not confidence:
-                    issues.append(LintIssue("🟡", "missing-edge-confidence",
-                                            f"graph/edges.jsonl:{line_num}",
-                                            f"{edge_type} should include confidence high|medium|low"))
-                elif confidence not in EDGE_CONFIDENCE_VALUES:
-                    issues.append(LintIssue("🟡", "invalid-edge-confidence",
-                                            f"graph/edges.jsonl:{line_num}",
-                                            f"confidence={confidence!r} not in {EDGE_CONFIDENCE_VALUES}"))
-                if not str(edge.get("evidence", "")).strip():
-                    issues.append(LintIssue("🟡", "missing-edge-evidence",
-                                            f"graph/edges.jsonl:{line_num}",
-                                            f"{edge_type} should include evidence text"))
+            # Generic attribute validation, driven by edges.yaml::attributes.
+            for err in validate_edge_attributes(edge_type, edge):
+                issues.append(LintIssue("🟡", "edge-attribute",
+                                        f"graph/edges.jsonl:{line_num}", err))
 
             if edge_is_legacy_for_endpoint(edge_type, from_kind, to_kind):
                 issues.append(LintIssue("🟡", "legacy-edge-type",
@@ -623,8 +735,8 @@ def lint(wiki_dir: Path) -> list[LintIssue]:
     issues.extend(link_issues)
     issues.extend(check_orphan_pages(wiki_dir, pages, incoming))
     issues.extend(check_field_values(wiki_dir, pages))
-    issues.extend(check_idea_failure_reason(wiki_dir, pages))
-    issues.extend(check_experiment_claim_link(wiki_dir, pages))
+    issues.extend(check_required_when(wiki_dir, pages))
+    issues.extend(check_link_field_targets(wiki_dir, pages))
     issues.extend(check_xref_asymmetry(wiki_dir, pages))
     issues.extend(check_graph_edges(wiki_dir, pages))
     issues.extend(check_graph_citations(wiki_dir, pages))
@@ -638,33 +750,42 @@ def lint(wiki_dir: Path) -> list[LintIssue]:
 # ---------------------------------------------------------------------------
 
 def _append_to_section(fpath: Path, section_heading: str, line_to_add: str) -> bool:
-    """Append a line to a markdown section. Returns True if modified."""
+    """Append a line to a markdown section. Returns True if modified.
+
+    Idempotency is checked **within the target section only** (between this
+    heading and the next `## ` heading). A whole-file substring check would
+    false-positive on quoted text in a different section and silently skip a
+    real fix.
+    """
     content = fpath.read_text(encoding="utf-8")
-    if line_to_add.strip() in content:
-        return False  # already present
 
-    idx = content.find(f"\n{section_heading}\n")
-    if idx == -1:
-        idx = content.find(f"\n{section_heading}")
-    if idx == -1:
-        # Section doesn't exist — append it at end
-        content = content.rstrip() + f"\n\n{section_heading}\n\n{line_to_add}\n"
-    else:
-        # Find end of section heading line, insert after next blank or content line
-        section_start = idx + len(f"\n{section_heading}")
-        # Skip to first content position after heading
-        rest = content[section_start:]
-        # Find insert point: after any blank lines following heading
-        insert_offset = 0
-        for ch in rest:
-            if ch == '\n':
-                insert_offset += 1
-            else:
-                break
-        insert_pos = section_start + insert_offset
-        content = content[:insert_pos] + f"{line_to_add}\n" + content[insert_pos:]
+    heading_pat = re.compile(rf"^{re.escape(section_heading)}\s*$", re.MULTILINE)
+    heading_m = heading_pat.search(content)
+    if not heading_m:
+        # Section doesn't exist — append it at end of file.
+        new_content = content.rstrip() + f"\n\n{section_heading}\n\n{line_to_add}\n"
+        fpath.write_text(new_content, encoding="utf-8")
+        return True
 
-    fpath.write_text(content, encoding="utf-8")
+    section_start = heading_m.end()
+    next_heading = re.search(r"^##\s", content[section_start:], re.MULTILINE)
+    section_end = (section_start + next_heading.start()) if next_heading else len(content)
+    section_body = content[section_start:section_end]
+
+    if line_to_add.strip() in section_body:
+        return False  # already present in this section
+
+    # Insert immediately after the heading's trailing blank lines.
+    insert_offset = 0
+    for ch in section_body:
+        if ch == '\n':
+            insert_offset += 1
+        else:
+            break
+    insert_pos = section_start + insert_offset
+
+    new_content = content[:insert_pos] + f"{line_to_add}\n" + content[insert_pos:]
+    fpath.write_text(new_content, encoding="utf-8")
     return True
 
 
@@ -707,98 +828,277 @@ def fix_issues(wiki_dir: Path, issues: list[LintIssue], dry_run: bool = False) -
 
 
 def _fix_xref(wiki_dir: Path, issue: LintIssue, dry_run: bool) -> FixResult | None:
-    """Fix a single xref-asymmetry issue by adding the reverse link."""
-    msg = issue.message
-    source_rel = issue.file  # e.g. "concepts/foo.md"
+    """Fix a single xref-asymmetry issue by adding the reverse link.
 
-    # Parse the issue message to determine what fix is needed
-    # Pattern: "key_papers has {ref} but papers/{ref}.md doesn't link back to [[{slug}]]"
-    if "key_papers has" in msg and "papers/" in msg:
-        m = re.search(r"key_papers has (\S+) but papers/\S+\.md doesn't link back to \[\[(\S+)\]\]", msg)
-        if not m:
-            return None
-        paper_slug, concept_slug = m.group(1), m.group(2)
-        target_path = wiki_dir / "papers" / f"{paper_slug}.md"
-        action = f"Add [[{concept_slug}]] to papers/{paper_slug}.md ## Related"
-        if not dry_run:
-            _append_to_section(target_path, "## Related", f"- [[{concept_slug}]]")
-        return FixResult(f"papers/{paper_slug}.md", action)
+    Dispatches on `issue.data` (populated by `check_xref_asymmetry`) rather
+    than reverse-parsing the human-readable message string. The structured
+    payload carries the matched xref rule, so this fixer covers every reverse
+    shape declared in `runtime/schema/xref.yaml`:
 
-    # Pattern: "links to people/{target} but person doesn't link back to [[{slug}]]"
-    if "links to people/" in msg and "doesn't link back" in msg:
-        m = re.search(r"links to people/(\S+) but person doesn't link back to \[\[(\S+)\]\]", msg)
-        if not m:
-            return None
-        person_slug, paper_slug = m.group(1), m.group(2)
-        target_path = wiki_dir / "people" / f"{person_slug}.md"
-        action = f"Add [[{paper_slug}]] to people/{person_slug}.md ## Key papers"
-        if not dry_run:
-            _append_to_section(target_path, "## Key papers", f"- [[{paper_slug}]]")
-        return FixResult(f"people/{person_slug}.md", action)
+      - `body_section`                            → append wikilink line
+      - `frontmatter_field` + `append_slug`       → append slug to flow-style list
+      - `frontmatter_field` + `append_record`     → append YAML dict to block-style list
+    """
+    d = issue.data
+    if not d:
+        return None  # legacy issues without a structured payload — not fixable here
 
-    # Pattern: "source_papers has {ref} but papers/{ref}.md doesn't link back to [[{slug}]]"
-    if "source_papers has" in msg and "papers/" in msg:
-        m = re.search(r"source_papers has (\S+) but papers/\S+\.md doesn't link back to \[\[(\S+)\]\]", msg)
-        if not m:
-            return None
-        paper_slug, claim_slug = m.group(1), m.group(2)
-        target_path = wiki_dir / "papers" / f"{paper_slug}.md"
-        action = f"Add [[{claim_slug}]] to papers/{paper_slug}.md ## Related"
-        if not dry_run:
-            _append_to_section(target_path, "## Related", f"- [[{claim_slug}]]")
-        return FixResult(f"papers/{paper_slug}.md", action)
+    target_kind = d['target_kind']
+    target_slug = d['target_slug']
+    source_slug = d['source_slug']
+    reverse = d['reverse']
 
-    # Pattern: "origin_gaps has {ref} but claims/{ref}.md doesn't link back to [[{slug}]]"
-    if "origin_gaps has" in msg and "claims/" in msg:
-        m = re.search(r"origin_gaps has (\S+) but claims/\S+\.md doesn't link back to \[\[(\S+)\]\]", msg)
-        if not m:
-            return None
-        claim_slug, idea_slug = m.group(1), m.group(2)
-        target_path = wiki_dir / "claims" / f"{claim_slug}.md"
-        action = f"Add [[{idea_slug}]] to claims/{claim_slug}.md ## Linked ideas"
-        if not dry_run:
-            _append_to_section(target_path, "## Linked ideas", f"- [[{idea_slug}]]")
-        return FixResult(f"claims/{claim_slug}.md", action)
+    target_path = wiki_dir / target_kind / f"{target_slug}.md"
+    if not target_path.exists():
+        return None
 
-    # Pattern: "target_claim={target} but claims/{target}.md doesn't reference this experiment"
-    if "target_claim=" in msg and "doesn't reference this experiment" in msg:
-        m = re.search(r"target_claim=(\S+) but", msg)
-        if not m:
-            return None
-        claim_slug = m.group(1)
-        # Extract experiment slug from issue.file: "experiments/foo.md" → "foo"
-        exp_slug = Path(issue.file).stem
-        target_path = wiki_dir / "claims" / f"{claim_slug}.md"
-        action = f"Add {exp_slug} reference to claims/{claim_slug}.md ## Evidence summary"
+    target_label = f"{target_kind}/{target_slug}.md"
+
+    if 'body_section' in reverse:
+        section = reverse['body_section']
+        action = f"Add [[{source_slug}]] to {target_label} ## {section}"
         if not dry_run:
-            _append_to_section(target_path, "## Evidence summary",
-                               f"- Tested by: [[{exp_slug}]]")
-        return FixResult(f"claims/{claim_slug}.md", action)
+            _append_to_section(target_path, f"## {section}", f"- [[{source_slug}]]")
+        return FixResult(target_label, action)
+
+    if 'frontmatter_field' in reverse:
+        field = reverse['frontmatter_field']
+        action_kind = reverse.get('action', 'append_slug')
+
+        if action_kind == 'append_slug':
+            action = f"Add {source_slug} to {target_label} frontmatter `{field}`"
+            if not dry_run and not _append_slug_to_fm_list(target_path, field, source_slug):
+                return None
+            return FixResult(target_label, action)
+
+        if action_kind == 'append_record':
+            template = d.get('record_template')
+            if not template:
+                return None
+            record = _materialize_record_template(template, source_slug)
+            action = (f"Add evidence record (source={source_slug}) to "
+                      f"{target_label} frontmatter `{field}`")
+            if not dry_run and not _append_record_to_fm_list(target_path, field, record):
+                return None
+            return FixResult(target_label, action)
 
     return None
 
 
 def _fix_missing_field(wiki_dir: Path, issue: LintIssue, dry_run: bool) -> FixResult | None:
-    """Fix a missing frontmatter field by inserting a safe default."""
-    m = re.search(r"Missing required field: (\S+)", issue.message)
-    if not m:
+    """Fix a missing frontmatter field by inserting its declared default."""
+    d = issue.data
+    if not d:
         return None
-    field = m.group(1)
-
-    page_type = issue.file.split("/")[0]
-    defaults = FIELD_DEFAULTS.get(page_type, {})
-    if field not in defaults:
+    field = d.get('field')
+    default_val = d.get('default')
+    if field is None or default_val is None:
         return None
 
     fpath = wiki_dir / issue.file
     if not fpath.exists():
         return None
 
-    default_val = defaults[field]
     action = f"Add '{field}: {default_val}' to frontmatter"
     if not dry_run:
         _add_frontmatter_field(fpath, field, default_val)
     return FixResult(issue.file, action)
+
+
+# ---------------------------------------------------------------------------
+# Frontmatter mutation helpers
+#
+# All writers operate on the frontmatter region only — extracted via
+# FRONTMATTER_RE — so a stray `field:` token in the body never causes
+# accidental edits. Each writer is idempotent: a no-op if the desired state
+# already holds. Returns True when content changed, False otherwise.
+# ---------------------------------------------------------------------------
+
+def _materialize_record_template(template: dict, source_slug: str) -> dict:
+    """Expand `{from}` placeholder inside a record template, in-place by copy."""
+    out: dict = {}
+    for k, v in template.items():
+        if isinstance(v, str):
+            out[k] = v.replace('{from}', source_slug)
+        else:
+            out[k] = v
+    return out
+
+
+def _append_slug_to_fm_list(fpath: Path, field: str, slug: str) -> bool:
+    """Append a slug to a flow-style frontmatter list `field: [a, b]`.
+
+    Behaviour:
+      - field absent  → adds `field: [slug]` at the end of frontmatter.
+      - field present as flow-style list `field: []` → produces `[slug]`
+        (not `[, slug]` — guards against the empty-list edge case).
+      - field present as flow-style list `field: [a]` → `[a, slug]`.
+      - quote style is preserved: any quoted entry triggers all-quoted output.
+      - already contains slug → returns False (no-op).
+      - field present as block-style list (`field:\\n  - a`) → returns False;
+        block-style lists are left to `_append_record_to_fm_list` or manual
+        edit, never silently rewritten.
+    """
+    content = fpath.read_text(encoding="utf-8")
+    fm_match = FRONTMATTER_RE.match(content)
+    if not fm_match:
+        return False
+    fm_text = fm_match.group(1)
+
+    flow_pat = re.compile(
+        rf"^({re.escape(field)}:\s*)\[(.*?)\]\s*$", re.MULTILINE
+    )
+    flow_m = flow_pat.search(fm_text)
+
+    if flow_m:
+        items, quoted = _parse_flow_list(flow_m.group(2))
+        if slug in items:
+            return False
+        items.append(slug)
+        new_fm = flow_pat.sub(
+            lambda _m, prefix=flow_m.group(1): f"{prefix}{_format_flow_list(items, quoted)}",
+            fm_text, count=1
+        )
+    else:
+        # Refuse to convert a block-style list — too risky without a real YAML
+        # parser, and append_slug fields in our schema are always flow-style.
+        block_pat = re.compile(rf"^{re.escape(field)}:\s*$", re.MULTILINE)
+        if block_pat.search(fm_text):
+            return False
+        new_fm = fm_text.rstrip() + f"\n{field}: [{slug}]"
+
+    new_content = f"---\n{new_fm}\n---{content[fm_match.end():]}"
+    fpath.write_text(new_content, encoding="utf-8")
+    return True
+
+
+def _append_record_to_fm_list(fpath: Path, field: str, record: dict) -> bool:
+    """Append a structured record (dict) to a block-style YAML list field.
+
+    Idempotent on `record['source']` — if any existing record already binds
+    the same source slug, the field is considered up-to-date and this is a
+    no-op. (One-record-per-source semantics matches every list-of-dict
+    frontmatter field in the schema.)
+
+      - field absent  → adds `field:\\n  - key: val\\n    ...` at end of fm.
+      - field present as block-style list → appends a new `- ...` item.
+      - field present as empty flow-style list (`field: []`) → replaces with
+        block-style, since an empty list carries no information to lose.
+      - field present as non-empty flow-style list → returns False; converting
+        a populated flow list to block-style without a real YAML parser risks
+        data loss, so surface as manual fix.
+    """
+    content = fpath.read_text(encoding="utf-8")
+    fm_match = FRONTMATTER_RE.match(content)
+    if not fm_match:
+        return False
+    fm_text = fm_match.group(1)
+
+    src = record.get('source', '')
+    block_pat = re.compile(
+        rf"^{re.escape(field)}:\s*$\n((?:[ \-].*\n?)+)", re.MULTILINE
+    )
+    block_m = block_pat.search(fm_text)
+
+    if block_m and re.search(
+            rf"source:\s*['\"]?{re.escape(str(src))}['\"]?\b",
+            block_m.group(1)):
+        return False  # idempotent
+
+    record_yaml = _format_yaml_record(record)
+
+    if block_m:
+        existing = block_m.group(0).rstrip("\n")
+        new_fm = fm_text.replace(existing, existing + "\n" + record_yaml, 1)
+    else:
+        empty_flow_pat = re.compile(
+            rf"^{re.escape(field)}:\s*\[\s*\]\s*$", re.MULTILINE
+        )
+        empty_m = empty_flow_pat.search(fm_text)
+        if empty_m:
+            new_fm = (fm_text[:empty_m.start()]
+                      + f"{field}:\n{record_yaml}"
+                      + fm_text[empty_m.end():])
+        else:
+            nonempty_flow_pat = re.compile(
+                rf"^{re.escape(field)}:\s*\[(?!\s*\])", re.MULTILINE
+            )
+            if nonempty_flow_pat.search(fm_text):
+                return False
+            new_fm = fm_text.rstrip() + f"\n{field}:\n{record_yaml}"
+
+    new_content = f"---\n{new_fm}\n---{content[fm_match.end():]}"
+    fpath.write_text(new_content, encoding="utf-8")
+    return True
+
+
+def _parse_flow_list(items_str: str) -> tuple[list[str], bool]:
+    """Parse `a, "b", 'c'` → (['a','b','c'], True if any entry was quoted)."""
+    items: list[str] = []
+    any_quoted = False
+    for raw in items_str.split(","):
+        s = raw.strip()
+        if not s:
+            continue
+        if s.startswith(('"', "'")):
+            any_quoted = True
+        items.append(s.strip('"').strip("'").strip())
+    return items, any_quoted
+
+
+def _format_flow_list(items: list[str], quoted: bool) -> str:
+    """Render `[a, b, c]` or `["a", "b", "c"]` based on the preserved style."""
+    if quoted:
+        return "[" + ", ".join(f'"{s}"' for s in items) + "]"
+    return "[" + ", ".join(items) + "]"
+
+
+def _format_yaml_record(record: dict) -> str:
+    """Render a dict as a 2-space-indented block-style YAML list item.
+
+    Output matches the conventional list-of-dict shape used by xref records:
+
+        - source: "paper-a"
+          type: supports
+          strength: moderate
+    """
+    lines: list[str] = []
+    first = True
+    for k, v in record.items():
+        prefix = "  - " if first else "    "
+        lines.append(f"{prefix}{k}: {_format_yaml_scalar(v)}")
+        first = False
+    return "\n".join(lines)
+
+
+_YAML_RESERVED = {"true", "false", "null", "yes", "no", "on", "off", "~"}
+_YAML_QUOTE_CHARS = re.compile(r"[:#\[\]{},&*!|>%@`]")
+
+
+def _format_yaml_scalar(v) -> str:
+    """Render a Python value as a YAML scalar, quoting only when required.
+
+    Quotes are added when the string contains YAML structural punctuation,
+    leading/trailing whitespace, or matches a reserved word that would
+    otherwise parse as a different type.
+    """
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if v is None:
+        return "null"
+    s = str(v)
+    needs_quote = (
+        s == ""
+        or s.lower() in _YAML_RESERVED
+        or s != s.strip()
+        or _YAML_QUOTE_CHARS.search(s) is not None
+        or s.startswith(('-', '?'))
+    )
+    if needs_quote:
+        return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    return s
 
 
 def main():

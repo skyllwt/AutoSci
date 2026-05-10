@@ -44,11 +44,10 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/{slug}.md` — 实验配置：setup、metrics、baseline、hypothesis、target_claim
-- `wiki/claims/{target-claim}.md` — 目标 claim 的上下文（理解实验目的）
-- `wiki/ideas/{linked-idea}.md` — 关联 idea 的 approach sketch（指导代码实现）
+- `wiki/experiments/{slug}.md` — 实验配置：setup、metrics、baseline、hypothesis、linked_idea
+- `wiki/ideas/{linked-idea}.md` — 关联 idea 的 approach sketch（指导代码实现，理解实验目的）
 - `wiki/papers/*.md` — 相关论文的方法细节和超参数（参考实现）
-- `wiki/experiments/*.md` — 同一 claim 的其他实验（参考 setup、避免重复错误）
+- `wiki/experiments/*.md` — 同一 idea 的其他实验（参考 setup、避免重复错误）
 
 ### Writes
 - `experiments/code/{slug}/` — 实验代码目录（Phase 1 生成，deploy / full 模式）
@@ -60,7 +59,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
-- **无**。实验与 claim 的 tested_by 边已在 /exp-design 中创建。
+- **无**。实验与 idea 之间的 tested_by 边已在 /exp-design 中创建。
 
 ## Workflow
 
@@ -81,7 +80,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 2. **加载实现上下文**：
    - 读取关联 idea 的 approach sketch（实现指南）
    - 读取相关论文的方法描述（算法细节）
-   - 读取同一 claim 的其他实验（参考代码结构）
+   - 读取同一 idea 的其他实验（参考代码结构）
 
 3. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
    - `train.py`：根据 setup 配置生成训练/评估脚本，包含：
@@ -325,7 +324,7 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update claims in wiki
+   - Run `/exp-eval {slug}` to update the linked idea in wiki
    - {if succeeded: proceed to next experiment in plan}
    - {if failed: analyze failure, consider /exp-design revision}
    ```
@@ -355,7 +354,7 @@ done
 - **collect 模式只接受 running 实验**：若 status 为 planned，提示先 deploy；若为 completed，提示已完成
 - **collect 模式：alive 时不写 wiki**：仅报告进度，不修改任何 wiki 文件
 - **代码统一写入 experiments/code/{slug}/**：不写到项目根目录或其他位置
-- **不修改 claims**：实验结果只写入 experiments/ 页面，claims 的更新由 /exp-eval 负责
+- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status / pilot_result 由 /exp-eval 负责更新
 - **sanity check 必须通过**：Phase 1 sanity 失败则不部署（除非用户明确 override）
 - **结果文件必须保存**：所有实验结果以 JSON 格式保存在 `results/{slug}/seed_{N}.json`
 - **多 seed 结果取均值**：报告 mean ± std，不报告单次运行

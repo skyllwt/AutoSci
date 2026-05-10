@@ -1,15 +1,15 @@
 ---
-description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判决路径 → 自动更新 claims confidence、ideas status、graph edges
+description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判决路径 → 自动更新 linked idea 的 status / pilot_result / failure_reason 与 graph edges
 argument-hint: <experiment-slug> [--auto]
 ---
 
 # /exp-eval
 
 > 将已完成实验的结果转化为 wiki 知识更新。
-> Review LLM 作为 impartial judge（遵循 cross-model-review），独立评估实验结果对目标 claim 的影响。
-> 4 种判决路径：supported → claim↑ + idea validated / partially_supported → 补充实验 /
-> not_supported → claim↓ + idea failed / inconclusive → debug。
-> 自动更新 claims 的 confidence 和 evidence、ideas 的 status、graph edges。
+> Review LLM 作为 impartial judge（遵循 cross-model-review），独立评估实验结果对 linked idea 的 hypothesis 的影响。
+> 4 种判决路径：supported → idea validated / partially_supported → 补充实验 /
+> not_supported → idea failed / inconclusive → debug。
+> 自动更新 linked idea 的 `status`、`pilot_result`、`failure_reason` 与 graph edges。
 
 ## Inputs
 
@@ -18,10 +18,9 @@ argument-hint: <experiment-slug> [--auto]
 
 ## Outputs
 
-- `wiki/claims/{slug}.md` — 更新 confidence、status、evidence 列表
-- `wiki/ideas/{slug}.md` — 更新 status（validated/failed）、pilot_result、failure_reason
-- `wiki/experiments/{slug}.md` — 填充 `## Claim updates` section
-- `wiki/graph/edges.jsonl` — 新增 supports/invalidates 边
+- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`pilot_result`、`failure_reason`、`date_resolved`
+- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section（记录 linked idea 的 status / pilot_result 变化）
+- `wiki/graph/edges.jsonl` — 新增 `supports` / `invalidates` 边（experiment → idea）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/graph/open_questions.md` — 重建
 - `wiki/log.md` — 追加日志
@@ -30,25 +29,23 @@ argument-hint: <experiment-slug> [--auto]
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/{slug}.md` — 实验结果：outcome、key_result、metrics、Results section
-- `wiki/claims/{target-claim}.md` — 目标 claim 当前状态：status、confidence、evidence 列表
-- `wiki/ideas/{linked-idea}.md` — 关联 idea 当前状态
-- `wiki/experiments/*.md` — 同一 claim 的其他实验结果（综合评估）
+- `wiki/experiments/{slug}.md` — 实验结果：`outcome`、`key_result`、`metrics`、完整 Results section、`linked_idea`
+- `wiki/ideas/{linked-idea}.md` — linked idea 当前状态：`status`、`## Hypothesis`、`## Risks`、已有 `pilot_result`
+- `wiki/experiments/*.md` — 同一 `linked_idea` 的 sibling 实验（综合评估）
 - `wiki/graph/context_brief.md` — 全局上下文
 - `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则
 
 ### Writes
-- `wiki/claims/{target-claim}.md` — 更新 status、confidence、evidence、date_updated
-- `wiki/ideas/{linked-idea}.md` — 更新 status、pilot_result、failure_reason、date_resolved
-- `wiki/experiments/{slug}.md` — 填充 `## Claim updates` section
-- `wiki/graph/edges.jsonl` — 新增 supports 或 invalidates 边
+- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`pilot_result`、`failure_reason`、`date_resolved`
+- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section
+- `wiki/graph/edges.jsonl` — 新增 `supports` / `invalidates` 边（experiment → idea）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/graph/open_questions.md` — 重建
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
-- `supports`：experiment → claim（实验支持该 claim）— verdict = supported 或 partially_supported
-- `invalidates`：experiment → claim（实验否定该 claim）— verdict = not_supported
+- `supports`：experiment → idea（实验支持 idea 的 hypothesis）— verdict = supported 或 partially_supported
+- `invalidates`：experiment → idea（实验否定 idea 的 hypothesis）— verdict = not_supported
 
 ## Workflow
 
@@ -59,30 +56,23 @@ argument-hint: <experiment-slug> [--auto]
 ### Step 1: 加载上下文
 
 1. **读取实验页面** `wiki/experiments/{slug}.md`：
-   - outcome（succeeded/failed/inconclusive）
-   - key_result
-   - target_claim slug
-   - linked_idea slug
-   - metrics 和完整 Results section
-   - hypothesis
+   - `outcome`（succeeded/failed/inconclusive）
+   - `key_result`
+   - `linked_idea` slug（必填；缺失则拒绝继续）
+   - `metrics` 与完整 `## Results` section
+   - `hypothesis`
 
-2. **读取目标 claim** `wiki/claims/{target-claim}.md`：
-   - 当前 status 和 confidence
-   - 现有 evidence 列表
-   - conditions and scope
+2. **读取 linked idea** `wiki/ideas/{linked-idea}.md`：
+   - 当前 `status` 与 `pilot_result`
+   - `## Hypothesis`、`## Approach sketch`、`## Risks`、`## Novelty argument`
 
-3. **读取关联 idea** `wiki/ideas/{linked-idea}.md`（若存在）：
-   - 当前 status
-   - hypothesis
+3. **加载 sibling 实验**（同一 `linked_idea`）：
+   - Glob `wiki/experiments/*.md`，过滤 `linked_idea == 当前 idea`
+   - 汇总它们的 outcome（判决要看完整证据组合，不是单个实验）
 
-4. **加载同一 claim 的其他实验**：
-   - Glob: `wiki/experiments/*.md`，过滤 target_claim == 同一 claim
-   - 汇总已有实验结果（用于综合评估 claim confidence）
+4. **读取全局上下文**：`wiki/graph/context_brief.md`
 
-5. **读取全局上下文**：
-   - `wiki/graph/context_brief.md`
-
-6. **读取 cross-model-review.md**：确认 Review LLM 独立性原则
+5. **读取 cross-model-review.md**：确认 Review LLM 独立性原则
 
 ### Step 2: Review LLM 判决（Cross-Model Verdict）
 
@@ -91,21 +81,20 @@ argument-hint: <experiment-slug> [--auto]
 ```
 mcp__llm-review__chat:
   system: "You are an impartial scientific judge evaluating whether experimental
-           results support or refute a research claim. Be rigorous and objective.
+           results support or refute a research hypothesis. Be rigorous and objective.
            Consider: statistical significance, effect size, experimental validity,
            potential confounds, and whether the results generalize beyond the
            specific setup tested."
   message: |
-    ## Claim Under Test
-    Title: {claim title}
-    Statement: {claim statement from ## Statement section}
-    Current status: {status}
-    Current confidence: {confidence}
-    Conditions: {conditions and scope}
+    ## Idea Hypothesis Under Test
+    Title: {idea title}
+    Hypothesis: {idea ## Hypothesis section}
+    Novelty argument: {idea ## Novelty argument section}
+    Current status: {idea status}
 
     ## Experiment
     Title: {experiment title}
-    Hypothesis: {hypothesis}
+    Hypothesis: {experiment hypothesis}
     Setup: {model, dataset, hardware, framework}
     Metrics: {metrics list}
 
@@ -115,14 +104,14 @@ mcp__llm-review__chat:
     ## Key Finding
     {key_result}
 
-    ## Other Experiments on This Claim
-    {summary of other experiments' outcomes on the same claim, if any}
+    ## Sibling Experiments on This Idea
+    {summary of other experiments' outcomes that share the same linked_idea, if any}
 
     ## Your Task
     Provide your verdict:
     1. **Verdict**: One of: supported / partially_supported / not_supported / inconclusive
-    2. **Confidence adjustment**: Suggest new confidence value (0.0-1.0) with reasoning
-    3. **Evidence strength**: weak / moderate / strong
+    2. **Evidence strength**: weak / moderate / strong
+    3. **Idea status recommendation**: keep current / advance to validated / mark failed
     4. **Key reasoning**: 2-3 sentences explaining your verdict
     5. **Concerns**: Any methodological concerns or limitations
     6. **Suggested next steps**: What would strengthen or clarify this result?
@@ -133,121 +122,107 @@ mcp__llm-review__chat:
 ### Step 3: Claude 综合评估
 
 1. **独立形成 Claude 的判决**（在读取 Review LLM 判决后，Claude 也独立分析）：
-   - 基于实验结果、claim 上下文、其他实验的综合证据
-   - 形成 Claude 自己的 verdict 和 confidence 建议
+   - 基于实验结果、idea 的 hypothesis，以及 sibling 实验的综合证据
+   - 形成 Claude 自己的 verdict 和 idea status 建议
 
 2. **综合两个判决**（遵循 cross-model-review.md composing rules）：
-   - **两者一致**（verdict 相同）：采用该 verdict，confidence 取均值，高置信度
+   - **两者一致**（verdict 相同）：采用该 verdict，高置信度
    - **两者不一致**：
      - 明确标注分歧
      - 取更保守的 verdict（supported > partially_supported > not_supported）
-     - confidence 取较低值
      - 在报告中详述分歧原因
    - **致命发现优先**：若任一方发现方法论问题（数据泄露、不公平比较），该发现优先
 
-3. **确定最终判决**：verdict + new_confidence + evidence_strength
+3. **确定最终判决**：verdict + evidence_strength + idea_status_change
 
 ### Step 4: 根据判决更新 Wiki
 
 **若 `--auto` 未设置**：先展示判决结果和计划变更，等待用户确认。
 
-#### 路径 A: SUPPORTED（实验支持 claim）
+#### 路径 A: SUPPORTED（实验支持 idea 的 hypothesis）
 
-1. **更新 claim**：
-   - confidence: ↑ 调整到新值（通常 +0.1~0.3）
-   - status: 根据新 confidence 调整
-     - confidence >= 0.7 → `supported`
-     - confidence 0.4-0.7 → `weakly_supported`
-   - evidence: 追加新条目 `{source: experiment-slug, type: supports, strength: strong/moderate, detail: key_result}`
-   - date_updated: 今天日期
-
-2. **更新 idea**（若存在且 status 为 in_progress/tested）：
-   - 若所有关联 claims 都 supported/weakly_supported：
-     - status: `validated`
-     - pilot_result: key_result 摘要
-     - date_resolved: 今天日期
-
-3. **添加 graph edge**：
-   ```bash
-   python3 tools/research_wiki.py add-edge wiki/ \
-     --from "experiments/{slug}" --to "claims/{target-claim}" \
-     --type supports --evidence "{key_result}"
-   ```
-
-4. **建议下一步**：`/paper-plan` 或继续 ablation/robustness 实验
-
-#### 路径 B: PARTIALLY_SUPPORTED（部分支持）
-
-1. **更新 claim**：
-   - confidence: 小幅调整（+0.05~0.15）
-   - evidence: 追加 `{type: supports, strength: weak, detail: ...}`
-   - date_updated: 今天日期
+1. **更新 idea**：
+   - `pilot_result`：`key_result` 的简短摘要（1-2 句）—— 若已有 sibling 实验写过 `pilot_result`，追加而非覆盖
+   - 若 idea 只覆盖单一 hypothesis 且本实验是 validation 块，把 idea 推进到 `validated`：
+     ```bash
+     python3 tools/research_wiki.py transition wiki/ideas/{linked-idea}.md --to validated
+     ```
+   - 否则保持 idea 当前生命周期状态（之前是 `tested` 就维持 `tested`；否则维持 `in_progress`）。
 
 2. **添加 graph edge**：
    ```bash
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "experiments/{slug}" --to "claims/{target-claim}" \
+     --from "experiments/{slug}" --to "ideas/{linked-idea}" \
+     --type supports --evidence "{key_result}"
+   ```
+
+3. **建议下一步**：`/paper-plan {linked-idea}` 或继续 ablation/robustness 实验
+
+#### 路径 B: PARTIALLY_SUPPORTED（部分支持）
+
+1. **更新 idea**：
+   - `pilot_result`：追加一段简短说明（1-2 句），描述哪些被支持、哪些仍缺
+   - 生命周期保持当前状态（`in_progress` 或 `tested`）
+
+2. **添加 graph edge**：
+   ```bash
+   python3 tools/research_wiki.py add-edge wiki/ \
+     --from "experiments/{slug}" --to "ideas/{linked-idea}" \
      --type supports --evidence "Partially supported: {limitation}"
    ```
 
 3. **建议补充实验**：
    - 明确缺少什么证据
-   - 建议用 `/exp-design` 设计补充实验
+   - 建议用 `/exp-design --linked-idea {linked-idea}` 设计补充实验
    - 若 Review LLM 指出的 concern 可通过实验解决，具体建议实验方向
 
-4. **idea status 不变**：保持 in_progress，等待更多证据
+#### 路径 C: NOT_SUPPORTED（实验否定 idea 的 hypothesis）
 
-#### 路径 C: NOT_SUPPORTED（实验不支持 claim）
+1. **更新 idea**：
+   - 推进到 `failed`：
+     ```bash
+     python3 tools/research_wiki.py transition wiki/ideas/{linked-idea}.md --to failed --reason "<具体原因>"
+     ```
+     `transition` 要求非空 `--reason`；把综合得到的失败原因传进来。`transition` 命令会自动写入 `failure_reason` 与 `date_resolved`。
+   - 注意：`failure_reason` 是 anti-repetition memory —— 必须写出具体原因，不得是模糊的 "did not work"。
 
-1. **更新 claim**：
-   - confidence: ↓ 显著下调（通常 -0.2~0.4）
-   - status: 若 confidence < 0.3 → `challenged`
-   - evidence: 追加 `{type: invalidates, strength: strong/moderate, detail: ...}`
-   - date_updated: 今天日期
-
-2. **更新 idea**（若存在）：
-   - status: `failed`
-   - failure_reason: 具体失败原因（从实验结果和 Review LLM 分析中提取）
-   - date_resolved: 今天日期
-   - 注意：failure_reason 是 anti-repetition memory，必须写清楚为什么失败
-
-3. **添加 graph edge**：
+2. **添加 graph edge**：
    ```bash
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "experiments/{slug}" --to "claims/{target-claim}" \
+     --from "experiments/{slug}" --to "ideas/{linked-idea}" \
      --type invalidates --evidence "{failure_reason}"
    ```
 
-4. **建议下一步**：
+3. **建议下一步**：
    - 分析失败原因
    - 考虑 pivot（新 idea 解决同一 gap，避开已知失败原因）
    - 建议 `/ideate` 生成替代方案
 
 #### 路径 D: INCONCLUSIVE（结果不确定）
 
-1. **不修改 claim status/confidence**：证据不足以做判断
+1. **不修改 idea status**：证据不足以做判断
 
 2. **更新实验页面**：outcome 已为 inconclusive（/exp-run 设置）
 
 3. **建议 debug**：
    - 数据问题？实现 bug？错误的 metric？
    - 方差过大？需要更多 seeds？
-   - 实验设置与 claim 不对齐？
+   - 实验设置与 idea 的 hypothesis 不对齐？
 
 4. **idea status 不变**：保持当前状态
 
 #### 所有路径通用
 
-1. **更新实验页面的 `## Claim updates` section**：
+1. **更新实验页面的 `## Idea updates` section**（记录 linked idea 的更新）：
    ```markdown
-   ## Claim updates
+   ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}
-   - **Claim**: [[{target-claim}]] confidence {old} → {new}
+   - **Linked idea**: [[{linked-idea}]] status {old} → {new}
    - **Judge agreement**: {Claude and Review LLM agreed / disagreed on ...}
    - **Date**: YYYY-MM-DD
    ```
 
-2. **更新 index.md**（若 claim status 变化）
+2. **更新 index.md**（若 idea status 变化）
 
 3. **重建派生数据**：
    ```bash
@@ -258,7 +233,7 @@ mcp__llm-review__chat:
 4. **追加日志**：
    ```bash
    python3 tools/research_wiki.py log wiki/ \
-     "exp-eval | {slug} → {target-claim} | verdict: {verdict} | confidence: {old}→{new}"
+     "exp-eval | {slug} → ideas/{linked-idea} | verdict: {verdict} | idea status: {old}→{new}"
    ```
 
 5. **输出 VERDICT_REPORT 到终端**：
@@ -271,7 +246,7 @@ mcp__llm-review__chat:
    | | Claude | Review LLM | Final |
    |---|-------|------|-------|
    | Verdict | {verdict} | {verdict} | {verdict} |
-   | Confidence | {value} | {value} | {value} |
+   | Idea status rec | {rec} | {rec} | {rec} |
    | Evidence strength | {strength} | {strength} | {strength} |
 
    ## Key Reasoning
@@ -280,12 +255,11 @@ mcp__llm-review__chat:
    ## Wiki Changes
    | Entity | Field | Before | After |
    |--------|-------|--------|-------|
-   | claims/{slug} | confidence | {old} | {new} |
-   | claims/{slug} | status | {old} | {new} |
    | ideas/{slug} | status | {old} | {new} |
+   | ideas/{slug} | pilot_result | {old} | {new} |
 
    ## Graph Edges Added
-   - experiments/{slug} → claims/{target} (supports/invalidates)
+   - experiments/{slug} → ideas/{linked-idea} (supports/invalidates)
 
    ## Concerns
    {methodological concerns from Review LLM}
@@ -296,7 +270,8 @@ mcp__llm-review__chat:
    ## Wiki Growth
    | Metric | Before | After | Delta |
    |--------|--------|-------|-------|
-   | Claims updated | — | — | {N} |
+   | Ideas validated | {before} | {after} | +{delta} |
+   | Ideas failed | {before} | {after} | +{delta} |
    | Edges | {before} | {after} | +{delta} |
    | Maturity | {level} | {level} | {unchanged/upgraded} |
    （数据来自 Step 1 开始时和 Step 4 结束后分别调用 `python3 tools/research_wiki.py maturity wiki/ --json` 的对比。）
@@ -304,29 +279,30 @@ mcp__llm-review__chat:
 
 ## Constraints
 
-- **只处理 completed 实验**：status != completed 的实验拒绝处理，提示用 /exp-run 先完成
-- **审稿独立性**：严格遵循 cross-model-review.md，不向 Review LLM 发送 Claude 的预判
-- **confidence 区间 0.0-1.0**：更新后的 confidence 不得超出此范围
-- **failure_reason 必须具体**：not_supported 路径的 failure_reason 不能是空话（如 "实验失败"），必须写明具体原因
-- **不直接删除 claims**：即使 not_supported，也只是 challenge 或降低 confidence，不删除 claim 页面。极端情况下（多次实验一致否定、confidence → 0），状态设为 deprecated 而非删除
-- **graph edges 使用 tools/research_wiki.py**：不手动编辑 edges.jsonl
-- **保守原则**：当 Claude 和 Review LLM 判决不一致时，取更保守的判决
-- **idea 状态只前进**：proposed → in_progress → tested → validated/failed，不可逆
-- **综合所有实验评估 claim**：不仅看当前实验，还要参考同一 claim 的其他实验结果
+- **只处理 completed 实验**：status != completed 的实验拒绝处理，提示用 /exp-run 先完成。
+- **`linked_idea` 必填**：拒绝评判任何 `linked_idea` 为空的实验（新 schema 强制要求；如果遇到这类页面，那是 refactor 之前的遗留物，必须先手动修复）。
+- **审稿独立性**：严格遵循 cross-model-review.md，不向 Review LLM 发送 Claude 的预判。
+- **`failure_reason` 必须具体**：not_supported 路径的 `failure_reason` 不能是空话（如 "实验失败"），必须写明具体原因。`transition --reason` 会拒绝空字符串。
+- **idea 生命周期只前进**：`proposed → in_progress → tested → validated/failed`。使用 `tools/research_wiki.py transition`（而非直接改 frontmatter），让生命周期校验器跑起来。
+- **graph edges 使用 tools/research_wiki.py**：不手动编辑 `edges.jsonl`。
+- **保守原则**：当 Claude 和 Review LLM 判决不一致时，取更保守的判决。
+- **综合所有 sibling 实验评估**：不仅看当前实验，还要参考同一 `linked_idea` 的其他实验。
 
 ## Error Handling
 
-- **experiment 找不到**：提示用户检查 slug，列出 wiki/experiments/ 中 status=completed 的候选
-- **experiment 未完成**：提示 status，建议先运行 `/exp-run {slug}` 或 `/exp-run {slug} --check`
-- **target claim 不存在**：创建新 claim 页面（status: proposed, confidence: 0.3），标注「auto-created by exp-eval」
-- **linked idea 不存在**：跳过 idea 更新，仅更新 claim，在报告中标注
-- **Review LLM 不可用**：降级为 Claude 单模型判决，在报告中标注「single-model verdict, cross-model verification unavailable」，建议用户稍后确认
-- **claim 已被其他实验修改**：读取最新状态，基于当前 confidence 做调整（不覆盖其他实验的贡献）
-- **结果数据缺失**：若实验页面的 Results section 为空，提示用户先运行 `/exp-run {slug} --check`
+- **experiment 找不到**：提示用户检查 slug，列出 `wiki/experiments/` 中 status=completed 的候选。
+- **experiment 未完成**：提示 status，建议先运行 `/exp-run {slug}` 或 `/exp-run {slug} --check`。
+- **`linked_idea` 缺失**：拒绝继续；提示用户运行 `/edit` 设置实验的 `linked_idea`。
+- **linked idea 页面不存在**：报告 dangling reference；拒绝更新 —— 建议先用 `/edit` 或 `/ideate` 创建该 idea 页面。
+- **Review LLM 不可用**：降级为 Claude 单模型判决，在报告中标注「single-model verdict, cross-model verification unavailable」，建议用户稍后确认。
+- **idea 已被其他实验修改**：在应用 transition 前重新读取最新状态；不要把更高生命周期状态退回到更低。
+- **结果数据缺失**：若实验页面的 Results section 为空，提示用户先运行 `/exp-run {slug} --check`。
 
 ## Dependencies
 
 ### Tools（via Bash）
+- `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to validated|failed [--reason "..."]` — 推进 idea 生命周期
+- `python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "<text>"` — 更新 pilot_result
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加 graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — 重建 query_pack
 - `python3 tools/research_wiki.py rebuild-open-questions wiki/` — 重建 gap_map
@@ -337,7 +313,7 @@ mcp__llm-review__chat:
 
 ### Claude Code Native
 - `Read` — 读取 wiki 页面
-- `Glob` — 查找同一 claim 的其他实验
+- `Glob` — 查找同一 `linked_idea` 的 sibling 实验
 - `Edit` — 更新 wiki 页面
 
 ### Shared References

@@ -31,7 +31,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ## Outputs
 
-- **wiki 更新**（通过子 skill 委托）：ideas/、experiments/、claims/、outputs/、graph/
+- **wiki 更新**（通过子 skill 委托）：ideas/、experiments/、methods/、outputs/、graph/
 - **wiki/outputs/pipeline-progress.md** — 流水线进度快照（用于恢复）
 - **wiki/outputs/PIPELINE_REPORT.md** — 完整流水线报告
 - **paper/ 目录**（若未 --skip-paper）— 可提交的论文
@@ -42,9 +42,9 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 ### Reads
 - `wiki/graph/context_brief.md` — 全局上下文（传递给子 skills）
 - `wiki/graph/open_questions.md` — 知识缺口（传递给 /ideate）
-- `wiki/ideas/*.md` — Gate 1 选择、Stage 4 判决
+- `wiki/ideas/*.md` — Gate 1 选择、Stage 4 判决、Stage 5 论文规划
 - `wiki/experiments/*.md` — Stage 3-4 状态检查
-- `wiki/claims/*.md` — Stage 4 判决、Stage 5 论文规划
+- `wiki/methods/*.md` — Stage 5 论文写作上下文
 - `wiki/outputs/pipeline-progress.md` — --start-from 恢复状态
 - `wiki/papers/*.md` — Stage 5 论文写作上下文
 
@@ -52,7 +52,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - `wiki/outputs/pipeline-progress.md` — 每个 Gate 保存进度（委托写入 wiki 实体的操作由子 skill 完成）
 - `wiki/outputs/PIPELINE_REPORT.md` — 最终报告
 - `wiki/log.md` — 追加日志
-- 其他 wiki 实体写入均通过子 skill 委托（不直接写入 ideas/experiments/claims/）
+- 其他 wiki 实体写入均通过子 skill 委托（不直接写入 ideas/experiments/methods/）
 
 ### Graph edges created
 - 无直接创建 — 所有 graph edges 通过子 skill 代理（/ideate、/exp-design、/exp-eval 各自创建 edges）
@@ -90,7 +90,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 3. **检查恢复**（有 `--start-from` 时）：
    - 若 `wiki/outputs/pipeline-progress.md` 存在：
-     - 读取进度文件，恢复 idea_slug、experiment_slugs、stage3a_deployed、claim_slugs、monitoring_cron_id
+     - 读取进度文件，恢复 idea_slug、experiment_slugs、stage3a_deployed、linked_idea_slugs、monitoring_cron_id
      - 跳转到指定 stage
    - 若进度文件不存在：报错退出，提示先运行完整流水线
    - **`--start-from stage3-check`**：等同于调用 `/exp-status --pipeline {slug}`，展示状态后退出
@@ -110,7 +110,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    idea_slug: ""
    experiment_slugs: []
    stage3a_deployed: []
-   claim_slugs: []
+   linked_idea_slugs: []
    iteration_count: 0
    ---
    ## Stage Log
@@ -178,7 +178,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    输出到终端：
    ```
    Bootstrap 完成：
-   Papers: {N} | Claims: {M} | Concepts: {K} | Edges: {E}
+   Papers: {N} | Concepts: {K} | Methods: {Mt} | Edges: {E}
    Maturity: cold → {new_level}
    继续进入 Stage 1: Idea Discovery...
    ```
@@ -342,13 +342,13 @@ Skill: exp-eval
 Args: "{experiment_slug}" --auto
 ```
 
-**评估 claims 是否充分**：
-1. 读取所有 target claims 的最新状态
+**评估关联 idea 是否充分**：
+1. 读取主要 linked idea（及任何辅助 idea）的最新状态
 2. 判断是否需要迭代：
-   - **claims 充分**（主要 claim confidence >= 0.7，且 status 为 supported 或 weakly_supported）→ 进入 Gate 2
-   - **claims 不足**（confidence < 0.4 或 status 为 challenged）→ 进入迭代
+   - **充分**（主要 linked idea 已切换为 `validated`，或 ≥1 个支持性实验 `outcome=succeeded`）→ 进入 Gate 2
+   - **不足**（idea 仍为 `proposed` 且所有关联实验都是 `failed`/`inconclusive`，或 idea 为 `invalidated`）→ 进入迭代
 
-**迭代路径**（claims 不足时，最多 1 次重试）：
+**迭代路径**（不足时，最多 1 次重试）：
 1. 分析失败原因
 2. 调用 `/refine` 改进 experiment plan：
    ```
@@ -359,7 +359,7 @@ Args: "{experiment_slug}" --auto
 4. 最多迭代 2 轮（防止无限循环），每个 stage 最多 1 次 auto retry
 
 **完成后**：
-- 更新 pipeline-progress：Stage 4 → completed，记录 claim_slugs
+- 更新 pipeline-progress：Stage 4 → completed，记录 linked_idea_slugs
 
 ### Gate 2: 确认 Paper Ready
 
@@ -368,10 +368,10 @@ Args: "{experiment_slug}" --auto
 **若 `--auto` 模式**：自动继续，进入 Stage 5
 
 **若交互模式**：
-- 展示 claim 状态摘要：
+- 展示 idea 状态摘要：
   ```
-  Claim: {slug} | Status: {status} | Confidence: {confidence}
-  Evidence: {count} sources ({strong}/{moderate}/{weak})
+  Idea: {slug} | Status: {status} | Novelty: {novelty_score}
+  Linked experiments: {count} ({succeeded}/{inconclusive}/{failed})
   ```
 - 使用 AskUserQuestion 提示用户确认：ready for paper / need more experiments / stop here
 - 若 "need more experiments"：返回 Stage 2 重新规划
@@ -387,8 +387,9 @@ Args: "{experiment_slug}" --auto
 **5a. 调用 /paper-plan**：
 ```
 Skill: paper-plan
-Args: "{claim_slugs}" --venue {venue}
+Args: "{linked_idea_slugs}" --venue {venue}
 ```
+（将 Stage 4 收集到的 validated idea slug(s) 传递给 /paper-plan）
 
 **5b. 调用 /paper-draft**：
 ```
@@ -437,10 +438,10 @@ Args: "paper/"
 - **Priority**: {N}
 - **Novelty score**: {score}
 
-## Claims Trail
-| Claim | Initial Status | Final Status | Confidence (proposed → supported) |
-|-------|---------------|-------------|-----------------------------------|
-| [[{slug}]] | proposed | supported | 0.3 → 0.8 |
+## Idea Trail
+| Idea | Initial Status | Final Status | Novelty (start → end) |
+|------|----------------|--------------|------------------------|
+| [[{slug}]] | proposed | validated | 3 → 4 |
 
 ## Experiment Results
 | Experiment | Outcome | Key Result |
@@ -449,12 +450,12 @@ Args: "paper/"
 
 ## Iteration History
 - Total iterations: {N}
-- Reason for iteration: {claims insufficient / ...}
+- Reason for iteration: {idea evidence insufficient / ...}
 
 ## Deliverables
-- Ideas: +{N} created
+- Ideas: +{N} created, {N} validated
 - Experiments: +{N} created, {N} completed
-- Claims: {N} updated
+- Methods: +{N} created/updated
 - Graph edges: +{N}
 - Paper: paper/main.pdf (if applicable)
 
@@ -462,7 +463,7 @@ Args: "paper/"
 | Metric | Before | After | Delta |
 |--------|--------|-------|-------|
 | Papers | {N} | {N} | +{N} |
-| Claims | {N} | {N} | +{N} |
+| Methods | {N} | {N} | +{N} |
 | Ideas | {N} | {N} | +{N} |
 | Experiments | {N} | {N} | +{N} |
 | Edges | {N} | {N} | +{N} |
@@ -477,7 +478,7 @@ Args: "paper/"
 追加日志：
 ```bash
 python3 tools/research_wiki.py log wiki/ \
-  "research | completed | idea: {slug} | claims: {N} updated | paper: {yes/no}"
+  "research | completed | idea: {slug} | linked ideas: {N} updated | paper: {yes/no}"
 ```
 
 更新 pipeline-progress：status: completed
@@ -491,7 +492,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **Stage 3b 结束 session**：Stage 3b 完成后当前 session 结束，不继续等待实验
 - **最多 2 轮迭代**：Stage 4 迭代最多 2 轮，防止无限循环
 - **--auto 不跳过计算**：auto 模式跳过人工确认，但不跳过任何计算步骤
-- **--skip-paper 仍执行 Stage 4 /exp-eval**：即使不写论文，也要完成 claim 更新
+- **--skip-paper 仍执行 Stage 4 /exp-eval**：即使不写论文，也要完成 idea/experiment 更新
 - **子 skill 参数透传**：将 domain、--venue 等参数正确传递给子 skill
 - **日志记录每个 Stage**：每个 Stage 完成后追加 log.md 审计日志
 - **不重复执行已完成 stage**：--start-from 跳过已完成的 stages
@@ -501,7 +502,7 @@ python3 tools/research_wiki.py log wiki/ \
 ## Error Handling
 
 - **pipeline-progress 不存在但指定 --start-from**：报错，提示先运行完整流水线
-- **pipeline-progress 损坏或格式异常**：尝试从 wiki 当前状态推断进度（读取 ideas/experiments/claims 状态），恢复到最近的 Gate
+- **pipeline-progress 损坏或格式异常**：尝试从 wiki 当前状态推断进度（读取 ideas/experiments 状态），恢复到最近的 Gate
 - **子 skill 调用失败**：记录错误到 pipeline-progress，报告失败的 stage，建议 --start-from 恢复
 - **所有 ideas 生成失败**：终止流水线，建议用户调整 research direction
 - **所有实验 deploy 失败**：终止流水线（Stage 3a），生成失败报告，建议检查 GPU/SSH 配置
@@ -510,7 +511,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **Gate 用户选择 stop**：保存进度到 pipeline-progress，生成部分报告
 - **RESEARCH_BRIEF.md 格式错误**：降级为纯文本 direction，忽略结构化字段
 - **wiki 为空（无 papers/concepts）**：自动触发 Stage 0 Bootstrap（搜索 + auto-ingest 5 篇论文）
-- **迭代后 claims 仍不足**：在报告中标注 "claims insufficient after max iterations"，由用户决定是否继续
+- **迭代后 idea 证据仍不足**：在报告中标注 "idea evidence insufficient after max iterations"，由用户决定是否继续
 - **用户选择查看状态（自动恢复检测 [3]）**：调用 `/exp-status --pipeline {slug}` 后退出，不继续执行新流水线
 
 ## Dependencies
@@ -543,6 +544,6 @@ python3 tools/research_wiki.py log wiki/ \
 ### Claude Code Native
 - `Read` — 读取 pipeline-progress、wiki 页面、RESEARCH_BRIEF
 - `Write` — 写入 pipeline-progress、PIPELINE_REPORT
-- `Glob` — 查找 experiments、ideas、claims
+- `Glob` — 查找 experiments、ideas、methods
 - `Skill` — 调用子 skills（核心能力）
 - `AskUserQuestion` — Gate 和自动恢复检测的用户交互
