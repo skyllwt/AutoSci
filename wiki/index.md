@@ -241,100 +241,98 @@ ideas:
     status: failed
     domain: Computational Biology / ML for Science
     priority: 1
-
-experiments:
-
-claims:
   - slug: alphafold2-enables-large-scale-structural-modeling
     title: "AlphaFold2 enables large-scale structural modeling of human PPI network"
     tags: [alphafold2, protein-protein-interaction, interactome, structural-biology]
-    status: supported
-    confidence: 0.75
+    status: validated
+    priority: 3
     domain: Computational Biology
   - slug: deep-learning-ensembles-outperform-classical-ml
     title: "Deep-learning ensembles with sequence-only input outperform feature-engineered classical ML for PTM site prediction across most PTM types"
     tags: [deep-learning, ptm, bioinformatics, ensembles, benchmarking]
-    status: weakly_supported
-    confidence: 0.6
+    status: tested
+    priority: 3
     domain: Bioinformatics
   - slug: deep-learning-predicts-protein-structure-atomic
     title: "Deep learning can predict protein structure at near-experimental atomic accuracy from sequence alone"
     tags: [protein-structure-prediction, deep-learning, casp14, alphafold, atomic-accuracy]
-    status: supported
-    confidence: 0.92
+    status: validated
+    priority: 3
     domain: Structural Biology / ML for Science
   - slug: diffusion-based-generation-eliminates-need-equivariant
     title: "Diffusion-based atom-coordinate generation eliminates the need for equivariant frame-based structure modules"
     tags: [diffusion, equivariance, structure-prediction, alphafold]
-    status: weakly_supported
-    confidence: 0.55
+    status: tested
+    priority: 3
     domain: ML for Science
   - slug: e3-ligase-deregulation-cancer-alters-substrate
     title: "E3 ligase deregulation in cancer alters substrate stability and is therapeutically exploitable in a context-dependent manner"
     tags: [ubiquitin-ligase, cancer, drug-target, oncogene, tumour-suppressor]
-    status: supported
-    confidence: 0.85
+    status: validated
+    priority: 3
     domain: Cancer biology / Molecular oncology
   - slug: e3-ubiquitin-ligase-substrate-network-predicted
     title: "Heterogeneous biological evidence integrated by naive Bayes predicts human E3-substrate interactions at proteome scale"
     tags: [bioinformatics, ubiquitination, e3-ligase, naive-bayes, prediction]
-    status: supported
-    confidence: 0.75
+    status: validated
+    priority: 3
     domain: computational biology
   - slug: equivariant-3d-models-improve-quantum-chemistry-not-uniformly-drug-discovery
     title: "Equivariant 3D neural networks reliably outperform 2D-graph baselines for quantum-chemistry targets but not consistently for drug-discovery property prediction"
     tags: [equivariant-message-passing, quantum-chemistry, drug-discovery, molecular-property-prediction, ablation]
-    status: supported
-    confidence: 0.7
+    status: validated
+    priority: 3
     domain: ML for Molecules
   - slug: geometric-priors-improve-molecular-modelling
     title: "Geometric priors (equivariance / invariance) systematically improve neural-network modelling of molecular systems"
     tags: [geometric-deep-learning, equivariance, molecular-modelling]
-    status: supported
-    confidence: 0.75
+    status: validated
+    priority: 3
     domain: ML for Molecules
   - slug: high-throughput-y2h-recovers-novel-disease-associated-ppis
     title: "Stringent high-throughput Y2H recovers many novel disease-associated human PPIs at low inspection bias"
     tags: [protein-protein-interaction, interactome, yeast-two-hybrid, disease-genetics]
-    status: supported
-    confidence: 0.8
+    status: validated
+    priority: 3
     domain: Computational Biology
   - slug: msa-depth-bounds-structure-prediction-accuracy
     title: "MSA depth bounds the achievable accuracy of MSA-conditioned protein structure predictors"
     tags: [msa, protein-structure-prediction, evolutionary-information, scaling, alphafold]
-    status: supported
-    confidence: 0.85
+    status: validated
+    priority: 3
     domain: Structural Biology / ML for Science
   - slug: multi-omics-ml-network-pharmacology-enables
     title: "Integrating multi-omics data with machine learning and network-pharmacology models enables identification of multi-target therapeutic strategies that single-omics analysis cannot recover"
     tags: [multi-omics, machine-learning, network-pharmacology, targeted-therapy, biomarker-discovery]
-    status: weakly_supported
-    confidence: 0.55
+    status: tested
+    priority: 3
     domain: Computational Biology
   - slug: plddt-and-pae-are-complementary-confidence-metrics
     title: "pLDDT and PAE are complementary confidence metrics — pLDDT for per-residue local accuracy, PAE for pairwise relative-position accuracy"
     tags: [confidence-metrics, alphafold, structural-biology]
-    status: supported
-    confidence: 0.9
+    status: validated
+    priority: 3
     domain: Structural Bioinformatics
   - slug: precomputed-structure-databases-enable-proteome-scale-biology
     title: "Pre-computed AlphaFold-predicted structure databases enable proteome-scale structural biology that on-demand prediction cannot"
     tags: [structural-biology, databases, alphafold, infrastructure]
-    status: supported
-    confidence: 0.85
+    status: validated
+    priority: 3
     domain: Structural Bioinformatics
   - slug: ptm-protein-isoforms-enable-selective-drug
     title: "PTM protein isoforms enable selective drug design beyond wild-type targets"
     tags: [drug-design, posttranslational-modification, ptm-isoforms, selectivity, allosteric-inhibitor, covalent-inhibitor, protac]
-    status: weakly_supported
-    confidence: 0.6
+    status: tested
+    priority: 3
     domain: Computational Drug Design / Chemical Biology
   - slug: single-deep-learning-model-predict-diverse
     title: "A single deep-learning model can predict diverse biomolecular complexes at high accuracy"
     tags: [structure-prediction, biomolecular-complexes, alphafold, generalist-model]
-    status: supported
-    confidence: 0.8
+    status: validated
+    priority: 3
     domain: Computational Biology / ML for Science
+
+experiments:
 
 Summary:
   - slug: medpredict

@@ -17,3 +17,5 @@
 ## [2026-04-30] init | medpredict scaffold + 12 papers ingested in parallel; 12 worktrees fanned in; index/context-brief/open-questions rebuilt
 ## [2026-04-30] edit | removed off-topic magnetar paper s41586-021-04101 (5 wiki pages, 3 edges, raw + prepared sidecars)
 ## [2026-04-30] ideate | direction: structure-aware PTM modelling for drug discovery | 3 ideas proposed (priorities 5/4/5), 2 ideas filtered out as failed (banlist) | maturity: warm
+
+## [2026-05-10] refactor | claims-to-ideas migration: 15 wiki/claims/*.md → wiki/ideas/ (status mapped supported→validated, weakly_supported→tested), wiki/claims/ deleted, edges.jsonl 21 claims/ refs → ideas/, index.md claims: section merged into ideas:
