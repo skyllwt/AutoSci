@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Academic Poster</title>
+<style>
+:root{
+  --poster-width: 1400px;
+  --poster-height: 900px;
+
+  --header-bg: #cfe9ff;
+  --border: #1f1f1f;
+  --gap: 18px;
+
+  --section-bar: #0b3d91;
+  --section-bg: #eef6ff;
+
+  /* ===== Adjustable parameters (driven by the fit algorithm) ===== */
+  --base-font: 16px;
+  --line-height: 1.35;
+  --para-gap: 10px;
+  --li-gap: 6px;
+  --img-max-width: 100%;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: #e9eef5;
+  font-family: "EB Garamond", "Computer Modern Serif", "Latin Modern Roman", Georgia, "Times New Roman", serif;
+}
+
+.stage{
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.poster{
+  width: var(--poster-width);
+  height: var(--poster-height);
+  background: #fff;
+  border: 3px solid var(--border);
+  display: grid;
+  grid-template-rows: 2fr 11fr;
+  overflow: hidden;
+}
+
+/* ===== Header ===== */
+.header{
+  background: var(--header-bg);
+  border-bottom: 3px solid var(--border);
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: 7fr 1fr;
+  gap: var(--gap);
+}
+
+.title{
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.authors{
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.conf{
+  border-left: 3px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 800;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ===== Main ===== */
+.main{
+  padding: 18px;
+  overflow: hidden;
+}
+
+.flow{
+  height: 100%;
+  column-count: 3;
+  column-gap: var(--gap);
+  column-fill: auto;
+}
+
+/* ===== Sections ===== */
+.section{
+  margin-bottom: 18px;
+  break-inside: auto;
+  background: var(--section-bg);
+}
+
+.section-bar{
+  background: var(--section-bar);
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+.section-body{
+  font-size: var(--base-font);
+  line-height: var(--line-height);
+  padding: 0 6px;
+}
+
+.section-body p{
+  margin: 0 0 var(--para-gap) 0;
+}
+
+.section-body ul{
+  margin: 0 0 var(--para-gap) 20px;
+  padding: 0;
+}
+
+.section-body li{
+  margin-bottom: var(--li-gap);
+}
+
+.img-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--para-gap) 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.img-section img {
+  flex: 1;
+
+  min-width: 0;
+  max-width: var(--img-max-width);
+  height: auto;
+
+  object-fit: contain;
+  border: 1px solid #000;
+
+  margin: 0;
+}
+
+</style>
+</head>
+
+<body>
+<div class="stage">
+<div class="poster">
+
+  <header class="header">
+    <div>
+      <h1 class="title">Paper Title</h1>
+      <div class="authors">Anonymous Authors</div>
+    </div>
+    <div class="conf">VENUE</div>
+  </header>
+
+  <main class="main">
+    <div class="flow" id="flow">
+
+    </div>
+  </main>
+
+</div>
+</div>
+
+
+<!--The following content is strictly prohibited from being modified and must be kept in its original form.-->
+<script>
+(function(){
+  const flow = document.getElementById("flow");
+  const root = document.documentElement;
+
+  function setVar(k,v,u=""){ root.style.setProperty(k, v+u); }
+
+  function overflowColumns(){
+    return flow.scrollWidth > flow.clientWidth + 1;
+  }
+
+  const PARA_GAP = 12;
+
+  const MIN_FONT = 10, MAX_FONT = 20;
+  const MIN_IMG = 60,  MAX_IMG = 100;
+
+  const STEP_FONT = 0.1;
+  const STEP_IMG = 1;
+
+  function getDependentVars(f) {
+    const ratio = (f - MIN_FONT) / (MAX_FONT - MIN_FONT);
+    let lh = 1.05 + ratio * 0.55;
+    let lg = 2 + ratio * 6;
+    return { lh, lg };
+  }
+
+  function tryFit(f, w) {
+    f = Math.round(f * 10) / 10;
+    w = Math.round(w);
+
+    const { lh, lg } = getDependentVars(f);
+
+    setVar("--base-font", f, "px");
+    setVar("--img-max-width", w, "%");
+    setVar("--line-height", lh.toFixed(3));
+    setVar("--li-gap", lg.toFixed(1), "px");
+    setVar("--para-gap", PARA_GAP, "px");
+
+    return !overflowColumns();
+  }
+
+  function fit(){
+    setVar("--img-max-width",100,"%");
+    setVar("--base-font",16,"px");
+
+    let low = MIN_FONT;
+    let high = MAX_FONT;
+    let bestFont = MIN_FONT;
+
+    while (low <= high) {
+      let mid = (low + high) / 2;
+      mid = Math.floor(mid / STEP_FONT) * STEP_FONT;
+
+      if (tryFit(mid, MIN_IMG)) {
+        bestFont = mid;
+        low = mid + STEP_FONT;
+      } else {
+        high = mid - STEP_FONT;
+      }
+    }
+
+    let wLow = MIN_IMG;
+    let wHigh = MAX_IMG;
+    let bestImg = MIN_IMG;
+
+    while (wLow <= wHigh) {
+      let mid = Math.floor((wLow + wHigh) / 2);
+
+      if (tryFit(bestFont, mid)) {
+        bestImg = mid;
+        wLow = mid + STEP_IMG;
+      } else {
+        wHigh = mid - STEP_IMG;
+      }
+    }
+
+    tryFit(bestFont, bestImg);
+  }
+
+  window.addEventListener("load", fit);
+
+  window.addEventListener("resize", () => {
+    clearTimeout(window.__fitTimer);
+    window.__fitTimer = setTimeout(fit, 80);
+  });
+
+  const mo = new MutationObserver(() => {
+    clearTimeout(window.__fitTimer2);
+    window.__fitTimer2 = setTimeout(fit, 80);
+  });
+  mo.observe(flow, { childList: true, subtree: true, characterData: true });
+
+  function hookImages(){
+    const imgs = flow.querySelectorAll("img");
+    imgs.forEach(img=>{
+      if (img.__fitHooked) return;
+      img.__fitHooked = true;
+      img.addEventListener("load", () => setTimeout(fit, 50));
+      img.addEventListener("error", () => setTimeout(fit, 50));
+    });
+  }
+  hookImages();
+  const mo2 = new MutationObserver(hookImages);
+  mo2.observe(flow, { childList: true, subtree: true });
+
+})();
+</script>
+
+</body>
+</html>
