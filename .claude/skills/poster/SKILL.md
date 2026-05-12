@@ -1,6 +1,6 @@
 ---
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos]"
 ---
 
 # /poster
@@ -16,6 +16,11 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
 - `--review` (optional): cross-model Review LLM critique of the generated poster content
 - `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content
 - `--max-sections N` (optional, default 6): maximum poster sections to include
+- `--venue STR` (optional): venue text shown in the header right block (e.g. `"NeurIPS 2026"`); if omitted, asked interactively
+- `--affiliation-logo PATH` (optional): path to affiliation/lab logo (PNG/JPG/PDF); copied into `poster/images/`
+- `--conference-logo PATH` (optional): path to conference/journal logo (PNG/JPG/PDF); copied into `poster/images/`
+- `--layout corners|stacked` (optional, default `corners`): header layout. `corners` puts affiliation top-left and conference top-right; `stacked` puts both logos in the right `.conf` area with venue text above
+- `--no-logos` (optional): skip all logo prompts and ship a header with venue text only
 
 ## Outputs
 
@@ -45,6 +50,34 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
 ## Workflow
 
 **Precondition**: confirm `paper/main.tex` exists. If not, error with "Run /paper-draft first."
+
+### Step 0: Interactive header configuration
+
+Goal: collect venue text and (optionally) two logos to render in the poster header. Skipped silently for any field the user already supplied as a CLI flag.
+
+The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for paths and venue text in free-form (Claude reads the next user message as the answer).
+
+1. **Venue text** — if `--venue` was not provided:
+   - Ask: *"What venue text should appear in the poster header? e.g. `NeurIPS 2026`. Reply with the text, or `skip` to leave it blank."*
+   - Take the next user message verbatim. Treat the literal string `skip` (case-insensitive) as empty.
+
+2. **Affiliation logo** — if `--affiliation-logo` was not provided AND `--no-logos` was not passed:
+   - Use `AskUserQuestion` with options: `"Yes, I have a logo file"` / `"No, skip the affiliation logo"`.
+   - If yes: ask *"What's the path to the affiliation logo? (PNG / JPG / PDF; relative or absolute)."* Take the next user message as the path. Verify the file exists; if not, re-ask once with the resolved-path issue surfaced, then either accept a new path or treat as skipped.
+
+3. **Conference / journal logo** — if `--conference-logo` was not provided AND `--no-logos` was not passed:
+   - Same flow as the affiliation logo (yes/no via `AskUserQuestion`, path via free text).
+
+4. **Layout** — if at least one logo was provided AND `--layout` was not passed:
+   - Use `AskUserQuestion` with options:
+     - `"corners — affiliation top-left, conference top-right"` (Recommended)
+     - `"stacked — both logos stacked in the right conf area, venue text on top"`
+   - If only `--venue` and no logos: skip the layout question (default `corners` is fine — only the venue text slot is used).
+
+5. **Final summary** — print one line:
+   - `Header config: venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
+
+These values are applied in Step 5 via `python3 tools/poster.py inject-header`.
 
 ### Step 1: Build dag.json
 
@@ -181,6 +214,14 @@ python3 tools/poster.py inject-title \
 The `--anonymous` flag is applied at Step 1 (`wiki2dag.py`) — `dag.json` already carries the canonical title/authors, so `inject-title` just reads.
 
 ```bash
+# Apply the venue text + logos from Step 0. Omit flags that the user skipped.
+python3 tools/poster.py inject-header \
+  --venue "{venue from Step 0}" \
+  [--affiliation-logo {path}] \
+  [--conference-logo {path}] \
+  --layout {corners|stacked} \
+  poster/poster.html
+
 python3 tools/poster.py inject-figures \
   --dag poster/dag.json \
   --paper-dir paper/ \
@@ -235,6 +276,7 @@ Print POSTER_REPORT:
 - Sections included: {N}/{total available}
 - Figures embedded: {M}
 - PDF→PNG conversions: {K}
+- Header: venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
 - Review LLM: {invoked / skipped}
 
 ## Output
@@ -273,6 +315,7 @@ Print POSTER_REPORT:
 - `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` — build dag.json
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` — inject outline
 - `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous]` — set title/authors
+- `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` — venue text + optional logos
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` — figure copy/convert
 - `python3 tools/poster.py validate <poster.html>` — sanity checks
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log

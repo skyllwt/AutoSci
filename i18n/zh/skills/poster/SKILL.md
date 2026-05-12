@@ -1,6 +1,6 @@
 ---
 description: 从已撰写的论文生成学术海报 —— 提炼章节为单页 HTML 海报,包含配图和段落间过渡
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos]"
 ---
 
 # /poster
@@ -15,6 +15,11 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
 - `--review`(可选):调用 Review LLM 对生成的海报内容进行跨模型评审
 - `--anonymous`(可选):强制将作者写为 "Anonymous",忽略 `\author{}` 的实际内容
 - `--max-sections N`(可选,默认 6):海报最多包含的章节数
+- `--venue STR`(可选):海报右上方显示的会议/期刊文本(例如 `"NeurIPS 2026"`);若不提供,会交互式询问
+- `--affiliation-logo PATH`(可选):单位/实验室 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
+- `--conference-logo PATH`(可选):会议/期刊 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
+- `--layout corners|stacked`(可选,默认 `corners`):header 布局。`corners` 把单位 logo 放在左上、会议 logo 放在右上;`stacked` 把两个 logo 都叠在右侧 `.conf` 区,venue 文本在最上
+- `--no-logos`(可选):跳过所有 logo 询问,header 只显示 venue 文本
 
 ## Outputs
 
@@ -44,6 +49,34 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N]"
 ## Workflow
 
 **前置**:确认 `paper/main.tex` 存在。否则报错:"先运行 /paper-draft"。
+
+### Step 0: 交互式 header 配置
+
+目标:收集 venue 文本与(可选的)两个 logo,用于海报 header 渲染。如果用户已通过 CLI flag 传入对应值,则静默跳过该项。
+
+整个交互流程用 `AskUserQuestion` 做是/否/布局选择,自由文本(路径与 venue)直接读取下一条用户消息。
+
+1. **Venue 文本** —— 若未传入 `--venue`:
+   - 询问:*"海报 header 要显示什么 venue 文本?例如 `NeurIPS 2026`。回复文本,或回复 `skip` 留空。"*
+   - 把下一条用户消息原文取作 venue。`skip`(不区分大小写)视为空。
+
+2. **单位/实验室 logo** —— 若未传入 `--affiliation-logo` 且未传入 `--no-logos`:
+   - 用 `AskUserQuestion` 询问,选项:`"Yes, I have a logo file"` / `"No, skip the affiliation logo"`。
+   - 若选 yes:询问 *"单位 logo 文件路径?(PNG / JPG / PDF;相对路径或绝对路径都可以)"*。把下一条用户消息当作路径。校验文件存在;若不存在,提示错误后再询问一次,仍失败则按 skip 处理。
+
+3. **会议/期刊 logo** —— 若未传入 `--conference-logo` 且未传入 `--no-logos`:
+   - 流程同上(yes/no 用 `AskUserQuestion`,路径自由文本)。
+
+4. **布局** —— 若至少一个 logo 被提供,且未传入 `--layout`:
+   - 用 `AskUserQuestion` 询问,选项:
+     - `"corners —— 单位 logo 左上、会议 logo 右上"`(Recommended)
+     - `"stacked —— 两个 logo 叠在右侧 conf 区,venue 文本在上方"`
+   - 若只有 venue 没有 logo:跳过布局询问(默认 `corners` 即可,只用 venue 文本槽)。
+
+5. **配置摘要** —— 打印一行:
+   - `Header config: venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
+
+这些值在 Step 5 通过 `python3 tools/poster.py inject-header` 应用。
 
 ### Step 1: 构建 dag.json
 
@@ -180,6 +213,14 @@ python3 tools/poster.py inject-title \
 `--anonymous` 已在 Step 1(`wiki2dag.py`)生效 —— `dag.json` 中的标题/作者已是最终值,`inject-title` 仅读取。
 
 ```bash
+# 应用 Step 0 收集到的 venue 与 logo。用户跳过的项就不要传对应 flag。
+python3 tools/poster.py inject-header \
+  --venue "{Step 0 的 venue}" \
+  [--affiliation-logo {path}] \
+  [--conference-logo {path}] \
+  --layout {corners|stacked} \
+  poster/poster.html
+
 python3 tools/poster.py inject-figures \
   --dag poster/dag.json \
   --paper-dir paper/ \
@@ -234,6 +275,7 @@ python3 tools/research_wiki.py log wiki/ \
 - 包含章节:{N}/{可用总数}
 - 嵌入配图:{M}
 - PDF→PNG 转换:{K}
+- Header:venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
 - Review LLM:{已调用 / 已跳过}
 
 ## 输出
@@ -272,6 +314,7 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` —— 构建 dag.json
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` —— 注入 outline
 - `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous]` —— 写入标题/作者
+- `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` —— venue 文本 + 可选 logo
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` —— 复制/转换图片
 - `python3 tools/poster.py validate <poster.html>` —— 健康检查
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志

@@ -14,6 +14,7 @@ tool only handles mechanical injection, copying, and validation.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import shutil
@@ -164,6 +165,153 @@ def inject_title(
     )
 
     poster_path.write_text(html, encoding="utf-8")
+
+
+# ----------------------------------------------------------------------------
+# inject-header — venue text + affiliation/conference logos
+# ----------------------------------------------------------------------------
+
+LOGO_AFFILIATION_PATTERN = re.compile(
+    r'(<div\s+class="logo-affiliation"[^>]*>)(.*?)(</div\s*>)',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+CONF_BLOCK_PATTERN = re.compile(
+    r'(<div\s+class="conf"[^>]*>)(.*?)(</div\s*>\s*</header)',
+    flags=re.IGNORECASE | re.DOTALL,
+)
+
+SUPPORTED_LAYOUTS = ("corners", "stacked")
+
+
+def _copy_logo(source: Path, dest_dir: Path) -> str:
+    """Copy a logo file into dest_dir/, converting PDF→PNG if needed.
+
+    Returns the relative path used in the HTML (e.g. 'images/affiliation.png').
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    if source.suffix.lower() == ".pdf":
+        dest = dest_dir / (source.stem + ".png")
+        _convert_pdf_to_png(source, dest)
+    else:
+        dest = dest_dir / source.name
+        shutil.copyfile(source, dest)
+    return f"images/{dest.name}"
+
+
+def _affiliation_div_body(rel_path: Optional[str]) -> str:
+    if not rel_path:
+        return ""
+    return f'<img src="{rel_path}" alt="Affiliation" />'
+
+
+def _conf_block_body(
+    layout: str,
+    venue: Optional[str],
+    affiliation_rel: Optional[str],
+    conference_rel: Optional[str],
+) -> str:
+    """Build the inner HTML of <div class="conf"> based on layout."""
+    parts: list[str] = []
+    venue_html = html.escape(venue.strip()) if venue and venue.strip() else ""
+
+    if layout == "corners":
+        # venue text on top, conference logo underneath; affiliation lives in
+        # the title-block on the left.
+        parts.append(f'<div class="venue">{venue_html}</div>')
+        if conference_rel:
+            parts.append(
+                f'<div class="logo-conference"><img src="{conference_rel}" alt="Conference" /></div>'
+            )
+        else:
+            parts.append('<div class="logo-conference"></div>')
+    elif layout == "stacked":
+        # both logos stacked in the conf area; title-block has no logo.
+        parts.append(f'<div class="venue">{venue_html}</div>')
+        if affiliation_rel:
+            parts.append(
+                f'<div class="logo-conference"><img src="{affiliation_rel}" alt="Affiliation" /></div>'
+            )
+        if conference_rel:
+            parts.append(
+                f'<div class="logo-conference"><img src="{conference_rel}" alt="Conference" /></div>'
+            )
+        if not affiliation_rel and not conference_rel:
+            parts.append('<div class="logo-conference"></div>')
+    else:
+        raise ValueError(f"unsupported layout: {layout}")
+
+    # Indent for readability inside the .conf wrapper
+    return "\n      " + "\n      ".join(parts) + "\n    "
+
+
+def inject_header(
+    poster_path: Path,
+    venue: Optional[str] = None,
+    affiliation_logo: Optional[Path] = None,
+    conference_logo: Optional[Path] = None,
+    layout: str = "corners",
+) -> dict:
+    """Inject venue text and optional logos into the poster header.
+
+    Logos are copied into <poster_dir>/images/ (PDF→PNG when needed). The
+    final HTML stays self-contained as long as images/ is co-located.
+    """
+    if layout not in SUPPORTED_LAYOUTS:
+        raise ValueError(
+            f"unsupported layout '{layout}'; choose one of {SUPPORTED_LAYOUTS}"
+        )
+    if not poster_path.is_file():
+        raise FileNotFoundError(f"poster not found: {poster_path}")
+
+    poster_dir = poster_path.parent
+    images_dest = poster_dir / "images"
+
+    affiliation_rel: Optional[str] = None
+    conference_rel: Optional[str] = None
+    if affiliation_logo:
+        if not affiliation_logo.is_file():
+            raise FileNotFoundError(f"affiliation logo not found: {affiliation_logo}")
+        affiliation_rel = _copy_logo(affiliation_logo, images_dest)
+    if conference_logo:
+        if not conference_logo.is_file():
+            raise FileNotFoundError(f"conference logo not found: {conference_logo}")
+        conference_rel = _copy_logo(conference_logo, images_dest)
+
+    html_text = poster_path.read_text(encoding="utf-8")
+
+    if not LOGO_AFFILIATION_PATTERN.search(html_text):
+        raise ValueError(
+            'cannot find <div class="logo-affiliation"> slot in poster — '
+            'template out of date?'
+        )
+    if not CONF_BLOCK_PATTERN.search(html_text):
+        raise ValueError(
+            'cannot find <div class="conf"> slot in poster — template out of date?'
+        )
+
+    # 1) affiliation slot in title-block (corners layout only)
+    aff_body_html = (
+        _affiliation_div_body(affiliation_rel) if layout == "corners" else ""
+    )
+    html_text = LOGO_AFFILIATION_PATTERN.sub(
+        lambda m: m.group(1) + aff_body_html + m.group(3), html_text, count=1
+    )
+
+    # 2) conf block — replace entire inner content
+    conf_body = _conf_block_body(layout, venue, affiliation_rel, conference_rel)
+    html_text = CONF_BLOCK_PATTERN.sub(
+        lambda m: m.group(1) + conf_body + m.group(3), html_text, count=1
+    )
+
+    poster_path.write_text(html_text, encoding="utf-8")
+
+    return {
+        "layout": layout,
+        "venue": venue or "",
+        "affiliation_logo": affiliation_rel or "",
+        "conference_logo": conference_rel or "",
+    }
 
 
 # ----------------------------------------------------------------------------
@@ -350,6 +498,24 @@ def cmd_inject_title(args) -> int:
     return 0
 
 
+def cmd_inject_header(args) -> int:
+    aff = Path(args.affiliation_logo).resolve() if args.affiliation_logo else None
+    conf = Path(args.conference_logo).resolve() if args.conference_logo else None
+    report = inject_header(
+        Path(args.poster).resolve(),
+        venue=args.venue,
+        affiliation_logo=aff,
+        conference_logo=conf,
+        layout=args.layout,
+    )
+    print(f"[ok] header injected into {args.poster}")
+    print(f"  layout:      {report['layout']}")
+    print(f"  venue:       {report['venue'] or '(none)'}")
+    print(f"  affiliation: {report['affiliation_logo'] or '(none)'}")
+    print(f"  conference:  {report['conference_logo'] or '(none)'}")
+    return 0
+
+
 def cmd_inject_figures(args) -> int:
     report = inject_figures(
         Path(args.dag).resolve(),
@@ -398,6 +564,33 @@ def main(argv: list[str] | None = None) -> int:
         "--anonymous", action="store_true", help="Override authors to 'Anonymous'"
     )
     p_title.set_defaults(func=cmd_inject_title)
+
+    p_header = sub.add_parser(
+        "inject-header",
+        help="Set venue text + optional affiliation/conference logos",
+    )
+    p_header.add_argument("poster", help="Path to poster.html (in-place edit)")
+    p_header.add_argument(
+        "--venue", default=None, help="Venue text (e.g. 'NeurIPS 2026'); omit for blank"
+    )
+    p_header.add_argument(
+        "--affiliation-logo",
+        default=None,
+        help="Path to affiliation logo (PNG/JPG/PDF); copied to poster_dir/images/",
+    )
+    p_header.add_argument(
+        "--conference-logo",
+        default=None,
+        help="Path to conference logo (PNG/JPG/PDF); copied to poster_dir/images/",
+    )
+    p_header.add_argument(
+        "--layout",
+        choices=SUPPORTED_LAYOUTS,
+        default="corners",
+        help="Header layout: 'corners' (affiliation left, conference right) "
+        "or 'stacked' (both logos in conf area, venue text on top)",
+    )
+    p_header.set_defaults(func=cmd_inject_header)
 
     p_figs = sub.add_parser(
         "inject-figures",

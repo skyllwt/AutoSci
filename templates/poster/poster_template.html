@@ -59,6 +59,33 @@ body{
   gap: var(--gap);
 }
 
+.title-block{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.logo-affiliation{
+  flex: 0 0 auto;
+  display: none;
+  max-width: 180px;
+  max-height: 96px;
+  align-items: center;
+  justify-content: center;
+}
+.logo-affiliation:not(:empty){ display: flex; }
+.logo-affiliation img{
+  max-width: 100%;
+  max-height: 96px;
+  object-fit: contain;
+}
+
+.title-text{
+  flex: 1;
+  min-width: 0;
+}
+
 .title{
   margin: 0;
   font-size: 28px;
@@ -73,11 +100,34 @@ body{
 .conf{
   border-left: 3px solid var(--border);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 42px;
+  gap: 6px;
+  padding: 4px;
+}
+
+.conf .venue{
+  font-size: 32px;
   font-weight: 800;
   font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.05;
+  text-align: center;
+}
+.conf .venue:empty{ display: none; }
+
+.logo-conference{
+  display: none;
+  max-width: 100%;
+  max-height: 96px;
+  align-items: center;
+  justify-content: center;
+}
+.logo-conference:not(:empty){ display: flex; }
+.logo-conference img{
+  max-width: 100%;
+  max-height: 96px;
+  object-fit: contain;
 }
 
 /* ===== Main ===== */
@@ -162,11 +212,17 @@ body{
 <div class="poster">
 
   <header class="header">
-    <div>
-      <h1 class="title">Paper Title</h1>
-      <div class="authors">Anonymous Authors</div>
+    <div class="title-block">
+      <div class="logo-affiliation" data-slot="affiliation"></div>
+      <div class="title-text">
+        <h1 class="title">Paper Title</h1>
+        <div class="authors">Anonymous Authors</div>
+      </div>
     </div>
-    <div class="conf">VENUE</div>
+    <div class="conf" data-slot="conf">
+      <div class="venue"></div>
+      <div class="logo-conference" data-slot="conference"></div>
+    </div>
   </header>
 
   <main class="main">
