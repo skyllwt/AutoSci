@@ -58,14 +58,26 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 - **Section**(`level: 1`):`name` 为章节标题,`content` 为完整正文,`visual_node` 为该章节引用的图片
 - **Visual**(`level: 2`):`name` 为 markdown 图片引用,`content` 为 caption,`resolution` 为 `WxH`
 
-### Step 2: 读取可选 wiki 上下文
+### Step 2: 编译 WIKI_CONTEXT(可选)
 
 若 `wiki/outputs/paper-plan-*.md` 存在,读取:
-- venue 名称(用于海报右上角徽章)
+- venue 名称(用于 Step 5 的 `inject-header`,当用户未显式提供时作为默认值)
 - 叙事弧线与证据图
 - 关联的 idea slug 列表
 
-对每个 idea slug,读取 `wiki/ideas/<slug>.md` 取假设陈述与新颖性论证;读取关联的 `wiki/experiments/*.md` 取结果数值。这些信息为 Step 3 的提炼提供更丰富的上下文,但不是必须的。
+对每个 idea slug,读取 `wiki/ideas/<slug>.md` 的假设(hypothesis)与新颖性论证;对关联的 `wiki/experiments/*.md`,读取 `outcome` 与 `key_result` 字段。把这些信息按章节聚合成一个 `WIKI_CONTEXT` 字符串:
+
+```
+[INTRODUCTION]
+hypothesis: <来自 idea 的一句话>
+novelty: <来自 idea 的一句话>
+
+[EXPERIMENTS]
+key_result: <来自 experiments 的关键数值>
+outcome: <一句话总结>
+```
+
+此字符串通过 Step 3 提示词中的 `{WIKI_CONTEXT}` 槽位传入。若无 wiki 上下文,该槽位留空 —— 提示词显式允许此情况。
 
 ### Step 3: 选择并提炼海报章节
 
@@ -81,25 +93,44 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 
 对每个选中的章节,选取最佳配图:从该章节的 `visual_node` 列表中,挑选 `resolution`(W×H 面积)最大的视觉节点。若章节没有 visual,则该 section 无图。
 
-对每个章节,使用以下提示词生成**唯一**一个 `<section class="section">` HTML 块(改写自 PaperX,Claude 直接执行此提示):
+对每个选中的章节,先准备以下变量供提示词使用:
 
-> **Prompt**: You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON has NO `visual_node` field and must be treated as authoritative.
+- `SECTION_JSON`:从 `poster/dag.json` 取该 section 节点,**去掉** `visual_node` 字段(visual 单独传入)。只保留 `name`, `content`, `level`。
+- `HAS_VISUAL`:有分配 visual 时为 `true`,否则 `false`。
+- `IMAGE_SRC`:例如 `images/layer_curves.png`,来自选中 visual 节点的 `name`(去掉 `![](...)` 外壳)。无 visual 时为空字符串。
+- `ALT_TEXT`:选中 visual 节点的 `content`(caption)。无 visual 时为空。
+- `WIKI_CONTEXT`(可选):Step 2 编译出的字符串。无 wiki 上下文时为空字符串。
+
+调用如下提示词(逐字移植自 PaperX `poster_outline_prompt`,加入 `WIKI_CONTEXT` 扩展):
+
+> You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON you see has NO `visual_node` field and must be treated as authoritative.
 >
-> If a visual is available, you are also given IMAGE_SRC (e.g. `images/foo.png`) and ALT_TEXT (the caption).
+> SECTION_JSON:
+> {SECTION_JSON}
+>
+> HAS_VISUAL: {HAS_VISUAL}
+>
+> If HAS_VISUAL is true, you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+>
+> IMAGE_SRC: {IMAGE_SRC}
+> ALT_TEXT: {ALT_TEXT}
+>
+> WIKI_CONTEXT (optional, may be empty — use it ONLY to ground concrete numbers/claims, never to invent content not in the section):
+> {WIKI_CONTEXT}
 >
 > **Task**:
-> 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence to minimize perplexity.
+> 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence and smooth transitions to minimize perplexity.
 > 2. Output EXACTLY ONE HTML section block in the required template below. Output ONLY the HTML and nothing else.
 >
 > **Strict output rules**:
 > - Output only ONE `<section class="section">...</section>` block.
 > - Do NOT add markdown fences, explanations, or extra text.
-> - The `<div class="section-bar">` must be the section title.
+> - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
-> - If a visual is provided AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly IMAGE_SRC and `alt` is ALT_TEXT.
-> - If no visual, do NOT output any img-section or img tag.
+> - If HAS_VISUAL is true AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - If HAS_VISUAL is false OR IMAGE_SRC is empty, do NOT output any `<div class="img-section">` or `<img>` tag.
 >
-> **Required HTML template**:
+> **Required HTML template**(包含 img-section 变体):
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
@@ -112,7 +143,7 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 > </section>
 > ```
 
-按 `shared-references/academic-writing.md` 做去 AI 风格化(变换句首、避免 "leverage"/"comprehensive"/"delve" 等 AI 签名词)。从 `wiki/experiments/<slug>.md` 拉取关键数值,让结果具体可信。
+按 `shared-references/academic-writing.md` 做去 AI 风格化(变换句首、避免 "leverage"/"comprehensive"/"delve" 等 AI 签名词)。从 `WIKI_CONTEXT` 拉取关键数值,让结果具体可信。
 
 按选择顺序将所有块写入 `poster/outline.html`。
 
@@ -146,7 +177,7 @@ python3 tools/poster.py inject-title \
   poster/poster.html
 ```
 
-若用户传入 `--anonymous`,在 inject-title 命令上加 `--anonymous`。
+`--anonymous` 已在 Step 1(`wiki2dag.py`)生效 —— `dag.json` 中的标题/作者已是最终值,`inject-title` 仅读取。
 
 ```bash
 python3 tools/poster.py inject-figures \
@@ -192,24 +223,24 @@ python3 tools/research_wiki.py log wiki/ \
 打印 POSTER_REPORT:
 
 ```markdown
-# Poster Report
+# 海报报告
 
-## Source
-- Paper: {title}
-- Authors: {authors}
-- Paper directory: {paper_dir}
+## 来源
+- 论文:{title}
+- 作者:{authors}
+- 论文目录:{paper_dir}
 
-## Generation
-- Sections included: {N}/{total available}
-- Figures embedded: {M}
-- PDF→PNG conversions: {K}
-- Review LLM: {invoked / skipped}
+## 生成情况
+- 包含章节:{N}/{可用总数}
+- 嵌入配图:{M}
+- PDF→PNG 转换:{K}
+- Review LLM:{已调用 / 已跳过}
 
-## Output
+## 输出
 - poster/poster.html ← 浏览器打开
 - poster/dag.json(中间产物,可被 /slides /pr 复用)
 
-## Notes
+## 备注
 - {警告项,如缺失图片、选中章节等}
 ```
 
@@ -230,6 +261,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **`\input{sections/...}` 未找到章节**:列出搜索过的路径,提示检查 `main.tex` 是否使用了非标准的 section include。
 - **没有图片引用**:文本-only 章节继续渲染;在 POSTER_REPORT 中给出警告。
 - **`pdftoppm` 未安装**:PDF 图无法转 PNG;提示 `brew install poppler`(macOS)或 `apt install poppler-utils`(Linux)。海报仍能渲染但这些图会显示为 broken img。
+- **嵌套图路径**(如 `paper/figures/exp1/foo.pdf`):桥接工具会扁平化为 `images/foo.png`,且图片解析只在 `paper/figures/` 顶层查找。若多个图片跨子目录同名,后者会覆盖前者。当前仅支持扁平的 `paper/figures/` 布局。
 - **`PIL`/Pillow 未安装**:图片分辨率无法计算,`dag.json` 的 visuals `resolution` 为空;poster_outline_prompt 的 "最高分辨率优先" 规则失效,Claude 按章节顺序选图。提示 `pip install Pillow`。
 - **validate 失败**:把所有问题写入 stderr,不删除已有输出。用户改正 outline 后从 Step 5 继续。
 - **Review LLM 不可用**:跳过 Step 6,在报告中标注,继续。

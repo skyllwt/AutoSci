@@ -59,14 +59,26 @@ The bridge produces three node types:
 - **Section** (`level: 1`): section heading in `name`, full prose in `content`, figure refs in `visual_node`
 - **Visual** (`level: 2`): markdown image ref in `name`, caption in `content`, `WxH` in `resolution`
 
-### Step 2: Read optional wiki context
+### Step 2: Compile WIKI_CONTEXT (optional)
 
 If `wiki/outputs/paper-plan-*.md` exists, read it for:
-- Venue name (used for poster header badge)
+- Venue name (passed to `inject-header` in Step 5 if the user did not supply one)
 - Narrative arc and evidence map
 - Linked idea slugs
 
-For each linked idea slug, read `wiki/ideas/<slug>.md` for the hypothesis statement and novelty argument. Read linked `wiki/experiments/*.md` for outcome numbers and key results. These enrich the distillation prompts in Step 3 but are not required.
+For each linked idea slug, read `wiki/ideas/<slug>.md` for the hypothesis statement and novelty argument. For linked `wiki/experiments/*.md`, read the `outcome` and `key_result` fields. Assemble these into a single `WIKI_CONTEXT` string keyed by section:
+
+```
+[INTRODUCTION]
+hypothesis: <one sentence from idea>
+novelty: <one sentence from idea>
+
+[EXPERIMENTS]
+key_result: <headline numbers from experiments>
+outcome: <one line summary>
+```
+
+This block is passed into the Step 3 prompt under the `{WIKI_CONTEXT}` slot. If no wiki context is available, the slot is left empty — the prompt explicitly tolerates that.
 
 ### Step 3: Select and distill poster sections
 
@@ -82,25 +94,44 @@ Select up to `--max-sections` sections (default 6) following this priority:
 
 For each selected section, locate the best visual: from the section's `visual_node` list, pick the visual node with the largest `resolution` (W×H area). If no visuals are referenced, the section has no figure.
 
-For each section, generate **one** `<section class="section">` HTML block using the following prompt (adapted from PaperX, content-only — Claude executes this directly):
+For each selected section, prepare the variables for the prompt below:
 
-> **Prompt**: You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON has NO `visual_node` field and must be treated as authoritative.
+- `SECTION_JSON`: the section node from `poster/dag.json` with the `visual_node` field **removed** (the visual is conveyed separately). Keep only `name`, `content`, `level`.
+- `HAS_VISUAL`: `true` if a visual was assigned, else `false`.
+- `IMAGE_SRC`: e.g. `images/layer_curves.png`, taken from the chosen visual node's `name` (strip the `![](...)` wrapper). Empty string if no visual.
+- `ALT_TEXT`: the chosen visual node's `content` (caption). Empty if no visual.
+- `WIKI_CONTEXT` (optional): a short block compiled from Step 2 — hypothesis statement, novelty argument, key-result numbers from linked ideas/experiments. Empty string if no wiki context was loaded.
+
+Run the following prompt (ported verbatim from PaperX `poster_outline_prompt`, with the `WIKI_CONTEXT` extension):
+
+> You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON you see has NO `visual_node` field and must be treated as authoritative.
 >
-> If a visual is available, you are also given IMAGE_SRC (e.g. `images/foo.png`) and ALT_TEXT (the caption).
+> SECTION_JSON:
+> {SECTION_JSON}
+>
+> HAS_VISUAL: {HAS_VISUAL}
+>
+> If HAS_VISUAL is true, you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+>
+> IMAGE_SRC: {IMAGE_SRC}
+> ALT_TEXT: {ALT_TEXT}
+>
+> WIKI_CONTEXT (optional, may be empty — use it ONLY to ground concrete numbers/claims, never to invent content not in the section):
+> {WIKI_CONTEXT}
 >
 > **Task**:
-> 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence to minimize perplexity.
+> 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence and smooth transitions to minimize perplexity.
 > 2. Output EXACTLY ONE HTML section block in the required template below. Output ONLY the HTML and nothing else.
 >
 > **Strict output rules**:
 > - Output only ONE `<section class="section">...</section>` block.
 > - Do NOT add markdown fences, explanations, or extra text.
-> - The `<div class="section-bar">` must be the section title.
+> - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
-> - If a visual is provided AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly IMAGE_SRC and `alt` is ALT_TEXT.
-> - If no visual, do NOT output any img-section or img tag.
+> - If HAS_VISUAL is true AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - If HAS_VISUAL is false OR IMAGE_SRC is empty, do NOT output any `<div class="img-section">` or `<img>` tag.
 >
-> **Required HTML template**:
+> **Required HTML template** (with the img-section variant):
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
@@ -113,7 +144,7 @@ For each section, generate **one** `<section class="section">` HTML block using 
 > </section>
 > ```
 
-Apply de-AI polish per `shared-references/academic-writing.md` (vary sentence openings, drop signature words like "leverage", "comprehensive", "delve"). Pull headline numbers from `wiki/experiments/<slug>.md` when relevant — these make poster results concrete.
+Apply de-AI polish per `shared-references/academic-writing.md` (vary sentence openings, drop signature words like "leverage", "comprehensive", "delve"). Pull headline numbers from `WIKI_CONTEXT` when present — these make poster results concrete.
 
 Write all blocks (in selection order) to `poster/outline.html`.
 
@@ -147,7 +178,7 @@ python3 tools/poster.py inject-title \
   poster/poster.html
 ```
 
-Add `--anonymous` to inject-title if the user passed it.
+The `--anonymous` flag is applied at Step 1 (`wiki2dag.py`) — `dag.json` already carries the canonical title/authors, so `inject-title` just reads.
 
 ```bash
 python3 tools/poster.py inject-figures \
@@ -231,6 +262,7 @@ Print POSTER_REPORT:
 - **No sections found in `\input{sections/...}`**: error with the list of files searched; suggest checking `main.tex` for non-standard section includes.
 - **No figures referenced**: continue with text-only sections; warn in POSTER_REPORT.
 - **`pdftoppm` not installed**: PDF figures fail to convert; warn and suggest `brew install poppler` (macOS) or `apt install poppler-utils` (Linux). The poster will still render but with broken image refs for those figures.
+- **Nested figure paths** (`paper/figures/exp1/foo.pdf`): the bridge currently flattens to `images/foo.png` and the figure resolver looks only in `paper/figures/`. If two figures across nested dirs share the same basename, the second one wins. Flat `paper/figures/` is the supported layout for now.
 - **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — Claude picks by section order instead. Suggest `pip install Pillow`.
 - **Validation fails**: print all issues to stderr; do not delete the partial output. User can fix the outline and re-run from Step 5.
 - **Review LLM unreachable**: skip Step 6, note in report, continue.
