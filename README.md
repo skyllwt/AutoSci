@@ -117,6 +117,10 @@
 
 ## 🆕 What's New
 
+### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
+
+Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for *your* research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
+
 ### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
 
 Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.

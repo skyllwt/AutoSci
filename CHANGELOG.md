@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-12
+
+### Added
+
+- **`/discover` venue mode** (`--venue <slug> --year <int>`): rank a conference's full paper list by relevance to the existing wiki. Data source is [`papercopilot/paperlists`](https://github.com/papercopilot/paperlists) public JSON — no Semantic Scholar / DeepXiv calls, no extra API keys. Supports NeurIPS (slug `neurips` aliases to `nips`), ICLR, ICML, and any other venue covered by Paper Copilot.
+- 20 unit tests in `.sleepcode/tests/test_discover_from_venue.py` covering URL aliasing, JSON normalization, transient-failure retry, title-based dedup, sparse-wiki guard, and the no-write contract.
+
+### Changed
+
+- `/discover` skill argument-hint expanded from 3 to 4 seed modes (anchor / topic / wiki / venue) across `.claude/`, `i18n/en/`, and `i18n/zh/`. References (`seed-modes.md`, `ranking-signals.md`, `wiki-dedup.md`) updated for venue-mode picking, scoring, and title-based dedup against candidates that lack arXiv IDs.
+- Venue mode is stricter than other `/discover` modes: it does **not** write to `wiki/` at all, including `wiki/log.md`. Sparse wikis (< 20 unique relevance terms) fail with an actionable error rather than returning an unpersonalized ranking.
+
 ## [1.1.0] - 2026-05-06
 
 ### Added
