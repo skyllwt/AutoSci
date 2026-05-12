@@ -274,8 +274,15 @@ def _edge_key(edge: dict) -> tuple[str, str, str]:
 
 def add_edge(wiki_root: str, from_id: str, to_id: str,
              edge_type: str, evidence: str = "", confidence: str = "",
-             symmetric: bool = False) -> None:
-    """Append a typed edge to graph/edges.jsonl with dedup and entity validation."""
+             symmetric: bool = False, metadata: dict | None = None) -> None:
+    """Append a typed edge to graph/edges.jsonl with dedup and entity validation.
+
+    metadata: optional dict of typed per-edge attributes (bio-B2/B3 typed metadata,
+    e.g. {"version": "v1"} or {"nct_id": "NCT04567890", "phase": "II"}). Serialized
+    into the edge JSON as a nested "metadata" object when non-empty. Schema-level
+    validation of nested metadata against edges.yaml is deferred — the CLI accepts
+    arbitrary KEY=VALUE pairs for now.
+    """
     if edge_type not in VALID_EDGE_TYPES:
         print(json.dumps({
             "status": "error",
@@ -346,6 +353,8 @@ def add_edge(wiki_root: str, from_id: str, to_id: str,
         edge["confidence"] = confidence
     if is_symmetric:
         edge["symmetric"] = True
+    if metadata:
+        edge["metadata"] = metadata
 
     with open(edges_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(edge, ensure_ascii=False) + "\n")
@@ -2340,6 +2349,11 @@ def main():
     p.add_argument("--confidence", default="",
                    choices=["", *sorted(EDGE_CONFIDENCE_VALUES)])
     p.add_argument("--symmetric", action="store_true")
+    # bio-B2/B3 typed metadata: repeatable --metadata KEY=VALUE.
+    # Example: --metadata version=v1 --metadata nct_id=NCT04567890
+    p.add_argument("--metadata", action="append", default=[],
+                   metavar="KEY=VALUE",
+                   help="Typed edge metadata (repeatable). Example: --metadata version=v1")
 
     # add-citation
     p = sub.add_parser("add-citation", help="Add paper citation to graph/citations.jsonl")
@@ -2495,9 +2509,17 @@ def main():
     elif args.command == "slug":
         print(slugify(args.title))
     elif args.command == "add-edge":
+        metadata: dict = {}
+        for pair in args.metadata:
+            if "=" not in pair:
+                print(json.dumps({"status": "error",
+                                  "message": f"--metadata expects KEY=VALUE, got {pair!r}"}))
+                sys.exit(1)
+            k, v = pair.split("=", 1)
+            metadata[k.strip()] = v.strip()
         add_edge(args.wiki_root, args.from_id, args.to_id,
                  args.edge_type, args.evidence, args.confidence,
-                 args.symmetric)
+                 args.symmetric, metadata or None)
     elif args.command == "add-citation":
         add_citation(args.wiki_root, args.from_id, args.to_id, args.source)
     elif args.command == "rebuild-context-brief":
