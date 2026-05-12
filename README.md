@@ -115,6 +115,84 @@
 
 ---
 
+## Bio-Adaptation Fork
+
+> **ΩmegaWiki / bio-adaptation — PTM-aware degrader · structural biology · ML for molecules.** A bioinformatics-shaped fork of upstream ΩmegaWiki, driven through a real PTM-aware degrader nomination workflow and hardened against the CS-shaped assumptions that workflow surfaced.
+
+<div align="center">
+<img src="assets/demo.gif" width="800" alt="Bio-adaptation demo (≈50s walkthrough)">
+<br>
+<sub>30–60s walkthrough — lint sweep → SPA knowledge graph → DeepSeek ranking → final digest. Storyboard in <a href="docs/bio-adaptation/DEMO_PLAN.en.md">DEMO_PLAN.en.md</a>.</sub>
+</div>
+
+### What this fork changes
+
+| | Upstream ΩmegaWiki | Bio-adaptation fork |
+|---|---|---|
+| **Domain shape** | CS / AI — arXiv-shaped papers, `claims/` ledger | Bioinformatics — DOI/PMID/bioRxiv first-class, `datasets/` as 10th entity type |
+| **Evidence verbs** | `supports`, `contradicts`, `tested_by`, `invalidates` | + `wet_lab_validated`, `clinical_validated`, `mechanistic_basis`, `correlative`, `predicts`, optional GRADE |
+| **Graph edges** | paper-paper, paper-concept, claim/experiment | + bio relations (`targets_protein`, `binds`, `degrades`, `phosphorylates`, `ubiquitinates`, …), validation/translation (`clinical_trial_for`, `fda_approved_for`), dataset-version provenance |
+| **Experiment cost** | single `estimated_hours` | structured: `gpu_hours`, `cpu_hours`, `md_wallclock_hours`, `wet_lab_usd`, `fte_weeks`, `dataset_access_lead_time_days` |
+| **Skill prompts** | CS examples | bio NER pre-pass in `/ingest`, MD/wet-lab budgeting in `/exp-design`, GRADE weighting in `/novelty`, result-first writing in `/paper-draft`, …  |
+| **Worked example** | LLM papers, LoRA, flash-attention | 11 papers covering AlphaFold 2/3, PTM site prediction, E3 ligase platforms, geometric DL for molecules; 22 ideas, 8 designed experiments, 73 graph edges |
+
+Full per-item rationale and lint metrics across the migration: [`docs/bio-adaptation/REPORT.en.md`](docs/bio-adaptation/REPORT.en.md)（中文：[`REPORT.zh.md`](docs/bio-adaptation/REPORT.zh.md)）.
+
+<div align="center">
+<img src="assets/canvas-ptm-focus.png" width="800" alt="Obsidian Canvas — PTM-aware degrader neighborhood (23 nodes / 27 edges)">
+<br>
+<sub>PTM-aware degrader neighborhood — exported from <code>wiki/canvases/focus-ideas-ptm-aware-degrader-target-nomination.canvas</code>.</sub>
+</div>
+
+### Try the demo locally
+
+```bash
+# 0. clone, set up .venv (see Quick Start below for the full setup)
+git clone https://github.com/skyllwt/OmegaWiki.git && cd OmegaWiki
+
+# 1. lint the wiki — 0 🔴 / 0 🟡 / 11 🔵 informational
+.venv/bin/python tools/lint.py
+
+# 2. open the SPA knowledge graph (63 nodes / 66 edges)
+.venv/bin/python tools/serve.py   # then visit http://127.0.0.1:8765/
+
+# 3. run the daily-arxiv demo — DeepSeek ranks 9 candidate papers
+bash demo/run-demo.sh             # writes examples/output/digest.md
+
+# 4. pre-rendered output (no API call needed)
+cat examples/output/digest-sample.md
+```
+
+Skipping step 3 because no DeepSeek key? `examples/output/digest-sample.md` is the verbatim output of a real LLM-ranked run on `demo/sample-feed.json` — no API quota consumed.
+
+### See the pilot-merged bio features live
+
+These commands prove the **2026-05-11 pilot merge (A1 minimal + A5 slice + A6)** is live in your local checkout:
+
+```bash
+# 1. Confirm datasets/ is the 10th entity type (was 9 in upstream)
+.venv/bin/python -c "from runtime.loader import ENTITY_DIRS; print(len(ENTITY_DIRS), ENTITY_DIRS)"
+# → 10 ['papers', 'concepts', 'topics', 'people', 'ideas', 'methods', 'experiments', 'Summary', 'foundations', 'datasets']
+
+# 2. Inspect the first dataset page — version history, access tier, used-by experiments
+cat wiki/datasets/ternarydb.md
+
+# 3. See the wikilinked setup.dataset on one experiment, plain string on the seven siblings
+grep -A1 "^setup:" wiki/experiments/deepternary-baseline-ternarydb-crbn-vhl-reproduction.md | tail -2
+grep -A1 "^setup:" wiki/experiments/phase0-noise-floor-calibration-deepternary-ptm-perturbations.md | tail -2
+
+# 4. See the structured cost block — note md_wallclock_hours separately accounted on the MD ablation
+grep -A6 "^estimated_cost:" wiki/experiments/ablation-boltz2-ptm-vs-md-relaxed-route.md
+
+# 5. Verify lint stays clean across the pilot merge
+.venv/bin/python tools/lint.py
+# → Lint: 0 🔴, 0 🟡, 11 🔵
+```
+
+For the full report (motivation, integration timeline, schema migration table, lint metrics, future work) see [**`docs/bio-adaptation/REPORT.en.md`**](docs/bio-adaptation/REPORT.en.md)（中文版：[`REPORT.zh.md`](docs/bio-adaptation/REPORT.zh.md)）.
+
+---
+
 ## What is ΩmegaWiki?
 
 Andrej Karpathy proposed LLM-Wiki: an LLM that **builds and maintains a persistent, structured wiki** from your sources — not a throwaway RAG answer, but compounding knowledge that grows smarter with every paper you feed it.
@@ -462,6 +540,84 @@ Scan to join the ΩmegaWiki WeChat group / 扫码加入微信交流群
 ---
 
 ## 中文
+
+### 生信适配分支
+
+> **ΩmegaWiki / bio-adaptation — PTM-aware degrader · 结构生物学 · ML for molecules。** 这是上游 ΩmegaWiki 的生信形态分支。我们用一次真实的 PTM-aware degrader 目标提名工作流把 wiki 跑通，并针对该工作流暴露出来的 CS-shaped 假设做了系统性硬化。
+
+<div align="center">
+<img src="assets/demo.gif" width="800" alt="生信适配 demo（约 50 秒走查）">
+<br>
+<sub>30–60 秒走查 —— lint 扫描 → SPA 知识图 → DeepSeek 排序 → 最终 digest。分镜见 <a href="docs/bio-adaptation/DEMO_PLAN.zh.md">DEMO_PLAN.zh.md</a>。</sub>
+</div>
+
+#### 这个 fork 改了什么
+
+| | 上游 ΩmegaWiki | 生信适配 fork |
+|---|---|---|
+| **领域形状** | CS / AI —— arXiv 形态的论文、`claims/` 账本 | 生物信息 —— DOI / PMID / bioRxiv 一等公民，`datasets/` 成为第 10 种实体 |
+| **Evidence 动词** | `supports`、`contradicts`、`tested_by`、`invalidates` | + `wet_lab_validated`、`clinical_validated`、`mechanistic_basis`、`correlative`、`predicts`，可选 GRADE 等级 |
+| **Graph 边** | paper-paper、paper-concept、claim/experiment | + bio relation（`targets_protein`、`binds`、`degrades`、`phosphorylates`、`ubiquitinates`、…）、validation / translation（`clinical_trial_for`、`fda_approved_for`）、dataset-version provenance |
+| **实验成本字段** | 单一 `estimated_hours` | 结构化：`gpu_hours`、`cpu_hours`、`md_wallclock_hours`、`wet_lab_usd`、`fte_weeks`、`dataset_access_lead_time_days` |
+| **Skill prompt** | CS 风格示例 | `/ingest` 加入 bio NER 预扫；`/exp-design` 支持 MD / 湿实验预算；`/novelty` 用 GRADE 加权；`/paper-draft` 切换为 result-first 写法；… |
+| **演示用例** | LLM 论文、LoRA、flash-attention | 11 篇论文覆盖 AlphaFold 2/3、PTM 位点预测、E3 ligase 平台、面向分子的几何深度学习；22 ideas、8 实验、73 graph 边 |
+
+逐条理由和迁移过程中的 lint 数据：[`docs/bio-adaptation/REPORT.zh.md`](docs/bio-adaptation/REPORT.zh.md)（English：[`REPORT.en.md`](docs/bio-adaptation/REPORT.en.md)）。
+
+<div align="center">
+<img src="assets/canvas-ptm-focus.png" width="800" alt="Obsidian Canvas — PTM-aware degrader 邻域（23 节点 / 27 边）">
+<br>
+<sub>PTM-aware degrader 邻域 —— 由 <code>wiki/canvases/focus-ideas-ptm-aware-degrader-target-nomination.canvas</code> 导出。</sub>
+</div>
+
+#### 本地试一下
+
+```bash
+# 0. clone，配 .venv（完整安装步骤见下方"快速开始"）
+git clone https://github.com/skyllwt/OmegaWiki.git && cd OmegaWiki
+
+# 1. lint wiki —— 0 🔴 / 0 🟡 / 11 🔵（仅信息性提示）
+.venv/bin/python tools/lint.py
+
+# 2. 打开 SPA 知识图（63 节点 / 66 边）
+.venv/bin/python tools/serve.py   # 然后访问 http://127.0.0.1:8765/
+
+# 3. 跑 daily-arxiv demo —— DeepSeek 对 9 篇候选论文排序
+bash demo/run-demo.sh             # 写入 examples/output/digest.md
+
+# 4. 预渲染输出（无需调用 API）
+cat examples/output/digest-sample.md
+```
+
+没有 DeepSeek key、想跳过第 3 步？`examples/output/digest-sample.md` 是真实 LLM 排序跑出来的输出（基于 `demo/sample-feed.json`），不消耗任何 API 配额。
+
+#### 现场验证 pilot-merge 后的生信功能
+
+下面这 5 条命令直接证明 **2026-05-11 pilot merge（A1 minimal + A5 切片 + A6）** 已在你本地 checkout 中 live：
+
+```bash
+# 1. 确认 datasets/ 是第 10 种实体类型（上游为 9 种）
+.venv/bin/python -c "from runtime.loader import ENTITY_DIRS; print(len(ENTITY_DIRS), ENTITY_DIRS)"
+# → 10 ['papers', 'concepts', 'topics', 'people', 'ideas', 'methods', 'experiments', 'Summary', 'foundations', 'datasets']
+
+# 2. 查看第一个 dataset 页面：版本历史、access tier、被哪些实验使用
+cat wiki/datasets/ternarydb.md
+
+# 3. 看一个实验的 setup.dataset 是 wikilink，而它的 7 个 sibling 仍是裸字符串
+grep -A1 "^setup:" wiki/experiments/deepternary-baseline-ternarydb-crbn-vhl-reproduction.md | tail -2
+grep -A1 "^setup:" wiki/experiments/phase0-noise-floor-calibration-deepternary-ptm-perturbations.md | tail -2
+
+# 4. 看结构化 cost 块——注意 md_wallclock_hours 在 MD 消融实验里单独计入
+grep -A6 "^estimated_cost:" wiki/experiments/ablation-boltz2-ptm-vs-md-relaxed-route.md
+
+# 5. 验证 lint 在 pilot merge 后仍干净
+.venv/bin/python tools/lint.py
+# → Lint: 0 🔴, 0 🟡, 11 🔵
+```
+
+完整 report（动机、整合时间线、schema 迁移表、lint 指标、后续工作）见 [**`docs/bio-adaptation/REPORT.zh.md`**](docs/bio-adaptation/REPORT.zh.md)（English：[`REPORT.en.md`](docs/bio-adaptation/REPORT.en.md)）。
+
+---
 
 ### ΩmegaWiki 是什么？
 
