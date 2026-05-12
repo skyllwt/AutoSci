@@ -50,11 +50,11 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/experiments/*.md` — 同一 idea 的其他实验（参考 setup、避免重复错误）
 
 ### Writes
-- `experiments/code/{slug}/` — 实验代码目录（Phase 1 生成，deploy / full 模式）
-  - `experiments/code/{slug}/train.py` — 主训练/推理脚本
-  - `experiments/code/{slug}/config.yaml` — 超参数配置文件
-  - `experiments/code/{slug}/run.sh` — 启动封装脚本（含 CUDA_VISIBLE_DEVICES 等）
-  - `experiments/code/{slug}/requirements.txt` — 依赖（若与主项目不同）
+- `experiments/code/{slug}/` — 实验代码目录（Phase 1 生成，deploy / full 模式）。布局按实验 A5-full setup 字段决定（bio-C7 minimal pilot 2026-05-12 合并），路由规则与每种布局的文件清单见 Phase 1 Step 3：
+  - **ML 布局**（默认）：`train.py`、`config.yaml`、`run.sh`、`requirements.txt`
+  - **MD 布局**（`setup.assay_type` 匹配 `\bMD\b|molecular dynamics`）：`mdrun.sh`、`system.{gro,pdb}`、`system.top`、`mdp/{em,nvt,npt,md}.mdp`、`analyze.py`、`requirements.txt`
+  - **Docking 布局**（`setup.assay_type` 含 `docking`）：`dock.sh`、`receptor.pdb`、`ligands.sdf`、`config.yaml`、`analyze.py`、`requirements.txt`
+  - **Wet-lab 布局**（`setup.in_silico_or_wet == "wet_lab"`）：`protocol.md`、`analysis.ipynb`、`data/`、`figures/`、`requirements.txt`
 - `wiki/experiments/{slug}.md` — 更新 status、outcome、key_result、date_completed、run_log、remote 块
 - `wiki/log.md` — 追加操作日志
 
@@ -72,7 +72,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 **Phase 1: 准备（Prepare）**
 
 1. **读取实验页面**：
-   - `wiki/experiments/{slug}.md`：提取 setup（model, dataset, hardware, framework）、metrics、baseline、hypothesis
+   - `wiki/experiments/{slug}.md`：提取 setup（model, dataset, hardware, framework）、metrics、baseline、hypothesis。存在时一并读取 A5-full bio 字段：`setup.in_silico_or_wet`、`setup.assay_type`、`setup.force_field`、`setup.solvent_model`、`setup.simulation_length`、`setup.species`、`setup.cell_line`、`setup.weight_version`、`setup.random_seed_protocol` —— 这些驱动 Step 3 的 setup-type 路由（bio-C7 minimal pilot）。
    - 验证 status == `planned`
    - 若 status 为 `running`，提示用户使用 `--collect` 模式
    - 若 status 为 `completed`/`abandoned`，拒绝执行
@@ -82,19 +82,49 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - 读取相关论文的方法描述（算法细节）
    - 读取同一 idea 的其他实验（参考代码结构）
 
-3. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
-   - `train.py`：根据 setup 配置生成训练/评估脚本，包含：
-     - 参数解析（argparse，所有超参数可配置）
-     - 数据加载（支持 setup.dataset）
-     - 模型初始化（支持 setup.model 和 baseline 模型）
-     - 训练/推理循环
-     - 指标计算（对应 metrics 列表）
-     - 结果保存（JSON 格式，路径：`results/{slug}/seed_{N}.json`）
-     - 随机种子控制（多 seed 运行）
-     - Checkpoint 保存/恢复（`checkpoints/{slug}/`）
-   - `config.yaml`：所有超参数（learning_rate, batch_size, epochs, seeds 等）
-   - `run.sh`：封装完整启动命令（含 CUDA_VISIBLE_DEVICES、logging、conda 激活）
-   - `requirements.txt`：实验专属依赖（若与主项目 requirements 不同）
+3. **编写实验代码**，写入 `experiments/code/{slug}/`。
+
+   **Setup-type 路由**（bio-C7 minimal pilot 2026-05-12 合并）—— 按 A5-full setup 字段选布局：
+
+   ```
+   if setup.in_silico_or_wet == "wet_lab":                  → wet-lab 布局
+   elif setup.assay_type 匹配 \bMD\b|molecular dynamics:    → MD 布局
+   elif setup.assay_type 含 "docking":                       → docking 布局
+   else（默认,含 in_silico/mixed 但非 MD/docking,或字段空）：→ ML 布局（current）
+   ```
+
+   `setup.in_silico_or_wet == "mixed"` 时,默认按 in-silico 路由;湿实验侧非平凡时再 scaffold 一个并列的 `wet-lab/` 子目录。
+
+   **ML 布局**（默认 —— 向后兼容）：
+   - `train.py`：训练/评估脚本（argparse;按 `setup.dataset` 加载数据;按 `setup.model` 与 baseline 初始化模型;训练/推理循环;指标计算;JSON 结果保存到 `results/{slug}/seed_{N}.json`;多 seed 控制;Checkpoint 在 `checkpoints/{slug}/`）
+   - `config.yaml`：全部超参数（learning_rate、batch_size、epochs、seeds、……）
+   - `run.sh`：启动封装（CUDA_VISIBLE_DEVICES、logging、conda 激活）
+   - `requirements.txt`：实验专属依赖
+
+   **MD 布局**（`setup.assay_type` 匹配 MD 时）：
+   - `mdrun.sh`：启动封装 —— 按 `setup.framework` 选 GROMACS（`gmx grompp` + `gmx mdrun`）或 OpenMM Python runner;力场参数来自 `setup.force_field`;模拟时长来自 `setup.simulation_length`;seed 预算来自 `setup.random_seed_protocol`
+   - `system.gro`（GROMACS）或 `system.pdb`（OpenMM / 通用）：初始结构;PROTAC 三元复合体应在内联注释中标出源 PDB / AlphaFold-DB 版本
+   - `system.top`：与 `setup.force_field` 一致的 topology（如 phospho 残基 MD 用 AMBER ff14SB + phosaa14SB）
+   - `mdp/em.mdp`、`mdp/nvt.mdp`、`mdp/npt.mdp`、`mdp/md.mdp`（GROMACS）：能量最小化 + 等温等容 + 等温等压 + 生产参数;production 长度与 `setup.simulation_length` 一致。OpenMM 时改为单一 `system_setup.py` 构造 System。
+   - `analyze.py`：轨迹分析（RMSD / RMSF / 残基距离 / 界面 SASA,按 hypothesis 选）;JSON 结果写到 `results/{slug}/seed_{N}.json` 保持下游 `/exp-eval` consumer shape 一致
+   - `requirements.txt`：GROMACS / OpenMM / MDAnalysis / mdtraj 任一
+
+   **Docking 布局**（`setup.assay_type` 含 "docking" 时）：
+   - `dock.sh`：启动封装 —— 按 `setup.framework` 选 AutoDock Vina / Glide / DiffDock;读 receptor + ligand,按 `setup.random_seed_protocol` 多 seed 运行,写 per-pose 分数
+   - `receptor.pdb`：预处理 receptor（一般是 POI;PROTAC docking 时是 Boltz-2 / AlphaFold-3 给出的 POI + E3 复合体）
+   - `ligands.sdf`：docking 化合物库（单或批）
+   - `config.yaml`：docking 参数（搜索盒中心 + 大小、exhaustiveness、scoring function、输出数）
+   - `analyze.py`：pose 排序 + 聚类;按 ML / MD route 一致的 shape 写 `results/{slug}/seed_{N}.json`
+   - `requirements.txt`：docking 框架 + RDKit + 分析库
+
+   **Wet-lab 布局**（`setup.in_silico_or_wet == "wet_lab"` 时）：
+   - `protocol.md`：完整流程 —— 试剂（含 RRID / Cellosaurus / Addgene ID,来自未来 A8 reproducibility 块）、分步指令、控制、预期 readouts。直接引用 `setup.assay_type`（Y2H / AP-MS / cryo-EM / NMR / binding_assay / …）、`setup.cell_line`、`setup.species`。
+   - `analysis.ipynb`：notebook 摄取 `data/` 下原始结果 CSV,按 C6 表的统计协议（bootstrap CI / stratified k-fold / bio×tech replicates,匹配 `setup.random_seed_protocol`）出汇总,写 `results/{slug}/run.json` 与 in-silico route 同 shape。
+   - `data/`：空占位（湿实验执行时填入;按数据共享策略 gitignore 或 commit）
+   - `figures/`：来自 `analysis.ipynb` 的图
+   - `requirements.txt`：仅分析所需的 pandas / scipy / matplotlib / seaborn 等 —— 湿实验本身无 Python 依赖
+
+   全部 4 种布局都把输出保持为 JSON shape,下游 `/exp-eval` verdict gate 与 `/paper-draft` consumer 不按 setup type 分支。完整 C7（`skills/exp-run/references/templates/{ml,md,wet-lab,docking}/` 下的具体模板文件）延后 —— 最小 pilot 由 agent 按上述文件清单 scaffold。
 
 4. **可选 Review LLM code review**（`--review`）：
    ```
@@ -128,10 +158,11 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 #### Local 模式（`--env local` 或默认）
 
 1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够
-2. **启动**：
+2. **启动** —— entry-point 名按 setup-type 布局选（bio-C7 minimal pilot）：`run.sh`（ML,默认）、`mdrun.sh`（MD）、`dock.sh`（docking）。Wet-lab 实验**不**自动启动 —— `/exp-run` 仅 scaffold `protocol.md` 并提示用户手动执行,`data/` 填好后再 `--collect` 进入。
    ```bash
+   ENTRY=run.sh   # 按 Step 3 布局改 mdrun.sh / dock.sh
    screen -dmS exp-{slug} bash -c \
-     "cd $(pwd) && bash experiments/code/{slug}/run.sh 2>&1 | tee logs/exp-{slug}.log"
+     "cd $(pwd) && bash experiments/code/{slug}/${ENTRY} 2>&1 | tee logs/exp-{slug}.log"
    ```
 3. 更新 `wiki/experiments/{slug}.md`：
    - status: `running`
@@ -167,11 +198,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - 若无空闲 GPU → 报告各 GPU 占用情况，建议等待
 3. **同步代码**：`python3 tools/remote.py sync-code`
 4. **安装依赖**（首次或 requirements 有变化）：`python3 tools/remote.py setup-env`
-5. **启动远程实验**：
+5. **启动远程实验** —— entry-point 名按 Step 3 布局（`run.sh`/`mdrun.sh`/`dock.sh`;wet-lab 仅本地,不远程）：
    ```bash
+   ENTRY=run.sh   # 按 Step 3 布局
    python3 tools/remote.py launch \
      --name "exp-{slug}" \
-     --cmd "bash experiments/code/{slug}/run.sh" \
+     --cmd "bash experiments/code/{slug}/${ENTRY}" \
      --gpu {gpu_index}
    ```
 6. 更新 `wiki/experiments/{slug}.md` frontmatter —— 以下字段已由 /exp-design 写入完整 CLAUDE.md 模板,都是空值:

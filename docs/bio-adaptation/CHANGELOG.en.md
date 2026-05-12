@@ -2031,3 +2031,47 @@ metrics) deferred.
 | Active SKILL.md line count | 414 (up from 403) |
 
 Section C status: 7/9 → 8/9. Only C7 (/exp-run directory layout) remains.
+
+---
+
+## 2026-05-12 — C7 minimal pilot merge: `/exp-run` routes 4 directory layouts by setup type
+
+**Scope**: `/exp-run` Phase 1 Step 3 previously wrote a fixed ML-pipeline shape
+(`train.py + config.yaml + run.sh + requirements.txt`). The natural shape for MD is
+`mdrun.sh + system.{gro,pdb,top} + mdp/*.mdp`, for wet-lab it's `protocol.md +
+analysis.ipynb + data/`, for docking it's different again. C7 minimal routes to one of
+4 layouts based on the A5-full `setup.in_silico_or_wet` + `setup.assay_type` fields.
+**Status**: **C7 minimal merged as pure-prompt change**. Full C7 (concrete template files
+under `skills/exp-run/references/templates/{ml,md,wet-lab,docking}/`) deferred — minimal
+pilot uses file-list specs + agent scaffolding.
+**Section C closeout**: this lift takes Section C from 8/9 to **9/9 complete**.
+
+### Files touched
+
+- `i18n/{en,zh}/skills/exp-run/SKILL.md` + `.claude/skills/exp-run/SKILL.md`:
+  - **Writes** list expanded to enumerate all 4 layouts
+  - **Phase 1 Step 1** now reads the A5-full setup field set (in_silico_or_wet / assay_type /
+    force_field / solvent_model / simulation_length / species / cell_line / weight_version /
+    random_seed_protocol)
+  - **Phase 1 Step 3** gains a "Setup-type routing" block: if-tree (wet_lab → wet-lab;
+    MD pattern → MD; docking → docking; else → ML) + per-layout file descriptions, each
+    listing which A5-full setup fields it consumes. "mixed" defaults to in-silico routing;
+    sibling `wet-lab/` subdir when the wet side is non-trivial.
+  - **Local + Remote launch** parameterise an `ENTRY` variable (`run.sh` / `mdrun.sh` /
+    `dock.sh`). Wet-lab does NOT auto-launch — `/exp-run` just scaffolds and prompts the user
+    to execute manually, then `--collect` re-enters.
+  - All 4 layouts keep `results/{slug}/seed_{N}.json` shape so downstream `/exp-eval` and
+    `/paper-draft` consumers don't branch on setup type.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 |
+| `python tools/lint_bio.py` | 0 🔴 / 0 🟡 / 0 🔵 |
+| `diff -q i18n/en/skills/exp-run/SKILL.md .claude/skills/exp-run/SKILL.md` | identical |
+| `grep -c "mdrun.sh\|protocol.md\|dock.sh\|Setup-type routing" .claude/skills/exp-run/SKILL.md` | ≥ 6 |
+| Active SKILL.md line count | 436 (up from 403) |
+
+**Section C status: 8/9 → 9/9 complete**. All 9 Section C items of bio-adaptation are now
+merged (minimal or full).

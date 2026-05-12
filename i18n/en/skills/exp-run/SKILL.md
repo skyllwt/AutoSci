@@ -50,11 +50,11 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/experiments/*.md` — other experiments on the same idea (reference setup, avoid known mistakes)
 
 ### Writes
-- `experiments/code/{slug}/` — experiment code directory (Phase 1, deploy / full mode)
-  - `experiments/code/{slug}/train.py` — main training/inference script
-  - `experiments/code/{slug}/config.yaml` — hyperparameter config file
-  - `experiments/code/{slug}/run.sh` — launch wrapper script (includes CUDA_VISIBLE_DEVICES etc.)
-  - `experiments/code/{slug}/requirements.txt` — dependencies (if different from main project)
+- `experiments/code/{slug}/` — experiment code directory (Phase 1, deploy / full mode). Layout depends on the experiment's A5-full setup fields (bio-C7 minimal pilot merged 2026-05-12) — see Phase 1 Step 3 for the routing rule and per-layout file lists:
+  - **ML layout** (default): `train.py`, `config.yaml`, `run.sh`, `requirements.txt`
+  - **MD layout** (when `setup.assay_type` matches `\bMD\b|molecular dynamics`): `mdrun.sh`, `system.{gro,pdb}`, `system.top`, `mdp/{em,nvt,npt,md}.mdp`, `analyze.py`, `requirements.txt`
+  - **Docking layout** (when `setup.assay_type` matches `docking`): `dock.sh`, `receptor.pdb`, `ligands.sdf`, `config.yaml`, `analyze.py`, `requirements.txt`
+  - **Wet-lab layout** (when `setup.in_silico_or_wet == "wet_lab"`): `protocol.md`, `analysis.ipynb`, `data/`, `figures/`, `requirements.txt`
 - `wiki/experiments/{slug}.md` — update status, outcome, key_result, date_completed, run_log, remote block
 - `wiki/log.md` — append operation log
 
@@ -72,7 +72,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 **Phase 1: Prepare**
 
 1. **Read experiment page**:
-   - `wiki/experiments/{slug}.md`: extract setup (model, dataset, hardware, framework), metrics, baseline, hypothesis
+   - `wiki/experiments/{slug}.md`: extract setup (model, dataset, hardware, framework), metrics, baseline, hypothesis. Also read the A5-full bio fields when present: `setup.in_silico_or_wet`, `setup.assay_type`, `setup.force_field`, `setup.solvent_model`, `setup.simulation_length`, `setup.species`, `setup.cell_line`, `setup.weight_version`, `setup.random_seed_protocol` — these drive the Step 3 setup-type routing (bio-C7 minimal pilot).
    - Verify status == `planned`
    - If status is `running`, prompt user to use `--collect` mode
    - If status is `completed`/`abandoned`, refuse to execute
@@ -82,19 +82,50 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - Read related papers' method descriptions (algorithm details)
    - Read other experiments on the same idea (reference code structure)
 
-3. **Write experiment code** to `experiments/code/{slug}/`:
-   - `train.py`: generate training/evaluation script based on setup config, including:
-     - Argument parsing (argparse, all hyperparameters configurable)
-     - Data loading (support setup.dataset)
-     - Model initialization (support setup.model and baseline model)
-     - Training/inference loop
-     - Metric computation (matching metrics list)
-     - Result saving (JSON format, path: `results/{slug}/seed_{N}.json`)
-     - Random seed control (multi-seed runs)
-     - Checkpoint save/restore (`checkpoints/{slug}/`)
-   - `config.yaml`: all hyperparameters (learning_rate, batch_size, epochs, seeds, etc.)
-   - `run.sh`: complete launch command wrapper (includes CUDA_VISIBLE_DEVICES, logging, conda activation)
-   - `requirements.txt`: experiment-specific dependencies (if different from main project requirements)
+3. **Write experiment code** to `experiments/code/{slug}/`.
+
+   **Setup-type routing** (bio-C7 minimal pilot merged 2026-05-12) — pick the layout from the A5-full setup fields:
+
+   ```
+   if setup.in_silico_or_wet == "wet_lab":          → wet-lab layout
+   elif setup.assay_type matches \bMD\b|molecular dynamics:  → MD layout
+   elif setup.assay_type contains "docking":         → docking layout
+   else (default, includes in_silico/mixed without MD/docking, or empty fields):
+                                                     → ML layout (current behaviour)
+   ```
+
+   For `setup.in_silico_or_wet == "mixed"`, default to the in-silico routing above; if the wet-lab side is non-trivial, also scaffold a sibling `wet-lab/` sub-directory using the wet-lab layout below.
+
+   **ML layout** (default — backward-compatible):
+   - `train.py`: training/evaluation script (argparse, data loading per `setup.dataset`, model init per `setup.model` and baseline, training/inference loop, metric computation, JSON result save to `results/{slug}/seed_{N}.json`, random seed control, checkpoint save/restore in `checkpoints/{slug}/`)
+   - `config.yaml`: all hyperparameters (learning_rate, batch_size, epochs, seeds, …)
+   - `run.sh`: launch wrapper (CUDA_VISIBLE_DEVICES, logging, conda activation)
+   - `requirements.txt`: experiment-specific dependencies
+
+   **MD layout** (when `setup.assay_type` matches MD):
+   - `mdrun.sh`: launch wrapper — GROMACS (`gmx grompp` + `gmx mdrun`) or OpenMM Python runner per `setup.framework`; sources force-field params from `setup.force_field`; sets simulation length from `setup.simulation_length`; runs across the seed budget from `setup.random_seed_protocol`
+   - `system.gro` (GROMACS) or `system.pdb` (OpenMM / generic): initial structure file; for PROTAC ternary complexes, document the source PDB / AlphaFold-DB version inline
+   - `system.top`: topology with the force field declared in `setup.force_field` (e.g. AMBER ff14SB + phosaa14SB for phospho-residue MD)
+   - `mdp/em.mdp`, `mdp/nvt.mdp`, `mdp/npt.mdp`, `mdp/md.mdp` (GROMACS): minimisation + equilibration + production parameters; production length matches `setup.simulation_length`. For OpenMM, replace with a single `system_setup.py` that constructs the System object.
+   - `analyze.py`: trajectory analysis (RMSD / RMSF / per-residue distance / interface SASA depending on hypothesis); writes JSON results to `results/{slug}/seed_{N}.json` to keep the downstream `/exp-eval` consumer shape identical
+   - `requirements.txt`: GROMACS / OpenMM / MDAnalysis / mdtraj as appropriate
+
+   **Docking layout** (when `setup.assay_type` contains "docking"):
+   - `dock.sh`: launch wrapper — AutoDock Vina / Glide / DiffDock per `setup.framework`; reads receptor + ligand inputs, runs multiple seeds per `setup.random_seed_protocol`, writes per-pose scores
+   - `receptor.pdb`: prepared receptor structure (typically the POI; for PROTAC docking, the POI + E3 complex from Boltz-2 / AlphaFold-3)
+   - `ligands.sdf`: docking library (single or batch of compounds)
+   - `config.yaml`: docking parameters (search box centre + size, exhaustiveness, scoring function, output count)
+   - `analyze.py`: pose ranking + clustering; writes `results/{slug}/seed_{N}.json` in the same shape as the ML / MD routes
+   - `requirements.txt`: docking framework + RDKit + analysis libs
+
+   **Wet-lab layout** (when `setup.in_silico_or_wet == "wet_lab"`):
+   - `protocol.md`: full procedure — reagents (with RRID / Cellosaurus / Addgene IDs from a future A8 reproducibility block), step-by-step instructions, controls, expected readouts. Cite `setup.assay_type` (Y2H / AP-MS / cryo-EM / NMR / binding_assay / …), `setup.cell_line`, `setup.species` directly.
+   - `analysis.ipynb`: notebook that ingests the raw result CSV under `data/`, applies the statistical protocol from C6's table (bootstrap CI / stratified k-fold / bio×tech replicates per `setup.random_seed_protocol`), and writes summary results to `results/{slug}/run.json` in the same shape as the in-silico routes.
+   - `data/`: empty placeholder for raw assay output (will be populated during the wet-lab run; gitignored or committed depending on data-sharing policy)
+   - `figures/`: rendered figures from `analysis.ipynb`
+   - `requirements.txt`: pandas / scipy / matplotlib / seaborn etc. for analysis only — wet-lab itself has no Python deps
+
+   In all 4 layouts, `results/{slug}/...` output stays JSON-shaped so the downstream `/exp-eval` verdict gate and `/paper-draft` consumers do not branch on setup type. Full C7 (concrete template files under `skills/exp-run/references/templates/{ml,md,wet-lab,docking}/`) is deferred — minimal pilot uses the agent to scaffold per the file lists above.
 
 4. **Optional Review LLM code review** (`--review`):
    ```
@@ -128,10 +159,11 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 #### Local mode (`--env local` or default)
 
 1. **Check GPU**: `nvidia-smi` to confirm GPU available and sufficient VRAM
-2. **Launch**:
+2. **Launch** — the entry-point name varies by setup-type layout (bio-C7 minimal pilot): `run.sh` (ML, default), `mdrun.sh` (MD), `dock.sh` (docking). Wet-lab experiments do NOT auto-launch — `/exp-run` for wet-lab just scaffolds `protocol.md` and prompts the user to execute the protocol manually, then re-enter with `--collect` once `data/` is populated.
    ```bash
+   ENTRY=run.sh   # set to mdrun.sh / dock.sh per the Step 3 layout for this experiment
    screen -dmS exp-{slug} bash -c \
-     "cd $(pwd) && bash experiments/code/{slug}/run.sh 2>&1 | tee logs/exp-{slug}.log"
+     "cd $(pwd) && bash experiments/code/{slug}/${ENTRY} 2>&1 | tee logs/exp-{slug}.log"
    ```
 3. Update `wiki/experiments/{slug}.md`:
    - status: `running`
@@ -167,11 +199,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - If no free GPU → report each GPU's usage, suggest waiting
 3. **Sync code**: `python3 tools/remote.py sync-code`
 4. **Install dependencies** (first time or if requirements changed): `python3 tools/remote.py setup-env`
-5. **Launch remote experiment**:
+5. **Launch remote experiment** — entry-point name varies per Step 3 layout (`run.sh` for ML, `mdrun.sh` for MD, `dock.sh` for docking; wet-lab is local-only and does not deploy remotely):
    ```bash
+   ENTRY=run.sh   # set per Step 3 layout
    python3 tools/remote.py launch \
      --name "exp-{slug}" \
-     --cmd "bash experiments/code/{slug}/run.sh" \
+     --cmd "bash experiments/code/{slug}/${ENTRY}" \
      --gpu {gpu_index}
    ```
 6. Update `wiki/experiments/{slug}.md` frontmatter — all of these fields already exist (empty) because `/exp-design` wrote the full CLAUDE.md template:
