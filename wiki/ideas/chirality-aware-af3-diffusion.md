@@ -12,6 +12,17 @@ failure_reason: "[filter] AF3 weights are restricted to a non-commercial license
 linked_experiments: []
 date_proposed: 2026-04-30
 date_resolved: 2026-04-30
+# bio-C3 (pilot merged 2026-05-12): the failure here is licensing/feasibility, not subspace
+# saturation — AF3 weights are non-commercial. The block applies wherever AF3 fine-tuning is
+# the proposed approach, regardless of species / disease / data regime. Empty scope = universal
+# block (any future idea proposing "fine-tune AF3 diffusion head" should match this entry).
+# A Boltz-2-based replacement is a distinct project — that ideation should not match the
+# failure_reason text directly; the matching is on AF3-specific approach, not on the broader
+# chirality / diffusion / equivariance theme.
+scope:
+  species: []
+  disease_area: []
+  data_regime: ""
 ---
 
 ## Motivation

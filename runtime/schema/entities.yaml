@@ -112,6 +112,18 @@ ideas:
     # /paper-draft confidence framing. Full A7 (per-evidence-edge grade attribute) waits on
     # add-edge CLI extension.
     grade:              { type: enum, values: [very-low, low, moderate, high] }
+    # bio-C3 (pilot merged 2026-05-12): optional scope object scoping where this idea applies.
+    # Primary use: /ideate banlist matching — a failed idea only blocks a candidate when their
+    # scopes overlap. Sub-fields are all optional and additive; empty/absent scope means
+    # "universal" (legacy behaviour, treated as overlapping anything). data_regime captures
+    # whether the target subspace has abundant labelled data (saturation is plausible) or
+    # scarce data (saturation unlikely).
+    scope:
+      type: object
+      fields:
+        species:      { type: list_str, default: [] }
+        disease_area: { type: list_str, default: [] }
+        data_regime:  { type: enum, values: [high_data, low_data, mixed] }
   lifecycle:
     transitions:
       proposed:    [in_progress]

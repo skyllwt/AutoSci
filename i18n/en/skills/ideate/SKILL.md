@@ -73,7 +73,7 @@ Goal: build a comprehensive view of the target domain, including existing work, 
    - Read `wiki/graph/context_brief.md` (global compressed context)
    - Read `wiki/graph/open_questions.md` (knowledge gap list)
    - Read all `wiki/ideas/*.md`, extract:
-     - status=failed ideas → **banlist** (with failure_reason)
+     - status=failed ideas → **banlist**. Capture `failure_reason` AND the `scope` object (bio-C3 minimal pilot merged 2026-05-12): `scope.species` (list), `scope.disease_area` (list), `scope.data_regime` (high_data / low_data / mixed). When `scope` is absent or empty, treat as "universal" — overlaps with any candidate (legacy behaviour).
      - status=proposed/in_progress ideas → **active list** (avoid duplication)
    - Read `wiki/topics/*.md` and `wiki/concepts/*.md`: collect bullet items under `## Open problems` (including `### Known gaps` and `### Methodological gaps`) → **gap candidates list**
    - If `direction` is specified, filter to the relevant subset
@@ -138,8 +138,8 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
        ## Knowledge Gaps
        {gap_map entries}
 
-       ## Banlist (DO NOT revisit these)
-       {failed ideas with failure_reason}
+       ## Banlist (DO NOT revisit these — but only when scopes overlap)
+       {failed ideas with failure_reason AND scope (species / disease_area / data_regime). A failed idea with empty scope blocks everywhere; a failed idea with `scope.species: [human]` only blocks candidates targeting human (or species-agnostic candidates). Spell out the scope per failed idea so Review LLM can route around it.}
 
        ## Active Ideas (avoid duplicating)
        {proposed/in_progress ideas}
@@ -180,9 +180,10 @@ Apply the following checks to each candidate idea:
 
 4. **Filter decision**:
    - Eliminate if: feasibility=low AND quick novelty screening found similar published work
-   - Eliminate if: highly correlated with a failure_reason in the banlist
+   - Eliminate if: highly correlated with a failure_reason in the banlist **AND** the failed idea's `scope` overlaps the candidate's scope (bio-C3 minimal pilot). Overlap rule: scopes overlap when ANY of (a) failed idea has empty/missing scope (universal block — legacy behaviour); (b) intersection of `scope.species` is non-empty OR either side has empty species; (c) intersection of `scope.disease_area` is non-empty OR either side has empty disease_area; (d) `data_regime` values match OR either side is empty. If scopes do NOT overlap (e.g. failed idea was "phospho prediction in human cancer cell lines, high_data" and candidate is "phospho prediction in plant proteomes, low_data"), do NOT eliminate — record the banlist as a "scope-distinct prior" in the IDEA_REPORT instead.
    - Retain if: feasibility >= medium AND not eliminated
    - Output: 4–6 surviving ideas (ranked)
+   - **Infer candidate scope**: for the elimination check, infer the candidate's scope from its hypothesis + tags + origin_gaps. Use this same inferred scope when writing the idea to wiki in Phase 5 if the candidate becomes status: proposed.
 
 ### Phase 4: Deep Validation
 
@@ -240,6 +241,13 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    linked_experiments: []    # empty until /exp-design creates experiments
    date_proposed: YYYY-MM-DD
    date_resolved: ""         # empty until validated/failed
+   # bio-C3 (pilot merged 2026-05-12): optional scope object. Empty/absent scope means
+   # "universal" — the idea (and, if it fails, its banlist entry) applies everywhere.
+   # Populate from Phase 3's inferred candidate scope. Empty sub-fields stay empty.
+   scope:
+     species: []              # ["human"] | ["mouse", "human"] | ["plant"] | … (empty = universal)
+     disease_area: []         # ["cancer"] | ["neurodegenerative"] | … (empty = disease-agnostic)
+     data_regime: ""          # high_data | low_data | mixed (empty = data-regime-agnostic)
    ---
    ```
 
@@ -283,6 +291,7 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    - `priority: 1` (eliminated ideas never block higher-priority work)
    - `date_resolved: YYYY-MM-DD` (today)
    - `failure_reason: "[filter] <specific elimination reason>"` — the `[filter]` prefix distinguishes ideate-stage eliminations from post-experiment failures (which /exp-eval tags differently). Examples: `"[filter] highly similar published work exists: <paper-title>"`, `"[filter] insufficient feasibility: GPU requirements too high"`
+   - **`scope` is mandatory on failed ideas** (bio-C3 minimal pilot): populate the sub-fields explicitly even if empty — empty species/disease_area/data_regime means "universal block, applies everywhere", and future `/ideate` runs need that to be a deliberate choice rather than a missing-field accident. When the elimination cited a specific saturated subspace (e.g. "saturated by SAPP / PhosAF / GraphPhos … on phospho prediction"), set `scope.species: [human, mouse]`, `scope.data_regime: high_data` — so a future idea targeting plant phospho or cross-species low-data transfer is NOT blocked.
    - Body `## Motivation` and `## Hypothesis` should still be filled (so future banlist matching has content); `## Approach sketch` may be brief; `## Expected outcome` and `## Risks` can note why the idea was eliminated
    - These failed ideas become the banlist for future ideate runs
 

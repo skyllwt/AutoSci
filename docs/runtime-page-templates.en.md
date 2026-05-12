@@ -145,6 +145,15 @@ date_resolved: ""
 # Coarser than per-edge grading (deferred). Useful for /novelty weighting and /paper-draft
 # confidence framing. Omit when no evidence is yet available.
 grade: ""                 # very-low | low | moderate | high (optional)
+# bio-C3 (pilot merged 2026-05-12): optional scope object. Empty/absent scope means
+# "universal" — for failed ideas, this is a universal banlist block (any candidate idea
+# overlaps). For proposed/in_progress ideas, empty scope means the idea is not scoped to a
+# specific bio subspace. Populate explicitly on failed ideas so future /ideate runs can
+# distinguish "saturated subspace" from "blanket ban".
+scope:
+  species: []              # ["human"] | ["mouse", "human"] | ["plant"] | … (empty = universal)
+  disease_area: []         # ["cancer"] | ["neurodegenerative"] | … (empty = disease-agnostic)
+  data_regime: ""          # high_data | low_data | mixed (empty = data-regime-agnostic)
 ---
 ```
 

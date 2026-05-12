@@ -12,6 +12,16 @@ failure_reason: "[filter] saturated by SAPP (2025), PhosAF (2024), GraphPhos (20
 linked_experiments: []
 date_proposed: 2026-04-30
 date_resolved: 2026-04-30
+# bio-C3 (pilot merged 2026-05-12): scope of the banlist hit. The saturated subspace cited in
+# failure_reason — SAPP, PhosAF, GraphPhos, AstraPTM2, DeepPCT, MTPrompt-PTM — is specifically
+# human-mouse phospho-PTM site prediction trained on dbPTM / PhosphoSitePlus-class corpora
+# (high-data regime). Plant phospho proteomes, microbial PTM, cross-species low-data transfer,
+# and non-phospho PTMs (ubiquitin / methyl / acetyl) are NOT covered by these saturated tools
+# — a future /ideate run targeting those scopes should NOT match this banlist entry.
+scope:
+  species: [human, mouse]
+  disease_area: []
+  data_regime: high_data
 ---
 
 ## Motivation

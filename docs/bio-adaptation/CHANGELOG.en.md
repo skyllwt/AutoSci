@@ -1983,3 +1983,51 @@ cleanly on this wiki). Second Python code change of bio-adaptation (first was
 | `diff -q i18n/en/skills/check/SKILL.md .claude/skills/check/SKILL.md` | identical |
 
 Section C status: 6/9 → 7/9.
+
+---
+
+## 2026-05-12 — C3 minimal pilot merge: `/ideate` banlist gains `scope` field
+
+**Scope**: `/ideate`'s banlist is currently global — a failed idea's `failure_reason` blocks
+every direction. But `ptm-site-disorder-predictor`'s saturation citation (SAPP / PhosAF /
+GraphPhos / AstraPTM2 / DeepPCT / MTPrompt-PTM) only applies to human/mouse phospho in the
+high-data regime; plant phospho, microbial PTM, and cross-species low-data transfer are all
+open subspaces. C3 minimal adds a `scope` object to ideas/ (species / disease_area /
+data_regime); banlist hits fire only when scopes overlap.
+**Status**: **C3 minimal merged**. Full C3 (finer-grained scope sub-fields like ptm_type /
+cell_type / modality; auto-inference of scope from graph edges; scope-aware banlist hit
+metrics) deferred.
+
+### Files touched
+
+- `runtime/schema/entities.yaml`: ideas/ gains `scope` object (3 optional sub-fields species /
+  disease_area / data_regime). Additive — empty/absent scope means "universal" (legacy).
+- `i18n/{en,zh}/skills/ideate/SKILL.md` + `.claude/skills/ideate/SKILL.md`:
+  - Phase 1 Load wiki: read scope alongside failure_reason when ingesting the banlist
+  - Phase 2 Review LLM input: banlist section spells out each entry's scope
+  - Phase 3 Filter decision: scope overlap rule added (either side empty → universal match;
+    otherwise species + disease_area intersection non-empty + data_regime matching → overlap;
+    non-overlap is recorded as "scope-distinct prior" in the IDEA_REPORT, NOT eliminated)
+  - Phase 5 Write top ideas: frontmatter template includes scope block
+  - Phase 5 Write eliminated ideas: scope is **mandatory** on failed (even when all empty —
+    forces "universal block" to be a deliberate choice, not a missing-field accident)
+- `docs/runtime-page-templates.{en,zh}.md`: ideas template extended with scope sub-block.
+- **Live backfill on 2 existing failed ideas**:
+  - `wiki/ideas/ptm-site-disorder-predictor.md`: scope.species=[human, mouse],
+    data_regime=high_data — saturated tools target human/mouse phospho in the high-data
+    regime; plant / microbial / low-data PTM stays outside the block.
+  - `wiki/ideas/chirality-aware-af3-diffusion.md`: scope all empty = universal block — the
+    failure is AF3 licensing, not subspace saturation, so AF3 fine-tune ideas of any direction
+    hit this entry.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 |
+| `python tools/lint_bio.py` | 0 🔴 / 0 🟡 / 0 🔵 |
+| `diff -q i18n/en/skills/ideate/SKILL.md .claude/skills/ideate/SKILL.md` | identical |
+| `grep -c "scope:" wiki/ideas/*.md` | ≥ 2 (both failed ideas backfilled) |
+| Active SKILL.md line count | 414 (up from 403) |
+
+Section C status: 7/9 → 8/9. Only C7 (/exp-run directory layout) remains.

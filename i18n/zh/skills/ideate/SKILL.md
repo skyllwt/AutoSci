@@ -73,7 +73,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 读取 `wiki/graph/context_brief.md`（全局压缩上下文）
    - 读取 `wiki/graph/open_questions.md`（知识缺口列表）
    - 读取所有 `wiki/ideas/*.md`，提取：
-     - status=failed 的 ideas → **banlist**（含 failure_reason）
+     - status=failed 的 ideas → **banlist**。捕获 `failure_reason` 与 `scope` 对象（bio-C3 minimal pilot 2026-05-12 合并）：`scope.species`（list）、`scope.disease_area`（list）、`scope.data_regime`（high_data / low_data / mixed）。scope 缺失或空时视为"universal" —— 与任何候选 idea 重叠（legacy 行为）。
      - status=proposed/in_progress 的 ideas → **active list**（避免重复）
    - 读取 `wiki/topics/*.md` 与 `wiki/concepts/*.md`：收集 `## Open problems` 下（包括 `### Known gaps` 与 `### Methodological gaps`）的 bullet → **gap candidates list**
    - 若 `direction` 指定，过滤与方向相关的子集
@@ -138,8 +138,8 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
        ## Knowledge Gaps
        {gap_map entries}
 
-       ## Banlist (DO NOT revisit these)
-       {failed ideas with failure_reason}
+       ## Banlist (DO NOT revisit these — but only when scopes overlap)
+       {failed ideas with failure_reason AND scope (species / disease_area / data_regime). A failed idea with empty scope blocks everywhere; a failed idea with `scope.species: [human]` only blocks candidates targeting human (or species-agnostic candidates). Spell out the scope per failed idea so Review LLM can route around it.}
 
        ## Active Ideas (avoid duplicating)
        {proposed/in_progress ideas}
@@ -180,9 +180,10 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 4. **筛选决策**：
    - 淘汰条件：feasibility=低 AND novelty 筛查发现相似已发表工作
-   - 淘汰条件：与 banlist 的 failure_reason 高度相关
+   - 淘汰条件：与 banlist 的 failure_reason 高度相关 **AND** 失败 idea 的 `scope` 与候选 idea scope 重叠（bio-C3 minimal pilot）。重叠规则：以下任一即视为 overlap —— (a) 失败 idea 的 scope 为空 / 缺失（universal block，legacy 行为）;(b) `scope.species` 交集非空 OR 任一方为空;(c) `scope.disease_area` 交集非空 OR 任一方为空;(d) `data_regime` 取值一致 OR 任一方为空。不重叠时（例如失败 idea 是"人类癌细胞系高数据 phospho 预测"而候选是"植物蛋白质组低数据 phospho 预测"），**不**淘汰 —— 在 IDEA_REPORT 中记为 "scope-distinct prior"。
    - 保留：feasibility >= 中 AND 未被淘汰
    - 输出：4-6 个幸存 ideas（排名）
+   - **推断候选 scope**：进行淘汰检查时从 hypothesis + tags + origin_gaps 推断候选 scope。若候选进入 status: proposed 在 Phase 5 写入 wiki 时复用同一推断 scope。
 
 ### Phase 4: 深度验证（Deep Validation）
 
@@ -240,6 +241,13 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    linked_experiments: []    # 留空，由 /exp-design 创建 experiment 后填写
    date_proposed: YYYY-MM-DD
    date_resolved: ""         # 留空，validated/failed 时填写
+   # bio-C3（2026-05-12 pilot merge）：可选的 scope 对象。scope 空 / 缺失视为 "universal" ——
+   # 该 idea（以及失败后的 banlist entry）适用一切。由 Phase 3 推断的候选 scope 填入,
+   # 不适用的子字段保持为空。
+   scope:
+     species: []              # ["human"] | ["mouse", "human"] | ["plant"] | …（空 = universal）
+     disease_area: []         # ["cancer"] | ["neurodegenerative"] | …（空 = disease-agnostic）
+     data_regime: ""          # high_data | low_data | mixed（空 = data-regime-agnostic）
    ---
    ```
 
@@ -283,6 +291,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - `priority: 1`（被淘汰的 ideas 永远不会阻塞更高优先级的工作）
    - `date_resolved: YYYY-MM-DD`（今天）
    - `failure_reason: "[filter] <具体淘汰原因>"` — `[filter]` 前缀用于区分 ideate 阶段淘汰和实验后失败（/exp-eval 用不同标签）。例如：`"[filter] 已有高度相似的发表工作: <paper-title>"`、`"[filter] 可行性不足：GPU 需求过高"`
+   - **`scope` 在 failed ideas 上为必填**（bio-C3 minimal pilot）：显式填子字段即使为空 —— species / disease_area / data_regime 空意味着 "universal block,适用一切",未来 `/ideate` 运行时需要这是个有意决策而非字段缺失。当淘汰理由引用具体饱和子空间（如 "saturated by SAPP / PhosAF / GraphPhos … on phospho prediction"）时,填 `scope.species: [human, mouse]`、`scope.data_regime: high_data` —— 这样未来针对植物 phospho 或跨物种低数据迁移的 idea **不会**被屏蔽。
    - `## Motivation` 和 `## Hypothesis` 仍需填写（供未来 banlist 匹配）；`## Approach sketch` 可简略；`## Expected outcome` 和 `## Risks` 可说明淘汰原因
    - 这些 failed ideas 成为未来 ideate 的 banlist
 

@@ -143,6 +143,14 @@ date_resolved: ""
 # 比 per-edge 分级（延后）粗，但对 /novelty 权重和 /paper-draft 置信度叙述立即有用。
 # 没有证据时留空即可。
 grade: ""                 # very-low | low | moderate | high（可选）
+# bio-C3（2026-05-12 pilot merge）：可选 scope 对象。空 / 缺失视为 "universal" ——
+# failed ideas 上意味着 universal banlist block（任何候选 idea 都 overlap）;proposed /
+# in_progress ideas 上意味着 idea 不限定具体 bio 子空间。在 failed ideas 上显式填充,
+# 这样未来 /ideate 运行可区分 "饱和子空间" 与 "全面禁令"。
+scope:
+  species: []              # ["human"] | ["mouse", "human"] | ["plant"] | …（空 = universal）
+  disease_area: []         # ["cancer"] | ["neurodegenerative"] | …（空 = disease-agnostic）
+  data_regime: ""          # high_data | low_data | mixed（空 = data-regime-agnostic）
 ---
 ```
 
