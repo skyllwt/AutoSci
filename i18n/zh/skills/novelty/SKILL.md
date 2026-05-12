@@ -1,5 +1,5 @@
 ---
-description: 多源 novelty 验证：WebSearch + Semantic Scholar + wiki + Review LLM cross-verify，输出 novelty 评分与建议。可选 --write，把分数写回 idea 页面。
+description: 多源 novelty 验证：WebSearch + Semantic Scholar + PubMed（bio）+ wiki + Review LLM cross-verify，输出 novelty 评分与建议。可选 --write，把分数写回 idea 页面。
 argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 ---
 
@@ -97,6 +97,39 @@ python3 tools/fetch_deepxiv.py brief <arxiv_id>
 **Source D — arXiv 近期预印本：**
 - 使用 WebSearch 查询 `site:arxiv.org <method-keywords> 2025 2026`
 
+**Source E — PubMed E-utilities（bio-C9 minimal pilot 2026-05-12 合并）：**
+
+Bio prior art 绝大部分在 PubMed（>3000 万摘要），Semantic Scholar 覆盖中等。本通道与 A–D 并行。target 为 bio 形态时，PubMed 命中获**满权重**（与 S2 / WebSearch 同级）；纯 ML / 非 bio target 仍跑但召回低，作为补充。
+
+**Bio-claim 探测**：满足下列任一条件即视为 bio 形态：
+- `target` 是 idea slug 且其 frontmatter `domain` 命中 `structural-bio | chembio | comp-drug-discovery | cancer-bio | systems-bio | bioinformatics | clinical-translation`，或 legacy 自由文本变体（`Computational Drug Design`、`Chemical Biology`、`Cancer biology`、`Structural Bioinformatics`、`Computational Biology / ML for Science` 等）；
+- method signature 中含基因符号样 token（3–8 字母全大写）、UniProt accession、PDB ID、药物 / PROTAC 名、疾病名、PTM 类型（phospho / ubiq / methyl / acetyl）或物种名（human / mouse / yeast / …）；
+- 源 idea 页面 A2-light 蛋白锚字段（`gene_symbol` / `uniprot_id` / `pdb_ids` / `species`）非空，或它链接的 `wiki/concepts/*.md` 含这些字段。
+
+**查询**（3–5 个，参照 Source A 形态但偏向 bio 词表）：
+
+```
+# esearch — 每查询返回最多 20 个 PMID
+WebFetch: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=<URL-encoded-query>&retmax=20&retmode=json&sort=relevance
+# esummary — 头部命中的 title / journal / year / abstract
+WebFetch: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=<comma-separated-pmids>&retmode=json
+# （可选）efetch 摘要，当 esummary 片段不足时
+WebFetch: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=<pmid>&rettype=abstract&retmode=text
+```
+
+查询形态：
+1. 直接：`"<method-name>" AND "<bio-task>"` —— 精确短语
+2. 组合：`<protein-or-target>[Title/Abstract] AND <technique>[Title/Abstract]`
+3. PTM 专用（适用时）：`<PTM-type>[Title/Abstract] AND <protein>[Title/Abstract]`（如 `phosphorylation[Title/Abstract] AND BCL-XL[Title/Abstract]`）
+4. 临床锚（适用时）：`<drug-name>[Title/Abstract] AND <indication>[Title/Abstract]`
+5. 综述：`(review[Publication Type] OR survey[Title]) AND <topic>`
+
+按 DOI / PMID / 归一化 title 与 Source A/B 结果合并去重。**去重规则**：S2 已返回的同 DOI 论文不再重计；PubMed 独有命中进入 "closest prior work" 列表并暴露 PMID。每个 PubMed 引用都附 `pmid` 与 `doi`，便于将来 `/ingest` 时直接填 [[bio-A3 minimal]] 的 paper 字段。
+
+**礼貌**：NCBI 对未认证调用限速 ~3 req/sec。throttle：3–5 个 esearch 顺序执行，或 `~/.env` 配置 `NCBI_API_KEY` 后用 `&api_key=` 提速（minimal pilot 不强制）。esearch JSON 缓存到 `raw/tmp/novelty-pubmed/<slug>-<query-hash>.json`，便于复盘不重复打 API。
+
+**完整 C9 延后**：`tools/fetch_pubmed.py` CLI（E-utilities + 分页 + MeSH 扩展 + 摘要 NER + PMC 全文 fallback）规划中但本 minimal pilot 不做，agent 用 WebFetch 直接拉上述 URL 即可。
+
 ### Step 3: Review LLM 交叉验证
 
 （若 `--quick` 则跳过此步）
@@ -114,7 +147,7 @@ mcp__llm-review__chat:
     {method signature from Step 1}
 
     ## Existing Similar Work Found
-    {top 5 similar works from Step 2, with title + one-line summary}
+    {top 5 similar works from Step 2, with title + one-line summary; mark each source channel — WebSearch / S2 / DeepXiv / PubMed / wiki — so Review LLM can spot bio prior art it would otherwise miss}
 
     ## Questions
     1. Is this method genuinely novel, or a minor variation of existing work?
@@ -164,6 +197,7 @@ mcp__llm-review__chat:
 - Claude 搜索结果 和 Review LLM 意见取较低分（保守原则）
 - 若 wiki 中存在 failed idea 且 failure_reason 与本 idea 相关 → 降 1 分
 - 若 wiki 中存在 in_progress idea 高度重叠 → 标记为 abandon（内部重复）
+- **Bio-C9 minimal pilot**：当 target 为 bio 形态（见 Source E 探测）且 PubMed 返回 ≥ 3 条 S2 + WebSearch 未独立命中的高相似论文 → 降 1 分（PubMed 专属 anti-repetition 信号）。当 PubMed 与 WebSearch 一致命中某 closest-prior-work 论文且 wiki 尚未 ingest → 在报告中标 "Recommend /ingest before scoring"。
 
 ### Step 5: 持久化分数（仅当 `--write` 开启且 target 是 idea slug）
 
@@ -183,7 +217,7 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - **`--write` 对非 idea target 无效**：target 是自由文本或 paper slug 时，忽略 `--write`，仍输出只读报告。
 - **保守评分**：宁可低估 novelty 也不高估，避免在已有工作上浪费精力
 - **必须检查 failed ideas**：wiki/ideas/ 中 status=failed 的 ideas 是重要的 anti-repetition 信号
-- **搜索覆盖面**：至少 5 个不同的 WebSearch 查询 + Semantic Scholar + wiki 内部搜索
+- **搜索覆盖面**：至少 5 个不同的 WebSearch 查询 + Semantic Scholar + wiki 内部搜索。**bio 形态 target**：额外 3–5 个 PubMed E-utilities 查询（Source E）；PubMed 命中在评分中获满权重。
 - **Review LLM 独立性**：提交给 Review LLM 时不包含 Claude 自己的 novelty 判断，让 Review LLM 独立评估
 - **引用真实来源**：报告中列出的所有 prior work 必须是真实存在的（WebSearch/S2 返回的），不得编造
 
@@ -192,6 +226,7 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - **WebSearch 不可用**：跳过 Source A 和 D，仅依赖 S2 + wiki 搜索，在报告中注明覆盖面不足
 - **Semantic Scholar API 不可用**：跳过 S2 部分，依赖 DeepXiv + WebSearch 补偿
 - **DeepXiv API 不可用**：跳过 DeepXiv 部分，依赖 S2 + WebSearch（回退到原有行为）
+- **PubMed E-utilities 不可用**（NCBI 限速 / 网络 / 5xx）：跳过 Source E 并在报告中标注 "PubMed channel unavailable"。bio 形态 target 这是覆盖缺口，显式说明便于用户重跑；不要静默降级。
 - **Review LLM 不可用**：跳过 Step 3，报告标注「Review LLM cross-verify unavailable, single-model assessment only」
 - **Wiki 为空**：正常执行外部搜索，wiki 内部搜索部分标注「wiki empty」
 - **idea slug 不存在**：提示用户检查 slug，列出 wiki/ideas/ 中的可用 slugs
@@ -211,6 +246,7 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 
 ### Claude Code Native
 - `WebSearch` — 多查询 web 搜索（Step 2 Source A + D）
+- `WebFetch` — PubMed E-utilities 调用（Step 2 Source E，bio-C9）：esearch / esummary / efetch 调 `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/*.fcgi`。throttle ≤ 3 req/sec。
 - `Agent` tool — 并行执行多源搜索（Step 2）
 
 ### Shared References

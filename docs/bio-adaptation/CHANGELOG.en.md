@@ -1851,3 +1851,43 @@ templates, `protocol.md` sub-tree layout, wet-lab cost referencing) deferred to 
 
 Section C status: 3/9 → 4/9. P0 backlog closeout: 0 P0 items remain on this branch
 (A1/A3/A5/C1/C4/C5 all merged).
+
+---
+
+## 2026-05-12 — C9 minimal pilot merge: `/novelty` gains PubMed E-utilities channel
+
+**Scope**: `/novelty` previously used WebSearch + Semantic Scholar + DeepXiv + wiki + Review LLM.
+Bio prior art lives largely in PubMed (>30M abstracts) and is under-represented in Semantic
+Scholar — bio prior-art collisions were under-reported. C9 minimal adds Source E
+(PubMed E-utilities via WebFetch) in Step 2, full-weight for bio-shaped targets.
+**Status**: **C9 minimal merged as pure-prompt change**. Full C9 (`tools/fetch_pubmed.py`
+CLI with pagination + MeSH expansion + abstract NER + PMC full-text fallback) deferred —
+the minimal pilot lets the agent call NCBI E-utilities URLs directly via WebFetch.
+
+### Files touched
+
+- `i18n/{en,zh}/skills/novelty/SKILL.md` + `.claude/skills/novelty/SKILL.md`:
+  - description gains "+ PubMed (bio)"
+  - Step 2 inserts Source E after Source D: 3-rule bio-claim detection (domain enum match /
+    method signature contains bio tokens / linked idea has A2-light protein-anchor fields);
+    5 query shapes (direct / component / PTM-specific / clinical-anchor / survey); esearch +
+    esummary + efetch URLs; merge with Sources A/B by DOI / PMID / normalised title; NCBI
+    rate-limit ≤ 3 req/sec; cache in raw/tmp/novelty-pubmed/
+  - Step 3 Review LLM input: each prior work tagged with source channel
+  - Scoring rules: "bio-shaped target AND ≥ 3 PubMed-unique high-similar hits → drop score by 1"
+    and "PubMed + WebSearch agree on prior work absent from wiki → flag Recommend /ingest
+    before scoring"
+  - Constraints: bio-shaped targets get 3–5 additional PubMed queries
+  - Error Handling: PubMed unavailable → explicit coverage-gap annotation (no silent degrade)
+  - Dependencies: WebFetch added (Source E)
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 |
+| `diff -q i18n/en/skills/novelty/SKILL.md .claude/skills/novelty/SKILL.md` | identical |
+| `grep -c "PubMed\|eutils.ncbi" .claude/skills/novelty/SKILL.md` | ≥ 8 |
+| Active SKILL.md line count | 253 (up from 217) |
+
+Section C status: 4/9 → 5/9.

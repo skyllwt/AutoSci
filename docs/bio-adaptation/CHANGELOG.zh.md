@@ -1763,3 +1763,41 @@ Section C 状态：2/9 → 3/9。
 | `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 |
 
 Section C 状态：3/9 → 4/9。P0 backlog 完结：当前分支 P0 余额 0（A1/A3/A5/C1/C4/C5 全部已 merge）。
+
+---
+
+## 2026-05-12 —— C9 minimal pilot merge：`/novelty` 加 PubMed E-utilities 通道
+
+**范围**：`/novelty` 此前用 WebSearch + Semantic Scholar + DeepXiv + wiki + Review LLM。Bio prior
+art 绝大部分在 PubMed（>3000 万摘要），Semantic Scholar 覆盖中等 —— bio 类 prior-art 撞车被
+under-report。C9 minimal 在 Step 2 加 Source E（PubMed E-utilities via WebFetch），bio 形态
+target 给满权重。
+**状态**：**C9 minimal 以纯 prompt 形态合并**。完整 C9（`tools/fetch_pubmed.py` CLI + 分页 +
+MeSH 扩展 + 摘要 NER + PMC 全文 fallback）延后 —— 最小 pilot 让 agent 直接用 WebFetch 拉
+NCBI E-utilities URL。
+
+### 改动位置
+
+- `i18n/{en,zh}/skills/novelty/SKILL.md` + `.claude/skills/novelty/SKILL.md`：
+  - description 加 "+ PubMed (bio)"
+  - Step 2 在 Source D 之后插入 Source E：bio-claim 探测三条规则（domain enum 命中 / method
+    signature 含 bio token / 链接 idea 含 A2-light 蛋白锚字段）；5 种查询形态（直接 / 组合 /
+    PTM 专用 / 临床锚 / 综述）；esearch + esummary + efetch URL；按 DOI / PMID / 归一化 title
+    去重；NCBI 限速 ≤ 3 req/sec；raw/tmp/novelty-pubmed/ 缓存
+  - Step 3 Review LLM 输入加"每条 prior work 标 source channel"
+  - 评分规则加："bio 形态 + PubMed 命中 ≥ 3 条 S2/WebSearch 未独立命中的高相似论文 → 降 1 分"
+    与"PubMed + WebSearch 一致命中且 wiki 未 ingest → 标 Recommend /ingest before scoring"
+  - Constraints 加 bio 形态 target 额外 3–5 个 PubMed 查询
+  - Error Handling 加 PubMed 不可用 → 显式 coverage gap 注释（不静默降级）
+  - Dependencies 加 WebFetch（Source E）
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 |
+| `diff -q i18n/en/skills/novelty/SKILL.md .claude/skills/novelty/SKILL.md` | 一致 |
+| `grep -c "PubMed\|eutils.ncbi" .claude/skills/novelty/SKILL.md` | ≥ 8 |
+| 活动 SKILL.md 行数 | 253（升自 217） |
+
+Section C 状态：4/9 → 5/9。
