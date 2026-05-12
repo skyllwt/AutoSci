@@ -66,6 +66,14 @@ Previews what would be fixed without applying any changes.
 
 Parse the JSON output to obtain all automatically detected issues (and fix results).
 
+**Bio-specific lint** (bio-C8 minimal pilot merged 2026-05-12): when any of `wiki/concepts/*.md` has A2-light protein-anchor fields, any `wiki/datasets/*.md` exists, or any `wiki/experiments/*.md::setup` carries A5-full bio fields (`in_silico_or_wet`, `species`, `assay_type`, `force_field`, …), additionally run:
+
+```bash
+python3 tools/lint_bio.py --wiki-dir wiki/ --json
+```
+
+`lint_bio.py` adds 5 checks the base linter cannot express: PDB ID format on `concepts.pdb_ids`, UniProt accession format on `concepts.uniprot_id`, `dataset_version_used` edge metadata.version vs the target dataset's `versions:` list (B3 + A1 cross-check), recognised-species check on `experiments.setup.species`, and "MD assay → force_field required" on `experiments.setup`. Merge its JSON output into the same report (same severity convention 🔴/🟡/🔵; `bio-*` category prefix distinguishes bio findings from base findings). Skip silently if no bio fields are present anywhere — non-bio wikis pay zero cost.
+
 ### Step 2: Structural Completeness (automated coverage)
 
 The automated tool checks:
@@ -187,5 +195,6 @@ python3 tools/research_wiki.py log wiki/ "check | report: N 🔴, M 🟡, K 🔵
 
 ### Tools（via Bash）
 - `python3 tools/lint.py --wiki-dir wiki/ [--json] [--fix] [--dry-run] [--suggest]` — automated structural check + fix (core dependency)
+- `python3 tools/lint_bio.py --wiki-dir wiki/ [--json]` — bio-specific structural check (bio-C8 minimal; invoked when bio fields are present)
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `python3 tools/research_wiki.py stats wiki/` — get statistics (optional, for the report)

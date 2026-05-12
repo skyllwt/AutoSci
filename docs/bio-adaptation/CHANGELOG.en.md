@@ -1928,3 +1928,58 @@ n_test, `/exp-eval` routing to the protocol-specific p-value test) deferred.
 | Active SKILL.md line count | 405 (up from 366) |
 
 Section C status: 5/9 → 6/9.
+
+---
+
+## 2026-05-12 — C8 pilot merge: `tools/lint_bio.py` with 5 bio-specific checks
+
+**Scope**: `/check`'s `tools/lint.py` is entity-type-agnostic (required fields, enums, xref
+symmetry, edge consistency) and cannot express bio-shape constraints (PDB ID format, UniProt
+accession format, dataset version cross-check, MD requires force_field, etc.). C8 adds
+`tools/lint_bio.py` covering these 5 checks; `/check` invokes it when bio fields are present.
+**Status**: **C8 merged** (not minimal — the tool is fully engineered and all 5 checks pass
+cleanly on this wiki). Second Python code change of bio-adaptation (first was
+`add-edge --metadata`).
+
+### Files touched
+
+- **New file `tools/lint_bio.py`** (298 lines):
+  1. `check_pdb_ids` — every value in `concepts.pdb_ids` must match
+     `^[0-9][A-Za-z0-9]{3}([A-Za-z0-9]{4})?$` (4-char or 8-char alphanum starting with digit);
+     🟡 on mismatch.
+  2. `check_uniprot_ids` — `concepts.uniprot_id` must match canonical
+     `[OPQ][0-9][A-Z0-9]{3}[0-9]` or extended `[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}`;
+     🟡 on mismatch.
+  3. `check_dataset_versions` — `dataset_version_used` edge `metadata.version` must appear in
+     the target dataset's `versions:` list (B3 + A1 cross-check); 🟡 on mismatch. Edges with
+     version only in the evidence string are out of scope here.
+  4. `check_species_recognised` — `experiments.setup.species` values must be in a 29-entry
+     allowlist (human / mouse / rat / yeast / zebrafish / drosophila / c-elegans / e-coli /
+     ...); 🔵 informational on outliers — extend `RECOGNISED_SPECIES` when a legit new
+     species enters the wiki.
+  5. `check_md_force_field` — when `experiments.setup.assay_type` matches
+     `\bMD\b|molecular dynamics`, `setup.force_field` must be non-empty; 🟡 when empty.
+  - Severity convention + `LintIssue` class reused from `tools/lint.py` via sys.path
+    injection (tools/ has no `__init__.py`; mirrors lint.py's import-runtime/loader pattern).
+  - Nested setup parsing uses PyYAML (lint.py's regex parser drops indented children).
+  - `--json` output and `--wiki-dir` flag mirror lint.py.
+  - Exit code: 1 when ≥ 1 🔴, else 0.
+- `i18n/{en,zh}/skills/check/SKILL.md` + `.claude/skills/check/SKILL.md`:
+  - Step 1 gains a "Bio-specific lint" sub-block describing when to invoke `lint_bio.py` and
+    how to merge JSON output (`bio-*` category prefix distinguishes the channel); non-bio
+    wikis pay zero cost.
+  - Dependencies gain a `lint_bio.py` entry.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 (baseline unchanged) |
+| `python tools/lint_bio.py` | 0 🔴 / 0 🟡 / 0 🔵 (the 13-pilot bio surface is clean) |
+| `python tools/lint_bio.py --json` | `[]` (machine-readable) |
+| PDB regex smoke | `4CI1 5HXB 6XYZ` ✓; `XYZ4 pdb_001 6X` ✗ |
+| UniProt regex smoke | `Q96SW2 P12345 O00533` ✓; `Q96SW XYZ123` ✗ |
+| MD pattern smoke | `MD / MD + scoring / molecular dynamics` ✓; `scoring / docking / Cryo-EM` ✗ |
+| `diff -q i18n/en/skills/check/SKILL.md .claude/skills/check/SKILL.md` | identical |
+
+Section C status: 6/9 → 7/9.

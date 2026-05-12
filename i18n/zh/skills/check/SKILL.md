@@ -66,6 +66,14 @@ python3 tools/lint.py --wiki-dir wiki/ --fix --dry-run --json
 
 解析 JSON 输出，获取所有自动检测到的 issues（及修复结果）。
 
+**Bio 专用 lint**（bio-C8 minimal pilot 2026-05-12 合并）：当 `wiki/concepts/*.md` 中任一含 A2-light 蛋白锚字段、`wiki/datasets/*.md` 存在、或 `wiki/experiments/*.md::setup` 含 A5-full bio 字段（`in_silico_or_wet`、`species`、`assay_type`、`force_field`、……）时，额外运行：
+
+```bash
+python3 tools/lint_bio.py --wiki-dir wiki/ --json
+```
+
+`lint_bio.py` 加 5 项基础 linter 无法表达的检查：`concepts.pdb_ids` 的 PDB ID 格式、`concepts.uniprot_id` 的 UniProt accession 格式、`dataset_version_used` 边 metadata.version 与目标 dataset `versions:` 表的对照（B3 + A1 交叉）、`experiments.setup.species` 的识别集检查、`experiments.setup.assay_type` 含 MD 时 `setup.force_field` 必填。把 JSON 输出合并到同一报告（同 🔴/🟡/🔵 严重度;`bio-*` category 前缀与基础 lint 区分）。wiki 全无 bio 字段时静默跳过 —— 非 bio wiki 零开销。
+
 ### Step 2: 结构完整性（自动化覆盖）
 
 自动化工具检查以下项目：
@@ -187,5 +195,6 @@ python3 tools/research_wiki.py log wiki/ "check | report: N 🔴, M 🟡, K 🔵
 
 ### Tools（via Bash）
 - `python3 tools/lint.py --wiki-dir wiki/ [--json] [--fix] [--dry-run] [--suggest]` — 自动化结构检查 + 修复（核心依赖）
+- `python3 tools/lint_bio.py --wiki-dir wiki/ [--json]` — bio 专用结构检查（bio-C8 minimal;wiki 含 bio 字段时调用）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/research_wiki.py stats wiki/` — 获取统计信息（可选，用于报告）

@@ -1836,3 +1836,53 @@ Section C 状态：4/9 → 5/9。
 | 活动 SKILL.md 行数 | 405（升自 366） |
 
 Section C 状态：5/9 → 6/9。
+
+---
+
+## 2026-05-12 —— C8 pilot merge：`tools/lint_bio.py` 5 项 bio 专用检查
+
+**范围**：`/check` 调用的 `tools/lint.py` 是 entity-type-agnostic 的结构检查（必填字段、enum、xref
+对称、edge 一致）—— 无法表达 bio 形态约束（PDB ID 格式、UniProt accession、dataset 版本对照、
+MD 必需 force_field 等）。C8 新增 `tools/lint_bio.py` 实现这 5 项检查，并在 `/check` 工作流中
+在 wiki 含 bio 字段时调用。
+**状态**：**C8 合并**（不是 minimal — 工具是完整工程化的，且本 wiki 全部 5 项检查均干净通过）。
+这是 bio-adaptation 的第二次 Python 代码改动（第一次是 add-edge --metadata）。
+
+### 改动位置
+
+- **新文件 `tools/lint_bio.py`**（298 行）：
+  1. `check_pdb_ids` —— `concepts.pdb_ids` 每个值必须匹配 `^[0-9][A-Za-z0-9]{3}([A-Za-z0-9]{4})?$`
+     （4 字符或 8 字符 alphanum 起始 digit）；🟡 on mismatch。
+  2. `check_uniprot_ids` —— `concepts.uniprot_id` 必须匹配
+     `[OPQ][0-9][A-Z0-9]{3}[0-9]` 或扩展 `[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}`；🟡 on mismatch。
+  3. `check_dataset_versions` —— `dataset_version_used` 边 `metadata.version` 必须出现在目标
+     dataset `versions:` 列表（B3 + A1 交叉）；🟡 on mismatch。仅 evidence 字符串中含版本号的
+     边不在本检查范围。
+  4. `check_species_recognised` —— `experiments.setup.species` 每个值在 29 项识别集中（human /
+     mouse / rat / yeast / zebrafish / drosophila / c-elegans / e-coli / ...）；🔵 informational
+     对未识别值 —— 合法新物种时扩展 `RECOGNISED_SPECIES`。
+  5. `check_md_force_field` —— `experiments.setup.assay_type` 匹配 `\bMD\b|molecular dynamics`
+     时 `setup.force_field` 必填；🟡 when empty。
+  - 严重度约定与 `LintIssue` 类从 `tools/lint.py` 通过 sys.path 注入复用（tools/ 无 `__init__.py`,
+    沿用 lint.py 自己导入 runtime/loader 的方式）。
+  - 嵌套 setup 解析用 PyYAML（lint.py 的 regex parser 丢弃缩进子键）。
+  - `--json` 输出与 `--wiki-dir` flag 与 lint.py 等价。
+  - 退出码：≥ 1 个 🔴 时 exit 1。
+- `i18n/{en,zh}/skills/check/SKILL.md` + `.claude/skills/check/SKILL.md`：
+  - Step 1 末尾插入 "Bio-specific lint" 段说明何时调用 `lint_bio.py` 与如何合并 JSON 输出
+    （`bio-*` category 前缀区分）；非 bio wiki 静默跳过。
+  - Dependencies 加 `lint_bio.py` 条目。
+
+### 验证
+
+| 检查 | 结果 |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵（baseline 不变） |
+| `python tools/lint_bio.py` | 0 🔴 / 0 🟡 / 0 🔵（本 wiki 13-pilot bio 表面全干净） |
+| `python tools/lint_bio.py --json` | `[]`（机器可读） |
+| PDB regex 烟测 | `4CI1 5HXB 6XYZ` ✓；`XYZ4 pdb_001 6X` ✗ |
+| UniProt regex 烟测 | `Q96SW2 P12345 O00533` ✓；`Q96SW XYZ123` ✗ |
+| MD pattern 烟测 | `MD / MD + scoring / molecular dynamics` ✓；`scoring / docking / Cryo-EM` ✗ |
+| `diff -q i18n/en/skills/check/SKILL.md .claude/skills/check/SKILL.md` | 一致 |
+
+Section C 状态：6/9 → 7/9。
