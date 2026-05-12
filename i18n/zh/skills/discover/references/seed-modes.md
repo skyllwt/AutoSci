@@ -43,6 +43,24 @@ wiki 模式取 wiki 最近修改过的几篇论文页，提取 arXiv ID 作为 a
 
 如果 `wiki/papers/` 为空，或没有论文带 `arxiv` 或 `arxiv_id` frontmatter，wiki 模式无法运行。告诉用户 wiki 过于稀疏，建议改用 topic 模式（或 `/init`）。
 
+## Venue 模式（`from-venue`）
+
+使用场景：用户要求查看某个具体会议/venue 和年份的论文。
+
+触发信号：
+
+- "给我看看 NeurIPS 2024 里和我 wiki 相关的论文"
+- "ICML 2023 里有哪些关于 diffusion model 的论文"
+- "ICLR 2024 有什么值得读的"
+
+Venue 模式从 Paper Copilot 的公开 GitHub JSON 源（`papercopilot/paperlists`）拉取该 venue/year 的完整论文列表，规范化每条记录，并按与用户现有 wiki 内容的相关性排序。该模式要求 wiki 不能过于稀疏 —— 若 wiki 太空，工具会明确报错而不是返回一份未个性化的列表。
+
+Venue 模式**不**使用 Semantic Scholar 或 DeepXiv，也**不**向 `wiki/` 或 `raw/` 写入。
+
 ## 用户同时给了 anchor 和 topic 怎么办？
 
 优先 anchor 模式。anchor 是比 topic 字符串强得多的信号。可以在给用户的 report 里提一下 topic 已被注意，但 discovery 本身走 `from-anchors`。
+
+## 用户同时给了 venue 和 topic 怎么办？
+
+若用户明确指名了 venue 和年份，优先 venue 模式。可以在报告中提及 topic，但 venue 模式的排名由 wiki 相关性驱动，而非 topic 字符串。若 wiki 过于稀疏导致 venue 模式无法运行，应明确报错并建议先 ingest 更多论文，或另行运行 topic discovery；不要静默回退到未个性化的 venue ranking。

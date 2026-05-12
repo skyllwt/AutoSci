@@ -25,6 +25,18 @@ Anchor mode (rough weight order):
 
 Topic / wiki mode: same signals minus anchor overlap and minus the anchor-influence edge (no anchor exists in topic mode; wiki-derived anchors do score the edge signal). Influence and freshness carry more weight to compensate.
 
+Venue mode:
+
+1. **Wiki relevance** — primary signal. `tools/discover.py` builds a small BM25-style local corpus from `wiki/papers/`, `wiki/concepts/`, and `wiki/topics/`, with stronger weights for page titles and frontmatter than body text. Candidate titles, abstracts, keywords, TLDRs, and track names are scored against that corpus. If the wiki is too sparse, or no venue candidate matches the corpus, the tool fails instead of pretending the ranking is personalized.
+2. **Citation count** — Paper Copilot's available citation field, log-scaled as a secondary signal.
+3. **Freshness** — mild tie-breaker; most venue runs use one year, so this normally does not move much.
+4. **Paper Copilot rating / review metadata** — used only as secondary tie-breakers when present.
+5. **Paper Copilot status / decision** — small tie-breaker so accepted/oral/spotlight records edge out rejected or withdrawn records at similar wiki relevance.
+
+Venue mode uses Paper Copilot's public GitHub JSON data (`papercopilot/paperlists`) for the venue/year list and does not scrape the live website or vendor the dataset.
+
+Paper Copilot normalization must not drop relevance-bearing fields documented by the source. Preserve title, abstract, TLDR, keywords / primary area / topic, track, status, citations, ratings, review metadata, and paper URLs (`url`, `site`, `openreview`, `pdf`, project/GitHub links when present) in the shortlist payload where practical. These fields are either ranked directly or left visible as secondary evidence for the user.
+
 ### Why aggregate influence AND per-edge influence?
 
 They answer different questions:
@@ -33,16 +45,6 @@ They answer different questions:
 - `isInfluential` on the anchor edge = "does *this anchor* specifically build on / get built on by this paper?" — a proxy for anchor-specific relevance
 
 A paper can score high on one and low on the other. Example: a well-known benchmark paper has a high aggregate count (everyone cites it) but rarely a True edge from a method paper (the benchmark is used, not built upon). Our ranking uses both, so benchmarks surface when there's no better signal, but papers the anchor literally built on outrank them.
-
-## What discovery does **not** score on
-
-This is where `/discover` deliberately differs from `/init`'s planner (`tools/init_discovery.py`):
-
-- **No survey preference**. `/init` favors survey/review papers because a fresh wiki benefits from them as anchor coverage. `/discover` is invoked when a user already knows the area (anchor mode) or is exploring (topic mode); they rarely need yet another survey, and surfacing surveys above novel work would be noise.
-- **No "older canonical anchor" bonus**. `/init`'s bootstrap mode promotes one older citation-heavy paper to broaden coverage. `/discover` users typically want forward-looking recommendations, not foundational re-anchoring.
-- **No notes/web priority terms**. `/init` reads `raw/notes/` and `raw/web/` to extract the user's stated intent. `/discover` does not — its inputs are explicit (anchor, topic, or wiki state).
-
-If a future ranking signal seems shared between `/init` and `/discover`, prefer keeping two implementations rather than extracting a shared scorer. The objectives genuinely differ; a shared scorer would force one skill to compromise.
 
 ## Field-set restrictions on S2 endpoints
 
