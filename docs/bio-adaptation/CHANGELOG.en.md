@@ -2215,3 +2215,54 @@ content) + full D2 (lint detection of scale-mixing within a concept) deferred.
 | Existing concept page maturity values | all CS scale; new enum backward-compatible |
 
 Section D backlog items (D1 + D2) minimal-merged.
+
+---
+
+## 2026-05-12 — B-infra pilot merge: typed metadata nested-schema validation closes B1/B2/B3
+
+**Scope**: B1 / B2 / B3 minimal pilots all flagged "typed metadata validation deferred —
+needs add-edge CLI extension + loader validation". a3a2751 added `add-edge --metadata`.
+This pilot adds the loader-side metadata schema validation + declares per-edge-type
+metadata sub-schemas, closing the last deferred item in Section B.
+**Status**: **B-infra merged** (full). Schema declarations + loader validation + legacy
+edge migration + end-to-end smoke all in. Section B has no remaining deferred items.
+
+### Files touched
+
+- `runtime/schema/edges.yaml`: 5 edge types gain a `metadata:` block alongside
+  `attributes:`:
+  - `dataset_version_used.metadata`: version (str, required), subset (str), accessed_date (str)
+  - `binds.metadata`: recruitment_ligand_class (str), clinical_anchor (str), kd_nM (float)
+  - `clinical_trial_for.metadata`: nct_id (str), phase (enum [0,1,1/2,2,2/3,3,4]),
+    indication (str), year (int)
+  - `fda_approved_for.metadata`: indication (str, required), year (int), approval_kind
+    (enum [standard, accelerated, breakthrough, fast-track])
+  - `validates_in_species.metadata`: species (str, required), source_db (str)
+  - The other 9 B1 verbs (targets_protein, ubiquitinates, inhibits, activates, degrades,
+    phosphorylates, methylates, acetylates, is_substrate_of) keep no metadata block →
+    legacy passthrough (arbitrary metadata accepted).
+- `runtime/loader.py::validate_edge_attributes`: extended to validate metadata
+  - closed-set: undeclared keys emit `edge-attribute` warnings with a "known keys" hint
+  - type checks (enum / int / float / str)
+  - required-key check — but only **when the metadata block is present on the edge**
+    (an absent block is treated as legacy / not-yet-migrated and passes)
+  - shares the same errors list and the same lint.py call path as the existing
+    attributes validator
+- **Live edge migration**: the single `dataset_version_used` edge from the B3 minimal
+  era (version encoded only in the evidence string) migrated to typed form
+  (`metadata.version=v1`, `metadata.subset=crbn-vhl-test`); evidence string trimmed of
+  the now-redundant "version: v1" prefix.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `python tools/lint.py` | 0 🔴 / 0 🟡 / 11 🔵 (unchanged) |
+| `python tools/lint_bio.py` | 0 🔴 / 0 🟡 / 0 🔵 (unchanged) |
+| Smoke: 3 live typed-metadata edges | all validate clean |
+| Smoke: 6 bad cases | missing required / unknown key / invalid enum / bad int / bad float / non-dict — all flagged correctly |
+| End-to-end lint inject smoke (TYPO_KEY) | lint.py emits `edge-attribute` warning with the "known keys" hint |
+| Live bio relation edges carrying typed metadata | 4/7 (up from 3/7) |
+
+**Section B infra closed.** Every numbered backlog item in Sections A + B + C + D is now
+merged.

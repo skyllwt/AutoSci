@@ -184,6 +184,13 @@ dataset_version_used:
   attributes:
     confidence: { type: enum, values: [high, medium, low], required: true }
     evidence:   { type: str, required: true }
+  # bio-B-infra (pilot merged 2026-05-12): typed metadata schema. Closed-set —
+  # validate_edge_attributes warns on keys not listed here. Cross-checked against
+  # datasets/{slug}.md::versions by tools/lint_bio.py::check_dataset_versions (3a).
+  metadata:
+    version:       { type: str, required: true }
+    subset:        { type: str }
+    accessed_date: { type: str }
 
 # -----------------------------------------------------------------------------
 # bio-B1 (minimal pilot merged 2026-05-11): bio relation edges.
@@ -226,6 +233,14 @@ binds:
   attributes:
     confidence: { type: enum, values: [high, medium, low], required: true }
     evidence:   { type: str, required: true }
+  # bio-B-infra (pilot merged 2026-05-12): typed metadata for drug / PROTAC binding edges.
+  # recruitment_ligand_class — imid | non-imid-crbn-binder | vhl-binder | dcaf15-binder | …
+  # clinical_anchor — name of the canonical clinical molecule for context (e.g.
+  # lenalidomide-pomalidomide for IMiD-class CRBN binders). kd_nM — optional binding affinity.
+  metadata:
+    recruitment_ligand_class: { type: str }
+    clinical_anchor:          { type: str }
+    kd_nM:                    { type: float }
 
 inhibits:
   endpoints: { from: '*', to: concepts }
@@ -302,6 +317,15 @@ clinical_trial_for:
   attributes:
     confidence: { type: enum, values: [high, medium, low], required: true }
     evidence:   { type: str, required: true }
+  # bio-B-infra (pilot merged 2026-05-12): typed metadata for clinical-trial provenance.
+  # nct_id — ClinicalTrials.gov registration (NCT followed by 8 digits).
+  # phase — trial phase (Phase 0 preclinical pilot through Phase 4 post-approval; bio
+  # domain meaning per D1 disambiguation). indication — disease / cohort.
+  metadata:
+    nct_id:     { type: str }
+    phase:      { type: enum, values: ["0", "1", "1/2", "2", "2/3", "3", "4"] }
+    indication: { type: str }
+    year:       { type: int }
 
 fda_approved_for:
   endpoints: { from: '*', to: concepts }
@@ -310,6 +334,11 @@ fda_approved_for:
   attributes:
     confidence: { type: enum, values: [high, medium, low], required: true }
     evidence:   { type: str, required: true }
+  # bio-B-infra (pilot merged 2026-05-12): typed metadata for FDA-approval provenance.
+  metadata:
+    indication:   { type: str, required: true }
+    year:         { type: int }
+    approval_kind: { type: enum, values: [standard, accelerated, breakthrough, fast-track] }
 
 validates_in_species:
   endpoints: { from: '*', to: concepts }
@@ -318,6 +347,12 @@ validates_in_species:
   attributes:
     confidence: { type: enum, values: [high, medium, low], required: true }
     evidence:   { type: str, required: true }
+  # bio-B-infra (pilot merged 2026-05-12): typed metadata for species-validation
+  # provenance. species — required (use lint_bio RECOGNISED_SPECIES allowlist values
+  # for convergence). source_db — uniprotkb-swissprot / pubmed / interpro / etc.
+  metadata:
+    species:   { type: str, required: true }
+    source_db: { type: str }
 
 # -----------------------------------------------------------------------------
 # Bibliographic citation

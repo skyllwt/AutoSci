@@ -202,9 +202,19 @@ VALID_EDGE_TYPES               = set(EDGE_TYPE_SPECS) | LEGACY_EDGE_TYPES
 
 def validate_edge_attributes(edge_type: str, attrs: dict) -> list[str]:
     """Validate a dict of edge attributes against edges.yaml::attributes spec.
-    Returns a list of error messages (empty if valid)."""
+    Returns a list of error messages (empty if valid).
+
+    bio-B-infra (pilot merged 2026-05-12): when the edge type declares a
+    ``metadata:`` block in edges.yaml, validate ``attrs.metadata`` against it
+    (closed-set — unknown keys generate a warning-level error; required keys
+    must be present; enum values must match; numeric types must coerce).
+    Edges without a ``metadata:`` block accept arbitrary metadata
+    (legacy / B1-verbs-without-typed-metadata).
+    """
     errors = []
-    spec = EDGES.get(edge_type, {}).get('attributes', {})
+    edge_def = EDGES.get(edge_type, {})
+
+    spec = edge_def.get('attributes', {})
     for attr_name, attr_spec in spec.items():
         value = attrs.get(attr_name)
         if attr_spec.get('required') and not value:
@@ -217,6 +227,58 @@ def validate_edge_attributes(edge_type: str, attrs: dict) -> list[str]:
                 errors.append(
                     f"{edge_type}.{attr_name}={value!r} not in {attr_spec['values']}"
                 )
+
+    metadata_spec = edge_def.get('metadata')
+    if metadata_spec:
+        metadata = attrs.get('metadata')
+        # Legacy / not-yet-migrated edges may omit the metadata block entirely
+        # (the version etc. lives in the free-text evidence). Don't fail those —
+        # validate only when metadata is actually present.
+        if metadata is None:
+            return errors
+        if not isinstance(metadata, dict):
+            errors.append(
+                f"{edge_type}.metadata must be a mapping, got {type(metadata).__name__}"
+            )
+            return errors
+        # Required + value checks against declared keys.
+        for key, key_spec in metadata_spec.items():
+            value = metadata.get(key)
+            if key_spec.get('required') and value in (None, ""):
+                errors.append(f"{edge_type}.metadata.{key} required")
+                continue
+            if value is None or value == "":
+                continue
+            ktype = key_spec.get('type')
+            if ktype == 'enum':
+                if str(value) not in [str(v) for v in key_spec['values']]:
+                    errors.append(
+                        f"{edge_type}.metadata.{key}={value!r} not in {key_spec['values']}"
+                    )
+            elif ktype == 'int':
+                try:
+                    int(value)
+                except (TypeError, ValueError):
+                    errors.append(
+                        f"{edge_type}.metadata.{key}={value!r} must be int"
+                    )
+            elif ktype == 'float':
+                try:
+                    float(value)
+                except (TypeError, ValueError):
+                    errors.append(
+                        f"{edge_type}.metadata.{key}={value!r} must be float"
+                    )
+            # str / no-type-declared → accept as-is
+        # Unknown keys (closed-set warning).
+        declared = set(metadata_spec.keys())
+        for key in metadata.keys():
+            if key not in declared:
+                errors.append(
+                    f"{edge_type}.metadata.{key!r} not declared in edges.yaml "
+                    f"(known keys: {sorted(declared)})"
+                )
+
     return errors
 
 
