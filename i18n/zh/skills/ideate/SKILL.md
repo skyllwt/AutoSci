@@ -122,27 +122,28 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
      | 路径 | 名称 | 读取的 wiki 字段 | 产出形态 |
      |------|------|------------------|----------|
-     | A | 增量改进 (Incremental) | `wiki/methods/*.md` 中的 `method.limitations` | "在方法 M 上修复局限 L" |
-     | B | 有机融合 (Combination) | 同 topic 下两个 method 的 `tradeoff_profile`（`wiki/methods/*.md`） | "组合 M1 + M2 的优势" |
-     | C | 共性盲点 (Innovation) | 同 topic 下 N 个 method 的 `assumptions` 交集（`wiki/methods/*.md`） | "打破共有假设 P" |
-     | D | 跨域迁移 (Cross-domain transfer) | 跨 topic 的 method 的 `mechanism` 相似度（`wiki/methods/*.md`） | "把机制 M 从领域 X 迁移到 Y" |
+     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic/research 描述直接设计实验" |
+     | B | 增量改进 (Incremental) | `wiki/methods/*.md` 中的 `method.limitations` | "在方法 M 上修复局限 L" |
+     | C | 有机融合 (Combination) | 同 topic 下两个 method 的 `tradeoff_profile`（`wiki/methods/*.md`） | "组合 M1 + M2 的优势" |
+     | D | 共性盲点 (Innovation) | 同 topic 下 N 个 method 的 `assumptions` 交集（`wiki/methods/*.md`） | "打破共有假设 P" |
+     | E | 跨域迁移 (Cross-domain transfer) | 跨 topic 的 method 的 `mechanism` 相似度（`wiki/methods/*.md`） | "把机制 M 从领域 X 迁移到 Y" |
 
-     对每条路径，先提取相关 wiki 字段，再生成 idea。每个 idea 必须声明来自哪条路径（A/B/C/D）。
+     对每条路径，先提取相关 wiki 字段，再生成 idea。每个 idea 必须声明来自哪条路径（A/B/C/D/E）。
 
-   - 补充策略（在路径 A–D 之上叠加）：
+   - 补充策略（在路径 A–E 之上叠加）：
      - 填补 gap_map 与 topic / concept open-problem 章节中的空白
      - SOTA 的已知 limitation → 改进方向
-   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、`origin_gaps`（idea 针对的 concept / topic slug）、estimated feasibility（高/中/低）、generation_path（A/B/C/D）
+   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、`origin_gaps`（idea 针对的 concept / topic slug）、estimated feasibility（高/中/低）、generation_path（A/B/C/D/E）
 
 2. **Review LLM 独立生成 4-6 个 ideas**（并行执行）：
    ```
    mcp__llm-review__chat:
      system: "You are a creative ML researcher brainstorming research ideas.
               Generate novel, concrete, and feasible ideas based on the given context.
-              Each idea MUST follow one of the four structured generation paths below.
+              Each idea MUST follow one of the five structured generation paths below.
               For each idea, provide: title, hypothesis (1-2 sentences),
               approach sketch (3-5 sentences), feasibility assessment,
-              and generation_path (A/B/C/D)."
+              and generation_path (A/B/C/D/E)."
      message: |
        ## Structured Generation Paths
 
@@ -150,15 +151,16 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Incremental | method.limitations | "Fix limitation L in method M" |
-       | B | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
-       | C | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
-       | D | Cross-domain transfer | mechanism similarity across different topics | "Transfer mechanism M from domain X to Y" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+       | B | Incremental | method.limitations | "Fix limitation L in method M" |
+       | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
+       | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
+       | E | Cross-domain transfer | mechanism similarity across different topics | "Transfer mechanism M from domain X to Y" |
 
        ## Research Landscape
        {landscape report from Phase 1 — gaps, SOTA, trends}
 
-       ## Methods (for paths A–D)
+       ## Methods (for paths B–E)
        {wiki/methods/*.md — limitations, tradeoff_profile, assumptions, mechanism fields}
 
        ## Knowledge Gaps
@@ -173,7 +175,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
        Generate 4-6 novel research ideas that address the gaps above.
        Focus on ideas that are: (1) genuinely novel, (2) feasible within 3-6 months,
        (3) directly address a knowledge gap.
-       Each idea MUST declare its generation_path (A/B/C/D).
+       Each idea MUST declare its generation_path (A/B/C/D/E).
    ```
 
 3. **合并与去重**：
@@ -379,24 +381,29 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    | Maturity | {before_level} | {after_level} | {unchanged/upgraded} |
    （仅展示 delta != 0 的行。数据来自前置 step 3 的 `maturity_before` 与此处重新调用 `maturity --json` 的对比。）
    ```
+
+7. **若用户输入了 `--skip-pilot`则跳过预实验部分，否则记得向用户确定要进行预实验，并让用户选择幸存idea中需要进行预实验的idea**
+
+
 ### Phase 5: 预实验（Pilot Experiments）
 
 （若 `--skip-pilot` 则跳过，管道在 Phase 4 后结束）
 
-目标：对每个幸存 idea 进行轻量级预实验，在投入完整实验前检测明显失败。
+目标：对幸存的idea中**用户选择的**进行轻量级预实验，在投入完整实验前检测明显失败。
 
 **按 `generation_path` 的预实验策略**：
 
 | 路径 | 预实验方式 |
 |------|-----------|
-| A (增量改进) | 从原方法的论文 repo 出发，应用提出的修复并运行最小评估。与原方法对比验证局限是否被解决。 |
-| B (有机融合) | 实现 M1 + M2 的组合版本。在小规模 benchmark 上运行，检查性能/成本 tradeoff 是否达到预期平衡（不被纯 M1 或纯 M2 支配）。 |
-| C (共性盲点) | 在新设定下（共有假设 P 被打破时）运行现有方法。验证它们确实失败或退化，确认 gap 真实存在。 |
-| D (跨域迁移) | 在目标领域实现迁移的机制。运行最小评估，检查机制是否兼容且产生非退化输出。 |
+| A (景观驱动) | 基于 topic/research 描述直接实现提出的方法。在小规模 benchmark 上运行，验证 idea 可行且产生非退化输出。与简单 baseline 对比。 |
+| B (增量改进) | 从原方法的论文 repo 出发，应用提出的修复并运行最小评估。与原方法对比验证局限是否被解决。 |
+| C (有机融合) | 实现 M1 + M2 的组合版本。在小规模 benchmark 上运行，检查性能/成本 tradeoff 是否达到预期平衡（不被纯 M1 或纯 M2 支配）。 |
+| D (共性盲点) | 在新设定下（共有假设 P 被打破时）运行现有方法。验证它们确实失败或退化，确认 gap 真实存在。 |
+| E (跨域迁移) | 在目标领域实现迁移的机制。运行最小评估，检查机制是否兼容且产生非退化输出。 |
 
-**Pilot Spec — 结构化输出**（GPU 资源充足时可并行执行多个预实验）：
+**Pilot Spec — 结构化输出**（GPU 资源充足时**可并行执行多个预实验**）：
 
-写预实验代码前，为每个 idea 生成结构化 Pilot Spec 块并写入 `wiki/experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
+写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `wiki/experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -436,12 +443,12 @@ pilot_spec:
 - **减小 batch size**：使用能产生有意义梯度的最小 batch size（通常为论文报告 batch size 的 1/4 到 1/8）
 - **缩短训练**：训练到前中期（完整训练步数的 10-30%），非完整收敛
 - **目标**：检测明显的退化或失败，而非追求 SOTA
-- **对比**：始终包含 baseline（路径 A 用原方法，路径 B 用纯 M1/M2，路径 C 用现有方法，路径 D 用目标领域 SOTA）
+- **对比**：始终包含 baseline（路径 A 用简单默认 baseline，路径 B 用原方法，路径 C 用纯 M1/M2，路径 D 用现有方法，路径 E 用目标领域 SOTA）
 - **success_criterion**：必须是量化可判定的条件
 
 **通过 `/exp-pilot-run` 运行预实验**：
 
-每个幸存 idea 写入 Pilot Spec 到 `wiki/experiments/pilot/{slug}.yaml` 后：
+用户选择的幸存 idea 写入 Pilot Spec 到 `wiki/experiments/pilot/{slug}.yaml` 后：
 
 ```
 Skill: exp-pilot-run

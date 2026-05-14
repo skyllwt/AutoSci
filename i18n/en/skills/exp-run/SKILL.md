@@ -127,7 +127,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 #### Local mode (`--env local` or default)
 
-1. **Check GPU**: `nvidia-smi` to confirm GPU available and sufficient VRAM
+1. **Check GPU**: `nvidia-smi` to confirm GPU available and sufficient VRAM. If `setup.hardware` is `cpu`/`none`/empty and generated code has no CUDA/GPU keywords, skip GPU check and go to step 2 directly.
 2. **Launch**:
    ```bash
    screen -dmS exp-{slug} bash -c \
@@ -163,7 +163,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 1. **Confirm connectivity**: `python3 tools/remote.py status`
    - If unreachable → report error and suggest checking config/server.yaml
-2. **Find free GPU**: `python3 tools/remote.py gpu-status`
+2. **Find free GPU**: `python3 tools/remote.py gpu-status` (skip if `setup.hardware` is `cpu`/`none`/empty and code has no CUDA/GPU keywords)
    - If no free GPU → report each GPU's usage, suggest waiting
 3. **Sync code**: `python3 tools/remote.py sync-code`
 4. **Install dependencies** (first time or if requirements changed): `python3 tools/remote.py setup-env`

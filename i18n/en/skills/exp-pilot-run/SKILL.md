@@ -22,15 +22,15 @@ argument-hint: <idea-slug> [--env local|remote]
 - Pilot code: `wiki/experiments/pilot/code/{slug}/` (train.py, config.yaml, run.sh, requirements.txt)
 - Pilot results: `wiki/experiments/pilot/code/{slug}/results/seed_{N}.json`
 - Pilot log: `wiki/experiments/pilot/code/{slug}/pilot.log`
+- Polling log: `wiki/experiments/pilot/{slug}/check.md` (**real-time progress updates during monitoring**)
 - **PILOT_REPORT** (printed to terminal) — results table, run details, anomalies
-- Polling log: `wiki/experiments/pilot/{slug}/check.md` (real-time progress updates during monitoring)
 - Returns raw results and key metrics to caller
 - NO wiki page modifications
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration)
+- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
 - `wiki/papers/*.md` — related papers' method descriptions (implementation reference)
 
 ### Writes
@@ -55,6 +55,7 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: Prepare**
 
 1. **Read Pilot Spec**:
+   **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
    - Load `wiki/experiments/pilot/{slug}.yaml`
    - The YAML has a `pilot_spec:` root key; all fields below are nested under it
    - Validate required fields exist under `pilot_spec:`: `implementation`, `setup`, `metrics`, `baseline`, `success_criterion`
@@ -97,7 +98,7 @@ Possible reference paths for the preliminary experiment code:
 
 #### Local mode (`--env local` or default)
 
-1. **Check GPU**: `nvidia-smi` to confirm GPU available and sufficient VRAM
+1. **Check GPU**: `nvidia-smi` to confirm GPU available and sufficient VRAM. If `setup.hardware` is `cpu`/`none`/empty and generated code has no CUDA/GPU keywords, skip GPU check and go to step 2 directly.
 2. **Estimate runtime**: based on `setup.hardware` (GPU model), `setup.model` (parameter count), `setup.dataset` (scale), and `setup.max_steps` (reduced steps):
 
    | Typical pilot scenario | Estimated duration |
@@ -155,7 +156,7 @@ Possible reference paths for the preliminary experiment code:
 1. **Confirm connectivity**: `python3 tools/remote.py status`
    - If unreachable → report error and suggest checking `config/server.yaml`
 
-2. **Find free GPU**: `python3 tools/remote.py gpu-status`
+2. **Find free GPU**: `python3 tools/remote.py gpu-status` (skip if `setup.hardware` is `cpu`/`none`/empty and code has no CUDA/GPU keywords)
    - If no free GPU → report each GPU's usage, suggest waiting or using `--env local`
 
 3. **Sync code**: `python3 tools/remote.py sync-code`

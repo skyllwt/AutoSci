@@ -122,27 +122,28 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 
      | Path | Name | Wiki input to read | Output form |
      |------|------|--------------------|-------------|
-     | A | Incremental | `method.limitations` in `wiki/methods/*.md` | "Fix limitation L in method M" |
-     | B | Combination | `tradeoff_profile` of two methods under the same topic in `wiki/methods/*.md` | "Combine strengths of M1 + M2" |
-     | C | Innovation | Intersection of `assumptions` across N methods under the same topic in `wiki/methods/*.md` | "Break shared assumption P" |
-     | D | Cross-domain transfer | `mechanism` similarity of methods across different topics in `wiki/methods/*.md` | "Transfer mechanism M from domain X to Y" |
+     | A | Landscape-driven | `direction` + landscape report from Phase 1 (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+     | B | Incremental | `method.limitations` in `wiki/methods/*.md` | "Fix limitation L in method M" |
+     | C | Combination | `tradeoff_profile` of two methods under the same topic in `wiki/methods/*.md` | "Combine strengths of M1 + M2" |
+     | D | Innovation | Intersection of `assumptions` across N methods under the same topic in `wiki/methods/*.md` | "Break shared assumption P" |
+     | E | Cross-domain transfer | `mechanism` similarity of methods across different topics in `wiki/methods/*.md` | "Transfer mechanism M from domain X to Y" |
 
-     For each path, first extract the relevant wiki fields, then generate the idea. Every idea must declare which path (A/B/C/D) it comes from.
+     For each path, first extract the relevant wiki fields, then generate the idea. Every idea must declare which path (A/B/C/D/E) it comes from.
 
-   - Additional strategies (applied on top of paths A–D):
+   - Additional strategies (applied on top of paths A–E):
      - Fill gaps in the gap_map and topic/concept open-problem sections
      - Known limitations of SOTA → improvement directions
-   - Each idea includes: title, hypothesis (1–2 sentences), approach sketch (3–5 sentences), `origin_gaps` (concept / topic slugs the idea targets), estimated feasibility (high/medium/low), generation_path (A/B/C/D)
+   - Each idea includes: title, hypothesis (1–2 sentences), approach sketch (3–5 sentences), `origin_gaps` (concept / topic slugs the idea targets), estimated feasibility (high/medium/low), generation_path (A/B/C/D/E)
 
 2. **Review LLM independently generates 4–6 ideas** (run in parallel):
    ```
    mcp__llm-review__chat:
      system: "You are a creative ML researcher brainstorming research ideas.
               Generate novel, concrete, and feasible ideas based on the given context.
-              Each idea MUST follow one of the four structured generation paths below.
+              Each idea MUST follow one of the five structured generation paths below.
               For each idea, provide: title, hypothesis (1-2 sentences),
               approach sketch (3-5 sentences), feasibility assessment,
-              and generation_path (A/B/C/D)."
+              and generation_path (A/B/C/D/E)."
      message: |
        ## Structured Generation Paths
 
@@ -150,15 +151,16 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Incremental | method.limitations | "Fix limitation L in method M" |
-       | B | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
-       | C | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
-       | D | Cross-domain transfer | mechanism similarity across different topics | "Transfer mechanism M from domain X to Y" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+       | B | Incremental | method.limitations | "Fix limitation L in method M" |
+       | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
+       | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
+       | E | Cross-domain transfer | mechanism similarity across different topics | "Transfer mechanism M from domain X to Y" |
 
        ## Research Landscape
        {landscape report from Phase 1 — gaps, SOTA, trends}
 
-       ## Methods (for paths A–D)
+       ## Methods (for paths B–E)
        {wiki/methods/*.md — limitations, tradeoff_profile, assumptions, mechanism fields}
 
        ## Knowledge Gaps
@@ -173,7 +175,7 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
        Generate 4-6 novel research ideas that address the gaps above.
        Focus on ideas that are: (1) genuinely novel, (2) feasible within 3-6 months,
        (3) directly address a knowledge gap.
-       Each idea MUST declare its generation_path (A/B/C/D).
+       Each idea MUST declare its generation_path (A/B/C/D/E).
    ```
 
 3. **Merge and deduplicate**:
@@ -380,25 +382,28 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    | Maturity | {before_level} | {after_level} | {unchanged/upgraded} |
    (Only rows with delta != 0 are shown. Data is computed by comparing `maturity_before` from the pre-condition step against a fresh `maturity --json` call here.)
    ```
+7. **If the user enters `--skip-pilot`, the pilot experiment section will be skipped. Otherwise, confirm with the user whether to conduct a pilot experiment and let the user select the surviving ideas that require pilot experiments.**
+
 
 ### Phase 5: Pilot Experiments
 
 (Skip if `--skip-pilot` is set; pipeline ends after Phase 4.)
 
-Goal: run lightweight pilot experiments on each surviving idea to detect obvious failures before committing to full experiments.
+Objective: Conduct lightweight pre-experiments on **user-selected** surviving ideas to detect obvious failures before launching full-scale experiments.
 
 **Per-idea pilot strategy** (based on `generation_path`):
 
 | Path | Pilot approach |
 |------|---------------|
-| A (Incremental) | Start from the original method's paper repo; apply the proposed fix and run a minimal evaluation. Compare against the original method to verify the limitation is addressed. |
-| B (Combination) | Implement the combined version of M1 + M2. Run on a small benchmark to check whether the performance/cost tradeoff reaches the expected balance (not dominated by either pure M1 or M2). |
-| C (Innovation) | Run existing methods under the new setting (where the shared assumption P is broken). Verify that they indeed fail or degrade, confirming the gap is real. |
-| D (Cross-domain transfer) | Implement the transferred mechanism in the target domain. Run a minimal evaluation to check whether the mechanism is compatible and produces non-degenerate output. |
+| A (Landscape-driven) | Implement the proposed method directly from the topic/research description. Run on a small benchmark to verify the idea is feasible and produces non-degenerate output. Compare against a simple baseline. |
+| B (Incremental) | Start from the original method's paper repo; apply the proposed fix and run a minimal evaluation. Compare against the original method to verify the limitation is addressed. |
+| C (Combination) | Implement the combined version of M1 + M2. Run on a small benchmark to check whether the performance/cost tradeoff reaches the expected balance (not dominated by either pure M1 or M2). |
+| D (Innovation) | Run existing methods under the new setting (where the shared assumption P is broken). Verify that they indeed fail or degrade, confirming the gap is real. |
+| E (Cross-domain transfer) | Implement the transferred mechanism in the target domain. Run a minimal evaluation to check whether the mechanism is compatible and produces non-degenerate output. |
 
-**Pilot Spec — structured output for each idea**:(Multiple pilot experiments can be executed in parallel when GPU resources are sufficient.)
+**Pilot Spec — structured output for each idea**:(**Multiple pilot experiments can be executed in parallel** when GPU resources are sufficient.)
 
-Before writing pilot code, generate a structured Pilot Spec block per idea and write it to `wiki/experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `/exp-design` experiment pages guide `/exp-run`). Include the following fields:
+Before writing pilot code, generate a structured Pilot Spec block per idea selected by the user and write it to `wiki/experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `/exp-design` experiment pages guide `/exp-run`). Include the following fields:
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -454,7 +459,7 @@ pilot_spec:
 - **model / dataset / hardware**: inherit from the source paper's experiment setup in wiki, reduce batch_size and max_steps per pilot requirements below
 - **seeds**: default 1 for pilot (single run is sufficient for pass/fail detection)
 - **metrics**: choose 1-2 metrics that directly test the hypothesis (not a full metric suite)
-- **baseline**: for path A use the original method; path B use pure M1 and pure M2; path C use existing SOTA under the new setting; path D use target-domain SOTA
+- **baseline**: for path A use a simple default baseline; path B use the original method; path C use pure M1 and pure M2; path D use existing SOTA under the new setting; path E use target-domain SOTA
 - **success_criterion**: must be quantitative and checkable — avoid vague conditions like "improves performance"
 
 **Pilot requirements** (encoded in the Pilot Spec `setup` and `success_criterion` fields):
@@ -466,7 +471,7 @@ pilot_spec:
 
 **Run pilots via `/exp-pilot-run`**:
 
-For each surviving idea, after writing the Pilot Spec to `wiki/experiments/pilot/{slug}.yaml`:
+User-selected surviving idea, after writing the Pilot Spec to `wiki/experiments/pilot/{slug}.yaml`:
 
 ```
 Skill: exp-pilot-run

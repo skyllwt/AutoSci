@@ -22,15 +22,15 @@ argument-hint: <idea-slug> [--env local|remote]
 - 预实验代码：`wiki/experiments/pilot/code/{slug}/`（train.py, config.yaml, run.sh, requirements.txt）
 - 预实验结果：`wiki/experiments/pilot/code/{slug}/results/seed_{N}.json`
 - 预实验日志：`wiki/experiments/pilot/code/{slug}/pilot.log`
+- 轮询日志：`wiki/experiments/pilot/{slug}/check.md`（**监控期间实时进度更新**）
 - **PILOT_REPORT**（输出到终端）— 结果表格、运行详情、异常
-- 轮询日志：`wiki/experiments/pilot/{slug}/check.md`（监控期间实时进度更新）
 - 返回原始结果和关键指标给调用者
 - 不修改任何 wiki 页面
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec（所有配置）
+- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec（所有配置）**如果在对应位置不存在所选择idea的Pilot Spec，提醒用户，并按照 /ideate Phase 5 中创建Pilot Spec的步骤进行创建**
 - `wiki/papers/*.md` — 相关论文的方法描述（实现参考）
 
 ### Writes
@@ -55,6 +55,7 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: 准备**
 
 1. **读取 Pilot Spec**：
+   **如果在对应位置不存在所选择idea的Pilot Spec，提醒用户，并按照 /ideate Phase 5 中创建Pilot Spec的步骤进行创建**
    - 加载 `wiki/experiments/pilot/{slug}.yaml`
    - YAML 有 `pilot_spec:` 根键；所有字段嵌套在其下
    - 验证 `pilot_spec:` 下必填字段存在：`implementation`、`setup`、`metrics`、`baseline`、`success_criterion`
@@ -97,7 +98,7 @@ argument-hint: <idea-slug> [--env local|remote]
 
 #### 本地模式（`--env local` 或默认）
 
-1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够
+1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够。若 `setup.hardware` 为 `cpu`/`none`/空且生成代码无 CUDA/GPU 关键字，跳过 GPU 检查直接进入步骤 2。
 2. **估算运行时间**：根据 `setup.hardware`（GPU 型号）、`setup.model`（参数量）、`setup.dataset`（规模）和 `setup.max_steps`（缩减步数）：
 
    | 典型预实验场景 | 预估时长 |
@@ -155,7 +156,7 @@ argument-hint: <idea-slug> [--env local|remote]
 1. **确认连接**：`python3 tools/remote.py status`
    - 若不可达 → 报告错误，建议检查 `config/server.yaml`
 
-2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`
+2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`（若 `setup.hardware` 为 `cpu`/`none`/空且代码无 CUDA/GPU 关键字则跳过）
    - 若无空闲 GPU → 报告各 GPU 使用情况，建议等待或使用 `--env local`
 
 3. **同步代码**：`python3 tools/remote.py sync-code`

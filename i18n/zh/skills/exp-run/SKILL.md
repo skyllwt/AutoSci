@@ -127,7 +127,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 #### Local 模式（`--env local` 或默认）
 
-1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够
+1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够。若 `setup.hardware` 为 `cpu`/`none`/空且生成代码无 CUDA/GPU 关键字，跳过 GPU 检查直接进入步骤 2。
 2. **启动**：
    ```bash
    screen -dmS exp-{slug} bash -c \
@@ -163,7 +163,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 1. **确认连通**：`python3 tools/remote.py status`
    - 若不可达 → 报错并建议检查 config/server.yaml
-2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`
+2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`（若 `setup.hardware` 为 `cpu`/`none`/空且代码无 CUDA/GPU 关键字则跳过）
    - 若无空闲 GPU → 报告各 GPU 占用情况，建议等待
 3. **同步代码**：`python3 tools/remote.py sync-code`
 4. **安装依赖**（首次或 requirements 有变化）：`python3 tools/remote.py setup-env`
