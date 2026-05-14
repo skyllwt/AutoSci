@@ -11,3 +11,4 @@
 ## [2026-05-14] ingest: StitchCUDA — multi-agent end-to-end GPU programming framework with rubric-based agentic RL (ICML 2026)
 ## [2026-05-14] ingest: TritonBench - Benchmarking Large Language Model Capabilities for Generating Triton Operators
 ## [2026-05-14] ingest | Ingested paper: The New Compiler Stack: A Survey on the Synergy of LLMs and Compilers. Created 4 new concepts: llm-enabled-compilation, llm-as-selector, llm-as-translator, llm-as-generator.
+## [2026-05-14] ## [2026-05-14] ingest | Ingested paper: KernelBenchX: A Comprehensive Benchmark for Evaluating LLM-Generated GPU Kernels
