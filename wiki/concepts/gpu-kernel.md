@@ -4,7 +4,7 @@ aliases: [cuda-kernel, triton-kernel, gpu-program]
 tags: [gpu, kernel, parallel-computing, cuda]
 maturity: stable
 definition: "A GPU kernel is a function that executes on a GPU's massively parallel processors, typically launched with thousands of threads organized in a grid of thread blocks. Kernels are the fundamental unit of GPU computation."
-key_papers: [kernelfoundry-hardware-aware-evolutionary-gpu-kernel]
+key_papers: [kernelfoundry-hardware-aware-evolutionary-gpu-kernel, kernelbench-llms-write-efficient-gpu-kernels]
 first_introduced: ""
 date_updated: 2026-05-14
 related_concepts: [triton-language, kernel-benchmark]

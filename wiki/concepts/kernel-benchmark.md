@@ -4,7 +4,7 @@ aliases: [gpu-benchmark, kernel-evaluation]
 tags: [benchmark, evaluation, gpu, kernel, performance]
 maturity: active
 definition: "A kernel benchmark is a standardized set of GPU kernel tasks with reference implementations and performance metrics, used to evaluate the quality of generated or optimized kernel code."
-key_papers: [kernelfoundry-hardware-aware-evolutionary-gpu-kernel]
+key_papers: [kernelfoundry-hardware-aware-evolutionary-gpu-kernel, kernelbench-llms-write-efficient-gpu-kernels]
 first_introduced: ""
 date_updated: 2026-05-14
 related_concepts: [gpu-kernel, triton-language]
