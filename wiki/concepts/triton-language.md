@@ -1,11 +1,11 @@
 ---
-title: "Triton"
+title: Triton
 aliases: [triton-compiler, openai-triton]
 tags: [triton, gpu, compiler, kernel-language, code-generation]
 maturity: active
 definition: "Triton is a Python-like language and compiler for writing GPU kernels, developed by OpenAI. It provides a higher-level abstraction than CUDA while maintaining competitive performance, making it particularly amenable to LLM-based code generation."
-key_papers: []
-first_introduced: "2021"
+key_papers: [kernelbench-llms-write-efficient-gpu-kernels]
+first_introduced: 2021
 date_updated: 2026-05-14
 related_concepts: [gpu-kernel, kernel-benchmark]
 linked_ideas: [llm-agent-gpu-kernel-optimization]
