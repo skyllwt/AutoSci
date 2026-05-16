@@ -1,6 +1,6 @@
 ---
 description: 从已撰写的论文生成学术海报 —— 提炼章节为单页 HTML 海报,包含配图和段落间过渡
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
 ---
 
 # /poster
@@ -13,7 +13,8 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 
 - `paper_dir`(可选,默认 `paper/`):LaTeX 项目目录,需包含 `main.tex` 和 `sections/`
 - `--review`(可选):调用 Review LLM 对生成的海报内容进行跨模型评审
-- `--anonymous`(可选):强制将作者写为 "Anonymous",忽略 `\author{}` 的实际内容
+- `--anonymous`(可选):强制将作者写为 "Anonymous",忽略 `\author{}` 的实际内容或 `--authors`
+- `--authors STR`(可选):覆盖海报上的作者文本(例如 `--authors "Mingtian Yang, Co-Author"`)。适用于论文 `\author{}` 因双盲投稿而留空但海报需要显示真实作者的情况。`--anonymous` 同时传入时仍以 `--anonymous` 为准。若两个 flag 都未传且解析出的作者为 "Anonymous",Step 0 会交互式询问。
 - `--max-sections N`(可选,默认 6):海报最多包含的章节数
 - `--venue STR`(可选):海报右上方显示的会议/期刊文本(例如 `"NeurIPS 2026"`);若不提供,会交互式询问
 - `--affiliation-logo PATH`(可选):单位/实验室 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
@@ -62,27 +63,33 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 
 整个交互流程用 `AskUserQuestion` 做是/否/布局选择,自由文本(路径与 venue)直接读取下一条用户消息。
 
-1. **Venue 文本** —— 若未传入 `--venue`:
+1. **作者** —— 仅当未传入 `--authors` 且未传入 `--anonymous`,且论文的 `\author{}` 解析为空 / "Anonymous" 时触发(本步骤前先看 dag.json 根节点的 `content` 字段,或快速 grep `paper/main.tex` 里的 `\author{...}`)。否则静默跳过。
+   - 用 `AskUserQuestion` 询问,选项:
+     - `"Keep 'Anonymous' (double-blind submission)"`(Recommended)
+     - `"Provide author names (I'll ask for the string)"`
+   - 若用户选 "Provide author names":自由文本询问 *"海报上应显示什么作者字符串?例如 `Mingtian Yang, Co-Author Name`。回复字符串,或回复 `skip` 保留 'Anonymous'。"* 把下一条用户消息取作 authors 覆盖串,留给 Step 5。
+
+2. **Venue 文本** —— 若未传入 `--venue`:
    - 询问:*"海报 header 要显示什么 venue 文本?例如 `NeurIPS 2026`。回复文本,或回复 `skip` 留空。"*
    - 把下一条用户消息原文取作 venue。`skip`(不区分大小写)视为空。
 
-2. **单位/实验室 logo** —— 若未传入 `--affiliation-logo` 且未传入 `--no-logos`:
+3. **单位/实验室 logo** —— 若未传入 `--affiliation-logo` 且未传入 `--no-logos`:
    - 用 `AskUserQuestion` 询问,选项:`"Yes, I have a logo file"` / `"No, skip the affiliation logo"`。
    - 若选 yes:询问 *"单位 logo 文件路径?(PNG / JPG / PDF;相对路径或绝对路径都可以)"*。把下一条用户消息当作路径。校验文件存在;若不存在,提示错误后再询问一次,仍失败则按 skip 处理。
 
-3. **会议/期刊 logo** —— 若未传入 `--conference-logo` 且未传入 `--no-logos`:
+4. **会议/期刊 logo** —— 若未传入 `--conference-logo` 且未传入 `--no-logos`:
    - 流程同上(yes/no 用 `AskUserQuestion`,路径自由文本)。
 
-4. **布局** —— 若至少一个 logo 被提供,且未传入 `--layout`:
+5. **布局** —— 若至少一个 logo 被提供,且未传入 `--layout`:
    - 用 `AskUserQuestion` 询问,选项:
      - `"corners —— 单位 logo 左上、会议 logo 右上"`(Recommended)
      - `"stacked —— 两个 logo 叠在右侧 conf 区,venue 文本在上方"`
    - 若只有 venue 没有 logo:跳过布局询问(默认 `corners` 即可,只用 venue 文本槽)。
 
-5. **配置摘要** —— 打印一行:
-   - `Header config: venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
+6. **配置摘要** —— 打印一行:
+   - `Header config: authors='{...}', venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
 
-这些值在 Step 5 通过 `python3 tools/poster.py inject-header` 应用。
+作者字符串通过 Step 5 的 `python3 tools/poster.py inject-title --authors "..."` 应用;venue 与 logo 通过 `python3 tools/poster.py inject-header` 应用。
 
 ### Step 1: 构建 dag.json
 
@@ -287,10 +294,11 @@ python3 tools/poster.py build \
 
 python3 tools/poster.py inject-title \
   --dag poster/dag.json \
+  [--authors "{Step 0 收集到的 authors 覆盖串,或 --authors flag 的值}"] \
   poster/poster.html
 ```
 
-`--anonymous` 已在 Step 1(`wiki2dag.py`)生效 —— `dag.json` 中的标题/作者已是最终值,`inject-title` 仅读取。
+`--anonymous` 已在 Step 1(`wiki2dag.py`)生效 —— `dag.json` 中的标题/作者已是最终值,`inject-title` 默认从那里读。当论文的 `\author{}` 因双盲投稿而留空但海报需要显示真实作者时,传入 `--authors` 覆盖。同时传入 `--anonymous` 时仍以 `--anonymous` 为准。
 
 ```bash
 # 应用 Step 0 收集到的 venue 与 logo。用户跳过的项就不要传对应 flag。
@@ -477,7 +485,7 @@ python3 tools/research_wiki.py log wiki/ \
 ### Tools(via Bash)
 - `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` —— 构建 dag.json
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` —— 注入 outline
-- `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous]` —— 写入标题/作者
+- `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous] [--authors STR]` —— 写入标题/作者;`--authors` 覆盖 dag.json 中的作者字段,适用于源论文已匿名的情况
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` —— venue 文本 + 可选 logo
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` —— 复制/转换图片
 - `python3 tools/poster.py validate <poster.html>` —— 健康检查
