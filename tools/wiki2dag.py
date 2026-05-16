@@ -11,7 +11,8 @@ dag.json schema:
       "edge": [<section names in root order>],   # root only
       "level": 0|1|2,
       "visual_node": [<image markdown refs>],     # sections only
-      "resolution": "WxH"                          # visuals only
+      "resolution": "WxH",                         # visuals only
+      "wide": true|false                           # visuals only; aspect >= WIDE_ASPECT_THRESHOLD
     }, ...
   ]
 }
@@ -37,6 +38,28 @@ try:
     _HAS_PIL = True
 except ImportError:
     _HAS_PIL = False
+
+
+# Aspect ratio at/above which a figure is flagged "wide" — wide figures get
+# rendered as a column-spanning sibling block in the poster instead of being
+# squeezed into a single column. Also flags very tall figures (1/threshold).
+WIDE_ASPECT_THRESHOLD = 2.0
+
+
+def _is_wide(resolution: str) -> bool:
+    """Return True if the figure's aspect ratio crosses the wide threshold
+    in either direction (very wide or very tall). Empty/malformed → False."""
+    if not resolution:
+        return False
+    try:
+        w_str, h_str = resolution.lower().split("x", 1)
+        w, h = int(w_str), int(h_str)
+        if w <= 0 or h <= 0:
+            return False
+        aspect = w / h
+        return aspect >= WIDE_ASPECT_THRESHOLD or aspect <= 1.0 / WIDE_ASPECT_THRESHOLD
+    except (ValueError, ZeroDivisionError):
+        return False
 
 
 SECTION_NAME_PATTERN = re.compile(r"\\section\*?\{([^}]*)\}")
@@ -302,6 +325,7 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
                     "level": 2,
                     "visual_node": [],
                     "resolution": resolution,
+                    "wide": _is_wide(resolution),
                     "_source_path": str(resolved),  # private, removed before write
                 }
 

@@ -1,6 +1,6 @@
 ---
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures]"
 ---
 
 # /poster
@@ -21,6 +21,8 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 - `--conference-logo PATH` (optional): path to conference/journal logo (PNG/JPG/PDF); copied into `poster/images/`
 - `--layout corners|stacked` (optional, default `corners`): header layout. `corners` puts affiliation top-left and conference top-right; `stacked` puts both logos in the right `.conf` area with venue text above
 - `--no-logos` (optional): skip all logo prompts and ship a header with venue text only
+- `--auto-figures` (optional): skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). Wide figures auto-render full-width.
+- `--no-figures` (optional): skip all figures; render every section as text-only. Useful for text-heavy posters or when figures are not yet ready.
 
 ## Outputs
 
@@ -113,11 +115,12 @@ outcome: <one line summary>
 
 This block is passed into the Step 3 prompt under the `{WIKI_CONTEXT}` slot. If no wiki context is available, the slot is left empty — the prompt explicitly tolerates that.
 
-### Step 3: Select and distill poster sections
+### Step 2.5: Figure selection
 
-Load `poster/dag.json`. Skip the root and any visual nodes; iterate section nodes only.
+Goal: decide which figure (if any) belongs in each selected section, and whether wide figures break out of the 3-column flow. Runs after `dag.json` is built and before any LLM distillation, so the figure choice becomes an *input* to Step 3 rather than something the LLM guesses.
 
-Select up to `--max-sections` sections (default 6) following this priority:
+**Section selection** (same priority list as before, capped at `--max-sections`, default 6):
+
 1. **Introduction** (Abstract or first section)
 2. **Method** (the section describing the approach)
 3. **Primary results** (Experiments / Replication / main result section)
@@ -125,26 +128,83 @@ Select up to `--max-sections` sections (default 6) following this priority:
 5. **Analysis / discussion** (one key insight)
 6. **Conclusion** (brief takeaway)
 
-For each selected section, locate the best visual: from the section's `visual_node` list, pick the visual node with the largest `resolution` (W×H area). If no visuals are referenced, the section has no figure.
+**Mode resolution**:
 
-For each selected section, prepare the variables for the prompt below:
+- `--no-figures` passed → mode = `none`; every section renders text-only. Skip all questions.
+- `--auto-figures` passed → mode = `auto`; for each section, pick the visual with the largest area (W×H from `resolution`). Wide figures (`wide: true` from `dag.json`) auto-render in `wide` layout; narrow ones render `inline`. Skip all questions.
+- Otherwise → mode = `interactive`. Run the manifest + questions below.
+
+**Print the figure manifest** (always, regardless of mode), e.g.:
+
+```
+Figure candidates per section:
+  Abstract        — text only
+  Introduction    — text only
+  Method          — text only
+  Experiments     — 2 candidates:
+                    [a] layer_curves.png   2378x618  aspect 3.85  ⚠ wide
+                    [b] bootstrap.png       974x612  aspect 1.59
+  Discussion      — text only
+  Conclusion      — text only
+```
+
+Compute aspect from `resolution` (W×H). The ⚠ wide marker comes from the `wide` field in dag.json (true when aspect ≥ 2.0 or ≤ 0.5).
+
+**Interactive flow** (mode = `interactive` only):
+
+For each section, decide what to ask based on candidate count and wide-flags:
+
+| Candidates | Wide? | Action |
+|---|---|---|
+| 0 | — | No figure (no question, silent) |
+| 1 | narrow | Use it inline (no question — there's no real decision; the manifest already showed it) |
+| 1 | wide | **Ask Q-W1**: *"{Section} has 1 wide figure ({filename}, aspect X.XX). How should it render?"* — options: `Full-width (span all 3 columns)` (Recommended) / `Constrain to column (may look cramped)` / `Skip — no figure` |
+| ≥2 | any | **Ask Q-Pick**: *"Which figure for {Section}?"* — options: each candidate (label includes ⚠ wide marker if applicable) / `Let Claude decide (pick largest)` / `No figure`. If user picks a wide candidate, follow up with **Q-W2** (same options as Q-W1 but defaults to full-width). |
+
+Use `AskUserQuestion` for each prompt; cap at 4 options total. When a section has 4+ candidates, drop the `Let Claude decide` option to stay within the limit (the user is being explicit anyway).
+
+After all decisions, print a final summary line:
+
+```
+Figures chosen:
+  Experiments → bootstrap.png (inline)
+  (other sections: text only)
+```
+
+**Decision record**: persist the choices in an in-memory dict keyed by section display name:
+
+```python
+{
+  "Experiments": {"figure": "images/bootstrap.png", "layout": "inline", "alt": "<caption>"},
+  "Conclusion": {"figure": None, "layout": None, "alt": None},
+  ...
+}
+```
+
+This dict is consumed in Step 3 to fill the per-section prompt variables.
+
+### Step 3: Distill poster sections
+
+Load `poster/dag.json` and the figure-decision dict from Step 2.5. Iterate the selected section nodes in order.
+
+For each selected section, prepare the variables for the prompt below. Figure variables come from the Step 2.5 decision dict — do NOT re-derive them here.
 
 - `SECTION_JSON`: the section node from `poster/dag.json` with the `visual_node` field **removed** (the visual is conveyed separately). Keep only `name`, `content`, `level`.
-- `HAS_VISUAL`: `true` if a visual was assigned, else `false`.
-- `IMAGE_SRC`: e.g. `images/layer_curves.png`, taken from the chosen visual node's `name` (strip the `![](...)` wrapper). Empty string if no visual.
-- `ALT_TEXT`: the chosen visual node's `content` (caption). Empty if no visual.
+- `LAYOUT`: one of `"none"`, `"inline"`, or `"wide"` from `decisions[section_name]["layout"]`. Drives the HTML template branch.
+- `IMAGE_SRC`: e.g. `images/layer_curves.png` from `decisions[section_name]["figure"]`. Empty string if `LAYOUT == "none"`.
+- `ALT_TEXT`: the chosen visual's caption from `decisions[section_name]["alt"]`. Empty if `LAYOUT == "none"`.
 - `WIKI_CONTEXT` (optional): a short block compiled from Step 2 — hypothesis statement, novelty argument, key-result numbers from linked ideas/experiments. Empty string if no wiki context was loaded.
 
-Run the following prompt (ported verbatim from PaperX `poster_outline_prompt`, with the `WIKI_CONTEXT` extension):
+Run the following prompt for each section (ported from PaperX `poster_outline_prompt`, extended for `LAYOUT` and `WIKI_CONTEXT`):
 
 > You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON you see has NO `visual_node` field and must be treated as authoritative.
 >
 > SECTION_JSON:
 > {SECTION_JSON}
 >
-> HAS_VISUAL: {HAS_VISUAL}
+> LAYOUT: {LAYOUT}    # one of "none" | "inline" | "wide"
 >
-> If HAS_VISUAL is true, you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+> If LAYOUT is "inline" or "wide", you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
 >
 > IMAGE_SRC: {IMAGE_SRC}
 > ALT_TEXT: {ALT_TEXT}
@@ -154,17 +214,30 @@ Run the following prompt (ported verbatim from PaperX `poster_outline_prompt`, w
 >
 > **Task**:
 > 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence and smooth transitions to minimize perplexity.
-> 2. Output EXACTLY ONE HTML section block in the required template below. Output ONLY the HTML and nothing else.
+> 2. Output the HTML block for this section, choosing the template variant matching LAYOUT. Output ONLY the HTML and nothing else.
 >
 > **Strict output rules**:
-> - Output only ONE `<section class="section">...</section>` block.
+> - Output only the HTML for one section (one `<section>` block, optionally followed by one `<div class="figure-wide">` sibling).
 > - Do NOT add markdown fences, explanations, or extra text.
 > - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
-> - If HAS_VISUAL is true AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
-> - If HAS_VISUAL is false OR IMAGE_SRC is empty, do NOT output any `<div class="img-section">` or `<img>` tag.
+> - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">` and NO `<div class="figure-wide">`.
+> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - LAYOUT == `"wide"`: output the section block (text only, NO `<div class="img-section">`), then immediately one sibling `<div class="figure-wide">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
 >
-> **Required HTML template** (with the img-section variant):
+> **Required HTML templates** (pick the one matching LAYOUT):
+>
+> *LAYOUT = "none"*:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline"*:
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
@@ -175,6 +248,19 @@ Run the following prompt (ported verbatim from PaperX `poster_outline_prompt`, w
 >     </div>
 >   </div>
 > </section>
+> ```
+>
+> *LAYOUT = "wide"*:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>   </div>
+> </section>
+> <div class="figure-wide">
+>   <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
+> </div>
 > ```
 
 Apply de-AI polish per `shared-references/academic-writing.md` (vary sentence openings, drop signature words like "leverage", "comprehensive", "delve"). Pull headline numbers from `WIKI_CONTEXT` when present — these make poster results concrete.
@@ -274,7 +360,8 @@ Print POSTER_REPORT:
 
 ## Generation
 - Sections included: {N}/{total available}
-- Figures embedded: {M}
+- Figure selection mode: {interactive | auto | none}
+- Figures embedded: {M} ({M_inline} inline + {M_wide} wide)
 - PDF→PNG conversions: {K}
 - Header: venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
 - Review LLM: {invoked / skipped}
@@ -297,6 +384,8 @@ Print POSTER_REPORT:
 - **40-word summary**: per the poster_outline_prompt, each section paragraph stays ≤ 40 words before transitions are added.
 - **De-AI polish is mandatory**: per `shared-references/academic-writing.md`. Avoid signature openings ("In this work", "We propose", "Our approach"), replace inflated verbs ("leverage" → "use", "delve" → "examine").
 - **Strict template injection**: `tools/poster.py build` only injects between `<div class="flow" id="flow">...</div>`; do not edit the template's CSS or JavaScript fit algorithm.
+- **Figure selection is interactive by default**: omitting both `--auto-figures` and `--no-figures` runs the Step 2.5 manifest + question flow. The flags are user-owned per CLAUDE.md rule 5 — do not infer them; ask if unsure which mode to use.
+- **Wide figures render as siblings**: a section's wide figure lives in `<div class="figure-wide">` placed immediately after its parent `<section>` in the flow, not nested inside it. CSS `column-span: all` requires top-level placement in the multicol container.
 
 ## Error Handling
 

@@ -204,6 +204,27 @@ body{
   margin: 0;
 }
 
+/* Wide figures: break out of the 3-column flow and span all columns. Rendered
+   as a sibling immediately after the section they belong to. */
+.figure-wide {
+  column-span: all;
+  margin: 0 0 var(--para-gap) 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.figure-wide img {
+  max-width: 100%;
+  max-height: 280px;
+  height: auto;
+  object-fit: contain;
+  border: 1px solid #000;
+}
+
 </style>
 </head>
 
