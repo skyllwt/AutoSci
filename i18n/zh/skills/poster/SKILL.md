@@ -1,6 +1,6 @@
 ---
 description: 从已撰写的论文生成学术海报 —— 提炼章节为单页 HTML 海报,包含配图和段落间过渡
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
 ---
 
 # /poster
@@ -20,12 +20,18 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 - `--conference-logo PATH`(可选):会议/期刊 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
 - `--layout corners|stacked`(可选,默认 `corners`):header 布局。`corners` 把单位 logo 放在左上、会议 logo 放在右上;`stacked` 把两个 logo 都叠在右侧 `.conf` 区,venue 文本在最上
 - `--no-logos`(可选):跳过所有 logo 询问,header 只显示 venue 文本
+- `--auto-figures`(可选):跳过 Step 2.5 的逐章节配图询问,直接为每章选择面积最大的候选图(旧的"largest wins"逻辑)
+- `--no-figures`(可选):所有章节渲染为纯文本,不嵌入任何配图。适合文本密集型海报或配图尚未准备好时
+- `--no-refine`(可选):跳过 Step 5.5 的截图驱动 critique-revise。默认会跑 1 轮 critique-revise
+- `--refine-iterations N`(可选,默认 1,硬上限 2):Step 5.5 的迭代次数。`0` 等同于 `--no-refine`
 
 ## Outputs
 
 - `poster/dag.json` —— PaperX 兼容的中间格式(未来可被 `/slides`、`/pr` 复用)
 - `poster/outline.html` —— 模板注入前的 `<section>` 块拼接结果
 - `poster/poster.html` —— 最终自包含的 HTML 海报(浏览器打开即可)
+- `poster/poster.png` —— 2× CSS 尺寸的渲染截图(默认 2800×1800),见 Step 5b
+- `poster/poster.refine{N}.png` —— Step 5.5 每轮迭代前的截图存档(`--refine-iterations ≥ 1` 且实际跑过 refine 时才会有)
 - `poster/images/` —— 从 `paper/figures/` 复制/转换(PDF→PNG @ 200 DPI)而来的图片
 - **POSTER_REPORT**(输出到终端)
 - `wiki/log.md` —— 追加日志条目
@@ -91,6 +97,11 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 - **Section**(`level: 1`):`name` 为章节标题,`content` 为完整正文,`visual_node` 为该章节引用的图片
 - **Visual**(`level: 2`):`name` 为 markdown 图片引用,`content` 为 caption,`resolution` 为 `WxH`
 
+`wiki2dag.py` 保留论文中的:
+- **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。
+- **引用**:`\citep{key}` / `\citet{key1, key2}` 被替换为 `[N]` / `[N, M]`,编号通过遍历章节文件按首次出现顺序生成。找不到 key 时静默丢弃。
+- **表格**:`\begin{table}…\caption{...}…\end{table}` 被替换为 `[Table: <caption text>]`,让 caption 流入正文。表体数据丢弃(1400×900 海报放不下整张表)。
+
 ### Step 2: 编译 WIKI_CONTEXT(可选)
 
 若 `wiki/outputs/paper-plan-*.md` 存在,读取:
@@ -112,11 +123,12 @@ outcome: <一句话总结>
 
 此字符串通过 Step 3 提示词中的 `{WIKI_CONTEXT}` 槽位传入。若无 wiki 上下文,该槽位留空 —— 提示词显式允许此情况。
 
-### Step 3: 选择并提炼海报章节
+### Step 2.5: 配图选择
 
-加载 `poster/dag.json`。跳过 root 与所有 visual 节点,只遍历 section 节点。
+目标:决定每个被选中的章节应配哪张图(或无图)。在 `dag.json` 构建之后、LLM 提炼之前运行,使配图选择成为 Step 3 的*输入*,而不是让 LLM 猜。每张图都内联渲染在章节中;manifest 中的 ⚠ wide 标记仅作信息提示 —— 提醒比例极端的图在单列里可能被压扁,用户可以选其它图或跳过。
 
-按以下优先级选取最多 `--max-sections` 个章节(默认 6):
+**章节选择**(优先级表同前,上限 `--max-sections`,默认 6):
+
 1. **Introduction**(摘要或第一节)
 2. **Method**(方法/方案章节)
 3. **主要结果**(Experiments / Replication / 主结果章节)
@@ -124,26 +136,82 @@ outcome: <一句话总结>
 5. **分析 / 讨论**(一个核心 insight)
 6. **Conclusion**(简短结论)
 
-对每个选中的章节,选取最佳配图:从该章节的 `visual_node` 列表中,挑选 `resolution`(W×H 面积)最大的视觉节点。若章节没有 visual,则该 section 无图。
+**模式判定**:
 
-对每个选中的章节,先准备以下变量供提示词使用:
+- 传入 `--no-figures` → 模式 = `none`;所有章节渲染为纯文本,跳过所有询问。
+- 传入 `--auto-figures` → 模式 = `auto`;为每章选面积最大的 visual(`resolution` 的 W×H),跳过所有询问。
+- 否则 → 模式 = `interactive`,执行下面的 manifest + 询问。
+
+**打印配图 manifest**(任何模式下都打印),示例:
+
+```
+Figure candidates per section:
+  Abstract        — text only
+  Introduction    — text only
+  Method          — text only
+  Experiments     — 2 candidates:
+                    [a] layer_curves.png   2378x618  aspect 3.85  ⚠ wide
+                    [b] bootstrap.png       974x612  aspect 1.59
+  Discussion     — text only
+  Conclusion     — text only
+```
+
+aspect 由 `resolution`(W×H)计算。⚠ wide 标记来自 dag.json 的 `wide` 字段(aspect ≥ 2.0 或 ≤ 0.5 时为 true)。
+
+**交互流程**(仅模式 = `interactive`):
+
+逐章节,按候选数与 wide 标记决定如何询问:
+
+| 候选数 | Wide? | 行为 |
+|---|---|---|
+| 0 | — | 无图(不询问,静默) |
+| 1 | any | 静默 inline 使用(manifest 已展示;若 `wide`,⚠ 标记即提示)。用户可重跑加 `--no-figures` 来移除。 |
+| ≥2 | any | **询问 Q-Pick**: *"Which figure for {Section}?"* —— 选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest)` / `No figure`。 |
+
+每次询问用 `AskUserQuestion`,选项数 ≤ 4。若某章节有 4 个以上候选,去掉 `Let Claude decide` 这一项以满足上限(用户已经在显式选了)。
+
+所有决策做完后,打印一行汇总:
+
+```
+Figures chosen:
+  Experiments → bootstrap.png (inline)
+  (other sections: text only)
+```
+
+**决策记录**:用按章节显示名作 key 的内存 dict 保留选择:
+
+```python
+{
+  "Experiments": {"figure": "images/bootstrap.png", "layout": "inline", "alt": "<caption>"},
+  "Conclusion": {"figure": None, "layout": None, "alt": None},
+  ...
+}
+```
+
+Step 3 会消费此 dict 填入每章节的提示词变量。
+
+### Step 3: 提炼海报章节
+
+加载 `poster/dag.json` 与 Step 2.5 的决策 dict。按顺序遍历被选中的章节节点。
+
+对每个章节,准备下面提示词所需的变量。配图相关变量从 Step 2.5 的决策 dict 取,**不要**在这里重新算。
 
 - `SECTION_JSON`:从 `poster/dag.json` 取该 section 节点,**去掉** `visual_node` 字段(visual 单独传入)。只保留 `name`, `content`, `level`。
-- `HAS_VISUAL`:有分配 visual 时为 `true`,否则 `false`。
-- `IMAGE_SRC`:例如 `images/layer_curves.png`,来自选中 visual 节点的 `name`(去掉 `![](...)` 外壳)。无 visual 时为空字符串。
-- `ALT_TEXT`:选中 visual 节点的 `content`(caption)。无 visual 时为空。
-- `WIKI_CONTEXT`(可选):Step 2 编译出的字符串。无 wiki 上下文时为空字符串。
+- `LAYOUT`:`"none"` 或 `"inline"`,从 `decisions[section_name]["layout"]` 取。决定 HTML 模板分支。
+- `IMAGE_SRC`:例如 `images/layer_curves.png`,从 `decisions[section_name]["figure"]` 取。`LAYOUT == "none"` 时为空字符串。
+- `ALT_TEXT`:从 `decisions[section_name]["alt"]` 取(caption)。`LAYOUT == "none"` 时为空。
+- `WIKI_CONTEXT`(可选):Step 2 编译出的字符串(假设、新颖性、关键数值)。无 wiki 上下文时为空。
 
-调用如下提示词(逐字移植自 PaperX `poster_outline_prompt`,加入 `WIKI_CONTEXT` 扩展):
+对每个章节调用下面的提示词(从 PaperX `poster_outline_prompt` 移植,扩展了 `LAYOUT` 与 `WIKI_CONTEXT`):
 
 > You are given a section node JSON (SECTION_JSON) from a paper DAG. The section JSON you see has NO `visual_node` field and must be treated as authoritative.
 >
 > SECTION_JSON:
 > {SECTION_JSON}
 >
-> HAS_VISUAL: {HAS_VISUAL}
+> LAYOUT: {LAYOUT}    # one of "none" | "inline"
 >
-> If HAS_VISUAL is true, you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+> If LAYOUT is "inline", you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
 >
 > IMAGE_SRC: {IMAGE_SRC}
 > ALT_TEXT: {ALT_TEXT}
@@ -153,17 +221,29 @@ outcome: <一句话总结>
 >
 > **Task**:
 > 1. Write ONE concise paragraph summarizing ONLY the section's content for a scientific poster. Constraints: 2–5 sentences, factual, non-hallucinatory, no bullet lists, avoid starting with "This section". The summary must contain no more than 40 words and be written with strong logical coherence and smooth transitions to minimize perplexity.
-> 2. Output EXACTLY ONE HTML section block in the required template below. Output ONLY the HTML and nothing else.
+> 2. Output the HTML block for this section, choosing the template variant matching LAYOUT. Output ONLY the HTML and nothing else.
 >
 > **Strict output rules**:
-> - Output only ONE `<section class="section">...</section>` block.
+> - Output only the HTML for one section (one `<section>` block).
 > - Do NOT add markdown fences, explanations, or extra text.
 > - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
-> - If HAS_VISUAL is true AND IMAGE_SRC is non-empty, include exactly one `<div class="img-section">` with one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
-> - If HAS_VISUAL is false OR IMAGE_SRC is empty, do NOT output any `<div class="img-section">` or `<img>` tag.
+> - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
+> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
 >
-> **Required HTML template**(包含 img-section 变体):
+> **Required HTML templates**(按 LAYOUT 选择对应变体):
+>
+> *LAYOUT = "none"*:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline"*:
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
@@ -231,6 +311,84 @@ python3 tools/poster.py validate poster/poster.html
 
 `inject-figures` 直接拷贝 PNG/JPG,对 PDF 源使用 `pdftoppm` 以 200 DPI 转为 PNG。`validate` 检查每个 `<img src=...>` 能解析、标题非空、章节数 ≥ 3、不存在 `TODO`/`FIXME`/`[UNCONFIRMED]` 标记。
 
+### Step 5b: 渲染 PNG
+
+`validate` 通过后,把 HTML 海报渲染成 PNG,供用户预览,也作为后续 Step 5.5 critique-revise 的输入:
+
+```bash
+python3 tools/poster.py render poster/poster.html
+```
+
+调用系统 Chrome / Chromium 二进制做 headless 截图,产出 `poster/poster.png`,默认 2× CSS 像素(2800×1800),无新 Python 依赖。用 `--scale {1,2,3}` 覆盖(1 = 快速预览,3 = 印刷质量)。
+
+若 Chrome 未安装,`render` 会以可操作的信息退出(macOS 提示 `brew install --cask google-chrome`;Linux 提示 `apt install chromium-browser`;Windows 提示从 google.com/chrome 下载)。HTML 海报本身依然可用 —— 用户可以直接 `open poster/poster.html`。
+
+### Step 5.5: Critique-revise(Claude 截图驱动)
+
+目标:把 Step 5b 渲染出的截图喂给 Claude(多模态),做一次性的 critique-revise。捕捉 `validate` 抓不到的问题 —— HTML 中残留的 LaTeX、章节文字溢出、标题里的编号前缀、配图渲染异常等。自动应用,无用户交互。
+
+**跳过条件**:
+- 传入 `--no-refine` → 完全跳过。
+- `--refine-iterations 0` → 等同 `--no-refine`。
+- Step 5b 没产出 `poster/poster.png`(Chrome 缺失)→ 警告后跳过。
+
+**迭代次数**:由 `--refine-iterations N` 决定(默认 1,硬上限 2)。
+
+**单轮迭代流程**(i = 1..N):
+
+1. 确保 `poster/poster.png` 反映当前 `poster/poster.html`。若 HTML 自上次渲染后有改动,重跑 `python3 tools/poster.py render poster/poster.html`。
+2. 存档当前截图:`cp poster/poster.png poster/poster.refine{i-1}.png`(方便用户 diff 每轮的变化)。
+3. 读取 `poster/poster.png`(用 Read,Claude 多模态读图)与 `poster/poster.html`(Read)。
+4. 应用下面的 refinement 提示词。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
+5. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
+6. 把修订后的 HTML 写回 `poster/poster.html`。
+7. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止迭代,告诉用户具体问题,HTML 保留原样供人工检查。
+8. 重新渲染 `poster/poster.png`,供下一轮(或作为最终渲染)。
+
+**Refinement 提示词**(从 PaperX `poster_refinement_prompt` 移植,加了一个截图驱动的 layout 任务):
+
+> You are an expert Academic Poster Designer and Web Developer. Your task is to refine an existing HTML poster based on its visual rendering (screenshot) and the current code. Output ONLY the full, valid, and corrected HTML code inside a single fenced ```` ```html ```` code block.
+>
+> I will provide:
+> 1. **Current Poster Code (HTML)**
+> 2. **Visual Render (PNG screenshot)**
+>
+> **TASKS**:
+>
+> **Task 1: Fix LaTeX / encoding leaks**
+> - Scan the HTML for raw LaTeX that did not render (e.g., `$d_S \ge 10$`, `\textbf{...}`, `\citep{...}`, `\ref{fig:...}`).
+> - Replace with HTML entities or Unicode (e.g., `d_S ≥ 10`, `<strong>...</strong>`, `[N]`, "Fig. 1").
+> - Remove garbled characters from math-rendering failures.
+>
+> **Task 2: Normalize section headers**
+> - Find all `<div class="section-bar">` elements.
+> - Strip leading numbering / alphabetic prefixes / meaningless punctuation (e.g. `1.`, `2.1`, `A.`, `E.`, `- `).
+> - Keep only the core title text.
+>
+> **Task 3: Fix visible layout issues (from the screenshot)**
+> - If any section's text overflows its column (visible in screenshot): shorten the prose conservatively. Never delete claims; trim filler words.
+> - If a `<div class="img-section">` figure renders cropped, distorted, or breaks the column flow: leave the structure intact (do not delete) but you may add `style="max-height: 280px"` to the `<img>` or wrap text differently.
+> - If a section is visually empty (just the title bar with no body text): leave a `<p>(content pending)</p>` placeholder, do NOT remove the section.
+>
+> **Output requirement**:
+> - Return the **complete, runnable HTML** wrapped in a single fenced ```` ```html ```` code block.
+> - Preserve the existing CSS layout exactly. Do NOT modify font-related settings (font-family, font-size, font-weight beyond what the template already defines).
+> - Do NOT modify the existing `<script>` block (the fit algorithm) or the `<style>` block.
+> - Only edit content inside `<section class="section">` elements and the `<h1 class="title">` / `<div class="authors">` if needed.
+>
+> **HTML poster**:
+> ```html
+> {full content of poster/poster.html}
+> ```
+>
+> **Screenshot**:
+> *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
+
+**失败处理**:
+- LLM 输出里没有 ```` ```html ```` 围栏 → 停止,HTML 保留原样,记录警告。
+- 围栏里没有 `<section>` 或缺 `<h1 class="title">` → 停止,HTML 保留原样,记录警告。
+- 达到 iteration 上限 → 完成,进入 Step 6。
+
 ### Step 6: 可选 Review LLM 评审(`--review`)
 
 若传入 `--review`,把海报 HTML 发给 Review LLM:
@@ -273,10 +431,12 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## 生成情况
 - 包含章节:{N}/{可用总数}
+- 配图选择模式:{interactive | auto | none}
 - 嵌入配图:{M}
 - PDF→PNG 转换:{K}
 - Header:venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Review LLM:{已调用 / 已跳过}
+- Critique-revise(Step 5.5):{N 轮已应用 | 已跳过(--no-refine) | 已跳过(Chrome 缺失)}
+- Review LLM(Step 6):{已调用 / 已跳过}
 
 ## 输出
 - poster/poster.html ← 浏览器打开
@@ -296,6 +456,8 @@ python3 tools/research_wiki.py log wiki/ \
 - **40 词摘要**:按 poster_outline_prompt,每章正文段在加过渡句前不超过 40 词。
 - **强制去 AI 风格化**:按 `shared-references/academic-writing.md`。避开 "In this work" / "We propose" / "Our approach" 等签名开头,把 "leverage" 换成 "use","delve" 换成 "examine"。
 - **严格模板注入**:`tools/poster.py build` 仅注入到 `<div class="flow" id="flow">...</div>` 之间,不修改模板的 CSS 与 fit 算法。
+- **配图选择默认交互**:未传入 `--auto-figures` 也未传入 `--no-figures` 时,跑 Step 2.5 manifest + 询问流程。这些 flag 按 CLAUDE.md 规则 5 归用户所有 —— 不要替用户推断;不确定时,询问用户。
+- **wide 图无特殊布局**:任何图都在 `<section>` 内 inline 渲染。visual 节点上的 `wide` 字段仅作信息提示 —— 用来在 manifest 中显示 ⚠ 标记,让用户选别的图或跳过过宽/过高的图。未来的图像生成 skill 预期会在源头解决比例问题,产出适配海报的图。
 
 ## Error Handling
 
@@ -306,6 +468,8 @@ python3 tools/research_wiki.py log wiki/ \
 - **嵌套图路径**(如 `paper/figures/exp1/foo.pdf`):桥接工具会扁平化为 `images/foo.png`,且图片解析只在 `paper/figures/` 顶层查找。若多个图片跨子目录同名,后者会覆盖前者。当前仅支持扁平的 `paper/figures/` 布局。
 - **`PIL`/Pillow 未安装**:图片分辨率无法计算,`dag.json` 的 visuals `resolution` 为空;poster_outline_prompt 的 "最高分辨率优先" 规则失效,Claude 按章节顺序选图。提示 `pip install Pillow`。
 - **validate 失败**:把所有问题写入 stderr,不删除已有输出。用户改正 outline 后从 Step 5 继续。
+- **`render` 找不到 Chrome**:打印对应平台的安装提示并继续。HTML 海报仍可用,只是少了 PNG。Step 5.5 critique-revise 也会跳过(无截图可参考)。
+- **Refinement 输出格式异常(Step 5.5)**:若 LLM 没返回包含合法 `<section>` 与 `<h1 class="title">` 的 ```` ```html ```` 围栏,停止迭代,HTML 保留不变,告警提示。**不要**用残缺输出覆盖 HTML。
 - **Review LLM 不可用**:跳过 Step 6,在报告中标注,继续。
 
 ## Dependencies
@@ -317,17 +481,19 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` —— venue 文本 + 可选 logo
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` —— 复制/转换图片
 - `python3 tools/poster.py validate <poster.html>` —— 健康检查
+- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless Chrome
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
 - `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution
+- Chrome / Chromium(系统二进制)—— `render` 用来 headless 截图;在常见路径自动探测
 
 ### MCP Servers
 - `mcp__llm-review__chat` —— 可选的跨模型评审(`--review`)
 
 ### Claude Code Native
-- `Read` —— 读 .tex / dag.json / outline.html
+- `Read` —— 读 .tex / dag.json / outline.html / poster.png(多模态)
 - `Write` —— 写 outline.html
-- `Edit` —— 给 outline.html 注入过渡句
+- `Edit` —— 给 outline.html 注入过渡句,或在 Step 5.5 写回修订后的 HTML
 - `Bash` —— 调用 wiki2dag / poster / research_wiki
 
 ### Shared References
