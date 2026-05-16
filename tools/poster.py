@@ -474,6 +474,108 @@ def validate_poster(poster_path: Path, min_sections: int = 3) -> tuple[bool, lis
 
 
 # ----------------------------------------------------------------------------
+# render — HTML → PNG via headless Chrome (system binary)
+# ----------------------------------------------------------------------------
+
+POSTER_WIDTH_PATTERN = re.compile(
+    r"--poster-width:\s*(\d+)\s*px", flags=re.IGNORECASE
+)
+POSTER_HEIGHT_PATTERN = re.compile(
+    r"--poster-height:\s*(\d+)\s*px", flags=re.IGNORECASE
+)
+
+
+def _find_chrome() -> Path:
+    """Locate a headless-capable Chrome/Chromium binary.
+
+    Checks platform-conventional paths plus PATH lookups. Raises
+    FileNotFoundError with platform-specific install hints if none found.
+    """
+    candidates: list[str] = [
+        # macOS
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        # PATH lookups (Linux + portable macOS Homebrew)
+        shutil.which("google-chrome") or "",
+        shutil.which("chromium") or "",
+        shutil.which("chromium-browser") or "",
+        shutil.which("chrome") or "",
+        # Windows
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ]
+    for cand in candidates:
+        if cand and Path(cand).is_file():
+            return Path(cand)
+    raise FileNotFoundError(
+        "Chrome/Chromium not found. Install one of:\n"
+        "  macOS:    brew install --cask google-chrome\n"
+        "  Linux:    apt install chromium-browser  (or your distro's equivalent)\n"
+        "  Windows:  https://www.google.com/chrome/"
+    )
+
+
+def _parse_dims(html_path: Path) -> tuple[int, int]:
+    """Extract --poster-width / --poster-height from the HTML's inline CSS.
+
+    Falls back to the default template's (1400, 900) if not found.
+    """
+    html = html_path.read_text(encoding="utf-8")
+    mw = POSTER_WIDTH_PATTERN.search(html)
+    mh = POSTER_HEIGHT_PATTERN.search(html)
+    w = int(mw.group(1)) if mw else 1400
+    h = int(mh.group(1)) if mh else 900
+    return w, h
+
+
+def render_poster(
+    html_path: Path,
+    output_path: Optional[Path] = None,
+    scale: int = 2,
+) -> Path:
+    """Render an HTML poster to PNG via headless Chrome.
+
+    Parses the poster's CSS dimensions from --poster-width / --poster-height,
+    then screenshots at (W * scale) × (H * scale) pixels. Default scale=2
+    yields a HiDPI image that multimodal LLMs can read.
+    """
+    if not html_path.is_file():
+        raise FileNotFoundError(f"poster HTML not found: {html_path}")
+    if scale not in (1, 2, 3):
+        raise ValueError(f"scale must be 1, 2, or 3 (got {scale})")
+
+    if output_path is None:
+        output_path = html_path.with_suffix(".png")
+
+    chrome = _find_chrome()
+    w, h = _parse_dims(html_path)
+
+    html_uri = "file://" + str(html_path.resolve())
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        str(chrome),
+        "--headless",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--no-sandbox",
+        f"--screenshot={output_path}",
+        f"--window-size={w},{h}",
+        f"--force-device-scale-factor={scale}",
+        "--virtual-time-budget=2000",
+        html_uri,
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+    if not output_path.is_file():
+        raise RuntimeError(
+            f"Chrome ran but did not produce {output_path}. "
+            f"Try running manually:\n  {' '.join(cmd)}"
+        )
+    return output_path
+
+
+# ----------------------------------------------------------------------------
 # CLI
 # ----------------------------------------------------------------------------
 
@@ -543,6 +645,28 @@ def cmd_validate(args) -> int:
     return 1
 
 
+def cmd_render(args) -> int:
+    html = Path(args.html).resolve()
+    output = Path(args.output).resolve() if args.output else None
+    try:
+        out = render_poster(html, output, scale=args.scale)
+    except FileNotFoundError as e:
+        print(f"[error] {e}", file=sys.stderr)
+        return 1
+    except subprocess.CalledProcessError as e:
+        stderr = e.stderr.decode() if e.stderr else "(no stderr)"
+        print(f"[error] Chrome exited with code {e.returncode}", file=sys.stderr)
+        print(stderr, file=sys.stderr)
+        return 1
+    w, h = _parse_dims(html)
+    print(f"[ok] poster rendered to {out}")
+    print(
+        f"  dims: {w}x{h} CSS px, "
+        f"{w * args.scale}x{h * args.scale} actual px (scale={args.scale})"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Render an academic HTML poster from dag.json + outline + template."
@@ -604,6 +728,25 @@ def main(argv: list[str] | None = None) -> int:
     p_val = sub.add_parser("validate", help="Sanity checks on the poster HTML")
     p_val.add_argument("poster", help="Path to poster.html")
     p_val.set_defaults(func=cmd_validate)
+
+    p_render = sub.add_parser(
+        "render",
+        help="Render HTML poster to PNG via headless Chrome",
+    )
+    p_render.add_argument("html", help="Path to poster.html")
+    p_render.add_argument(
+        "--output",
+        default=None,
+        help="Output PNG path (default: alongside HTML with .png extension)",
+    )
+    p_render.add_argument(
+        "--scale",
+        type=int,
+        choices=(1, 2, 3),
+        default=2,
+        help="Device scale factor: 1=fast preview, 2=default (HiDPI), 3=print",
+    )
+    p_render.set_defaults(func=cmd_render)
 
     args = parser.parse_args(argv)
     return args.func(args)

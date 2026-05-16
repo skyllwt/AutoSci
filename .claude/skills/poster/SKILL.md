@@ -29,6 +29,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 - `poster/dag.json` — PaperX-compatible intermediate (reusable by future `/slides`, `/pr`)
 - `poster/outline.html` — concatenated `<section>` blocks before template injection
 - `poster/poster.html` — final self-contained HTML poster (open in browser)
+- `poster/poster.png` — rendered screenshot at 2× CSS dimensions (default 2800×1800) — see Step 5b
 - `poster/images/` — figures copied/converted (PDF→PNG @ 200 DPI) from `paper/figures/`
 - **POSTER_REPORT** (printed to terminal)
 - `wiki/log.md` — appended log entry
@@ -303,6 +304,18 @@ python3 tools/poster.py validate poster/poster.html
 
 `inject-figures` copies PNG/JPG sources verbatim and converts PDF sources to PNG at 200 DPI via `pdftoppm`. `validate` checks that every `<img src=...>` resolves, the title is non-empty, at least 3 sections are present, and no `TODO`/`FIXME`/`[UNCONFIRMED]` markers remain.
 
+### Step 5b: Render PNG
+
+After validation passes, render the HTML poster to PNG so the user has a flat screenshot (also used as input by the future Step 5.5 critique-revise pass):
+
+```bash
+python3 tools/poster.py render poster/poster.html
+```
+
+This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1800) using headless Chrome via the system binary — no Python dependency added. Override with `--scale {1,2,3}` (1 = fast preview, 3 = print quality).
+
+If Chrome is not installed, `render` fails with an actionable message (`brew install --cask google-chrome` on macOS, `apt install chromium-browser` on Linux, or download from google.com/chrome on Windows). The HTML poster remains usable — the user can still `open poster/poster.html` directly.
+
 ### Step 6: Optional Review LLM critique (`--review`)
 
 If `--review` is passed, send the poster HTML to the Review LLM:
@@ -381,6 +394,7 @@ Print POSTER_REPORT:
 - **Nested figure paths** (`paper/figures/exp1/foo.pdf`): the bridge currently flattens to `images/foo.png` and the figure resolver looks only in `paper/figures/`. If two figures across nested dirs share the same basename, the second one wins. Flat `paper/figures/` is the supported layout for now.
 - **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — Claude picks by section order instead. Suggest `pip install Pillow`.
 - **Validation fails**: print all issues to stderr; do not delete the partial output. User can fix the outline and re-run from Step 5.
+- **Chrome not found for `render`**: print install instructions per platform and continue. The HTML poster is still usable; only the PNG is missing.
 - **Review LLM unreachable**: skip Step 6, note in report, continue.
 
 ## Dependencies
@@ -392,9 +406,11 @@ Print POSTER_REPORT:
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` — venue text + optional logos
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` — figure copy/convert
 - `python3 tools/poster.py validate <poster.html>` — sanity checks
+- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` — HTML → PNG via headless Chrome
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `pdftoppm` (poppler) — PDF → PNG conversion at 200 DPI
 - `pdfinfo` (poppler) — PDF page-size for resolution
+- Chrome / Chromium (system binary) — used by `render` for headless screenshot; auto-detected at common paths
 
 ### MCP Servers
 - `mcp__llm-review__chat` — optional cross-model review (`--review`)
