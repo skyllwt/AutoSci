@@ -578,7 +578,10 @@ def render_poster(
         f"--screenshot={output_path}",
         f"--window-size={w},{h}",
         f"--force-device-scale-factor={scale}",
-        "--virtual-time-budget=2000",
+        # 5s budget: gives KaTeX + Google Fonts + the fit() binary search
+        # enough time to converge. Empirically the fit usually settles
+        # in <1s, but cold font loads on first paint can push past 2s.
+        "--virtual-time-budget=5000",
         html_uri,
     ]
     subprocess.run(cmd, check=True, capture_output=True)
