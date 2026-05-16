@@ -350,12 +350,19 @@ python3 tools/poster.py render poster/poster.html
 
 1. 确保 `poster/poster.png` 反映当前 `poster/poster.html`。若 HTML 自上次渲染后有改动,重跑 `python3 tools/poster.py render poster/poster.html`。
 2. 存档当前截图:`cp poster/poster.png poster/poster.refine{i-1}.png`(方便用户 diff 每轮的变化)。
-3. 读取 `poster/poster.png`(用 Read,Claude 多模态读图)与 `poster/poster.html`(Read)。
-4. 应用下面的 refinement 提示词。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
-5. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
-6. 把修订后的 HTML 写回 `poster/poster.html`。
-7. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止迭代,告诉用户具体问题,HTML 保留原样供人工检查。
-8. 重新渲染 `poster/poster.png`,供下一轮(或作为最终渲染)。
+3. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于 step 8 的收敛判定。
+4. 读取 `poster/poster.png`(用 Read,Claude 多模态读图)与 `poster/poster.html`(Read)。
+5. 应用下面的 refinement 提示词。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
+6. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
+7. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
+8. **收敛检查**(在 validate / 重新渲染之前):归一化 `pre_html` 与 `post_html` —— 去掉静态 `<head>` 块(它永不变化)、合并空白,然后只在 `<div class="flow" id="flow">…</div>` 区域内计算字符级对称差。若差异 **小于 50 个字符**(即 LLM 没做实质修改),声明收敛:
+   - 记录结果为 `"converged after {i} iteration(s) — no material changes"`。
+   - 跳过下面的 step 9–10(无需 re-validate / re-render,磁盘上的 PNG 已与 HTML 一致)。
+   - **即使迭代预算 `N` 还有剩余**,也退出迭代循环。
+9. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止迭代,告诉用户具体问题,HTML 保留原样供人工检查。
+10. 重新渲染 `poster/poster.png`,供下一轮(或作为最终渲染)。
+
+**收敛 stop 的意义**:实际跑下来,当上游流程(Step 3 + Step 4)已经产出干净的文本(没有 LaTeX 漏出、没有编号前缀),step 5 的 LLM 没什么可改的。如果没这道收敛闸,第二轮迭代仍会触发一次 LLM 调用,代价不小但收益接近零。50 字符的阈值容忍空白/标点的微小差异,同时仍能捕获有意义的文字修订或 LaTeX 清理。
 
 **Refinement 提示词**(从 PaperX `poster_refinement_prompt` 移植,加了一个截图驱动的 layout 任务):
 
@@ -396,10 +403,12 @@ python3 tools/poster.py render poster/poster.html
 > **Screenshot**:
 > *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
 
-**失败处理**:
-- LLM 输出里没有 ```` ```html ```` 围栏 → 停止,HTML 保留原样,记录警告。
-- 围栏里没有 `<section>` 或缺 `<h1 class="title">` → 停止,HTML 保留原样,记录警告。
-- 达到 iteration 上限 → 完成,进入 Step 6。
+**终止条件**:
+- **收敛**(正常的提前退出):LLM 的修订在 `.flow` 区域差异 < 50 字符 —— 见上面 step 8。无论预算剩余多少,退出循环。
+- **达到 iteration 上限**:`i == N`。完成,进入 Step 6。
+- **LLM 输出里没有 ```` ```html ```` 围栏** → 停止,HTML 保留原样,记录警告。
+- **围栏里没有 `<section>` 或缺 `<h1 class="title">`** → 停止,HTML 保留原样,记录警告。
+- **修订后 validate 失败** → 停止,告诉用户具体问题,HTML 保留原样供人工检查。
 
 ### Step 6: 可选 Review LLM 评审(`--review`)
 
@@ -447,7 +456,7 @@ python3 tools/research_wiki.py log wiki/ \
 - 嵌入配图:{M}
 - PDF→PNG 转换:{K}
 - Header:venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Critique-revise(Step 5.5):{N 轮已应用 | 已跳过(--no-refine) | 已跳过(无可用 headless 浏览器)}
+- Critique-revise(Step 5.5):{k/N 轮已应用 | 第 k/N 轮收敛(无实质修改) | 已跳过(--no-refine) | 已跳过(无可用 headless 浏览器)}
 - Review LLM(Step 6):{已调用 / 已跳过}
 
 ## 输出

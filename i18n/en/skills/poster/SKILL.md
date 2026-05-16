@@ -351,12 +351,19 @@ Goal: feed the rendered screenshot from Step 5b back to Claude (multimodal) for 
 
 1. Ensure `poster/poster.png` reflects the current `poster/poster.html`. If the HTML was modified since the last render, re-run `python3 tools/poster.py render poster/poster.html`.
 2. Archive the BEFORE screenshot: `cp poster/poster.png poster/poster.refine{i-1}.png` (so the user can diff each pass).
-3. Read `poster/poster.png` (Read tool — Claude is multimodal) and `poster/poster.html` (Read tool).
-4. Apply the refinement prompt below. Use Claude (in-session, already multimodal). Do NOT use `mcp__llm-review__chat` — it is text-only per `mcp-servers/llm-review/server.py`.
-5. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
-6. Write the revised HTML back to `poster/poster.html`.
-7. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop the iteration loop, surface the issues to the user, leave the HTML as-is for inspection.
-8. Re-render to `poster/poster.png` for the next iteration (or as the final render).
+3. Snapshot `pre_html = <current poster.html>` in memory — needed for the convergence check in step 8.
+4. Read `poster/poster.png` (Read tool — Claude is multimodal) and `poster/poster.html` (Read tool).
+5. Apply the refinement prompt below. Use Claude (in-session, already multimodal). Do NOT use `mcp__llm-review__chat` — it is text-only per `mcp-servers/llm-review/server.py`.
+6. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
+7. Write the revised HTML back to `poster/poster.html`. Snapshot it as `post_html`.
+8. **Convergence check** (before validate / re-render): normalize `pre_html` and `post_html` — strip the static `<head>` block (it never changes), trim whitespace runs, and compute the symmetric character difference inside the `<div class="flow" id="flow">…</div>` region only. If the difference is **under 50 characters** (i.e. the LLM made no material change), declare convergence:
+   - Record the outcome as `"converged after {i} iteration(s) — no material changes"`.
+   - Skip steps 9–10 below (no need to re-validate or re-render; the on-disk PNG already matches the HTML).
+   - Exit the iteration loop **even if budget `N` allows more iterations**.
+9. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop the iteration loop, surface the issues to the user, leave the HTML as-is for inspection.
+10. Re-render to `poster/poster.png` for the next iteration (or as the final render).
+
+**Why convergence-stop matters**: in practice, when the upstream pipeline (Steps 3 + 4) already produces clean prose with no LaTeX leaks and no numbering prefixes, the LLM in step 5 has little to fix. Without this check, iteration 2 still fires and burns an LLM call for marginal or zero change. The 50-character threshold tolerates trivial whitespace/punctuation differences while catching meaningful prose edits or LaTeX cleanup.
 
 **Refinement prompt** (ported from PaperX `poster_refinement_prompt`, extended with a screenshot-driven layout task):
 
@@ -397,10 +404,12 @@ Goal: feed the rendered screenshot from Step 5b back to Claude (multimodal) for 
 > **Screenshot**:
 > *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
 
-**Failure modes**:
-- LLM output has no fenced ```` ```html ```` block → stop, leave HTML as-is, log warning.
-- Fenced block is missing `<section>` or the `<h1 class="title">` → stop, leave HTML as-is, log warning.
-- Iteration count reached → finalize and proceed to Step 6.
+**Termination conditions**:
+- **Convergence** (normal early exit): the LLM's revision differs by < 50 characters in the `.flow` region — see step 8 above. Stop the loop, regardless of remaining budget.
+- **Iteration count reached**: `i == N`. Finalize and proceed to Step 6.
+- **LLM output has no fenced ```` ```html ```` block** → stop, leave HTML as-is, log warning.
+- **Fenced block is missing `<section>` or the `<h1 class="title">`** → stop, leave HTML as-is, log warning.
+- **Validation fails after revision** → stop, surface validation issues, leave HTML as-is for inspection.
 
 ### Step 6: Optional Review LLM critique (`--review`)
 
@@ -448,7 +457,7 @@ Print POSTER_REPORT:
 - Figures embedded: {M}
 - PDF→PNG conversions: {K}
 - Header: venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Critique-revise (Step 5.5): {N iterations applied | skipped (--no-refine) | skipped (no headless browser)}
+- Critique-revise (Step 5.5): {k/N iterations applied | converged after k/N (no material changes) | skipped (--no-refine) | skipped (no headless browser)}
 - Review LLM (Step 6): {invoked / skipped}
 
 ## Output
