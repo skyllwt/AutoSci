@@ -230,7 +230,7 @@ Args: "{idea_slug}"
 ```
 
 **完成后**：
-1. 读取生成的 experiment slugs（从 wiki/experiments/ 中 linked_idea == idea_slug 的页面,以及根据exp-slug在wiki/experiments/designs/{slug}-master.md获取实验块详细spec）
+1. 读取生成的 experiment slugs（从 wiki/experiments/ 中 linked_idea == idea_slug 的页面,以及根据exp-slug在experiments/designs/{slug}-master.md获取实验块详细spec）
 2. 更新 pipeline-progress：Stage 2 → completed，记录 experiment_slugs
 
 ### Stage 3: Experiment Execution（非阻塞）

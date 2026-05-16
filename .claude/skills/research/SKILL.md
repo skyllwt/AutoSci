@@ -230,7 +230,7 @@ Args: "{idea_slug}"
 ```
 
 **After completion**:
-1. Read generated experiment slugs (pages in wiki/experiments/ where linked_idea == idea_slug，and retrieve the detailed specs of the experiment block from wiki/experiments/designs/{slug}-master.md based on the exp-slug)
+1. Read generated experiment slugs (pages in wiki/experiments/ where linked_idea == idea_slug，and retrieve the detailed specs of the experiment block from experiments/designs/{slug}-master.md based on the exp-slug)
 2. Update pipeline-progress: Stage 2 → completed, record experiment_slugs
 
 ### Stage 3: Experiment Execution (non-blocking)

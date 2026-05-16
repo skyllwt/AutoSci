@@ -16,7 +16,7 @@ argument-hint: <idea-slug>
 ## Outputs
 
 - Experiment wiki pages: `wiki/experiments/{exp-slug}.md` — one per experiment block (ablation, sensitivity, main, generalization, analysis), each with `status: planned` and `linked_idea` set
-- Master design document: `wiki/experiments/designs/{slug}-master.md` — detailed specs for all experiment blocks
+- Master design document: `experiments/designs/{slug}-master.md` — detailed specs for all experiment blocks
 - `wiki/graph/edges.jsonl` — new `tested_by` edges: idea → each experiment
 - `wiki/ideas/{slug}.md` — updated `linked_experiments` field
 - `wiki/graph/context_brief.md` — rebuilt
@@ -29,7 +29,7 @@ argument-hint: <idea-slug>
 ### Reads
 - `wiki/ideas/{slug}.md` — idea's hypothesis, approach, risks, novelty argument
 - `wiki/ideas/*.md` — other ideas (for Candidate C cross-idea combination, filtering for validated/pilot-passed ideas)
-- `wiki/experiments/pilot/{slug}/report.md` — pilot evaluation results (if exists)
+- `experiments/pilot/{slug}/report.md` — pilot evaluation results (if exists)
 - `wiki/papers/*.md` — related papers for baseline setups and method details
 - `wiki/concepts/*.md` and `wiki/topics/*.md` — referenced via idea's `origin_gaps`
 - `wiki/methods/*.md` — reusable methods the idea builds on
@@ -39,7 +39,7 @@ argument-hint: <idea-slug>
 
 ### Writes
 - `wiki/experiments/{exp-slug}.md` — experiment wiki pages (one per block, following entity schema)
-- `wiki/experiments/designs/{slug}-master.md` — master design document with detailed block specs
+- `experiments/designs/{slug}-master.md` — master design document with detailed block specs
 - `wiki/ideas/{slug}.md` — append experiment slugs to `linked_experiments`
 - `wiki/graph/edges.jsonl` — add `tested_by` edges (idea → each experiment)
 - `wiki/graph/context_brief.md` — rebuild
@@ -59,7 +59,7 @@ argument-hint: <idea-slug>
 
 1. **Read idea page**: load `wiki/ideas/{slug}.md`, extract `## Motivation`, `## Hypothesis`, `## Approach sketch`, `## Novelty argument`, `## Risks` plus frontmatter fields `origin_gaps`, `tags`, `target_venue`, `priority`, `novelty_score`.
 
-2. **Read pilot results** (if exists): load `wiki/experiments/pilot/{slug}/report.md` to understand pilot outcome. If pilot passed, proceed with confidence. If no pilot exists, proceed with caution and note reduced confidence in design document.
+2. **Read pilot results** (if exists): load `experiments/pilot/{slug}/report.md` to understand pilot outcome. If pilot passed, proceed with confidence. If no pilot exists, proceed with caution and note reduced confidence in design document.
 
 3. **Load relevant wiki context**:
    - Read `wiki/graph/context_brief.md` and `wiki/graph/open_questions.md`
@@ -90,6 +90,8 @@ For each candidate, document:
 ---
 
 ### Phase 3: Benchmark & Metric Selection
+
+> Select the benchmark, including datasets, evaluation metrics and baseline methods. Among them, the datasets and evaluation metrics shall adopt the universally recognized standard benchmarks in the corresponding research field.
 
 1. **Identify benchmark(s)** based on:
    - The idea's domain (NLP, CV, RL, etc.)
@@ -263,7 +265,7 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 
 ### Phase 6: Write Design Document
 
-1. **Create master design document** at `wiki/experiments/designs/{slug}-master.md`:
+1. **Create master design document** at `experiments/designs/{slug}-master.md`:
    ```markdown
    ---
    title: "Experiment Design: {idea-title}"
@@ -455,7 +457,7 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 
 - **Every experiment must reference an idea**: `linked_idea` is required by the schema. If no idea page exists, refuse to design — instruct user to run `/ideate` first.
 - **No duplicate experiments**: before creating, scan `wiki/experiments/*.md` for existing experiments with same `linked_idea` + `hypothesis`.
-- **Do NOT overwrite existing design files**: if `wiki/experiments/designs/{slug}-master.md` already exists, ask user before overwriting.
+- **Do NOT overwrite existing design files**: if `experiments/designs/{slug}-master.md` already exists, ask user before overwriting.
 - **Method candidates must be grounded**: no hallucinated methods — all candidates must derive from the idea page's content.
 - **Ablation loop capped at 2 iterations**: prevents infinite loops. After 2 iterations, finalize with current design.
 - **Sensitivity sweep must be incremental**: subset first, full sweep second.

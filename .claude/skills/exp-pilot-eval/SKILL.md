@@ -6,7 +6,7 @@ argument-hint: <idea-slug> [--auto]
 # /exp-pilot-eval
 
 > Evaluate pilot experiment results and update the linked idea page.
-> Reads pilot results from `wiki/experiments/pilot/code/{slug}/results/`, applies verdict logic (pass/fail/inconclusive), and updates the idea's `pilot_result`, `failure_reason`, and `status` fields.
+> Reads pilot results from `experiments/pilot/code/{slug}/results/`, applies verdict logic (pass/fail/inconclusive), and updates the idea's `pilot_result`, `failure_reason`, and `status` fields.
 > Called by `/ideate` Phase 5 after `/exp-pilot-run` completes.
 
 ## Inputs
@@ -19,20 +19,20 @@ argument-hint: <idea-slug> [--auto]
 - `wiki/ideas/{slug}.md` — updated `pilot_result` (always), `failure_reason` (if failed), `status` (if failed → `failed`)
 - `wiki/log.md` — appended log entry
 - **PILOT_VERDICT_REPORT** (printed to terminal) — verdict, wiki change summary, next step suggestions
-- `wiki/experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT file copy (persistent record)
+- `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT file copy (persistent record)
 
 ## Wiki Interaction
 
 ### Reads
 - `wiki/ideas/{slug}.md` — linked idea current state: `status`, `pilot_result`, `failure_reason`
-- `wiki/experiments/pilot/code/{slug}/results/seed_*.json` — pilot experiment results
-- `wiki/experiments/pilot/code/{slug}/pilot.log` — pilot run log (for failure diagnosis: errors, warnings, runtime behavior)
-- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec (for success_criterion and baseline reference)
+- `experiments/pilot/code/{slug}/results/seed_*.json` — pilot experiment results
+- `experiments/pilot/code/{slug}/pilot.log` — pilot run log (for failure diagnosis: errors, warnings, runtime behavior)
+- `experiments/pilot/{slug}.yaml` — Pilot Spec (for success_criterion and baseline reference)
 
 ### Writes
 - `wiki/ideas/{slug}.md` — update `pilot_result`, `failure_reason` (if failed), `status` (if failed)
 - `wiki/log.md` — append operation log
-- `wiki/experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT file copy
+- `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT file copy
 
 ### Graph edges created
 - None. Pilot evaluations do not create graph edges (those are for formal experiments via `/exp-eval`).
@@ -45,15 +45,15 @@ argument-hint: <idea-slug> [--auto]
    - Current `status` and `pilot_result`
    - Current `failure_reason` (should be empty for proposed ideas)
 
-2. Read pilot results from `wiki/experiments/pilot/code/{slug}/results/seed_*.json`:
+2. Read pilot results from `experiments/pilot/code/{slug}/results/seed_*.json`:
    - Parse result files (JSON)
    - Compute mean ± std per metric (across seeds)
 
-3. Read pilot log from `wiki/experiments/pilot/code/{slug}/pilot.log`:
+3. Read pilot log from `experiments/pilot/code/{slug}/pilot.log`:
    - Scan for errors, warnings, OOM, divergence signals
    - Extract runtime behavior context for failure diagnosis and verdict report
 
-4. Read Pilot Spec from `wiki/experiments/pilot/{slug}.yaml`:
+4. Read Pilot Spec from `experiments/pilot/{slug}.yaml`:
    - Extract `success_criterion` (pass, fail, inconclusive conditions)
    - Extract `baseline.expected_value` for comparison
 
@@ -98,7 +98,7 @@ If verdict == `inconclusive`:
      "exp-pilot-eval | {slug} | verdict: {verdict} | pilot_result: {result}"
    ```
 
-3. Print **PILOT_VERDICT_REPORT** to terminal and write to `wiki/experiments/pilot/{slug}/report.md`:
+3. Print **PILOT_VERDICT_REPORT** to terminal and write to `experiments/pilot/{slug}/report.md`:
    ```markdown
    # Pilot Verdict Report: {slug}
 
@@ -110,7 +110,7 @@ If verdict == `inconclusive`:
    | {metric} | {baseline-value} | {mean}±{std} | {delta} |
 
    ## Pilot Log
-   - Log: wiki/experiments/pilot/code/{slug}/pilot.log
+   - Log: experiments/pilot/code/{slug}/pilot.log
    - Key signals: {errors / warnings / OOM / divergence observed in log, or "clean run"}
 
    ## Wiki Changes
@@ -128,7 +128,7 @@ If verdict == `inconclusive`:
 
 ## Constraints
 
-- **Only processes pilot-tested ideas**: results must exist in `wiki/experiments/pilot/code/{slug}/results/`
+- **Only processes pilot-tested ideas**: results must exist in `experiments/pilot/code/{slug}/results/`
 - **failure_reason must be specific**: not vague "pilot failed" — include what failed and why
 - **Idea lifecycle is forward-only**: `proposed → failed` (cannot regress validated → failed)
 - **Does NOT create graph edges**: those are for formal experiments via `/exp-eval`

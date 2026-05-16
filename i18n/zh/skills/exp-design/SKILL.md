@@ -16,7 +16,7 @@ argument-hint: <idea-slug>
 ## Outputs
 
 - 实验wiki页面：`wiki/experiments/{exp-slug}.md` — 每个实验块一个页面（ablation、sensitivity、main、generalization、analysis），每个页面 `status: planned`，`linked_idea` 已设置
-- 主设计文档：`wiki/experiments/designs/{slug}-master.md` — 各实验块的详细spec
+- 主设计文档：`experiments/designs/{slug}-master.md` — 各实验块的详细spec
 - `wiki/graph/edges.jsonl` — 新的 `tested_by` 边：idea → 每个experiment
 - `wiki/ideas/{slug}.md` — 更新的 `linked_experiments` 字段
 - `wiki/graph/context_brief.md` — 重建
@@ -29,7 +29,7 @@ argument-hint: <idea-slug>
 ### Reads
 - `wiki/ideas/{slug}.md` — idea的假设、方法、风险、新颖性论点
 - `wiki/ideas/*.md` — 其他idea（用于候选C跨idea结合，筛选已验证/通过预实验的idea）
-- `wiki/experiments/pilot/{slug}/report.md` — 预实验评估结果（若存在）
+- `experiments/pilot/{slug}/report.md` — 预实验评估结果（若存在）
 - `wiki/papers/*.md` — 相关论文的baseline设置和方法细节
 - `wiki/concepts/*.md` 和 `wiki/topics/*.md` — 通过idea的 `origin_gaps` 引用
 - `wiki/methods/*.md` — idea所基于的可复用方法
@@ -39,7 +39,7 @@ argument-hint: <idea-slug>
 
 ### Writes
 - `wiki/experiments/{exp-slug}.md` — 实验wiki页面（每个实验块一个，遵循entity schema）
-- `wiki/experiments/designs/{slug}-master.md` — 主设计文档，含各块详细spec
+- `experiments/designs/{slug}-master.md` — 主设计文档，含各块详细spec
 - `wiki/ideas/{slug}.md` — 在 `linked_experiments` 中追加experiment slug
 - `wiki/graph/edges.jsonl` — 添加 `tested_by` 边（idea → 每个experiment）
 - `wiki/graph/context_brief.md` — 重建
@@ -59,7 +59,7 @@ argument-hint: <idea-slug>
 
 1. **读取idea页面**：加载 `wiki/ideas/{slug}.md`，提取 `## Motivation`、`## Hypothesis`、`## Approach sketch`、`## Novelty argument`、`## Risks` 以及frontmatter字段 `origin_gaps`、`tags`、`target_venue`、`priority`、`novelty_score`。
 
-2. **读取预实验结果**（若存在）：加载 `wiki/experiments/pilot/{slug}/report.md` 了解预实验结果。若预实验通过，可有信心地推进。若无预实验，谨慎推进并在设计文档中注明。
+2. **读取预实验结果**（若存在）：加载 `experiments/pilot/{slug}/report.md` 了解预实验结果。若预实验通过，可有信心地推进。若无预实验，谨慎推进并在设计文档中注明。
 
 3. **加载相关wiki上下文**：
    - 读取 `wiki/graph/context_brief.md` 和 `wiki/graph/open_questions.md`
@@ -90,6 +90,8 @@ argument-hint: <idea-slug>
 ---
 
 ### Phase 3：基准与指标选择
+
+> 选择benchmark，包括数据集、评测指标和基线方法。其中数据集和评测指标要选择领域内该方向公认的标准级别。
 
 1. **确定基准**，基于：
    - idea的领域（NLP、CV、RL等）
@@ -263,7 +265,7 @@ Stage 4：深度分析
 
 ### Phase 6：写入设计文档
 
-1. **创建主设计文档** `wiki/experiments/designs/{slug}-master.md`：
+1. **创建主设计文档** `experiments/designs/{slug}-master.md`：
    ```markdown
    ---
    title: "实验设计: {idea-title}"
@@ -455,7 +457,7 @@ Stage 4：深度分析
 
 - **每个experiment必须引用一个idea**：`linked_idea` 是schema必需的。若无idea页面，拒绝设计 — 指示用户先运行 `/ideate`。
 - **不重复创建experiment**：创建前扫描 `wiki/experiments/*.md` 中已有相同 `linked_idea` + `hypothesis` 的实验。
-- **不覆盖已有设计文件**：若 `wiki/experiments/designs/{slug}-master.md` 已存在，覆盖前询问用户。
+- **不覆盖已有设计文件**：若 `experiments/designs/{slug}-master.md` 已存在，覆盖前询问用户。
 - **方法候选必须有依据**：不凭空编造方法 — 所有候选必须源自idea页面内容。
 - **消融循环上限2次**：防止无限循环。2次迭代后用当前设计定稿。
 - **敏感度扫描必须增量**：先子集，后完整扫描。

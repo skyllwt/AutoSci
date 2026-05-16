@@ -122,7 +122,7 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 
      | Path | Name | Wiki input to read | Output form |
      |------|------|--------------------|-------------|
-     | A | Landscape-driven | `direction` + landscape report from Phase 1 (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+     | A | Landscape-driven | `direction` + landscape report from Phase 1 (no dependency on existing methods) | "Design directly from topic/research description" |
      | B | Incremental | `method.limitations` in `wiki/methods/*.md` | "Fix limitation L in method M" |
      | C | Combination | `tradeoff_profile` of two methods under the same topic in `wiki/methods/*.md` | "Combine strengths of M1 + M2" |
      | D | Innovation | Intersection of `assumptions` across N methods under the same topic in `wiki/methods/*.md` | "Break shared assumption P" |
@@ -151,7 +151,7 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic/research description" |
        | B | Incremental | method.limitations | "Fix limitation L in method M" |
        | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
        | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
@@ -403,7 +403,7 @@ Objective: Conduct lightweight pre-experiments on **user-selected** surviving id
 
 **Pilot Spec — structured output for each idea**:(**Multiple pilot experiments can be executed in parallel** when GPU resources are sufficient.)
 
-Before writing pilot code, generate a structured Pilot Spec block per idea selected by the user and write it to `wiki/experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `/exp-design` experiment pages guide `/exp-run`). Include the following fields:
+Before writing pilot code, generate a structured Pilot Spec block per idea selected by the user and write it to `experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `/exp-design` experiment pages guide `/exp-run`). Include the following fields:
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -471,14 +471,14 @@ pilot_spec:
 
 **Run pilots via `/exp-pilot-run`**:
 
-User-selected surviving idea, after writing the Pilot Spec to `wiki/experiments/pilot/{slug}.yaml`:
+User-selected surviving idea, after writing the Pilot Spec to `experiments/pilot/{slug}.yaml`:
 
 ```
 Skill: exp-pilot-run
 Args: "{idea-slug}"
 ```
 
-`/exp-pilot-run` reads the Pilot Spec, writes pilot code to `wiki/experiments/pilot/code/{slug}/`, runs the experiment, and returns a PILOT_REPORT with:
+`/exp-pilot-run` reads the Pilot Spec, writes pilot code to `experiments/pilot/code/{slug}/`, runs the experiment, and returns a PILOT_REPORT with:
 - **Results**: metric values vs baseline (mean ± std)
 - **Details**: steps completed, runtime, log path
 

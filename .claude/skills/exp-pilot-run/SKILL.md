@@ -6,23 +6,23 @@ argument-hint: <idea-slug> [--env local|remote]
 # /exp-pilot-run
 
 > Execute a pilot experiment described by a Pilot Spec YAML file.
-> Reads the spec from `wiki/experiments/pilot/{slug}.yaml`, writes pilot code, runs the experiment, and returns raw results to the caller.
+> Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, runs the experiment, and returns raw results to the caller.
 > Supports **local** (direct GPU) and **remote** (SSH deployment via `tools/remote.py`) modes.
 > Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval`.
 
 ## Inputs
 
-- `idea-slug`: slug used to locate `wiki/experiments/pilot/{slug}.yaml`
+- `idea-slug`: slug used to locate `experiments/pilot/{slug}.yaml`
 - `--env local|remote` (optional, default `local`): deployment environment
   - `local`: run directly on local GPU
   - `remote`: deploy to remote machine via SSH (requires `config/server.yaml`)
 
 ## Outputs
 
-- Pilot code: `wiki/experiments/pilot/code/{slug}/` (train.py, config.yaml, run.sh, requirements.txt)
-- Pilot results: `wiki/experiments/pilot/code/{slug}/results/seed_{N}.json`
-- Pilot log: `wiki/experiments/pilot/code/{slug}/pilot.log`
-- Polling log: `wiki/experiments/pilot/{slug}/check.md` (**real-time progress updates during monitoring**)
+- Pilot code: `experiments/pilot/code/{slug}/` (train.py, config.yaml, run.sh, requirements.txt)
+- Pilot results: `experiments/pilot/code/{slug}/results/seed_{N}.json`
+- Pilot log: `experiments/pilot/code/{slug}/pilot.log`
+- Polling log: `experiments/pilot/{slug}/check.md` (**real-time progress updates during monitoring**)
 - **PILOT_REPORT** (printed to terminal) — results table, run details, anomalies
 - Returns raw results and key metrics to caller
 - NO wiki page modifications
@@ -30,18 +30,18 @@ argument-hint: <idea-slug> [--env local|remote]
 ## Wiki Interaction
 
 ### Reads
-- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
+- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
 - `wiki/papers/*.md` — related papers' method descriptions (implementation reference)
 
 ### Writes
-- `wiki/experiments/pilot/code/{slug}/` — pilot code directory
-  - `wiki/experiments/pilot/code/{slug}/train.py` — main training/evaluation script
-  - `wiki/experiments/pilot/code/{slug}/config.yaml` — hyperparameter config file
-  - `wiki/experiments/pilot/code/{slug}/run.sh` — launch wrapper script
-  - `wiki/experiments/pilot/code/{slug}/requirements.txt` — dependencies
-  - `wiki/experiments/pilot/code/{slug}/results/seed_{N}.json` — result files
-  - `wiki/experiments/pilot/code/{slug}/pilot.log` — run log
-- `wiki/experiments/pilot/{slug}/check.md` — polling progress log (updated during monitoring)
+- `experiments/pilot/code/{slug}/` — pilot code directory
+  - `experiments/pilot/code/{slug}/train.py` — main training/evaluation script
+  - `experiments/pilot/code/{slug}/config.yaml` — hyperparameter config file
+  - `experiments/pilot/code/{slug}/run.sh` — launch wrapper script
+  - `experiments/pilot/code/{slug}/requirements.txt` — dependencies
+  - `experiments/pilot/code/{slug}/results/seed_{N}.json` — result files
+  - `experiments/pilot/code/{slug}/pilot.log` — run log
+- `experiments/pilot/{slug}/check.md` — polling progress log (updated during monitoring)
 
 ### Graph edges created
 - None. Pilot experiments do not create graph edges.
@@ -56,7 +56,7 @@ argument-hint: <idea-slug> [--env local|remote]
 
 1. **Read Pilot Spec**:
    **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
-   - Load `wiki/experiments/pilot/{slug}.yaml`
+   - Load `experiments/pilot/{slug}.yaml`
    - The YAML has a `pilot_spec:` root key; all fields below are nested under it
    - Validate required fields exist under `pilot_spec:`: `implementation`, `setup`, `metrics`, `baseline`, `success_criterion`
    - Extract from `pilot_spec:`: repo, entry_point, modifications, files_to_create, setup (model, dataset, hardware, framework, batch_size, max_steps, learning_rate, seeds, other_hparams), metrics, baseline, success_criterion, hypothesis, approach_sketch
@@ -66,7 +66,7 @@ argument-hint: <idea-slug> [--env local|remote]
    - Read related papers' method descriptions for algorithm details (from `wiki/papers/` if they exist)
    - Read source paper repo for base code reference
 
-3. **Write pilot code** to `wiki/experiments/pilot/code/{slug}/`:
+3. **Write pilot code** to `experiments/pilot/code/{slug}/`:
 
 >Preliminary Experiment Purpose Reminder: The goal is to **detect obvious failures** (divergence, severe degradation, fundamental incompatibility), **not to measure final performance**. Follow the reduced configuration of the Pilot Spec: batch size = 1/4–1/8 of that in the paper, training steps = 10–30% of full training. This is to judge the implementation value of an idea to a certain extent at a lower cost, with baseline comparison always included. Do not attempt to optimize for optimal results — a preliminary experiment only needs to confirm "no obvious collapse". From the overall performance in the early and middle stages, results that are improved, basically flat, or slightly worse compared with the baseline are all acceptable.
 
@@ -75,14 +75,13 @@ Possible reference paths for the preliminary experiment code:
    - Path B: Implement an integrated version based on the idea of organic fusion (e.g., check whether performance and cost reach a balance).
    - Path C: Detect common blind spots, break existing assumptions based on new settings, and verify whether all existing methods fail under the new settings.
 
-
    - `train.py`: training/evaluation script based on Pilot Spec `setup` config, including:
      - Argument parsing (argparse, all hyperparameters from spec configurable)
      - Data loading (support spec's `setup.dataset`)
      - Model initialization (support spec's `setup.model` and baseline model)
      - Training/inference loop (respect `setup.max_steps` for shortened training)
      - Metric computation (matching spec's `metrics` list)
-     - Result saving (JSON format, path: `wiki/experiments/pilot/code/{slug}/results/seed_{N}.json`)
+     - Result saving (JSON format, path: `experiments/pilot/code/{slug}/results/seed_{N}.json`)
      - Random seed control
    - `config.yaml`: all hyperparameters from spec (learning_rate, batch_size, max_steps, etc.)
    - `run.sh`: launch wrapper (includes CUDA_VISIBLE_DEVICES, logging, conda activation)
@@ -120,16 +119,16 @@ Possible reference paths for the preliminary experiment code:
 3. **Launch**:
    ```bash
    screen -dmS pilot-{slug} bash -c \
-     "cd $(pwd) && bash wiki/experiments/pilot/code/{slug}/run.sh 2>&1 | tee wiki/experiments/pilot/code/{slug}/pilot.log"
+     "cd $(pwd) && bash experiments/pilot/code/{slug}/run.sh 2>&1 | tee experiments/pilot/code/{slug}/pilot.log"
    ```
-   - Notify user: "Pilot launched. Polling progress will be written to `wiki/experiments/pilot/{slug}/check.md`"
+   - Notify user: "Pilot launched. Polling progress will be written to `experiments/pilot/{slug}/check.md`"
 
 4. **Monitor until completion**:
-   - Initialize `wiki/experiments/pilot/{slug}/check.md` with header (timestamp, slug, estimated duration, polling interval)
+   - Initialize `experiments/pilot/{slug}/check.md` with header (timestamp, slug, estimated duration, polling interval)
    - Poll the screen session and tail the log to track progress and detect anomalies:
      ```bash
      while screen -ls | grep -q "pilot-{slug}"; do
-       tail -5 wiki/experiments/pilot/code/{slug}/pilot.log
+       tail -5 experiments/pilot/code/{slug}/pilot.log
        sleep {polling_interval_seconds}
      done
      ```
@@ -138,10 +137,10 @@ Possible reference paths for the preliminary experiment code:
      - OOM: `CUDA out of memory` or `torch.cuda.OutOfMemoryError`
      - Traceback: Python exception stacktrace
      - Inf loss: `loss: inf` or `inf` in metric output
-     - Divergence: loss exceeds 100× initial loss or reaches 1e5+
+     - Divergence: loss shows no convergence trend (continuous growth or oscillation)
    - **If anomaly detected**: log the anomaly, continue monitoring (do NOT kill the process — let it either self-recover or crash, both are useful signals). Record the anomaly for the final report.
    - **If session persists beyond 2× estimated runtime**: warn user but do not force-terminate — a hung pilot is itself a useful diagnostic signal.
-   - **Progress reporting** (append to `wiki/experiments/pilot/{slug}/check.md` on each poll, NOT to terminal):
+   - **Progress reporting** (append to `experiments/pilot/{slug}/check.md` on each poll, NOT to terminal):
      ```
      ## {timestamp}
      - Step: {current_step} / {max_steps}
@@ -168,21 +167,21 @@ Possible reference paths for the preliminary experiment code:
 
 5. **Install dependencies** (first time or if requirements changed):
    ```bash
-   python3 tools/remote.py setup-env --requirements wiki/experiments/pilot/code/{slug}/requirements.txt
+   python3 tools/remote.py setup-env --requirements experiments/pilot/code/{slug}/requirements.txt
    ```
 
 6. **Launch remote pilot**:
    ```bash
    python3 tools/remote.py launch \
      --name "pilot-{slug}" \
-     --cmd "bash wiki/experiments/pilot/code/{slug}/run.sh" \
+     --cmd "bash experiments/pilot/code/{slug}/run.sh" \
      --gpu {gpu_index} \
-     --log-file "wiki/experiments/pilot/code/{slug}/pilot.log"
+     --log-file "experiments/pilot/code/{slug}/pilot.log"
    ```
-   - Notify user: "Pilot launched (remote). Polling progress will be written to `wiki/experiments/pilot/{slug}/check.md`"
+   - Notify user: "Pilot launched (remote). Polling progress will be written to `experiments/pilot/{slug}/check.md`"
 
 7. **Monitor until completion**:
-   - Initialize `wiki/experiments/pilot/{slug}/check.md` with header (timestamp, slug, estimated duration, polling interval, environment: remote)
+   - Initialize `experiments/pilot/{slug}/check.md` with header (timestamp, slug, estimated duration, polling interval, environment: remote)
    - Poll the remote session and tail the log:
      ```bash
      while true; do
@@ -194,7 +193,7 @@ Possible reference paths for the preliminary experiment code:
    - `remote.py check` already performs anomaly detection (NaN, OOM, traceback, infinite loss) and reports `exit_reason` when the session ends.
    - **If anomaly detected**: log the anomaly, continue monitoring. Record the anomaly for the final report.
    - **If session persists beyond 2× estimated runtime**: warn user but do not force-terminate.
-   - **Progress reporting** (append to `wiki/experiments/pilot/{slug}/check.md` on each poll, NOT to terminal):
+   - **Progress reporting** (append to `experiments/pilot/{slug}/check.md` on each poll, NOT to terminal):
      ```
      ## {timestamp}
      - Latest log: {tail output}
@@ -210,21 +209,21 @@ Possible reference paths for the preliminary experiment code:
 2. **Pull remote results** (remote mode only):
    ```bash
    python3 tools/remote.py pull-results \
-     --remote-path "wiki/experiments/pilot/code/{slug}/results/" \
-     --local-path "./wiki/experiments/pilot/code/{slug}/results/"
+     --remote-path "experiments/pilot/code/{slug}/results/" \
+     --local-path "./experiments/pilot/code/{slug}/results/"
 
    python3 tools/remote.py pull-results \
-     --remote-path "wiki/experiments/pilot/code/{slug}/pilot.log" \
-     --local-path "./wiki/experiments/pilot/code/{slug}/"
+     --remote-path "experiments/pilot/code/{slug}/pilot.log" \
+     --local-path "./experiments/pilot/code/{slug}/"
    ```
    If pull fails for some files → report which files are missing, continue with available data.
 
-3. **Check result files**: `wiki/experiments/pilot/code/{slug}/results/seed_*.json`
+3. **Check result files**: `experiments/pilot/code/{slug}/results/seed_*.json`
    - List available result files
    - If no result files exist → report error "no result files produced (run may have crashed)"
    - If result files exist but are incomplete (partial seeds) → use available seeds, note in report
 
-4. **Read pilot log**: `wiki/experiments/pilot/code/{slug}/pilot.log`
+4. **Read pilot log**: `experiments/pilot/code/{slug}/pilot.log`
    - Scan for errors, warnings, OOM, divergence signals
    - Extract runtime behavior context for the final report
    - Record any anomalies detected during Phase 2 monitoring
@@ -249,7 +248,7 @@ Possible reference paths for the preliminary experiment code:
    - Runtime: {elapsed}
    - Seeds completed: {N}/{total}
    - Environment: {local | remote}
-   - Log: wiki/experiments/pilot/code/{slug}/pilot.log
+   - Log: experiments/pilot/code/{slug}/pilot.log
 
    ## Anomalies
    - {list of anomalies detected during run, or "None"}
@@ -262,10 +261,10 @@ Possible reference paths for the preliminary experiment code:
 
 ## Constraints
 
-- **Does not require a wiki experiment page**: reads from `wiki/experiments/pilot/{slug}.yaml` instead
+- **Does not require a wiki experiment page**: reads from `experiments/pilot/{slug}.yaml` instead
 - **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `/exp-pilot-eval`
-- **Code goes in `wiki/experiments/pilot/code/{slug}/`**: do not write to project root or any other location
-- **Results must be saved**: all pilot results saved as JSON in `wiki/experiments/pilot/code/{slug}/results/seed_{N}.json`
+- **Code goes in `experiments/pilot/code/{slug}/`**: do not write to project root or any other location
+- **Results must be saved**: all pilot results saved as JSON in `experiments/pilot/code/{slug}/results/seed_{N}.json`
 - **Multi-seed results use mean ± std**: report mean ± std, not single-run results
 - **Sanity check must pass**: Phase 1 sanity failure reports error and stops (unless user explicitly overrides)
 - **Graph edges are not created here**: pilot experiments do not create graph edges
@@ -298,7 +297,7 @@ Possible reference paths for the preliminary experiment code:
 
 ### Claude Code Native
 - `Read` — read Pilot Spec and wiki pages
-- `Write` — write pilot code to `wiki/experiments/pilot/code/{slug}/`
+- `Write` — write pilot code to `experiments/pilot/code/{slug}/`
 - `Bash` — execute pilot code, monitor processes
 
 ### Called by

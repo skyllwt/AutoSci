@@ -122,7 +122,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
      | 路径 | 名称 | 读取的 wiki 字段 | 产出形态 |
      |------|------|------------------|----------|
-     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic/research 描述直接设计实验" |
+     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic/research 描述直接设计" |
      | B | 增量改进 (Incremental) | `wiki/methods/*.md` 中的 `method.limitations` | "在方法 M 上修复局限 L" |
      | C | 有机融合 (Combination) | 同 topic 下两个 method 的 `tradeoff_profile`（`wiki/methods/*.md`） | "组合 M1 + M2 的优势" |
      | D | 共性盲点 (Innovation) | 同 topic 下 N 个 method 的 `assumptions` 交集（`wiki/methods/*.md`） | "打破共有假设 P" |
@@ -151,7 +151,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design experiment directly from topic/research description" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic/research description" |
        | B | Incremental | method.limitations | "Fix limitation L in method M" |
        | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
        | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
@@ -403,7 +403,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 **Pilot Spec — 结构化输出**（GPU 资源充足时**可并行执行多个预实验**）：
 
-写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `wiki/experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
+写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -448,14 +448,14 @@ pilot_spec:
 
 **通过 `/exp-pilot-run` 运行预实验**：
 
-用户选择的幸存 idea 写入 Pilot Spec 到 `wiki/experiments/pilot/{slug}.yaml` 后：
+用户选择的幸存 idea 写入 Pilot Spec 到 `experiments/pilot/{slug}.yaml` 后：
 
 ```
 Skill: exp-pilot-run
 Args: "{idea-slug}"
 ```
 
-`/exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `wiki/experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
+`/exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
 - **Results**：指标值 vs baseline（mean ± std）
 - **Details**：完成步数、运行时间、日志路径
 

@@ -6,7 +6,7 @@ argument-hint: <idea-slug> [--auto]
 # /exp-pilot-eval
 
 > 评估预实验结果并更新关联的 idea 页面。
-> 从 `wiki/experiments/pilot/code/{slug}/results/` 读取预实验结果，应用判定逻辑（pass/fail/inconclusive），更新 idea 的 `pilot_result`、`failure_reason` 和 `status` 字段。
+> 从 `experiments/pilot/code/{slug}/results/` 读取预实验结果，应用判定逻辑（pass/fail/inconclusive），更新 idea 的 `pilot_result`、`failure_reason` 和 `status` 字段。
 > 由 `/ideate` Phase 5 在 `/exp-pilot-run` 完成后调用。
 
 ## Inputs
@@ -19,20 +19,20 @@ argument-hint: <idea-slug> [--auto]
 - `wiki/ideas/{slug}.md` — 更新 `pilot_result`（始终）、`failure_reason`（失败时）、`status`（失败时 → `failed`）
 - `wiki/log.md` — 追加日志
 - **PILOT_VERDICT_REPORT**（输出到终端）— 判定结果、wiki 变更摘要、下一步建议
-- `wiki/experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本（持久记录）
+- `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本（持久记录）
 
 ## Wiki Interaction
 
 ### Reads
 - `wiki/ideas/{slug}.md` — 关联 idea 当前状态：`status`、`pilot_result`、`failure_reason`
-- `wiki/experiments/pilot/code/{slug}/results/seed_*.json` — 预实验结果
-- `wiki/experiments/pilot/code/{slug}/pilot.log` — 预实验运行日志（用于失败诊断：错误、警告、运行时行为）
-- `wiki/experiments/pilot/{slug}.yaml` — Pilot Spec（用于 success_criterion 和 baseline 参考）
+- `experiments/pilot/code/{slug}/results/seed_*.json` — 预实验结果
+- `experiments/pilot/code/{slug}/pilot.log` — 预实验运行日志（用于失败诊断：错误、警告、运行时行为）
+- `experiments/pilot/{slug}.yaml` — Pilot Spec（用于 success_criterion 和 baseline 参考）
 
 ### Writes
 - `wiki/ideas/{slug}.md` — 更新 `pilot_result`、`failure_reason`（失败时）、`status`（失败时）
 - `wiki/log.md` — 追加操作日志
-- `wiki/experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本
+- `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本
 
 ### Graph edges created
 - 无。预实验评估不创建 graph edges（正式实验的 edges 由 `/exp-eval` 创建）。
@@ -45,15 +45,15 @@ argument-hint: <idea-slug> [--auto]
    - 当前 `status` 和 `pilot_result`
    - 当前 `failure_reason`（对 proposed idea 应为空）
 
-2. 读取预实验结果 `wiki/experiments/pilot/code/{slug}/results/seed_*.json`：
+2. 读取预实验结果 `experiments/pilot/code/{slug}/results/seed_*.json`：
    - 解析结果文件（JSON）
    - 计算每个 metric 的 mean ± std（跨 seeds）
 
-3. 读取预实验日志 `wiki/experiments/pilot/code/{slug}/pilot.log`：
+3. 读取预实验日志 `experiments/pilot/code/{slug}/pilot.log`：
    - 扫描错误、警告、OOM、发散信号
    - 提取运行时行为上下文，用于失败诊断和判定报告
 
-4. 读取 Pilot Spec `wiki/experiments/pilot/{slug}.yaml`：
+4. 读取 Pilot Spec `experiments/pilot/{slug}.yaml`：
    - 提取 `success_criterion`（pass、fail、inconclusive 条件）
    - 提取 `baseline.expected_value` 用于对比
 
@@ -98,7 +98,7 @@ argument-hint: <idea-slug> [--auto]
      "exp-pilot-eval | {slug} | verdict: {verdict} | pilot_result: {result}"
    ```
 
-3. 输出 **PILOT_VERDICT_REPORT** 到终端并写入 `wiki/experiments/pilot/{slug}/report.md`：
+3. 输出 **PILOT_VERDICT_REPORT** 到终端并写入 `experiments/pilot/{slug}/report.md`：
    ```markdown
    # Pilot Verdict Report: {slug}
 
@@ -110,7 +110,7 @@ argument-hint: <idea-slug> [--auto]
    | {metric} | {baseline-value} | {mean}±{std} | {delta} |
 
    ## Pilot Log
-   - 日志：wiki/experiments/pilot/code/{slug}/pilot.log
+   - 日志：experiments/pilot/code/{slug}/pilot.log
    - 关键信号：{日志中观察到的错误/警告/OOM/发散，或"运行正常"}
 
    ## Wiki Changes
@@ -128,7 +128,7 @@ argument-hint: <idea-slug> [--auto]
 
 ## Constraints
 
-- **只处理已预实验的 ideas**：结果必须存在于 `wiki/experiments/pilot/code/{slug}/results/`
+- **只处理已预实验的 ideas**：结果必须存在于 `experiments/pilot/code/{slug}/results/`
 - **failure_reason 必须具体**：不能是模糊的 "pilot failed" — 需包含什么失败了以及为什么
 - **Idea 生命周期只向前**：`proposed → failed`（不能从 validated 退回 failed）
 - **不创建 graph edges**：正式实验的 edges 由 `/exp-eval` 创建
