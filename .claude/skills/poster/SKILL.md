@@ -1,6 +1,6 @@
 ---
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
 ---
 
 # /poster
@@ -23,6 +23,8 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 - `--no-logos` (optional): skip all logo prompts and ship a header with venue text only
 - `--auto-figures` (optional): skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). Wide figures auto-render full-width.
 - `--no-figures` (optional): skip all figures; render every section as text-only. Useful for text-heavy posters or when figures are not yet ready.
+- `--no-refine` (optional): skip Step 5.5 critique-revise. Default behavior runs 1 critique-revise iteration on the rendered PNG via Claude.
+- `--refine-iterations N` (optional, default 1, cap 2): number of critique-revise passes in Step 5.5. `0` is equivalent to `--no-refine`.
 
 ## Outputs
 
@@ -30,6 +32,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 - `poster/outline.html` — concatenated `<section>` blocks before template injection
 - `poster/poster.html` — final self-contained HTML poster (open in browser)
 - `poster/poster.png` — rendered screenshot at 2× CSS dimensions (default 2800×1800) — see Step 5b
+- `poster/poster.refine{N}.png` — pre-revision screenshots archived by Step 5.5 (one per iteration) — only present if `--refine-iterations ≥ 1` and refinement actually ran
 - `poster/images/` — figures copied/converted (PDF→PNG @ 200 DPI) from `paper/figures/`
 - **POSTER_REPORT** (printed to terminal)
 - `wiki/log.md` — appended log entry
@@ -316,6 +319,72 @@ This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1
 
 If Chrome is not installed, `render` fails with an actionable message (`brew install --cask google-chrome` on macOS, `apt install chromium-browser` on Linux, or download from google.com/chrome on Windows). The HTML poster remains usable — the user can still `open poster/poster.html` directly.
 
+### Step 5.5: Critique-revise via Claude (screenshot-driven)
+
+Goal: feed the rendered screenshot from Step 5b back to Claude (multimodal) for a single-pass critique-and-revise. Catches issues invisible to `validate` — raw LaTeX leaks in text, section overflow, numbering prefixes in titles, broken figure rendering. Auto-applied; no user interaction.
+
+**Skip conditions**:
+- `--no-refine` flag passed → skip Step 5.5 entirely.
+- `--refine-iterations 0` → equivalent to `--no-refine`.
+- Step 5b failed to produce `poster/poster.png` (Chrome missing) → skip with a warning.
+
+**Iteration count**: from `--refine-iterations N` (default 1, hard cap 2).
+
+**Workflow per iteration** (i = 1..N):
+
+1. Ensure `poster/poster.png` reflects the current `poster/poster.html`. If the HTML was modified since the last render, re-run `python3 tools/poster.py render poster/poster.html`.
+2. Archive the BEFORE screenshot: `cp poster/poster.png poster/poster.refine{i-1}.png` (so the user can diff each pass).
+3. Read `poster/poster.png` (Read tool — Claude is multimodal) and `poster/poster.html` (Read tool).
+4. Apply the refinement prompt below. Use Claude (in-session, already multimodal). Do NOT use `mcp__llm-review__chat` — it is text-only per `mcp-servers/llm-review/server.py`.
+5. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
+6. Write the revised HTML back to `poster/poster.html`.
+7. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop the iteration loop, surface the issues to the user, leave the HTML as-is for inspection.
+8. Re-render to `poster/poster.png` for the next iteration (or as the final render).
+
+**Refinement prompt** (ported from PaperX `poster_refinement_prompt`, extended with a screenshot-driven layout task):
+
+> You are an expert Academic Poster Designer and Web Developer. Your task is to refine an existing HTML poster based on its visual rendering (screenshot) and the current code. Output ONLY the full, valid, and corrected HTML code inside a single fenced ```` ```html ```` code block.
+>
+> I will provide:
+> 1. **Current Poster Code (HTML)**
+> 2. **Visual Render (PNG screenshot)**
+>
+> **TASKS**:
+>
+> **Task 1: Fix LaTeX / encoding leaks**
+> - Scan the HTML for raw LaTeX that did not render (e.g., `$d_S \ge 10$`, `\textbf{...}`, `\citep{...}`, `\ref{fig:...}`).
+> - Replace with HTML entities or Unicode (e.g., `d_S ≥ 10`, `<strong>...</strong>`, `[N]`, "Fig. 1").
+> - Remove garbled characters from math-rendering failures.
+>
+> **Task 2: Normalize section headers**
+> - Find all `<div class="section-bar">` elements.
+> - Strip leading numbering / alphabetic prefixes / meaningless punctuation (e.g. `1.`, `2.1`, `A.`, `E.`, `- `).
+> - Keep only the core title text.
+>
+> **Task 3: Fix visible layout issues (from the screenshot)**
+> - If any section's text overflows its column (visible in screenshot): shorten the prose conservatively. Never delete claims; trim filler words.
+> - If a `<div class="img-section">` figure renders cropped, distorted, or breaks the column flow: leave the structure intact (do not delete) but you may add `style="max-height: 280px"` to the `<img>` or wrap text differently.
+> - If a section is visually empty (just the title bar with no body text): leave a `<p>(content pending)</p>` placeholder, do NOT remove the section.
+>
+> **Output requirement**:
+> - Return the **complete, runnable HTML** wrapped in a single fenced ```` ```html ```` code block.
+> - Preserve the existing CSS layout exactly. Do NOT modify font-related settings (font-family, font-size, font-weight beyond what the template already defines).
+> - Do NOT modify the existing `<script>` block (the fit algorithm) or the `<style>` block.
+> - Only edit content inside `<section class="section">` elements and the `<h1 class="title">` / `<div class="authors">` if needed.
+>
+> **HTML poster**:
+> ```html
+> {full content of poster/poster.html}
+> ```
+>
+> **Screenshot**:
+> *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
+
+**Failure modes**:
+- LLM output has no fenced ```` ```html ```` block → stop, leave HTML as-is, log warning.
+- Fenced block is missing `<section>` or the `<h1 class="title">` → stop, leave HTML as-is, log warning.
+- Iteration count reached → finalize and proceed to Step 6.
+
 ### Step 6: Optional Review LLM critique (`--review`)
 
 If `--review` is passed, send the poster HTML to the Review LLM:
@@ -362,7 +431,8 @@ Print POSTER_REPORT:
 - Figures embedded: {M}
 - PDF→PNG conversions: {K}
 - Header: venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Review LLM: {invoked / skipped}
+- Critique-revise (Step 5.5): {N iterations applied | skipped (--no-refine) | skipped (no Chrome)}
+- Review LLM (Step 6): {invoked / skipped}
 
 ## Output
 - poster/poster.html ← open in a browser
@@ -394,7 +464,8 @@ Print POSTER_REPORT:
 - **Nested figure paths** (`paper/figures/exp1/foo.pdf`): the bridge currently flattens to `images/foo.png` and the figure resolver looks only in `paper/figures/`. If two figures across nested dirs share the same basename, the second one wins. Flat `paper/figures/` is the supported layout for now.
 - **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — Claude picks by section order instead. Suggest `pip install Pillow`.
 - **Validation fails**: print all issues to stderr; do not delete the partial output. User can fix the outline and re-run from Step 5.
-- **Chrome not found for `render`**: print install instructions per platform and continue. The HTML poster is still usable; only the PNG is missing.
+- **Chrome not found for `render`**: print install instructions per platform and continue. The HTML poster is still usable; only the PNG is missing. Step 5.5 critique-revise also skips (no screenshot → nothing to critique).
+- **Refinement output malformed (Step 5.5)**: if the LLM does not return a fenced ```` ```html ```` block containing a valid `<section>` + `<h1 class="title">`, stop the iteration loop, leave the HTML unchanged, and surface a warning. Do NOT overwrite the HTML with broken output.
 - **Review LLM unreachable**: skip Step 6, note in report, continue.
 
 ## Dependencies
