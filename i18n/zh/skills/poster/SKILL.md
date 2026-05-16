@@ -327,9 +327,13 @@ python3 tools/poster.py validate poster/poster.html
 python3 tools/poster.py render poster/poster.html
 ```
 
-调用系统 Chrome / Chromium 二进制做 headless 截图,产出 `poster/poster.png`,默认 2× CSS 像素(2800×1800),无新 Python 依赖。用 `--scale {1,2,3}` 覆盖(1 = 快速预览,3 = 印刷质量)。
+调用系统 headless 浏览器二进制做截图,产出 `poster/poster.png`,默认 2× CSS 像素(2800×1800),无新 Python 依赖。用 `--scale {1,2,3}` 覆盖(1 = 快速预览,3 = 印刷质量)。
 
-若 Chrome 未安装,`render` 会以可操作的信息退出(macOS 提示 `brew install --cask google-chrome`;Linux 提示 `apt install chromium-browser`;Windows 提示从 google.com/chrome 下载)。HTML 海报本身依然可用 —— 用户可以直接 `open poster/poster.html`。
+**浏览器探测**:优先 Chromium 系(Chrome → Edge → Chromium),Firefox 作为兜底。Chrome/Edge/Chromium 三者等价(同引擎、同 CLI flag)。Firefox 也能用,但有两个限制 —— 不支持 HiDPI 缩放(无论 `--scale` 传什么,PNG 都是 1×);也没有 `--virtual-time-budget` 等价物(fit() / KaTeX / 字体加载可能在截图前还没收敛)。退化到 Firefox 时 `render` 会向 stderr 打印警告。
+
+**不支持 Safari** —— Safari 没有 headless CLI 截图 flag;接入需要 `safaridriver` + Selenium WebDriver。macOS 上只有 Safari 的用户可以 `brew install --cask google-chrome`(一行命令)解锁完整流程。
+
+若找不到任何支持的浏览器,`render` 以平台对应的安装提示退出。HTML 海报本身在任何浏览器里都能打开 —— 用户依然可以 `open poster/poster.html`。
 
 ### Step 5.5: Critique-revise(Claude 截图驱动)
 
@@ -338,7 +342,7 @@ python3 tools/poster.py render poster/poster.html
 **跳过条件**:
 - 传入 `--no-refine` → 完全跳过。
 - `--refine-iterations 0` → 等同 `--no-refine`。
-- Step 5b 没产出 `poster/poster.png`(Chrome 缺失)→ 警告后跳过。
+- Step 5b 没产出 `poster/poster.png`(无可用 headless 浏览器)→ 警告后跳过。
 
 **迭代次数**:由 `--refine-iterations N` 决定(默认 1,硬上限 2)。
 
@@ -443,7 +447,7 @@ python3 tools/research_wiki.py log wiki/ \
 - 嵌入配图:{M}
 - PDF→PNG 转换:{K}
 - Header:venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Critique-revise(Step 5.5):{N 轮已应用 | 已跳过(--no-refine) | 已跳过(Chrome 缺失)}
+- Critique-revise(Step 5.5):{N 轮已应用 | 已跳过(--no-refine) | 已跳过(无可用 headless 浏览器)}
 - Review LLM(Step 6):{已调用 / 已跳过}
 
 ## 输出
@@ -476,7 +480,8 @@ python3 tools/research_wiki.py log wiki/ \
 - **嵌套图路径**(如 `paper/figures/exp1/foo.pdf`):桥接工具会扁平化为 `images/foo.png`,且图片解析只在 `paper/figures/` 顶层查找。若多个图片跨子目录同名,后者会覆盖前者。当前仅支持扁平的 `paper/figures/` 布局。
 - **`PIL`/Pillow 未安装**:图片分辨率无法计算,`dag.json` 的 visuals `resolution` 为空;poster_outline_prompt 的 "最高分辨率优先" 规则失效,Claude 按章节顺序选图。提示 `pip install Pillow`。
 - **validate 失败**:把所有问题写入 stderr,不删除已有输出。用户改正 outline 后从 Step 5 继续。
-- **`render` 找不到 Chrome**:打印对应平台的安装提示并继续。HTML 海报仍可用,只是少了 PNG。Step 5.5 critique-revise 也会跳过(无截图可参考)。
+- **`render` 找不到可用浏览器**:打印对应平台的安装提示并继续(推荐 Chrome / Edge / Chromium;Firefox 作为兜底也可)。HTML 海报仍可用,只是少了 PNG。Step 5.5 critique-revise 也会跳过(无截图可参考)。Safari 不支持(没有 headless CLI)。
+- **退化到 Firefox**:`render` 会向 stderr 打印警告(不支持 HiDPI 缩放,layout 可能尚未收敛)。输出仍能用,但比 Chrome/Edge 质量低。建议用户装一个 Chromium 系浏览器以获得最佳效果。
 - **Refinement 输出格式异常(Step 5.5)**:若 LLM 没返回包含合法 `<section>` 与 `<h1 class="title">` 的 ```` ```html ```` 围栏,停止迭代,HTML 保留不变,告警提示。**不要**用残缺输出覆盖 HTML。
 - **Review LLM 不可用**:跳过 Step 6,在报告中标注,继续。
 
@@ -489,11 +494,11 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` —— venue 文本 + 可选 logo
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` —— 复制/转换图片
 - `python3 tools/poster.py validate <poster.html>` —— 健康检查
-- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless Chrome
+- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless 浏览器(优先 Chrome / Edge / Chromium,Firefox 兜底)
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
 - `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution
-- Chrome / Chromium(系统二进制)—— `render` 用来 headless 截图;在常见路径自动探测
+- Headless 浏览器(系统二进制)—— `render` 用来截图。自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox(兜底)。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持。
 
 ### MCP Servers
 - `mcp__llm-review__chat` —— 可选的跨模型评审(`--review`)

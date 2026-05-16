@@ -328,9 +328,13 @@ After validation passes, render the HTML poster to PNG so the user has a flat sc
 python3 tools/poster.py render poster/poster.html
 ```
 
-This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1800) using headless Chrome via the system binary — no Python dependency added. Override with `--scale {1,2,3}` (1 = fast preview, 3 = print quality).
+This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1800) using a headless system browser — no Python dependency added. Override with `--scale {1,2,3}` (1 = fast preview, 3 = print quality).
 
-If Chrome is not installed, `render` fails with an actionable message (`brew install --cask google-chrome` on macOS, `apt install chromium-browser` on Linux, or download from google.com/chrome on Windows). The HTML poster remains usable — the user can still `open poster/poster.html` directly.
+**Browser detection**: tries Chromium-based browsers first (Chrome → Edge → Chromium), then Firefox as a fallback. Chrome/Edge/Chromium are equivalent (same engine, identical CLI flags). Firefox works but with two caveats — no HiDPI scaling (PNG comes out 1× regardless of `--scale`) and no `--virtual-time-budget` equivalent (the fit() / KaTeX / font convergence may not complete before screenshot). `render` prints warnings to stderr when it falls back to Firefox.
+
+**Safari is not supported** — it has no headless CLI screenshot flag; integration would require `safaridriver` + Selenium WebDriver. macOS-only users with only Safari should `brew install --cask google-chrome` (one command) to unlock the full pipeline.
+
+If no supported browser is found, `render` exits with platform-specific install hints. The HTML poster remains usable in any browser — the user can still `open poster/poster.html` directly.
 
 ### Step 5.5: Critique-revise via Claude (screenshot-driven)
 
@@ -339,7 +343,7 @@ Goal: feed the rendered screenshot from Step 5b back to Claude (multimodal) for 
 **Skip conditions**:
 - `--no-refine` flag passed → skip Step 5.5 entirely.
 - `--refine-iterations 0` → equivalent to `--no-refine`.
-- Step 5b failed to produce `poster/poster.png` (Chrome missing) → skip with a warning.
+- Step 5b failed to produce `poster/poster.png` (no supported browser installed) → skip with a warning.
 
 **Iteration count**: from `--refine-iterations N` (default 1, hard cap 2).
 
@@ -444,7 +448,7 @@ Print POSTER_REPORT:
 - Figures embedded: {M}
 - PDF→PNG conversions: {K}
 - Header: venue='{venue}', affiliation={path|none}, conference={path|none}, layout={corners|stacked}
-- Critique-revise (Step 5.5): {N iterations applied | skipped (--no-refine) | skipped (no Chrome)}
+- Critique-revise (Step 5.5): {N iterations applied | skipped (--no-refine) | skipped (no headless browser)}
 - Review LLM (Step 6): {invoked / skipped}
 
 ## Output
@@ -477,7 +481,8 @@ Print POSTER_REPORT:
 - **Nested figure paths** (`paper/figures/exp1/foo.pdf`): the bridge currently flattens to `images/foo.png` and the figure resolver looks only in `paper/figures/`. If two figures across nested dirs share the same basename, the second one wins. Flat `paper/figures/` is the supported layout for now.
 - **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — Claude picks by section order instead. Suggest `pip install Pillow`.
 - **Validation fails**: print all issues to stderr; do not delete the partial output. User can fix the outline and re-run from Step 5.
-- **Chrome not found for `render`**: print install instructions per platform and continue. The HTML poster is still usable; only the PNG is missing. Step 5.5 critique-revise also skips (no screenshot → nothing to critique).
+- **No supported browser found for `render`**: print install instructions per platform (Chrome / Edge / Chromium recommended; Firefox accepted as fallback) and continue. The HTML poster is still usable; only the PNG is missing. Step 5.5 critique-revise also skips (no screenshot → nothing to critique). Safari is not supported (no headless CLI).
+- **Firefox fallback in use**: `render` prints warnings to stderr (no HiDPI scale, layout may not be fully converged). Output is functional but lower quality than Chrome/Edge. Suggest the user install a Chromium-based browser for best results.
 - **Refinement output malformed (Step 5.5)**: if the LLM does not return a fenced ```` ```html ```` block containing a valid `<section>` + `<h1 class="title">`, stop the iteration loop, leave the HTML unchanged, and surface a warning. Do NOT overwrite the HTML with broken output.
 - **Review LLM unreachable**: skip Step 6, note in report, continue.
 
@@ -490,11 +495,11 @@ Print POSTER_REPORT:
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` — venue text + optional logos
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` — figure copy/convert
 - `python3 tools/poster.py validate <poster.html>` — sanity checks
-- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` — HTML → PNG via headless Chrome
+- `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` — HTML → PNG via headless browser (Chrome / Edge / Chromium preferred, Firefox fallback)
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `pdftoppm` (poppler) — PDF → PNG conversion at 200 DPI
 - `pdfinfo` (poppler) — PDF page-size for resolution
-- Chrome / Chromium (system binary) — used by `render` for headless screenshot; auto-detected at common paths
+- Headless browser (system binary) — used by `render`. Auto-detected in this order: Google Chrome → Microsoft Edge → Chromium → Firefox (fallback). Chrome/Edge/Chromium are fully equivalent; Firefox renders at 1× scale only and without sync-wait. Safari is not supported.
 
 ### MCP Servers
 - `mcp__llm-review__chat` — optional cross-model review (`--review`)

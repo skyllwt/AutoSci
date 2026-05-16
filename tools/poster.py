@@ -490,7 +490,7 @@ def validate_poster(poster_path: Path, min_sections: int = 3) -> tuple[bool, lis
 
 
 # ----------------------------------------------------------------------------
-# render — HTML → PNG via headless Chrome (system binary)
+# render — HTML → PNG via headless browser (Chrome/Edge/Chromium/Firefox)
 # ----------------------------------------------------------------------------
 
 POSTER_WIDTH_PATTERN = re.compile(
@@ -501,33 +501,55 @@ POSTER_HEIGHT_PATTERN = re.compile(
 )
 
 
-def _find_chrome() -> Path:
-    """Locate a headless-capable Chrome/Chromium binary.
+def _find_browser() -> tuple[Path, str]:
+    """Locate a headless-capable browser. Returns (path, browser_type).
 
-    Checks platform-conventional paths plus PATH lookups. Raises
-    FileNotFoundError with platform-specific install hints if none found.
+    Browser_type is "chromium" for any Chromium-based browser (Chrome,
+    Edge, Chromium proper) or "firefox" for Mozilla Firefox. Chromium
+    is preferred because we rely on `--force-device-scale-factor` (HiDPI)
+    and `--virtual-time-budget` (sync wait for fonts/KaTeX/fit), neither
+    of which Firefox supports — Firefox is a documented fallback.
     """
-    candidates: list[str] = [
-        # macOS
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        # PATH lookups (Linux + portable macOS Homebrew)
-        shutil.which("google-chrome") or "",
-        shutil.which("chromium") or "",
-        shutil.which("chromium-browser") or "",
-        shutil.which("chrome") or "",
-        # Windows
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    # (path, browser_type) candidates in preference order
+    candidates: list[tuple[str, str]] = [
+        # macOS — Chromium family first
+        ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "chromium"),
+        ("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", "chromium"),
+        ("/Applications/Chromium.app/Contents/MacOS/Chromium", "chromium"),
+        # PATH lookups (Linux + portable macOS Homebrew) — Chromium family
+        (shutil.which("google-chrome") or "", "chromium"),
+        (shutil.which("microsoft-edge") or "", "chromium"),
+        (shutil.which("microsoft-edge-stable") or "", "chromium"),
+        (shutil.which("chromium") or "", "chromium"),
+        (shutil.which("chromium-browser") or "", "chromium"),
+        (shutil.which("chrome") or "", "chromium"),
+        # Windows — Chromium family
+        (r"C:\Program Files\Google\Chrome\Application\chrome.exe", "chromium"),
+        (r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", "chromium"),
+        (r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", "chromium"),
+        (r"C:\Program Files\Microsoft\Edge\Application\msedge.exe", "chromium"),
+        # Firefox fallback (Gecko) — lower-quality screenshots: no HiDPI
+        # scaling, no virtual-time-budget. Better than nothing.
+        ("/Applications/Firefox.app/Contents/MacOS/firefox", "firefox"),
+        (shutil.which("firefox") or "", "firefox"),
+        (r"C:\Program Files\Mozilla Firefox\firefox.exe", "firefox"),
+        (r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe", "firefox"),
     ]
-    for cand in candidates:
-        if cand and Path(cand).is_file():
-            return Path(cand)
+    for path_str, btype in candidates:
+        if path_str and Path(path_str).is_file():
+            return Path(path_str), btype
     raise FileNotFoundError(
-        "Chrome/Chromium not found. Install one of:\n"
-        "  macOS:    brew install --cask google-chrome\n"
-        "  Linux:    apt install chromium-browser  (or your distro's equivalent)\n"
-        "  Windows:  https://www.google.com/chrome/"
+        "No headless-capable browser found. Install one of (Chromium-based "
+        "preferred for full HiDPI + sync-wait support):\n"
+        "  macOS:    brew install --cask google-chrome   (recommended)\n"
+        "            brew install --cask microsoft-edge\n"
+        "            brew install --cask firefox          (fallback, 1x only)\n"
+        "  Linux:    apt install chromium-browser        (or distro equivalent)\n"
+        "            apt install microsoft-edge-stable\n"
+        "            apt install firefox                   (fallback, 1x only)\n"
+        "  Windows:  https://www.google.com/chrome/      (recommended)\n"
+        "            Microsoft Edge is preinstalled on Windows 10+\n"
+        "            https://www.mozilla.org/firefox/    (fallback, 1x only)"
     )
 
 
@@ -548,12 +570,17 @@ def render_poster(
     html_path: Path,
     output_path: Optional[Path] = None,
     scale: int = 2,
-) -> Path:
-    """Render an HTML poster to PNG via headless Chrome.
+) -> tuple[Path, str, int]:
+    """Render an HTML poster to PNG via a headless browser.
 
     Parses the poster's CSS dimensions from --poster-width / --poster-height,
-    then screenshots at (W * scale) × (H * scale) pixels. Default scale=2
-    yields a HiDPI image that multimodal LLMs can read.
+    then screenshots at (W * effective_scale) × (H * effective_scale) pixels.
+    Default scale=2 yields a HiDPI image that multimodal LLMs can read.
+
+    On Firefox, scale is silently clamped to 1 (no --force-device-scale-factor
+    support); a warning is printed to stderr.
+
+    Returns (output_path, browser_type, effective_scale).
     """
     if not html_path.is_file():
         raise FileNotFoundError(f"poster HTML not found: {html_path}")
@@ -563,35 +590,64 @@ def render_poster(
     if output_path is None:
         output_path = html_path.with_suffix(".png")
 
-    chrome = _find_chrome()
+    browser, browser_type = _find_browser()
     w, h = _parse_dims(html_path)
 
     html_uri = "file://" + str(html_path.resolve())
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = [
-        str(chrome),
-        "--headless",
-        "--disable-gpu",
-        "--hide-scrollbars",
-        "--no-sandbox",
-        f"--screenshot={output_path}",
-        f"--window-size={w},{h}",
-        f"--force-device-scale-factor={scale}",
-        # 5s budget: gives KaTeX + Google Fonts + the fit() binary search
-        # enough time to converge. Empirically the fit usually settles
-        # in <1s, but cold font loads on first paint can push past 2s.
-        "--virtual-time-budget=5000",
-        html_uri,
-    ]
+    effective_scale = scale
+    if browser_type == "chromium":
+        cmd = [
+            str(browser),
+            "--headless",
+            "--disable-gpu",
+            "--hide-scrollbars",
+            "--no-sandbox",
+            f"--screenshot={output_path}",
+            f"--window-size={w},{h}",
+            f"--force-device-scale-factor={scale}",
+            # 5s budget: gives KaTeX + Google Fonts + the fit() binary search
+            # enough time to converge. Empirically the fit usually settles
+            # in <1s, but cold font loads on first paint can push past 2s.
+            "--virtual-time-budget=5000",
+            html_uri,
+        ]
+    elif browser_type == "firefox":
+        # Firefox CLI doesn't support --force-device-scale-factor or
+        # --virtual-time-budget. Falls back to 1x; layout may not be fully
+        # converged when the screenshot is taken.
+        effective_scale = 1
+        if scale != 1:
+            print(
+                f"[warn] Firefox doesn't support HiDPI scaling; "
+                f"rendering at 1x ({w}x{h}). Install Chrome/Edge for {scale}x.",
+                file=sys.stderr,
+            )
+        print(
+            "[warn] Using Firefox fallback: PNG may show pre-converged "
+            "fit() state (no virtual-time-budget). Install Chrome/Edge "
+            "for fully-stabilized layout.",
+            file=sys.stderr,
+        )
+        cmd = [
+            str(browser),
+            "--headless",
+            f"--screenshot={output_path}",
+            f"--window-size={w},{h}",
+            html_uri,
+        ]
+    else:
+        raise ValueError(f"unknown browser_type: {browser_type}")
+
     subprocess.run(cmd, check=True, capture_output=True)
 
     if not output_path.is_file():
         raise RuntimeError(
-            f"Chrome ran but did not produce {output_path}. "
+            f"{browser_type} ran but did not produce {output_path}. "
             f"Try running manually:\n  {' '.join(cmd)}"
         )
-    return output_path
+    return output_path, browser_type, effective_scale
 
 
 # ----------------------------------------------------------------------------
@@ -669,20 +725,23 @@ def cmd_render(args) -> int:
     html = Path(args.html).resolve()
     output = Path(args.output).resolve() if args.output else None
     try:
-        out = render_poster(html, output, scale=args.scale)
+        out, browser_type, eff_scale = render_poster(
+            html, output, scale=args.scale
+        )
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)
         return 1
     except subprocess.CalledProcessError as e:
         stderr = e.stderr.decode() if e.stderr else "(no stderr)"
-        print(f"[error] Chrome exited with code {e.returncode}", file=sys.stderr)
+        print(f"[error] browser exited with code {e.returncode}", file=sys.stderr)
         print(stderr, file=sys.stderr)
         return 1
     w, h = _parse_dims(html)
     print(f"[ok] poster rendered to {out}")
     print(
+        f"  browser: {browser_type}\n"
         f"  dims: {w}x{h} CSS px, "
-        f"{w * args.scale}x{h * args.scale} actual px (scale={args.scale})"
+        f"{w * eff_scale}x{h * eff_scale} actual px (scale={eff_scale})"
     )
     return 0
 
