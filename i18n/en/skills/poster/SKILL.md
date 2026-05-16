@@ -1,6 +1,6 @@
 ---
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
 ---
 
 # /poster
@@ -14,7 +14,8 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--max-sections N] [--venue
 
 - `paper_dir` (optional, default `paper/`): LaTeX project directory containing `main.tex` and `sections/`
 - `--review` (optional): cross-model Review LLM critique of the generated poster content
-- `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content
+- `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content or `--authors`
+- `--authors STR` (optional): override the authors text on the poster (e.g. `--authors "Morrow Yang, Co-Author"`). Useful when the paper's `\author{}` is intentionally empty for double-blind submission. Ignored if `--anonymous` is also set. If neither this flag nor `--anonymous` is passed and the resolved authors would be "Anonymous", Step 0 will ask interactively.
 - `--max-sections N` (optional, default 6): maximum poster sections to include
 - `--venue STR` (optional): venue text shown in the header right block (e.g. `"NeurIPS 2026"`); if omitted, asked interactively
 - `--affiliation-logo PATH` (optional): path to affiliation/lab logo (PNG/JPG/PDF); copied into `poster/images/`
@@ -63,27 +64,33 @@ Goal: collect venue text and (optionally) two logos to render in the poster head
 
 The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for paths and venue text in free-form (Claude reads the next user message as the answer).
 
-1. **Venue text** — if `--venue` was not provided:
+1. **Authors** — only triggers if `--authors` was not provided AND `--anonymous` was not provided AND the paper's `\author{}` resolves to empty / "Anonymous" (peek at the dag.json root node's `content` before this step, or quickly grep `\author{...}` from `paper/main.tex`). Otherwise skip silently.
+   - Use `AskUserQuestion`:
+     - `"Keep 'Anonymous' (double-blind submission)"` (Recommended)
+     - `"Provide author names (I'll ask for the string)"`
+   - If the user picks "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors override string. Persist for Step 5.
+
+2. **Venue text** — if `--venue` was not provided:
    - Ask: *"What venue text should appear in the poster header? e.g. `NeurIPS 2026`. Reply with the text, or `skip` to leave it blank."*
    - Take the next user message verbatim. Treat the literal string `skip` (case-insensitive) as empty.
 
-2. **Affiliation logo** — if `--affiliation-logo` was not provided AND `--no-logos` was not passed:
+3. **Affiliation logo** — if `--affiliation-logo` was not provided AND `--no-logos` was not passed:
    - Use `AskUserQuestion` with options: `"Yes, I have a logo file"` / `"No, skip the affiliation logo"`.
    - If yes: ask *"What's the path to the affiliation logo? (PNG / JPG / PDF; relative or absolute)."* Take the next user message as the path. Verify the file exists; if not, re-ask once with the resolved-path issue surfaced, then either accept a new path or treat as skipped.
 
-3. **Conference / journal logo** — if `--conference-logo` was not provided AND `--no-logos` was not passed:
+4. **Conference / journal logo** — if `--conference-logo` was not provided AND `--no-logos` was not passed:
    - Same flow as the affiliation logo (yes/no via `AskUserQuestion`, path via free text).
 
-4. **Layout** — if at least one logo was provided AND `--layout` was not passed:
+5. **Layout** — if at least one logo was provided AND `--layout` was not passed:
    - Use `AskUserQuestion` with options:
      - `"corners — affiliation top-left, conference top-right"` (Recommended)
      - `"stacked — both logos stacked in the right conf area, venue text on top"`
    - If only `--venue` and no logos: skip the layout question (default `corners` is fine — only the venue text slot is used).
 
-5. **Final summary** — print one line:
-   - `Header config: venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
+6. **Final summary** — print one line:
+   - `Header config: authors='{...}', venue='{...}', affiliation={path|none}, conference={path|none}, layout={...}`
 
-These values are applied in Step 5 via `python3 tools/poster.py inject-header`.
+The authors string is applied in Step 5 via `python3 tools/poster.py inject-title --authors "..."`; the venue/logos are applied via `python3 tools/poster.py inject-header`.
 
 ### Step 1: Build dag.json
 
@@ -288,10 +295,11 @@ python3 tools/poster.py build \
 
 python3 tools/poster.py inject-title \
   --dag poster/dag.json \
+  [--authors "{authors override from Step 0 or --authors flag}"] \
   poster/poster.html
 ```
 
-The `--anonymous` flag is applied at Step 1 (`wiki2dag.py`) — `dag.json` already carries the canonical title/authors, so `inject-title` just reads.
+The `--anonymous` flag is applied at Step 1 (`wiki2dag.py`) — `dag.json` already carries the canonical title/authors, so `inject-title` reads from there by default. Pass `--authors` to override when the paper's `\author{}` was intentionally left empty (e.g. for double-blind submission) but a real author string is desired on the poster. `--anonymous` (on `inject-title`) still wins over `--authors` if both are set.
 
 ```bash
 # Apply the venue text + logos from Step 0. Omit flags that the user skipped.
@@ -478,7 +486,7 @@ Print POSTER_REPORT:
 ### Tools (via Bash)
 - `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` — build dag.json
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` — inject outline
-- `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous]` — set title/authors
+- `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous] [--authors STR]` — set title/authors; `--authors` overrides dag.json's author field when the paper was anonymized at the source
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` — venue text + optional logos
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` — figure copy/convert
 - `python3 tools/poster.py validate <poster.html>` — sanity checks

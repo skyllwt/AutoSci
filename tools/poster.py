@@ -128,9 +128,19 @@ AUTHORS_TAG_PATTERN = re.compile(
 
 
 def inject_title(
-    dag_path: Path, poster_path: Path, anonymous: bool = False
+    dag_path: Path,
+    poster_path: Path,
+    anonymous: bool = False,
+    authors_override: Optional[str] = None,
 ) -> None:
-    """Read root node from dag.json, replace <h1> and <div class='authors'>."""
+    """Read root node from dag.json, replace <h1> and <div class='authors'>.
+
+    Precedence for the authors string:
+      1. `anonymous=True` always wins → "Anonymous"
+      2. `authors_override` (e.g. from /poster --authors flag)
+      3. dag.json root node's "content" field
+      4. Fallback "Anonymous" if all of the above are empty
+    """
     if not dag_path.is_file():
         raise FileNotFoundError(f"dag.json not found: {dag_path}")
     if not poster_path.is_file():
@@ -143,7 +153,13 @@ def inject_title(
 
     root = nodes[0]
     title = str(root.get("name", "")).strip()
-    authors = "Anonymous" if anonymous else str(root.get("content", "")).strip()
+
+    if anonymous:
+        authors = "Anonymous"
+    elif authors_override and authors_override.strip():
+        authors = authors_override.strip()
+    else:
+        authors = str(root.get("content", "")).strip()
 
     if not title:
         raise ValueError("dag.json root node has empty 'name'")
@@ -595,6 +611,7 @@ def cmd_inject_title(args) -> int:
         Path(args.dag).resolve(),
         Path(args.poster).resolve(),
         anonymous=args.anonymous,
+        authors_override=args.authors,
     )
     print(f"[ok] title + authors injected into {args.poster}")
     return 0
@@ -686,6 +703,12 @@ def main(argv: list[str] | None = None) -> int:
     p_title.add_argument("poster", help="Path to poster.html (in-place edit)")
     p_title.add_argument(
         "--anonymous", action="store_true", help="Override authors to 'Anonymous'"
+    )
+    p_title.add_argument(
+        "--authors",
+        default=None,
+        help="Override authors text (e.g. 'Morrow Yang, Co-Author'). "
+        "Ignored when --anonymous is set.",
     )
     p_title.set_defaults(func=cmd_inject_title)
 
