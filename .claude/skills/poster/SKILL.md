@@ -98,6 +98,11 @@ The bridge produces three node types:
 - **Section** (`level: 1`): section heading in `name`, full prose in `content`, figure refs in `visual_node`
 - **Visual** (`level: 2`): markdown image ref in `name`, caption in `content`, `WxH` in `resolution`
 
+`wiki2dag.py` preserves the paper's:
+- **Math**: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` pass through into section content untouched, then render via KaTeX in the poster HTML.
+- **Citations**: `\citep{key}` / `\citet{key1, key2}` etc. are replaced with `[N]` / `[N, M]` using a `bibkey → ordinal` map built by walking section files in input order (first appearance wins). Unknown keys drop silently.
+- **Tables**: `\begin{table}…\caption{...}…\end{table}` envs are replaced with `[Table: <caption text>]` so the caption flows into section prose. Tabular data is dropped (no room on a 1400×900 poster).
+
 ### Step 2: Compile WIKI_CONTEXT (optional)
 
 If `wiki/outputs/paper-plan-*.md` exists, read it for:

@@ -69,37 +69,172 @@ INCLUDE_GRAPHICS_PATTERN = re.compile(
 TITLE_PATTERN = re.compile(r"\\title\{(.*?)\}", re.DOTALL)
 AUTHOR_PATTERN = re.compile(r"\\author\{(.*?)\}", re.DOTALL)
 INPUT_PATTERN = re.compile(r"\\input\{([^}]+)\}")
-CAPTION_PATTERN = re.compile(r"\\caption\{(.*?)\}", re.DOTALL)
+CAPTION_PATTERN = re.compile(
+    r"\\caption\{((?:[^{}]|\{[^{}]*\})*)\}", re.DOTALL
+)
 FIGURE_ENV_PATTERN = re.compile(
     r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL
 )
 COMMENT_PATTERN = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
 
 
-def _strip_latex_text(text: str) -> str:
-    """Best-effort LaTeX → plain text. Keeps math intact as $...$ tokens."""
+def _replace_citations(text: str, cite_map: Optional[dict] = None) -> str:
+    """Replace `\\cite*{key1, key2}` with `[1, 2]` using a bibkey → ordinal map.
+
+    Handles all \\cite-family commands (\\cite, \\citep, \\citet, \\citeauthor, ...).
+    Unknown keys are dropped. If cite_map is None, citations strip to empty
+    (preserves legacy behavior).
+    """
+    def _sub(m):
+        if cite_map is None:
+            return ""
+        keys = [k.strip() for k in m.group(1).split(",") if k.strip()]
+        nums = [str(cite_map[k]) for k in keys if k in cite_map]
+        return f"[{', '.join(nums)}]" if nums else ""
+    return re.sub(r"\\cite[a-z]*\{([^}]+)\}", _sub, text)
+
+
+def _extract_table_captions(text: str) -> str:
+    """Replace each `\\begin{table}…\\end{table}` env with `[Table: <caption>]`.
+
+    Preserves the table's information as a flat paragraph so the LLM
+    distilling can mention key results. Tabular data itself is dropped —
+    no room for a real table on a 1400×900 poster.
+    """
+    def _sub(m):
+        body = m.group(0)
+        cap = CAPTION_PATTERN.search(body)
+        if not cap:
+            return ""
+        cap_text = cap.group(1)
+        cap_text = re.sub(r"\\label\{[^}]*\}", "", cap_text)
+        cap_text = re.sub(r"\\ref\{[^}]*\}", "", cap_text)
+        cap_text = re.sub(r"\\textbf\{([^}]*)\}", r"\1", cap_text)
+        cap_text = re.sub(r"\\emph\{([^}]*)\}", r"\1", cap_text)
+        cap_text = re.sub(r"\s+", " ", cap_text).strip()
+        return f"\n\n[Table: {cap_text}]\n\n"
+    return re.sub(
+        r"\\begin\{table\*?\}.*?\\end\{table\*?\}",
+        _sub,
+        text,
+        flags=re.DOTALL,
+    )
+
+
+def _strip_latex_text(
+    text: str,
+    cite_map: Optional[dict] = None,
+    math_macros: Optional[dict] = None,
+) -> str:
+    """Best-effort LaTeX → plain text.
+
+    Preserves math ($…$, $$…$$, \\(…\\), \\[…\\]) intact for downstream KaTeX
+    rendering in the poster HTML. Expands custom math macros (parsed from
+    `math_commands.tex`) so KaTeX can render them. Replaces \\cite*{} via
+    cite_map. Extracts table captions before stripping the tabular envs.
+    Drops figure envs (their captions are pulled separately by
+    `_find_caption_for_figure`).
+    """
     text = COMMENT_PATTERN.sub("", text)
     text = re.sub(r"\\section\*?\{[^}]*\}", "", text)
     text = re.sub(r"\\subsection\*?\{[^}]*\}", "", text)
     text = re.sub(r"\\paragraph\{[^}]*\}", "", text)
     text = re.sub(r"\\label\{[^}]*\}", "", text)
     text = re.sub(r"\\ref\{[^}]*\}", "", text)
-    text = re.sub(r"\\citep?\{[^}]*\}", "", text)
-    text = re.sub(r"\\citet\{[^}]*\}", "", text)
+    text = _replace_citations(text, cite_map)
     text = re.sub(r"\\textbf\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\emph\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\textit\{([^}]*)\}", r"\1", text)
-    # Strip whole table/figure environments — captions are pulled separately
-    text = re.sub(
-        r"\\begin\{table\*?\}.*?\\end\{table\*?\}", "", text, flags=re.DOTALL
-    )
+    # Expand custom math macros so KaTeX sees standard commands
+    text = _expand_math_macros(text, math_macros or {})
+    # Extract table captions first, before they're swallowed by the env regex
+    text = _extract_table_captions(text)
+    # Strip figure environments — captions pulled separately
     text = re.sub(
         r"\\begin\{figure\*?\}.*?\\end\{figure\*?\}", "", text, flags=re.DOTALL
     )
-    # Collapse whitespace
+    # Collapse whitespace (math survives — $…$ tokens are not touched)
     text = re.sub(r"\n\s*\n", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+def _parse_math_macros(paper_dir: Path) -> dict:
+    """Parse zero-arg `\\newcommand{\\name}{def}` from `math_commands.tex`.
+
+    Returns {macro_name_with_backslash: definition_string}. Only handles the
+    common LaTeX pattern of simple aliases used in math (e.g. `\\drationeg`
+    → `\\depthratio^{-}`). Macros with `[n]` argument counts are skipped.
+    """
+    path = paper_dir / "math_commands.tex"
+    if not path.is_file():
+        return {}
+    text = path.read_text(encoding="utf-8")
+    text = COMMENT_PATTERN.sub("", text)
+    macros: dict[str, str] = {}
+    for m in re.finditer(
+        r"\\newcommand\{(\\[A-Za-z]+)\}\{((?:[^{}]|\{[^{}]*\})*)\}",
+        text,
+    ):
+        macros[m.group(1)] = m.group(2)
+    return macros
+
+
+def _expand_math_macros(text: str, macros: dict) -> str:
+    """Iteratively expand `\\macroname` tokens to their definitions.
+
+    Iterates up to 4 times to resolve transitive references (e.g.
+    `\\dratiopos` → `\\depthratio^{+}` → `\\rho^{+}`). Stops when no
+    further changes happen. Uses `(?![A-Za-z])` to avoid matching prefixes
+    of longer command names. Replacement is done via a lambda so that
+    backslashes in the definition (e.g. `\\rho`, `\\depthratio`) are NOT
+    interpreted as regex back-reference escapes.
+    """
+    if not macros:
+        return text
+    for _ in range(4):
+        prev = text
+        for name, defn in macros.items():
+            text = re.sub(
+                re.escape(name) + r"(?![A-Za-z])",
+                lambda m, d=defn: d,
+                text,
+            )
+        if text == prev:
+            break
+    return text
+
+
+def _build_citation_map(paper_dir: Path) -> dict:
+    """Build {bibkey: ordinal} by scanning section .tex files in input order.
+
+    Citations are numbered by first appearance, walking the paper top-to-bottom
+    via the `\\input{sections/…}` order in main.tex. Multi-key citations like
+    `\\citep{a,b}` register both keys with consecutive ordinals.
+    """
+    main_tex_path = paper_dir / "main.tex"
+    if not main_tex_path.is_file():
+        return {}
+    main_tex = main_tex_path.read_text(encoding="utf-8")
+    main_tex_clean = COMMENT_PATTERN.sub("", main_tex)
+    section_order = _extract_section_order(main_tex_clean)
+
+    keymap: dict[str, int] = {}
+    next_n = 1
+    sections_dir = paper_dir / "sections"
+    for sec_name in section_order:
+        sec_file = sections_dir / f"{sec_name}.tex"
+        if not sec_file.is_file():
+            continue
+        sec_text = sec_file.read_text(encoding="utf-8")
+        sec_text = COMMENT_PATTERN.sub("", sec_text)
+        for m in re.finditer(r"\\cite[a-z]*\{([^}]+)\}", sec_text):
+            keys = [k.strip() for k in m.group(1).split(",")]
+            for k in keys:
+                if k and k not in keymap:
+                    keymap[k] = next_n
+                    next_n += 1
+    return keymap
 
 
 def _extract_title(main_tex: str) -> str:
@@ -149,7 +284,11 @@ def _extract_section_order(main_tex: str) -> list[str]:
     return order
 
 
-def _read_section_file(path: Path) -> tuple[str, str, list[str]]:
+def _read_section_file(
+    path: Path,
+    cite_map: Optional[dict] = None,
+    math_macros: Optional[dict] = None,
+) -> tuple[str, str, list[str]]:
     """Read a section .tex file. Returns (display_name, content_text, figure_refs).
 
     figure_refs are basenames as they appear in \\includegraphics{...}, e.g.
@@ -166,7 +305,7 @@ def _read_section_file(path: Path) -> tuple[str, str, list[str]]:
 
     figure_refs = INCLUDE_GRAPHICS_PATTERN.findall(raw)
 
-    content = _strip_latex_text(raw)
+    content = _strip_latex_text(raw, cite_map, math_macros)
     return display_name, content, figure_refs
 
 
@@ -246,7 +385,9 @@ def _destination_image_name(source_path: Path) -> str:
     return f"images/{source_path.name}"
 
 
-def _find_caption_for_figure(section_text: str, figure_ref: str) -> str:
+def _find_caption_for_figure(
+    section_text: str, figure_ref: str, cite_map: Optional[dict] = None
+) -> str:
     """Locate a \\caption{...} associated with the figure environment that
     contains \\includegraphics{figure_ref}. Returns empty string if none."""
     figure_basename = Path(figure_ref).stem
@@ -258,7 +399,7 @@ def _find_caption_for_figure(section_text: str, figure_ref: str) -> str:
                 caption = cap_match.group(1)
                 # Strip inner LaTeX
                 caption = re.sub(r"\\label\{[^}]*\}", "", caption)
-                caption = re.sub(r"\\citep?\{[^}]*\}", "", caption)
+                caption = _replace_citations(caption, cite_map)
                 caption = re.sub(r"\\textbf\{([^}]*)\}", r"\1", caption)
                 caption = re.sub(r"\\emph\{([^}]*)\}", r"\1", caption)
                 caption = re.sub(r"\s+", " ", caption).strip()
@@ -278,6 +419,8 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
     title = _extract_title(main_tex_clean)
     authors = "Anonymous" if anonymous else _extract_authors(main_tex_clean)
     section_order = _extract_section_order(main_tex_clean)
+    cite_map = _build_citation_map(paper_dir)
+    math_macros = _parse_math_macros(paper_dir)
 
     # Build section nodes
     section_nodes = []
@@ -295,7 +438,9 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
             continue
 
         sec_raw = sec_path.read_text(encoding="utf-8")
-        display_name, content_text, figure_refs = _read_section_file(sec_path)
+        display_name, content_text, figure_refs = _read_section_file(
+            sec_path, cite_map, math_macros
+        )
 
         if not display_name or display_name.lower() == "abstract":
             # Abstract has no \section{}; use the filename as display
@@ -316,7 +461,7 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
             md_ref = f"![]({dest_name})"
 
             if dest_name not in visual_seen:
-                caption = _find_caption_for_figure(sec_raw, ref)
+                caption = _find_caption_for_figure(sec_raw, ref, cite_map)
                 resolution = _get_resolution(resolved)
                 visual_seen[dest_name] = {
                     "name": md_ref,
