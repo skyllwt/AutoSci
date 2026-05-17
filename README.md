@@ -117,20 +117,18 @@
 
 ## 🆕 What's New
 
-### 🔬 2026-05-18 · /poster — TikZ figures + booktabs tables go live on the poster
+### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
 
-Two parity gaps closed in `/poster`. **TikZ figures** inside `\begin{figure}` envs that have no `\includegraphics{}` counterpart are now auto-rasterized to PNG via `pdflatex` + `pdftoppm` (new `tools/rasterize_latex.py` — `\documentclass{standalone}` auto-crops to content; cached at `paper/figures/_tikz_<sec>_<label>.png`). The rasterized PNG flows through the same visual-node pipeline as any other figure. **Booktabs `\begin{tabular}` blocks** are converted to live HTML `<table class="poster-table">` with `<caption>`, `<thead>`/`<tbody>`, `\multicolumn` → `colspan`, `\textbf`/`\emph` → `<strong>`/`<em>`, math `$..$` kept intact for KaTeX. The fit() binary search now probes table overflow alongside images, so a too-tall table triggers font shrink (or Step 5.5 trim) instead of clipping silently. Step 2.5 figure picker is now multi-select with a layout follow-up (side-by-side / vertical-stack / after-table) — pick two figures, ask for layout, done. `\ensuremath{X}` from `math_commands.tex` macros auto-unwraps to `$X$` so KaTeX renders the user's math notation natively.
+Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline and template adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)) — PaperX-compatible `dag.json` intermediate, critique-revise pass with mandatory pre-flight checklist, programmatic DOM overflow probe via Playwright, binary-search fit algorithm — wired into OmegaWiki's LaTeX source and `wiki/outputs/paper-plan-*.md` for grounded distillation. Export to PDF from your browser's print dialog.
 
-<p align="center">
-  <img src="assets/poster_demo_tikz_tables.png" alt="/poster output with a rasterized TikZ figure (Tülu-3 mediation chain), a KaTeX-rendered booktabs table, and side-by-side experimental figures — generated from a PKU cog-modeling mini-paper" width="720" />
-</p>
+Content surfaces preserved end-to-end: **TikZ figures** inside `\begin{figure}` envs without `\includegraphics{}` are auto-rasterized to PNG via `pdflatex` + `pdftoppm` (`\documentclass{standalone}` auto-crops; cached at `paper/figures/_tikz_<sec>_<label>.png`) and flow through the same visual-node pipeline as other figures. **Booktabs `\begin{tabular}` blocks** (including tables included via `\input{tables/foo}`) convert to live HTML `<table class="poster-table">` with `<caption>`, `<thead>`/`<tbody>`, `\multicolumn` → `colspan`, `\textbf`/`\emph` → `<strong>`/`<em>`, math `$..$` kept intact for KaTeX, numeric cells normalized so positive and negative readings render identically. fit() and check-overflow both probe table overflow alongside images, so a too-tall table triggers font shrink (or Step 5.5 prose trim) instead of silent clipping. Math macros from `math_commands.tex` (`\ensuremath{X}` form) auto-unwrap to `$X$` so KaTeX renders user notation natively.
 
-### 🎨 2026-05-17 · /poster — drafted paper → print-ready conference poster
+UX: Step 0 caches the author display name at `paper/.author_display.txt` ("ask once, reuse"). Step 2 announces WIKI_CONTEXT adoption (no silent grounding). Step 2.5 figure picker is multi-select per section with a layout follow-up (side-by-side / vertical-stack / after-table) — pick two figures, choose the layout, done. Six visible flags (`--review`, `--anonymous`, `--no-figures`, `--no-logos`, `--no-refine`, plus the positional `paper-dir`); seven power-user overrides documented inside Inputs.
 
-Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline and template adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)) — DAG intermediate, critique-revise pass, fit algorithm — wired into OmegaWiki's LaTeX source and `wiki/outputs/paper-plan-*.md` for grounded distillation. Export to PDF from your browser's print dialog. Future updates will support nanobanana-style figures and higher-level customization of the poster.
+Future updates will support nanobanana-style figures and higher-level customization of the poster.
 
 <p align="center">
-  <img src="assets/poster_demo.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG" width="720" />
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
 </p>
 
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
