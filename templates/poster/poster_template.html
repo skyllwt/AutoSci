@@ -219,13 +219,24 @@ body{
    Sizing: width:100% so columns stretch to the poster column width;
    font-size is relative to --base-font so the fit() binary search
    shrinks tables alongside body text. caption-side:top is the
-   academic convention. */
+   academic convention.
+
+   Font: KaTeX_Main is the font KaTeX itself uses to render $..$
+   spans. Putting it first in the stack makes plain-text cell
+   content (e.g. "Condition", "base") render in the same family
+   as the math glyphs ($C_0$, $-0.98$, $[4.41, 4.50]$) that
+   appear in the same cells — eliminates the visual seam where a
+   cell mixes math and text. EB Garamond and the existing fallback
+   chain remain for environments where KaTeX_Main never loads
+   (e.g. JS disabled). */
 .section-body table.poster-table {
   border-collapse: collapse;
   width: 100%;
   margin: 0 0 var(--para-gap) 0;
   font-size: 0.88em;
   table-layout: auto;
+  font-family: KaTeX_Main, "EB Garamond", "Computer Modern Serif",
+               Georgia, "Times New Roman", serif;
 }
 .section-body table.poster-table caption {
   caption-side: top;
