@@ -7,7 +7,7 @@ argument-hint: <idea-slug> [--env local|remote]
 
 > 执行由 Pilot Spec YAML 文件描述的预实验。
 > 从 `experiments/pilot/{slug}.yaml` 读取 spec，撰写预实验代码，运行实验(运行前需向用户确认，申请用户手动检查)，返回原始结果给调用者。
-> **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
+> **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(如数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
 > 支持 **local**（本地 GPU）和 **remote**（通过 `tools/remote.py` SSH 部署）两种模式。
 > 不修改任何 wiki 页面。不判定 pass/fail — 结果由 `/exp-pilot-eval` 评估。
 
@@ -65,7 +65,16 @@ argument-hint: <idea-slug> [--env local|remote]
    - 读取相关论文的方法描述（算法细节，来自 `wiki/papers/` 若存在）
    - 读取源论文 repo 获取基础代码参考
 
-3. **编写预实验代码**，写入 `experiments/pilot/code/{slug}/`：
+3. **检验数据集以及其余配置**
+   - 数据集在 pilot spec 的 setup 中有指定
+   - 获取数据集路径(根据 --env 参数选择在本地或远程获取)，**可向用户询问本地(远程)的数据集的路径以及自行检索**
+   - 若 数据集不存在，向用户提示，明确**下载数据集的需求**，向用户确认**安装路径**及**下载渠道**
+   - 检查数据集是否完整、可用，明确数据集附带的一些结构、使用说明
+   - 其余配置如：调用LLM的模型名称，url，api key等
+
+4. **编写预实验代码**，写入 `experiments/pilot/code/{slug}/`：
+
+   **代码的编写模块化思想，除非实验规模较小，逻辑简单，否则不要把大量代码放在一个文件里**
 
    > **预实验目的提醒**：目标是**检测明显失败**（发散、严重退化、根本性不兼容），**不是衡量最终性能**。遵循 Pilot Spec 的缩减配置：batch size = 论文的 1/4–1/8，训练步数 = 完整训练的 10–30%，以便通过较低成本在一定程度上判定idea执行的价值，始终包含 baseline 对比。不要试图优化取得最优结果 — 通过预实验仅意味着"没有明显崩溃""从前中期整体表现看,相较baseline，有提升，基本持平，略差都是可以接受的"。
 
@@ -82,11 +91,12 @@ argument-hint: <idea-slug> [--env local|remote]
      - 指标计算（对应 spec 的 `metrics` 列表）
      - 结果保存（JSON 格式，路径：`experiments/pilot/code/{slug}/results/seed_{N}.json`）
      - 随机种子控制
+   - 其余所需的utils、tools 等代码文件夹或者文件（如 `utils.py`、`data_loader.py` 等）
    - `config.yaml`：spec 中的所有超参数（learning_rate, batch_size, max_steps 等）
    - `run.sh`：启动封装脚本（含 CUDA_VISIBLE_DEVICES、logging、conda 激活）
    - `requirements.txt`：依赖（若与主项目不同）
 
-4. **Sanity check（小规模验证）**：
+5. **Sanity check（小规模验证）**：
    - 用极小规模运行（10 steps / 小 subset）
    - 验证：代码无 crash、数据加载正确、GPU 可用、loss 有限
    - 若 sanity 失败 → 修复代码，重试一次；仍然失败则报告错误并停止

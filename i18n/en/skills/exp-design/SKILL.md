@@ -98,15 +98,19 @@ For each candidate, document:
    - Standard benchmarks used in related papers (from `wiki/papers/`)
    - Dataset availability and compute constraints
 
-2. **Select metrics**:
+2. **Select Dataset**:
+   - Clarify the dataset to be used (taking into account task adaptability, scale and standardization level)
+   - Specify the composition structure, usage methods and specifications of the dataset
+
+3. **Select metrics**:
    - Primary metric: the single most important measure of success (e.g., accuracy, F1, reward)
    - Secondary metrics: supplementary measures (e.g., latency, memory, throughput)
 
-3. **Define baselines**: list all methods the selected candidate(s) will be compared against. Include:
+4. **Define baselines**: list all methods the selected candidate(s) will be compared against. Include:
    - The reproduced baseline from the most relevant paper
    - Any SOTA methods from related work
 
-4. **Document rationale**: why these benchmarks and metrics are appropriate for the idea's hypothesis.
+5. **Document rationale**: why these benchmarks and metrics are appropriate for the idea's hypothesis.
 
 ---
 
@@ -263,6 +267,10 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 
 ---
 
+### Gate: User reviews designed experimental modules and execution sequence
+
+**Before finalizing experimental modules and preparing design documents and wiki pages, confirmation must be obtained from users. Users are required to manually inspect the designed experimental modules. Proceed to Phase6 once confirmed; otherwise, make revisions repeatedly until users give approval.**
+
 ### Phase 6: Write Design Document
 
 1. **Create master design document** at `experiments/designs/{slug}-master.md`:
@@ -283,7 +291,7 @@ Estimate total compute budget. Generate execution checklist with dependencies.
    {table of candidates with selection rationale}
 
    ## Benchmark & Metrics
-   {benchmark selection, metrics, baselines}
+   {dataset, metrics, baselines}
 
    ## Experiment Blocks
 

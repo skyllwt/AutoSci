@@ -6,7 +6,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 # /exp-run
 
 > Execute an experiment that has been planned in wiki/experiments/.
-> **No matter which operation mode it is, before preparing the experimental codes and deploying them for operation, confirmation shall be obtained from users. Users need to manually check relevant information such as codes and experimental configurations. The operation can only be launched after confirmation; otherwise, revisions shall be made repeatedly until users approve the execution.**
+> **No matter which operation mode it is, before preparing the experimental codes and deploying them for operation, confirmation shall be obtained from users. Users need to manually check relevant information such as codes and experimental configurations(Dataset paths, interface parameter selection, API configuration, etc.). The operation can only be launched after confirmation; otherwise, revisions shall be made repeatedly until users approve the execution.**
 > **Three run modes** for different scenarios:
 > - **Default (deploy)**: Phase 1-2 only — deploy and return immediately. Best for experiments that take hours or days.
 > - **`--collect`**: Phase 3-4 only — check whether a deployed experiment has finished; collect results if so (`--check` is an alias).
@@ -83,8 +83,16 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - Read related papers' method descriptions (algorithm details)
    - Read other experiments on the same idea (reference code structure)
 
-3. **Write experiment code** to `experiments/code/{slug}/`:
-   - `train.py`: generate training/evaluation script based on setup config, including:
+3. **Inspect the dataset and other configurations**
+   - The dataset is specified in the setup section of `wiki/experiments/{slug}.md`
+   - Obtain the dataset path (select local or remote access based on the --env parameter). You may ask users for the local or remote dataset paths and conduct independent retrieval.
+   - Prompt users if the dataset is missing, clarify the need to download the dataset, and confirm the installation path and download source with users.
+   - Check the integrity and availability of the dataset, and sort out its built-in structure and usage instructions.
+   - Other configurations include: LLM model name for invocation, URL, API key, etc.
+
+4. **Write experiment code** to `experiments/code/{slug}/`:
+   **Modular thinking in coding: avoid putting a large amount of code in a single file unless the project is small in scale and simple in logic**
+   - `train.py`: generate training/evaluation script based on setup config as the entry point of the program including:
      - Argument parsing (argparse, all hyperparameters configurable)
      - Data loading (support setup.dataset)
      - Model initialization (support setup.model and baseline model)
@@ -93,11 +101,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      - Result saving (JSON format, path: `results/{slug}/seed_{N}.json`)
      - Random seed control (multi-seed runs)
      - Checkpoint save/restore (`checkpoints/{slug}/`)
+   - Other required code folders and files such as utils, tools (e.g., `utils.py`, `data_loader.py`, etc.)
    - `config.yaml`: all hyperparameters (learning_rate, batch_size, epochs, seeds, etc.)
    - `run.sh`: complete launch command wrapper (includes CUDA_VISIBLE_DEVICES, logging, conda activation)
    - `requirements.txt`: experiment-specific dependencies (if different from main project requirements)
 
-4. **Optional Review LLM code review** (`--review`):
+5. **Optional Review LLM code review** (`--review`):
    ```
    mcp__llm-review__chat:
      system: "You are a senior ML engineer reviewing experiment code.
@@ -119,7 +128,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    ```
    Fix code based on Review LLM feedback.
 
-5. **Sanity check (small-scale validation)**:
+6. **Sanity check (small-scale validation)**:
    - Run at minimal scale (1 epoch / 100 steps / small subset)
    - Verify: no code crash, data loads correctly, GPU available, loss decreases
    - If sanity fails → fix code, retry once; if still failing, report error and stop
@@ -127,7 +136,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 **Gate: Manual User Inspection**
 
-> **Note**: Before preparing experimental code for deployment and execution, confirm with users and request them to manually check relevant information including codes and experimental configurations. Proceed with operation only after confirmation; otherwise, make revisions repeatedly until users approve the execution.
+> **Note**: Before preparing experimental code for deployment and execution, confirm with users and request them to manually check relevant information including codes and experimental configurations(Dataset paths, interface parameter selection, API configuration, etc.). Proceed with operation only after confirmation; otherwise, make revisions repeatedly until users approve the execution.
 
 **Phase 2: Deploy**
 

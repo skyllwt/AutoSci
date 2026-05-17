@@ -7,7 +7,7 @@ argument-hint: <idea-slug> [--env local|remote]
 
 > Execute a pilot experiment described by a Pilot Spec YAML file.
 > Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, runs the experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), and returns raw results to the caller.
->**No matter which operating mode is adopted, before the experimental code is ready for deployment and operation, confirmation shall be obtained from users. Users need to manually check relevant information including codes and experimental configurations. The operation can only be launched after confirmation. Otherwise, revisions shall be made repeatedly until users approve the execution.**
+>**No matter which operating mode is adopted, before the experimental code is ready for deployment and operation, confirmation shall be obtained from users. Users need to manually check relevant information including codes and experimental configurations(Such as dataset paths, interface parameter selection, API configuration and so on). The operation can only be launched after confirmation. Otherwise, revisions shall be made repeatedly until users approve the execution.**
 > Supports **local** (direct GPU) and **remote** (SSH deployment via `tools/remote.py`) modes.
 > Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval`.
 
@@ -65,7 +65,16 @@ argument-hint: <idea-slug> [--env local|remote]
    - Read related papers' method descriptions for algorithm details (from `wiki/papers/` if they exist)
    - Read source paper repo for base code reference
 
-3. **Write pilot code** to `experiments/pilot/code/{slug}/`:
+3. **Inspect the dataset and other configurations**
+   - The dataset is specified in the setup section of the pilot spec.
+   - Obtain the dataset path (select local or remote access based on the --env parameter). You may ask users for local or remote dataset paths and perform automatic retrieval independently.
+   - If the dataset does not exist, prompt the user, clarify the need to download the dataset, and confirm the installation path and download sources with the user.
+   - Verify the integrity and availability of the dataset, and sort out the attached structure specifications and usage instructions of the dataset.
+   - Other configurations include the name of the invoked LLM model, URL, API key and other relevant information.
+
+4. **Write pilot code** to `experiments/pilot/code/{slug}/`:
+
+**The modular programming principle for coding: avoid putting a large amount of code into a single file unless the project is small in scale and simple in logic**
 
 >Preliminary Experiment Purpose Reminder: The goal is to **detect obvious failures** (divergence, severe degradation, fundamental incompatibility), **not to measure final performance**. Follow the reduced configuration of the Pilot Spec: batch size = 1/4–1/8 of that in the paper, training steps = 10–30% of full training. This is to judge the implementation value of an idea to a certain extent at a lower cost, with baseline comparison always included. Do not attempt to optimize for optimal results — a preliminary experiment only needs to confirm "no obvious collapse". From the overall performance in the early and middle stages, results that are improved, basically flat, or slightly worse compared with the baseline are all acceptable.
 
@@ -82,11 +91,12 @@ Possible reference paths for the preliminary experiment code:
      - Metric computation (matching spec's `metrics` list)
      - Result saving (JSON format, path: `experiments/pilot/code/{slug}/results/seed_{N}.json`)
      - Random seed control
+   - Other required code folders and files such as utils, tools (e.g., `utils.py`, `data_loader.py`)
    - `config.yaml`: all hyperparameters from spec (learning_rate, batch_size, max_steps, etc.)
    - `run.sh`: launch wrapper (includes CUDA_VISIBLE_DEVICES, logging, conda activation)
    - `requirements.txt`: dependencies (if different from main project)
 
-4. **Sanity check** (small-scale validation):
+5. **Sanity check** (small-scale validation):
    - Run at minimal scale (10 steps / small subset)
    - Verify: no code crash, data loads correctly, GPU available, loss is finite
    - If sanity fails → fix code, retry once; if still failing, report error and stop

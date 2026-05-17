@@ -6,7 +6,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 # /exp-run
 
 > 执行 wiki/experiments/ 中已规划的实验。
-> **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
+> **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(如数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
 > **三种运行模式**，适应不同场景：
 > - **默认（deploy）**：仅 Phase 1-2，部署后立即返回，适合需要数小时/天的实验。
 > - **`--collect`**：仅 Phase 3-4，检查已部署实验是否完成，完成则收集结果（`--check` 为 alias）。
@@ -83,8 +83,16 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - 读取相关论文的方法描述（算法细节）
    - 读取同一 idea 的其他实验（参考代码结构）
 
-3. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
-   - `train.py`：根据 setup 配置生成训练/评估脚本，包含：
+3. **检验数据集以及其余配置**
+   - 数据集在`wiki/experiments/{slug}.md`的setup 中有指定
+   - 获取数据集路径(根据 --env 参数选择在本地或远程获取)，**可向用户询问本地(远程)的数据集的路径以及自行检索**
+   - 若 数据集不存在，向用户提示，明确**下载数据集的需求**，向用户确认**安装路径**及**下载渠道**
+   - 检查数据集是否完整、可用，明确数据集附带的一些结构、使用说明
+   - 其余配置如：调用LLM的模型名称，url，api key等
+
+4. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
+   **代码的编写模块化思想，除非实验规模较小，逻辑简单，否则不要把大量代码放在一个文件里**
+   - `train.py`：根据 setup 配置生成训练/评估脚本，作为程序的入口，包含：
      - 参数解析（argparse，所有超参数可配置）
      - 数据加载（支持 setup.dataset）
      - 模型初始化（支持 setup.model 和 baseline 模型）
@@ -93,11 +101,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      - 结果保存（JSON 格式，路径：`results/{slug}/seed_{N}.json`）
      - 随机种子控制（多 seed 运行）
      - Checkpoint 保存/恢复（`checkpoints/{slug}/`）
+   - 其余所需的utils、tools 等代码文件夹或者文件（如 `utils.py`、`data_loader.py` 等）
    - `config.yaml`：所有超参数（learning_rate, batch_size, epochs, seeds 等）
    - `run.sh`：封装完整启动命令（含 CUDA_VISIBLE_DEVICES、logging、conda 激活）
    - `requirements.txt`：实验专属依赖（若与主项目 requirements 不同）
 
-4. **可选 Review LLM code review**（`--review`）：
+5. **可选 Review LLM code review**（`--review`）：
    ```
    mcp__llm-review__chat:
      system: "You are a senior ML engineer reviewing experiment code.
@@ -119,7 +128,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    ```
    根据 Review LLM 反馈修正代码。
 
-5. **Sanity check（小规模验证）**：
+6. **Sanity check（小规模验证）**：
    - 用极小规模运行（1 epoch / 100 steps / 小 subset）
    - 验证：代码无 crash、数据加载正确、GPU 可用、loss 下降
    - 若 sanity 失败 → 修复代码，重试一次；仍然失败则报告错误并停止
@@ -127,7 +136,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 **Gate： 用户手动检查**
 
-> **注意**：在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置相关信息，确认无误后运行，否则需执行修改直到用户确认执行
+> **注意**：在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行
 
 
 **Phase 2: 部署（Deploy）**
