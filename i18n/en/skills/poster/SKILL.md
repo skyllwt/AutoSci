@@ -118,9 +118,10 @@ The bridge produces three node types:
 - **Visual** (`level: 2`): markdown image ref in `name`, caption in `content`, `WxH` in `resolution`
 
 `wiki2dag.py` preserves the paper's:
-- **Math**: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` pass through into section content untouched, then render via KaTeX in the poster HTML.
+- **Math**: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` pass through into section content untouched, then render via KaTeX in the poster HTML. Macros defined in `math_commands.tex` are expanded and any surviving `\ensuremath{X}` wrapper is unwrapped to `$X$` so KaTeX picks it up.
 - **Citations** — *dropped by default*: `\citep{key}` / `\citet{...}` markers are stripped to empty. Real-world conference posters (per CCF-A research) typically omit inline citation markers because there's no room for a reference list. Pass `--citations` to `wiki2dag.py build` if you want them back as `[N]` / `[N, M]` (built from a first-appearance `bibkey → ordinal` map). Future poster styles that render a reference footer can opt in.
-- **Tables**: `\begin{table}…\caption{...}…\end{table}` envs are replaced with `[Table: <caption text>]` so the caption flows into section prose. Tabular data is dropped (no room on a 1400×900 poster).
+- **Tables**: `\begin{table}…\end{table}` envs (including tables inlined via `\input{tables/foo}`) are converted to live HTML `<table class="poster-table">` blocks with the booktabs caption rendered as a `<caption>` and `\multicolumn`, `\textbf`, `\emph`, `\textit`, `\texttt` handled at the cell level. The Step 3 LLM sees this HTML inside `SECTION_JSON.content` and must include it verbatim after the summary paragraph (see Step 3). The fit() algorithm sizes table fonts alongside body text; if a table still clips, Step 5.5 sees it via the DOM overflow probe and trims.
+- **TikZ figures**: `\begin{figure}` envs containing `\begin{tikzpicture}` but no `\includegraphics{}` are auto-rasterized to `paper/figures/_tikz_<sec>_<label>.png` via `tools/rasterize_latex.py` (pdflatex + pdftoppm). The resulting PNG is a regular visual node from the bridge's perspective — Step 3 picks it up exactly like any other figure. If `\includegraphics{}` is also present in the same env, the existing pipeline takes precedence (TikZ extraction is skipped). Failed rasterizations are logged to stderr and the figure is dropped; the rest of the pipeline continues. Cached across runs — delete the PNG to force regeneration.
 
 ### Step 2: Compile WIKI_CONTEXT (optional)
 
@@ -257,6 +258,7 @@ Run the following prompt for each section (ported from PaperX `poster_outline_pr
 > - Replace the sample paragraph with your summary.
 > - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
 > - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - **TABLES**: if `SECTION_JSON.content` contains one or more `<table class="poster-table">…</table>` blocks, include EACH ONE verbatim (preserve the entire block byte-for-byte, including `<caption>`, `<thead>`, `<tbody>`, all `<tr>` / `<th>` / `<td>` tags and their attributes) inside `<div class="section-body">` AFTER your summary `<p>`. Do NOT paraphrase, restructure, or trim the table HTML. Exception — drop a table only if it is obviously too large for one column (> 5 columns AND > 6 rows) AND summarizing 2–3 key cells in prose would preserve the result; in that case, drop the table and call out the key numbers in your summary `<p>`.
 >
 > **Required HTML templates** (pick the one matching LAYOUT):
 >
@@ -279,6 +281,20 @@ Run the following prompt for each section (ported from PaperX `poster_outline_pr
 >     <div class="img-section">
 >       <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
 >     </div>
+>   </div>
+> </section>
+> ```
+>
+> *With a table* (either LAYOUT, when `SECTION_JSON.content` contains
+> `<table class="poster-table">`): insert the verbatim table block(s)
+> after the summary `<p>` (and before the `<div class="img-section">`
+> if LAYOUT is "inline"). Example shape:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <table class="poster-table">…verbatim from SECTION_JSON.content…</table>
 >   </div>
 > </section>
 > ```
@@ -534,7 +550,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 ## Constraints
 
-- **Do not modify `paper/` source files**: this skill is read-only over LaTeX source (`main.tex`, `sections/*.tex`, `figures/`, `references.bib`, `math_commands.tex`). The only write allowed to `paper/` is the metadata dotfile `paper/.author_display.txt` (Step 0 author cache — see Step 0 Q1). All other output goes to `poster/`.
+- **Do not modify `paper/` source files**: this skill is read-only over LaTeX source (`main.tex`, `sections/*.tex`, `figures/`, `references.bib`, `math_commands.tex`). The only allowed writes to `paper/` are: (a) `paper/.author_display.txt` — Step 0 author cache; (b) `paper/figures/_tikz_<sec>_<label>.png` — rasterized TikZ figure cache (Step 1, see "TikZ figures" in Step 1's preservation list). The `_tikz_` prefix marks these as derived from `paper/sections/*.tex`; they're safe to delete (next run rebuilds). All other output goes to `poster/`.
 - **Do not create wiki entities or graph edges**: the poster is a presentation artifact.
 - **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `/paper-compile`.
 - **Respect `--anonymous`**: when set, authors become "Anonymous" in both `dag.json` and the poster header.
@@ -571,7 +587,8 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 - `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` — HTML → PNG via headless browser (Chrome / Edge / Chromium preferred, Firefox fallback)
 - `python3 tools/poster.py check-overflow <poster.html> [--output PATH]` — Playwright DOM query for clipped content; emits poster.overflow.json. Used as ground truth by Step 5.5.
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
-- `pdftoppm` (poppler) — PDF → PNG conversion at 200 DPI
+- `pdflatex` (TeX Live) — required for TikZ figure rasterization (Step 1); install via `brew install --cask mactex` / `apt install texlive-full`. With `tikz`, `pgfplots`, `standalone`, `booktabs`, `multirow`, `array`, `xcolor`, `amsmath`, `amssymb` packages. If absent, TikZ figures inside `\begin{figure}` envs without `\includegraphics{}` are dropped with a stderr warning; the rest of the build continues.
+- `pdftoppm` (poppler) — PDF → PNG conversion at 200 DPI (used both for paper figures and for rasterized TikZ)
 - `pdfinfo` (poppler) — PDF page-size for resolution
 - Playwright + Chromium (preferred, optional) — `pip install playwright && python -m playwright install chromium`. Enables event-driven waits (fonts/images/fit-stable). Falls back gracefully if missing.
 - Headless system browser (fallback) — auto-detected in this order: Google Chrome → Microsoft Edge → Chromium → Firefox. Chrome/Edge/Chromium are equivalent; Firefox renders at 1× scale only and without sync-wait. Safari is not supported (no headless CLI).

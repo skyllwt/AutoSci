@@ -117,9 +117,10 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 - **Visual**(`level: 2`):`name` 为 markdown 图片引用,`content` 为 caption,`resolution` 为 `WxH`
 
 `wiki2dag.py` 保留论文中的:
-- **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。
+- **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。`math_commands.tex` 里的宏会被展开,残留的 `\ensuremath{X}` 包装会被解包为 `$X$`,让 KaTeX 能识别。
 - **引用** —— *默认丢弃*:`\citep{key}` / `\citet{...}` 标记被剥成空。基于对 CCF-A 海报的调研,实际会场上的海报通常不在正文里渲染 `[N]` 内联标注(没地方放参考文献列表)。如果你的海报样式确实需要它们,在 `wiki2dag.py build` 上加 `--citations` flag 可以恢复为 `[N]` / `[N, M]`(按首次出现顺序的 `bibkey → ordinal`)。未来支持参考文献页脚的样式可以默认开启。
-- **表格**:`\begin{table}…\caption{...}…\end{table}` 被替换为 `[Table: <caption text>]`,让 caption 流入正文。表体数据丢弃(1400×900 海报放不下整张表)。
+- **表格**:`\begin{table}…\end{table}` envs(包括通过 `\input{tables/foo}` 内联的)被转为活的 HTML `<table class="poster-table">` 块,booktabs caption 渲染为 `<caption>`,`\multicolumn`、`\textbf`、`\emph`、`\textit`、`\texttt` 在 cell 层处理。Step 3 的 LLM 在 `SECTION_JSON.content` 中看到这段 HTML,必须**原样**插入到 summary 段落之后(见 Step 3)。fit() 算法会与正文文字一起缩放表格字号;若表格仍然溢出,Step 5.5 的 DOM 溢出探针会发现并要求修剪。
+- **TikZ 图**:`\begin{figure}` envs 中含 `\begin{tikzpicture}` 但**没有** `\includegraphics{}` 的,通过 `tools/rasterize_latex.py`(pdflatex + pdftoppm)自动光栅化到 `paper/figures/_tikz_<sec>_<label>.png`。生成的 PNG 在桥接层眼里就是普通 visual node,Step 3 完全一样处理。若同一个 figure env 里**同时**有 `\includegraphics{}`,现有流水线优先(TikZ 跳过)。光栅化失败时 stderr 告警 + 丢弃该图,其它流程继续。跨次运行缓存 —— 删除 PNG 即强制重建。
 
 ### Step 2: 编译 WIKI_CONTEXT(可选)
 
@@ -256,6 +257,7 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > - Replace the sample paragraph with your summary.
 > - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
 > - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - **TABLES**: if `SECTION_JSON.content` contains one or more `<table class="poster-table">…</table>` blocks, include EACH ONE verbatim (preserve the entire block byte-for-byte, including `<caption>`, `<thead>`, `<tbody>`, all `<tr>` / `<th>` / `<td>` tags and their attributes) inside `<div class="section-body">` AFTER your summary `<p>`. Do NOT paraphrase, restructure, or trim the table HTML. Exception — drop a table only if it is obviously too large for one column (> 5 columns AND > 6 rows) AND summarizing 2–3 key cells in prose would preserve the result; in that case, drop the table and call out the key numbers in your summary `<p>`.
 >
 > **Required HTML templates**(按 LAYOUT 选择对应变体):
 >
@@ -278,6 +280,20 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 >     <div class="img-section">
 >       <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
 >     </div>
+>   </div>
+> </section>
+> ```
+>
+> *With a table* (either LAYOUT, when `SECTION_JSON.content` contains
+> `<table class="poster-table">`): insert the verbatim table block(s)
+> after the summary `<p>` (and before the `<div class="img-section">`
+> if LAYOUT is "inline"). Example shape:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <table class="poster-table">…verbatim from SECTION_JSON.content…</table>
 >   </div>
 > </section>
 > ```
@@ -533,7 +549,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Constraints
 
-- **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下唯一允许写入的是元数据 dotfile `paper/.author_display.txt`(Step 0 作者缓存 —— 见 Step 0 Q1)。其它所有输出写到 `poster/`。
+- **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下允许写入的只有:(a) `paper/.author_display.txt`(Step 0 作者缓存);(b) `paper/figures/_tikz_<sec>_<label>.png`(Step 1 的 TikZ 光栅化缓存,见 Step 1 "TikZ 图")。`_tikz_` 前缀标识它们是从 `paper/sections/*.tex` 派生的产物;删除安全(下次运行重建)。其它输出全部写到 `poster/`。
 - **不创建 wiki 实体或图边**:海报是展示产物,不进知识图。
 - **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `/paper-compile`。
 - **遵循 `--anonymous`**:开启时,作者在 `dag.json` 与海报 header 中都写为 "Anonymous"。
@@ -570,7 +586,8 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless 浏览器(优先 Chrome / Edge / Chromium,Firefox 兜底)
 - `python3 tools/poster.py check-overflow <poster.html> [--output PATH]` —— 用 Playwright 查询渲染后的 DOM,产出 poster.overflow.json。Step 5.5 用它做 ground truth。
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
-- `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
+- `pdflatex`(TeX Live)—— Step 1 的 TikZ 光栅化必需;`brew install --cask mactex` / `apt install texlive-full` 安装。需要 `tikz`、`pgfplots`、`standalone`、`booktabs`、`multirow`、`array`、`xcolor`、`amsmath`、`amssymb` 等包。若未安装,figure env 中没有 `\includegraphics{}` 的 TikZ 图会被 stderr 告警 + 丢弃,其余构建继续。
+- `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI(用于论文 PDF 图和 TikZ 光栅化产物)
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution
 - Playwright + Chromium(推荐,可选)—— `pip install playwright && python -m playwright install chromium`。启用事件驱动等待(字体/图片/fit 稳定)。若未安装会自动兜底。
 - 系统 headless 浏览器(兜底)—— 自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持(无 headless CLI)。
