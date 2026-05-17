@@ -224,7 +224,11 @@ def _copy_logo(source: Path, dest_dir: Path) -> str:
 def _affiliation_div_body(rel_path: Optional[str]) -> str:
     if not rel_path:
         return ""
-    return f'<img src="{rel_path}" alt="Affiliation" />'
+    # Escape — a logo filename like `evil".onerror=alert(1).png` would
+    # otherwise break out of the src attribute. quote=True turns " into
+    # &quot; so it stays inside the attribute value.
+    safe = html.escape(rel_path, quote=True)
+    return f'<img src="{safe}" alt="Affiliation" />'
 
 
 def _conf_block_body(
@@ -237,28 +241,38 @@ def _conf_block_body(
     parts: list[str] = []
     venue_html = html.escape(venue.strip()) if venue and venue.strip() else ""
 
+    # Escape both relative paths the same way as _affiliation_div_body —
+    # a quote character in a logo filename would otherwise break the
+    # src attribute.
+    aff_safe = (
+        html.escape(affiliation_rel, quote=True) if affiliation_rel else None
+    )
+    conf_safe = (
+        html.escape(conference_rel, quote=True) if conference_rel else None
+    )
+
     if layout == "corners":
         # venue text on top, conference logo underneath; affiliation lives in
         # the title-block on the left.
         parts.append(f'<div class="venue">{venue_html}</div>')
-        if conference_rel:
+        if conf_safe:
             parts.append(
-                f'<div class="logo-conference"><img src="{conference_rel}" alt="Conference" /></div>'
+                f'<div class="logo-conference"><img src="{conf_safe}" alt="Conference" /></div>'
             )
         else:
             parts.append('<div class="logo-conference"></div>')
     elif layout == "stacked":
         # both logos stacked in the conf area; title-block has no logo.
         parts.append(f'<div class="venue">{venue_html}</div>')
-        if affiliation_rel:
+        if aff_safe:
             parts.append(
-                f'<div class="logo-conference"><img src="{affiliation_rel}" alt="Affiliation" /></div>'
+                f'<div class="logo-conference"><img src="{aff_safe}" alt="Affiliation" /></div>'
             )
-        if conference_rel:
+        if conf_safe:
             parts.append(
-                f'<div class="logo-conference"><img src="{conference_rel}" alt="Conference" /></div>'
+                f'<div class="logo-conference"><img src="{conf_safe}" alt="Conference" /></div>'
             )
-        if not affiliation_rel and not conference_rel:
+        if not aff_safe and not conf_safe:
             parts.append('<div class="logo-conference"></div>')
     else:
         raise ValueError(f"unsupported layout: {layout}")
@@ -353,16 +367,36 @@ def _resolve_source_figure(
     if not figures_dir.is_dir():
         return None
 
-    # First try exact filename match
+    # First try exact filename match at the top level
     exact = figures_dir / image_basename
     if exact.is_file():
         return exact
 
-    # Then try by stem with common extensions
+    # Then try by stem with common extensions at the top level
     for ext in (".pdf", ".png", ".jpg", ".jpeg", ".eps"):
         c = figures_dir / (stem + ext)
         if c.is_file():
             return c
+
+    # Finally, fall back to a recursive search by stem so figures
+    # placed in subdirs (e.g. `paper/figures/exp1/foo.pdf` referenced
+    # in LaTeX as `\includegraphics{figures/exp1/foo}` and flattened to
+    # `images/foo.png` by wiki2dag) still resolve. Walk paper/figures/**
+    # once, prefer matches in the listed-extension priority order so a
+    # PDF wins over a same-stem JPG sketch the author may have left
+    # behind.
+    matches: dict[str, Path] = {}
+    for p in figures_dir.rglob("*"):
+        if not p.is_file():
+            continue
+        if p.stem != stem:
+            continue
+        ext = p.suffix.lower()
+        if ext in (".pdf", ".png", ".jpg", ".jpeg", ".eps"):
+            matches.setdefault(ext, p)
+    for ext in (".pdf", ".png", ".jpg", ".jpeg", ".eps"):
+        if ext in matches:
+            return matches[ext]
 
     return None
 
@@ -673,6 +707,39 @@ def _render_via_playwright(
         browser.close()
 
 
+_STAGE_RESET_STYLE = (
+    "<style>"
+    ".stage{padding:0!important;min-height:0!important;display:block!important;}"
+    "</style>"
+)
+
+
+def _materialize_render_html(html_path: Path) -> Path:
+    """Return a path to an HTML file with `.stage{padding:0}` inlined.
+
+    Subprocess render screenshots the whole viewport (no element-level
+    selection like Playwright's `locator(".poster").screenshot()`), so
+    the template's 24px `.stage` padding shoves `.poster`'s right and
+    bottom borders past the visible viewport and Chrome silently clips
+    them. The Playwright path zeros that padding via `page.evaluate(...)`
+    before its element screenshot, but subprocess can't run mid-render
+    JS — so we instead inline a high-specificity `<style>` override into
+    a side-by-side temp HTML, point the browser at that copy, and leave
+    the source file untouched.
+    """
+    src = html_path.read_text(encoding="utf-8")
+    # Inject the override just before </head>; if no </head> exists, prepend
+    # to the document. The override uses !important so it wins over any
+    # earlier `.stage` rule in the template's <style> block.
+    if "</head>" in src:
+        patched = src.replace("</head>", _STAGE_RESET_STYLE + "</head>", 1)
+    else:
+        patched = _STAGE_RESET_STYLE + src
+    tmp = html_path.with_name(f".{html_path.stem}.subprocess-render.html")
+    tmp.write_text(patched, encoding="utf-8")
+    return tmp
+
+
 def _render_via_subprocess(
     html_path: Path, output_path: Path, scale: int
 ) -> tuple[str, int]:
@@ -680,10 +747,16 @@ def _render_via_subprocess(
 
     Used when Playwright isn't installed or its Chromium isn't downloaded.
     Returns (browser_type, effective_scale). Firefox path clamps scale to 1.
+
+    Writes a temp HTML copy with `.stage{padding:0}` inlined so the
+    poster's right/bottom borders aren't clipped by the viewport edge
+    (see _materialize_render_html). The temp file is cleaned up on
+    success; left for debugging on failure.
     """
     browser, browser_type = _find_browser()
     w, h = _parse_dims(html_path)
-    html_uri = "file://" + str(html_path.resolve())
+    render_src = _materialize_render_html(html_path)
+    html_uri = "file://" + str(render_src.resolve())
 
     effective_scale = scale
     if browser_type == "chromium":
@@ -725,7 +798,18 @@ def _render_via_subprocess(
     else:
         raise ValueError(f"unknown browser_type: {browser_type}")
 
-    subprocess.run(cmd, check=True, capture_output=True)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        # Keep the temp file around so the caller can inspect what the
+        # browser actually loaded; surface the path in the error.
+        raise
+    else:
+        # On success, clean up the temp render HTML.
+        try:
+            render_src.unlink()
+        except OSError:
+            pass
 
     if not output_path.is_file():
         raise RuntimeError(
