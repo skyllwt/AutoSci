@@ -5,12 +5,18 @@
 <meta charset="utf-8"/>
 <title>Academic Poster</title>
 
-<!-- EB Garamond — the poster's body font. Declared in font-family below; this
-     <link> is what actually loads the glyphs. Without it Chrome silently
-     falls back to Georgia/Times New Roman and the rendering shifts. -->
+<!-- Fonts:
+     - EB Garamond: body font (serif). Without this <link> Chrome would
+       silently fall back to Georgia / Times New Roman.
+     - Inter: section bars + venue text (sans-serif). Replaces the previous
+       "Helvetica Neue", Arial, sans-serif chain — Helvetica Neue is a
+       macOS system font, missing from Playwright's bundled Chromium, so
+       fonts.ready returned but glyph widths still differed between the
+       headless PNG and a real Chrome window. Inter is a deliberate
+       Helvetica-Neue-alike and loads identically in every Chromium. -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;600;700;800&display=swap"/>
 
 <!-- KaTeX: renders LaTeX math ($..$ inline, $$..$$ display) directly in HTML.
      Loads synchronously enough for the headless screenshot (Step 5b's
@@ -126,7 +132,7 @@ body{
 .conf .venue{
   font-size: 32px;
   font-weight: 800;
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
   line-height: 1.05;
   text-align: center;
   /* Force the .venue to .conf's full width so multi-token venues like
@@ -187,7 +193,7 @@ body{
   padding: 5px 6px;
   border-radius: 10px;
   margin-bottom: 8px;
-  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
 .section-body{
