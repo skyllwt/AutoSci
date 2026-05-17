@@ -91,7 +91,10 @@ def _replace_citations(text: str, cite_map: Optional[dict] = None) -> str:
         keys = [k.strip() for k in m.group(1).split(",") if k.strip()]
         nums = [str(cite_map[k]) for k in keys if k in cite_map]
         return f"[{', '.join(nums)}]" if nums else ""
-    return re.sub(r"\\cite[a-z]*\{([^}]+)\}", _sub, text)
+    # `(?:\[[^\]]*\])*` consumes zero or more optional bracket args before
+    # the mandatory key list, so `\citep[see][p. 3]{key}` and
+    # `\citet[Sec. 2]{key}` are handled, not just bare `\citep{key}`.
+    return re.sub(r"\\cite[a-z]*(?:\[[^\]]*\])*\{([^}]+)\}", _sub, text)
 
 
 def _extract_table_captions(text: str) -> str:
@@ -228,7 +231,11 @@ def _build_citation_map(paper_dir: Path) -> dict:
             continue
         sec_text = sec_file.read_text(encoding="utf-8")
         sec_text = COMMENT_PATTERN.sub("", sec_text)
-        for m in re.finditer(r"\\cite[a-z]*\{([^}]+)\}", sec_text):
+        # Mirror the optional-bracket handling in _replace_citations so
+        # citations like `\citep[see][p. 3]{key}` register their keys.
+        for m in re.finditer(
+            r"\\cite[a-z]*(?:\[[^\]]*\])*\{([^}]+)\}", sec_text
+        ):
             keys = [k.strip() for k in m.group(1).split(",")]
             for k in keys:
                 if k and k not in keymap:

@@ -27,7 +27,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `--venue STR`: venue text for the header right block (e.g. `"NeurIPS 2026"`). Skips Step 0 venue prompt.
 - `--affiliation-logo PATH` / `--conference-logo PATH`: logo file paths (PNG/JPG/PDF); each skips the matching Step 0 prompt.
 - `--layout corners|stacked` (default `corners`): header layout. `corners` = affiliation top-left, conference top-right; `stacked` = both logos in the right `.conf` area with venue text above.
-- `--auto-figures`: skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). Wide figures auto-render full-width.
+- `--auto-figures`: skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). The ⚠ wide marker on aspect-extreme figures (≥ 2.0 or ≤ 0.5) is informational only — every selected figure renders inline within its section regardless of aspect.
 - `--refine-iterations N` (default 1, cap 2): number of critique-revise passes in Step 5.5. `0` is equivalent to `--no-refine`. Bump to 2 if a first pass might not converge on dense content.
 
 ## Outputs

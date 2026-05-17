@@ -166,21 +166,27 @@ def inject_title(
     if not authors:
         authors = "Anonymous"
 
-    html = poster_path.read_text(encoding="utf-8")
+    html_content = poster_path.read_text(encoding="utf-8")
 
-    if not TITLE_TAG_PATTERN.search(html):
+    if not TITLE_TAG_PATTERN.search(html_content):
         raise ValueError('Cannot find <h1 class="title">...</h1> in poster')
-    if not AUTHORS_TAG_PATTERN.search(html):
+    if not AUTHORS_TAG_PATTERN.search(html_content):
         raise ValueError('Cannot find <div class="authors">...</div> in poster')
 
-    html = TITLE_TAG_PATTERN.sub(
-        lambda m: m.group(1) + title + m.group(3), html, count=1
+    # Escape — these strings come from dag.json / --authors / .author_display.txt
+    # and could contain `<`, `&`, or markup that would otherwise be parsed as
+    # HTML (or worse) when the poster is opened in a browser.
+    title_safe = html.escape(title, quote=False)
+    authors_safe = html.escape(authors, quote=False)
+
+    html_content = TITLE_TAG_PATTERN.sub(
+        lambda m: m.group(1) + title_safe + m.group(3), html_content, count=1
     )
-    html = AUTHORS_TAG_PATTERN.sub(
-        lambda m: m.group(1) + authors + m.group(3), html, count=1
+    html_content = AUTHORS_TAG_PATTERN.sub(
+        lambda m: m.group(1) + authors_safe + m.group(3), html_content, count=1
     )
 
-    poster_path.write_text(html, encoding="utf-8")
+    poster_path.write_text(html_content, encoding="utf-8")
 
 
 # ----------------------------------------------------------------------------
@@ -608,11 +614,16 @@ def _render_via_playwright(
             pass
 
         # Wait for every <img> inside #flow to fire load (or error)
+        # Wait for EVERY <img> inside .poster (header logos included), not
+        # just `#flow` images. Header logos load via inject-header and can
+        # finish after #flow images — without this, the screenshot or
+        # overflow probe may fire before logo bitmaps land and miss
+        # header clipping or render blank logo slots.
         page.evaluate(r"""
         () => {
-          const flow = document.getElementById("flow");
-          if (!flow) return Promise.resolve();
-          const imgs = Array.from(flow.querySelectorAll("img"));
+          const poster = document.querySelector(".poster");
+          if (!poster) return Promise.resolve();
+          const imgs = Array.from(poster.querySelectorAll("img"));
           if (imgs.length === 0) return Promise.resolve();
           return Promise.all(imgs.map(img => {
             if (img.complete) return Promise.resolve();
@@ -882,15 +893,20 @@ def check_overflow(
     try:
         from playwright.sync_api import sync_playwright  # type: ignore[import]
     except ImportError:
+        # No probe ran — explicitly NOT clean. Returning ok=True here would
+        # let Step 5.5 declare convergence on a poster that may still have
+        # clipping. Callers must treat `degraded: true` as "fall back to
+        # LLM visual evaluation", not "everything's fine."
         report = {
-            "ok": True,
+            "ok": False,
+            "degraded": True,
             "clipped": [],
             "flow": None,
-            "warning": (
-                "Playwright not installed; cannot run overflow check. "
+            "error": (
+                "Playwright not installed; overflow check could not run. "
                 "Install with `pip install playwright && python -m "
                 "playwright install chromium` to enable. /poster Step 5.5 "
-                "will fall back to LLM-only visual evaluation."
+                "should fall back to LLM-only visual evaluation."
             ),
         }
         if output_json_path:
@@ -922,11 +938,16 @@ def check_overflow(
             pass
         # Wait for images, then fit-stable (same as render — must measure
         # the converged state, not a mid-fit intermediate)
+        # Wait for EVERY <img> inside .poster (header logos included), not
+        # just `#flow` images. Header logos load via inject-header and can
+        # finish after #flow images — without this, the screenshot or
+        # overflow probe may fire before logo bitmaps land and miss
+        # header clipping or render blank logo slots.
         page.evaluate(r"""
         () => {
-          const flow = document.getElementById("flow");
-          if (!flow) return Promise.resolve();
-          const imgs = Array.from(flow.querySelectorAll("img"));
+          const poster = document.querySelector(".poster");
+          if (!poster) return Promise.resolve();
+          const imgs = Array.from(poster.querySelectorAll("img"));
           if (imgs.length === 0) return Promise.resolve();
           return Promise.all(imgs.map(img => {
             if (img.complete) return Promise.resolve();
@@ -1046,6 +1067,14 @@ def cmd_check_overflow(args) -> int:
     except FileNotFoundError as e:
         print(f"[error] {e}", file=sys.stderr)
         return 1
+    if report.get("degraded"):
+        # Probe could not run (e.g. Playwright not installed). Exit nonzero
+        # so the calling pipeline does NOT treat absence of clipping as
+        # convergence — Step 5.5 should fall back to LLM visual evaluation.
+        print(f"[degraded] {json_path}")
+        err = report.get("error") or report.get("warning") or "probe unavailable"
+        print(f"[error] {err}", file=sys.stderr)
+        return 2
     print(f"[{'ok' if report.get('ok') else 'fail'}] {json_path}")
     if not report.get("ok"):
         for item in report.get("clipped", []):
