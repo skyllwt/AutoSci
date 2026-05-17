@@ -172,6 +172,10 @@ def _extract_tikz_figures(
                     out_dir=figures_dir,
                     out_name=slug,
                     preamble=preamble,
+                    # Pass paper_dir so pdflatex can resolve any
+                    # `\input{figures/data/foo.tex}` or pgfplots `.dat`
+                    # references that live relative to the source paper.
+                    paper_dir=paper_dir,
                 )
             except rasterize_latex.RasterizeError as e:
                 print(
@@ -329,8 +333,15 @@ def _tabular_to_html(
     body = tabular_match.group(2)
     raw_rows = ROW_SEP_PATTERN.split(body)
 
+    # Booktabs convention assumes a \midrule separates header from body.
+    # But not every tabular uses booktabs — small reference tables and
+    # \hline-only tables (or no separator at all) are legal LaTeX too.
+    # If no \midrule appears anywhere in the body, treat the entire
+    # table as <tbody> so cells don't all render as bold headers and
+    # alternating-row striping still works.
+    has_midrule = bool(re.search(r"\\midrule\b", body))
     rendered: list[tuple[str, str]] = []  # (section, row_html)
-    current = "thead"
+    current = "thead" if has_midrule else "tbody"
     for raw_row in raw_rows:
         had_midrule = bool(re.search(r"\\midrule\b", raw_row))
         # Booktabs convention: content on the same parsed row as \midrule
@@ -512,9 +523,19 @@ def _expand_inputs(
     Cycles + missing files are tolerated: max_depth caps any recursion
     blowup, and a missing target file just leaves the directive in place
     (downstream scrub will drop it).
+
+    LaTeX comments (`% \\input{...}`) are stripped before scanning, so
+    commented-out `\\input` directives don't get accidentally expanded.
     """
     if max_depth <= 0:
         return text
+
+    # Strip LaTeX comments first. Without this, a line like
+    #   % \input{tables/old} % deprecated, don't include
+    # would still match INPUT_PATTERN and pull the old file into the
+    # output. Removing comments first matches what pdflatex actually
+    # sees and _strip_latex_text strips anyway downstream.
+    text = COMMENT_PATTERN.sub("", text)
 
     def _resolve(path_str: str) -> Optional[Path]:
         p = paper_dir / path_str
@@ -961,9 +982,16 @@ def build_dag(
             if dest_name not in visual_seen:
                 # TikZ figures: caption was already cleaned during extraction.
                 # \includegraphics figures: look up caption from the figure env.
-                caption = tikz_captions.get(ref) or _find_caption_for_figure(
-                    sec_raw, ref, cite_map
-                )
+                # Use `in` (not `or`): a TikZ figure with `\caption{}` empty
+                # would otherwise fall through to _find_caption_for_figure,
+                # which scans for `\includegraphics{<ref>}` — but TikZ refs
+                # never appear inside `\includegraphics{}`. Result was a
+                # silent empty caption regardless. Keeping the empty-string
+                # caption is correct: it reflects what the LaTeX source said.
+                if ref in tikz_captions:
+                    caption = tikz_captions[ref]
+                else:
+                    caption = _find_caption_for_figure(sec_raw, ref, cite_map)
                 resolution = _get_resolution(resolved)
                 visual_seen[dest_name] = {
                     "name": md_ref,

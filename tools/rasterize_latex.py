@@ -75,6 +75,7 @@ def rasterize_latex_snippet(
     preamble: str = "",
     dpi: int = 200,
     timeout_sec: int = 60,
+    paper_dir: Optional[Path] = None,
 ) -> tuple[Path, str]:
     """Compile `snippet` to `out_dir/out_name.png` at the given DPI.
 
@@ -87,6 +88,11 @@ def rasterize_latex_snippet(
                   math_commands.tex content`.
     dpi         — pdftoppm render DPI (200 gives ~poster-print quality).
     timeout_sec — wall clock per pdflatex/pdftoppm call.
+    paper_dir   — optional path to the source paper directory. When
+                  provided, TEXINPUTS is set so pdflatex can resolve
+                  `\\input{figures/data/foo.tex}` and pgfplots `.dat`
+                  files that live relative to the paper (rather than
+                  relative to the per-snippet tempdir).
 
     Returns (png_path, "WxH"). Resolution is empty string if Pillow is
     not installed.
@@ -106,6 +112,21 @@ def rasterize_latex_snippet(
         + r"\end{document}" "\n"
     )
 
+    # If the caller passed paper_dir, prepend it to TEXINPUTS so
+    # `\input{}` / pgfplots data file references in the snippet resolve
+    # against the source paper. TEXINPUTS uses `:` separator on Unix and
+    # `;` on Windows; trailing separator means "also search the default
+    # paths" (so we don't replace system TeX Live paths).
+    pdflatex_env: Optional[dict] = None
+    if paper_dir is not None:
+        import os as _os
+        sep = ";" if _os.name == "nt" else ":"
+        pdflatex_env = _os.environ.copy()
+        prev = pdflatex_env.get("TEXINPUTS", "")
+        pdflatex_env["TEXINPUTS"] = (
+            f"{Path(paper_dir).resolve()}{sep}{prev}{sep}"
+        )
+
     with tempfile.TemporaryDirectory(prefix="rasterize_latex_") as tmp_str:
         tmp = Path(tmp_str)
         tex_path = tmp / f"{out_name}.tex"
@@ -124,6 +145,7 @@ def rasterize_latex_snippet(
                 text=True,
                 check=False,
                 timeout=timeout_sec,
+                env=pdflatex_env,
             )
         except FileNotFoundError as e:
             raise RasterizeError(
