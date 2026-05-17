@@ -117,6 +117,14 @@
 
 ## 🆕 What's New
 
+### 🔬 2026-05-18 · /poster — TikZ figures + booktabs tables go live on the poster
+
+Two parity gaps closed in `/poster`. **TikZ figures** inside `\begin{figure}` envs that have no `\includegraphics{}` counterpart are now auto-rasterized to PNG via `pdflatex` + `pdftoppm` (new `tools/rasterize_latex.py` — `\documentclass{standalone}` auto-crops to content; cached at `paper/figures/_tikz_<sec>_<label>.png`). The rasterized PNG flows through the same visual-node pipeline as any other figure. **Booktabs `\begin{tabular}` blocks** are converted to live HTML `<table class="poster-table">` with `<caption>`, `<thead>`/`<tbody>`, `\multicolumn` → `colspan`, `\textbf`/`\emph` → `<strong>`/`<em>`, math `$..$` kept intact for KaTeX. The fit() binary search now probes table overflow alongside images, so a too-tall table triggers font shrink (or Step 5.5 trim) instead of clipping silently. Step 2.5 figure picker is now multi-select with a layout follow-up (side-by-side / vertical-stack / after-table) — pick two figures, ask for layout, done. `\ensuremath{X}` from `math_commands.tex` macros auto-unwraps to `$X$` so KaTeX renders the user's math notation natively.
+
+<p align="center">
+  <img src="assets/poster_demo_tikz_tables.png" alt="/poster output with a rasterized TikZ figure (Tülu-3 mediation chain), a KaTeX-rendered booktabs table, and side-by-side experimental figures — generated from a PKU cog-modeling mini-paper" width="720" />
+</p>
+
 ### 🎨 2026-05-17 · /poster — drafted paper → print-ready conference poster
 
 Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline and template adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)) — DAG intermediate, critique-revise pass, fit algorithm — wired into OmegaWiki's LaTeX source and `wiki/outputs/paper-plan-*.md` for grounded distillation. Export to PDF from your browser's print dialog. Future updates will support nanobanana-style figures and higher-level customization of the poster.
