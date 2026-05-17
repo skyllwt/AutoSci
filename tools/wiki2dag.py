@@ -428,7 +428,12 @@ def _find_caption_for_figure(
     return ""
 
 
-def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> dict:
+def build_dag(
+    paper_dir: Path,
+    output_path: Path,
+    anonymous: bool = False,
+    citations: bool = False,
+) -> dict:
     """Build dag.json from paper directory. Writes to output_path and returns the dict."""
     main_tex_path = paper_dir / "main.tex"
     if not main_tex_path.is_file():
@@ -443,7 +448,10 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
         else _extract_authors(main_tex_clean, paper_dir)
     )
     section_order = _extract_section_order(main_tex_clean)
-    cite_map = _build_citation_map(paper_dir)
+    # Citations default OFF for posters: real-world conference posters (per
+    # user research on CCF-A venues) typically omit inline [N] markers since
+    # there's no room for a reference list. Pass --citations to opt back in.
+    cite_map = _build_citation_map(paper_dir) if citations else None
     math_macros = _parse_math_macros(paper_dir)
 
     # Build section nodes
@@ -544,7 +552,12 @@ def cmd_build(args) -> int:
         print(f"[error] paper directory not found: {paper_dir}", file=sys.stderr)
         return 1
 
-    dag = build_dag(paper_dir, output_path, anonymous=args.anonymous)
+    dag = build_dag(
+        paper_dir,
+        output_path,
+        anonymous=args.anonymous,
+        citations=args.citations,
+    )
 
     n_sections = sum(1 for n in dag["nodes"] if n.get("level") == 1)
     n_visuals = sum(1 for n in dag["nodes"] if n.get("level") == 2)
@@ -576,6 +589,18 @@ def main(argv: list[str] | None = None) -> int:
         "--anonymous",
         action="store_true",
         help="Force authors='Anonymous' regardless of \\author{} content",
+    )
+    p_build.add_argument(
+        "--citations",
+        action="store_true",
+        help=(
+            "Include inline citation markers like '[N]' in section content "
+            "(built from a first-appearance bibkey -> ordinal map). Default: "
+            "OFF -- real-world conference posters (per user research on CCF-A "
+            "venues) typically omit inline citation markers since there's no "
+            "room for a reference list. Opt back in with this flag when "
+            "generating a poster style that does render a reference footer."
+        ),
     )
     p_build.set_defaults(func=cmd_build)
 

@@ -117,7 +117,7 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 
 `wiki2dag.py` 保留论文中的:
 - **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。
-- **引用**:`\citep{key}` / `\citet{key1, key2}` 被替换为 `[N]` / `[N, M]`,编号通过遍历章节文件按首次出现顺序生成。找不到 key 时静默丢弃。
+- **引用** —— *默认丢弃*:`\citep{key}` / `\citet{...}` 标记被剥成空。基于对 CCF-A 海报的调研,实际会场上的海报通常不在正文里渲染 `[N]` 内联标注(没地方放参考文献列表)。如果你的海报样式确实需要它们,在 `wiki2dag.py build` 上加 `--citations` flag 可以恢复为 `[N]` / `[N, M]`(按首次出现顺序的 `bibkey → ordinal`)。未来支持参考文献页脚的样式可以默认开启。
 - **表格**:`\begin{table}…\caption{...}…\end{table}` 被替换为 `[Table: <caption text>]`,让 caption 流入正文。表体数据丢弃(1400×900 海报放不下整张表)。
 
 ### Step 2: 编译 WIKI_CONTEXT(可选)
@@ -544,7 +544,7 @@ python3 tools/research_wiki.py log wiki/ \
 ## Dependencies
 
 ### Tools(via Bash)
-- `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` —— 构建 dag.json
+- `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous] [--citations]` —— 构建 dag.json;`--citations` 选择性恢复内联 `[N]` 标记(默认丢弃,海报上不渲染参考文献列表)
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` —— 注入 outline
 - `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous] [--authors STR]` —— 写入标题/作者;`--authors` 覆盖 dag.json 中的作者字段,适用于源论文已匿名的情况
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` —— venue 文本 + 可选 logo

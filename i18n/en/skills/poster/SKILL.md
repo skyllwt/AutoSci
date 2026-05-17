@@ -118,7 +118,7 @@ The bridge produces three node types:
 
 `wiki2dag.py` preserves the paper's:
 - **Math**: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` pass through into section content untouched, then render via KaTeX in the poster HTML.
-- **Citations**: `\citep{key}` / `\citet{key1, key2}` etc. are replaced with `[N]` / `[N, M]` using a `bibkey → ordinal` map built by walking section files in input order (first appearance wins). Unknown keys drop silently.
+- **Citations** — *dropped by default*: `\citep{key}` / `\citet{...}` markers are stripped to empty. Real-world conference posters (per CCF-A research) typically omit inline citation markers because there's no room for a reference list. Pass `--citations` to `wiki2dag.py build` if you want them back as `[N]` / `[N, M]` (built from a first-appearance `bibkey → ordinal` map). Future poster styles that render a reference footer can opt in.
 - **Tables**: `\begin{table}…\caption{...}…\end{table}` envs are replaced with `[Table: <caption text>]` so the caption flows into section prose. Tabular data is dropped (no room on a 1400×900 poster).
 
 ### Step 2: Compile WIKI_CONTEXT (optional)
@@ -545,7 +545,7 @@ Print POSTER_REPORT:
 ## Dependencies
 
 ### Tools (via Bash)
-- `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous]` — build dag.json
+- `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous] [--citations]` — build dag.json; `--citations` opts back in to inline `[N]` markers (default: dropped, no reference list on the poster)
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` — inject outline
 - `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous] [--authors STR]` — set title/authors; `--authors` overrides dag.json's author field when the paper was anonymized at the source
 - `python3 tools/poster.py inject-header <poster.html> [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked]` — venue text + optional logos
