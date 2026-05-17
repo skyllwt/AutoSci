@@ -119,12 +119,12 @@
 
 ### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
 
-Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)). TikZ figures auto-rasterize to PNG; booktabs `\begin{tabular}` blocks become live KaTeX-rendered `<table>` elements; math macros from `math_commands.tex` render natively. Multi-figure picker with side-by-side / stacked layout follow-up. Step 5.5 critique-revise pass uses a programmatic DOM overflow probe so clipping can't slip through. Export to PDF from your browser's print dialog.
+Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
 
 <p align="center">
   <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
   <br/>
-  <sub><em>Demo poster uses nonsense title, author, venue, and prose to avoid revealing real research content; tables and figures are kept to showcase the pipeline.</em></sub>
+  <sub><em>Title, author, venue, and prose are placeholder nonsense to avoid exposing real research; tables and figures preserve the pipeline demo.</em></sub>
 </p>
 
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
