@@ -645,7 +645,16 @@ def _render_via_playwright(
         })
         """)
 
-        page.screenshot(path=str(output_path), full_page=False)
+        # Screenshot the .poster element directly, NOT the viewport.
+        # The .stage has padding:24px which centers .poster inside the
+        # viewport — but with .poster's explicit width:1400px the right
+        # ~24px ends up past the 1400px viewport edge. page.screenshot()
+        # captures only the viewport (1400×900) so any content past
+        # viewport.right gets dropped from the PNG, NOT clipped by
+        # overflow:hidden. Locator-based screenshot captures the
+        # .poster's bounding box regardless of viewport — output is
+        # exactly W × H × scale, matching the design.
+        page.locator(".poster").screenshot(path=str(output_path))
         browser.close()
 
 
@@ -777,48 +786,71 @@ def render_poster(
 # ----------------------------------------------------------------------------
 
 # JavaScript that walks the rendered DOM and returns a structured overflow
-# report. Probes leaf elements (img, .section-bar, p) inside #flow and
-# flags any whose bottom or right extends past flow's visible edges. This
-# is the ground truth that fit()/the LLM may miss — DOM measurements don't
-# lie about clipping.
+# report. Two probe groups:
+#   1. Flow-content probes (sections, paragraphs, figures) — checked against
+#      #flow's bounding rect. Strict: flags anything past flow.right/bottom
+#      including content that bleeds into .main's padding zone.
+#   2. Header-content probes (title, authors, venue, logos) — checked against
+#      .poster's bounding rect. Catches header clipping like a long venue
+#      string overflowing the .conf column.
+# This is the ground truth that fit() / the LLM can both miss — DOM
+# measurements don't lie about clipping.
 _OVERFLOW_PROBE_JS = r"""
 () => {
+  const poster = document.querySelector(".poster");
   const flow = document.getElementById("flow");
-  if (!flow) return { ok: true, clipped: [], flow: null,
-                       error: "no #flow element" };
+  if (!poster || !flow) {
+    return { ok: true, clipped: [], flow: null,
+             error: "missing .poster or #flow element" };
+  }
+  const pr = poster.getBoundingClientRect();
   const fr = flow.getBoundingClientRect();
   const TOL = 1;
   const clipped = [];
-  const probes = flow.querySelectorAll(
-    ".section-bar, .section-body p, .img-section, .img-section img"
-  );
-  probes.forEach((el) => {
+
+  function record(el, refRect, region) {
     const r = el.getBoundingClientRect();
-    const bot_overflow = Math.round(r.bottom - fr.bottom);
-    const right_overflow = Math.round(r.right - fr.right);
-    if (bot_overflow > TOL || right_overflow > TOL) {
-      const sec = el.closest("section");
-      const titleEl = sec ? sec.querySelector(".section-bar") : null;
-      const title = titleEl ? titleEl.textContent.trim() : "";
+    const bot   = Math.round(r.bottom - refRect.bottom);
+    const right = Math.round(r.right  - refRect.right);
+    if (bot > TOL || right > TOL) {
       let preview = "";
+      let title = "";
       if (el.tagName === "IMG") {
-        preview = el.getAttribute("src") || "";
+        preview = el.getAttribute("src") || el.getAttribute("alt") || "";
       } else {
         preview = (el.textContent || "").trim().slice(0, 80);
       }
+      const sec = el.closest("section");
+      if (sec) {
+        const tEl = sec.querySelector(".section-bar");
+        title = tEl ? tEl.textContent.trim() : "";
+      }
       clipped.push({
+        region,
         tag: el.tagName.toLowerCase(),
         section_title: title,
         preview,
-        bottom_overflow_px: bot_overflow,
-        right_overflow_px: right_overflow,
+        bottom_overflow_px: bot,
+        right_overflow_px: right,
       });
     }
-  });
+  }
+
+  // 1) Flow content — strict bounds (catches content bleeding past columns)
+  flow.querySelectorAll(
+    ".section-bar, .section-body p, .img-section, .img-section img"
+  ).forEach((el) => record(el, fr, "flow"));
+
+  // 2) Header content — checked against the outer .poster
+  poster.querySelectorAll(
+    ".title, .authors, .venue, .logo-affiliation img, .logo-conference img"
+  ).forEach((el) => record(el, pr, "header"));
+
   return {
     ok: clipped.length === 0,
     clipped,
     flow: { width: Math.round(fr.width), height: Math.round(fr.height) },
+    poster: { width: Math.round(pr.width), height: Math.round(pr.height) },
   };
 }
 """
@@ -1013,8 +1045,10 @@ def cmd_check_overflow(args) -> int:
     print(f"[{'ok' if report.get('ok') else 'fail'}] {json_path}")
     if not report.get("ok"):
         for item in report.get("clipped", []):
+            region = item.get("region", "flow")
             print(
-                f"  clipped: {item['tag']:8s} '{item['section_title'][:40]}' "
+                f"  clipped [{region}]: {item['tag']:8s} "
+                f"'{item['section_title'][:40]}' "
                 f"bot+{item['bottom_overflow_px']}px "
                 f"right+{item['right_overflow_px']}px "
                 f"({item['preview'][:60]})",

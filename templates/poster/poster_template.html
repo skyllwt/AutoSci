@@ -129,6 +129,15 @@ body{
   font-family: "Helvetica Neue", Arial, sans-serif;
   line-height: 1.05;
   text-align: center;
+  /* Force the .venue to .conf's full width so multi-token venues like
+     "AAAI 2026" wrap at the space instead of overflowing right (which
+     the .poster's overflow:hidden would silently clip). The flex parent
+     uses align-items:center which would otherwise shrink .venue to its
+     content width regardless of max-width. width:100% wins. */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 .conf .venue:empty{ display: none; }
 
