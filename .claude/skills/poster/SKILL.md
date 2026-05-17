@@ -34,7 +34,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 - `poster/dag.json` — PaperX-compatible intermediate (reusable by future `/slides`, `/pr`)
 - `poster/outline.html` — concatenated `<section>` blocks before template injection
-- `poster/poster.html` — final self-contained HTML poster (open in browser)
+- `poster/poster.html` — final self-contained HTML poster (open in browser; **Cmd/Ctrl+P → Save as PDF** if you need a PDF — see Step 7 report for print settings)
 - `poster/poster.png` — rendered screenshot at 2× CSS dimensions (default 2800×1800) — see Step 5b
 - `poster/images/` — figures copied/converted (PDF→PNG @ 200 DPI) from `paper/figures/`
 - **POSTER_REPORT** (printed to terminal)
@@ -124,12 +124,17 @@ The bridge produces three node types:
 
 ### Step 2: Compile WIKI_CONTEXT (optional)
 
-If `wiki/outputs/paper-plan-*.md` exists, read it for:
-- Venue name (passed to `inject-header` in Step 5 if the user did not supply one)
-- Narrative arc and evidence map
-- Linked idea slugs
+Goal: optionally ground the Step 3 distillation prompts in the paper's own planning artifacts (hypothesis statement, novelty argument, key-result numbers from linked ideas/experiments). Always surface what's happening — do not adopt silently.
 
-For each linked idea slug, read `wiki/ideas/<slug>.md` for the hypothesis statement and novelty argument. For linked `wiki/experiments/*.md`, read the `outcome` and `key_result` fields. Assemble these into a single `WIKI_CONTEXT` string keyed by section:
+**Detection + transparency**:
+
+- **No plan file present**: print one line — `Step 2: no paper-plan-*.md found in wiki/outputs/ — Step 3 will run without WIKI_CONTEXT.` Skip to Step 2.5.
+
+- **Plan file present**: print one line summarizing what was found, e.g. `Step 2: found wiki/outputs/paper-plan-2026-05-17.md (3 linked ideas, 2 experiments).` Then `AskUserQuestion`:
+  - `"Yes — adopt as WIKI_CONTEXT grounding"` (Recommended)
+  - `"No — distill from paper source only"`
+
+If the user picks **Yes**: read the plan for venue, narrative arc, and linked idea slugs. For each idea slug, read `wiki/ideas/<slug>.md` for the hypothesis statement and novelty argument. For each linked `wiki/experiments/*.md`, read the `outcome` and `key_result` fields. Assemble into a single `WIKI_CONTEXT` string keyed by section:
 
 ```
 [INTRODUCTION]
@@ -141,7 +146,9 @@ key_result: <headline numbers from experiments>
 outcome: <one line summary>
 ```
 
-This block is passed into the Step 3 prompt under the `{WIKI_CONTEXT}` slot. If no wiki context is available, the slot is left empty — the prompt explicitly tolerates that.
+If the user picks **No**: leave `WIKI_CONTEXT` empty.
+
+This block is passed into the Step 3 prompt under the `{WIKI_CONTEXT}` slot. The Step 3 prompt explicitly tolerates an empty slot.
 
 ### Step 2.5: Figure selection
 
@@ -509,7 +516,17 @@ Print POSTER_REPORT:
 
 ## Output
 - poster/poster.html ← open in a browser
+- poster/poster.png ← flat screenshot, 2× CSS (default 2800×1800)
 - poster/dag.json (intermediate, reusable by /slides /pr)
+
+## Export to PDF
+Open `poster/poster.html` in Chrome / Edge / Firefox, then **Cmd+P** (macOS)
+or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
+- Layout: **Landscape**
+- Paper size: **Custom 1400×900 px** (fall back to Letter / A3 Landscape if Custom is unavailable)
+- Margins: **None**
+- Scale: **100%** (or "Fit to page" if 100% overflows)
+- Background graphics: **On** (so the blue header + section bars render)
 
 ## Notes
 - {any warnings, e.g. missing figures, sections selected, etc.}

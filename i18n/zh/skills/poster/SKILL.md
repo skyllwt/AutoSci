@@ -33,7 +33,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 - `poster/dag.json` —— PaperX 兼容的中间格式(未来可被 `/slides`、`/pr` 复用)
 - `poster/outline.html` —— 模板注入前的 `<section>` 块拼接结果
-- `poster/poster.html` —— 最终自包含的 HTML 海报(浏览器打开即可)
+- `poster/poster.html` —— 最终自包含的 HTML 海报(浏览器打开即可;若需 PDF:**Cmd/Ctrl+P → 另存为 PDF**,打印设置见 Step 7 报告)
 - `poster/poster.png` —— 2× CSS 尺寸的渲染截图(默认 2800×1800),见 Step 5b
 - `poster/images/` —— 从 `paper/figures/` 复制/转换(PDF→PNG @ 200 DPI)而来的图片
 - **POSTER_REPORT**(输出到终端)
@@ -123,12 +123,17 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 
 ### Step 2: 编译 WIKI_CONTEXT(可选)
 
-若 `wiki/outputs/paper-plan-*.md` 存在,读取:
-- venue 名称(用于 Step 5 的 `inject-header`,当用户未显式提供时作为默认值)
-- 叙事弧线与证据图
-- 关联的 idea slug 列表
+目标:可选地用论文自己的规划产物(假设陈述、新颖性论证、关联 ideas/experiments 的关键数值)为 Step 3 的蒸馏提示词提供锚点。**始终告知用户当前发生了什么 —— 不要静默采用。**
 
-对每个 idea slug,读取 `wiki/ideas/<slug>.md` 的假设(hypothesis)与新颖性论证;对关联的 `wiki/experiments/*.md`,读取 `outcome` 与 `key_result` 字段。把这些信息按章节聚合成一个 `WIKI_CONTEXT` 字符串:
+**检测与透明度**:
+
+- **不存在 plan 文件**:打印一行 —— `Step 2: 在 wiki/outputs/ 未找到 paper-plan-*.md —— Step 3 将在没有 WIKI_CONTEXT 的情况下运行。` 跳到 Step 2.5。
+
+- **存在 plan 文件**:打印一行总结找到了什么,例如 `Step 2: 找到 wiki/outputs/paper-plan-2026-05-17.md(3 个 idea,2 个 experiment)。` 然后用 `AskUserQuestion`:
+  - `"Yes —— 作为 WIKI_CONTEXT 锚点采用"`(推荐)
+  - `"No —— 仅基于论文源蒸馏"`
+
+若用户选 **Yes**:读取 plan 获取 venue、叙事弧线、关联 idea slug。对每个 idea slug,读取 `wiki/ideas/<slug>.md` 的假设(hypothesis)与新颖性论证;对每个关联的 `wiki/experiments/*.md`,读取 `outcome` 与 `key_result` 字段。按章节聚合成一个 `WIKI_CONTEXT` 字符串:
 
 ```
 [INTRODUCTION]
@@ -140,7 +145,9 @@ key_result: <来自 experiments 的关键数值>
 outcome: <一句话总结>
 ```
 
-此字符串通过 Step 3 提示词中的 `{WIKI_CONTEXT}` 槽位传入。若无 wiki 上下文,该槽位留空 —— 提示词显式允许此情况。
+若用户选 **No**:`WIKI_CONTEXT` 保持为空。
+
+此字符串通过 Step 3 提示词中的 `{WIKI_CONTEXT}` 槽位传入。Step 3 提示词显式允许此槽位为空。
 
 ### Step 2.5: 配图选择
 
@@ -508,7 +515,17 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## 输出
 - poster/poster.html ← 浏览器打开
+- poster/poster.png ← 平面截图,2× CSS(默认 2800×1800)
 - poster/dag.json(中间产物,可被 /slides /pr 复用)
+
+## 导出 PDF
+在 Chrome / Edge / Firefox 中打开 `poster/poster.html`,按 **Cmd+P**(macOS)
+或 **Ctrl+P**(Win/Linux) → **另存为 PDF**。推荐打印设置:
+- 方向:**横向**
+- 纸张尺寸:**自定义 1400×900 px**(若不支持自定义,退回 Letter / A3 横向)
+- 边距:**无**
+- 缩放:**100%**(若 100% 溢出,改为"适应页面")
+- 背景图形:**开启**(让蓝色 header 与 section bar 正常渲染)
 
 ## 备注
 - {警告项,如缺失图片、选中章节等}
