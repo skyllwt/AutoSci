@@ -328,9 +328,13 @@ After validation passes, render the HTML poster to PNG so the user has a flat sc
 python3 tools/poster.py render poster/poster.html
 ```
 
-This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1800) using a headless system browser — no Python dependency added. Override with `--scale {1,2,3}` (1 = fast preview, 3 = print quality).
+This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1800). Override with `--scale {1,2,3}` (1 = fast preview, 3 = print quality).
 
-**Browser detection**: tries Chromium-based browsers first (Chrome → Edge → Chromium), then Firefox as a fallback. Chrome/Edge/Chromium are equivalent (same engine, identical CLI flags). Firefox works but with two caveats — no HiDPI scaling (PNG comes out 1× regardless of `--scale`) and no `--virtual-time-budget` equivalent (the fit() / KaTeX / font convergence may not complete before screenshot). `render` prints warnings to stderr when it falls back to Firefox.
+**Render engine**: prefers Playwright (Chromium) when available, falls back to subprocess against a system browser. Playwright is strongly preferred because it waits on **specific events** before screenshotting — `document.fonts.ready`, all `<img>` `load` events, and `flow.scrollWidth` stable for 10 consecutive animation frames (fit() converged). The subprocess fallback uses `--virtual-time-budget=5000`, a wall-clock timeout that can race with slow CDN responses for Google Fonts / KaTeX. This is the exact wait semantics PaperX uses.
+
+**Install Playwright** (one-time, recommended): `pip install playwright && python -m playwright install chromium`. Without it, `render` still works via the subprocess path; print output shows `browser: chromium` (subprocess) vs `browser: playwright-chromium` (preferred).
+
+**Subprocess fallback browser detection**: Chrome → Edge → Chromium → Firefox (last resort). Chrome/Edge/Chromium are equivalent (same engine, identical CLI flags). Firefox works but with two caveats — no HiDPI scaling (PNG comes out 1× regardless of `--scale`) and no `--virtual-time-budget` equivalent. `render` prints warnings to stderr when it falls back to Firefox.
 
 **Safari is not supported** — it has no headless CLI screenshot flag; integration would require `safaridriver` + Selenium WebDriver. macOS-only users with only Safari should `brew install --cask google-chrome` (one command) to unlock the full pipeline.
 
@@ -508,7 +512,8 @@ Print POSTER_REPORT:
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `pdftoppm` (poppler) — PDF → PNG conversion at 200 DPI
 - `pdfinfo` (poppler) — PDF page-size for resolution
-- Headless browser (system binary) — used by `render`. Auto-detected in this order: Google Chrome → Microsoft Edge → Chromium → Firefox (fallback). Chrome/Edge/Chromium are fully equivalent; Firefox renders at 1× scale only and without sync-wait. Safari is not supported.
+- Playwright + Chromium (preferred, optional) — `pip install playwright && python -m playwright install chromium`. Enables event-driven waits (fonts/images/fit-stable). Falls back gracefully if missing.
+- Headless system browser (fallback) — auto-detected in this order: Google Chrome → Microsoft Edge → Chromium → Firefox. Chrome/Edge/Chromium are equivalent; Firefox renders at 1× scale only and without sync-wait. Safari is not supported (no headless CLI).
 
 ### MCP Servers
 - `mcp__llm-review__chat` — optional cross-model review (`--review`)

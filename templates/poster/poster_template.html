@@ -157,6 +157,10 @@ body{
   column-count: 3;
   column-gap: var(--gap);
   column-fill: auto;
+  /* Bottom breathing room: keeps the last line of every column from
+     sitting flush against the .poster border. Fit() respects this
+     reduced inner height when binary-searching font/image sizes. */
+  padding-bottom: 14px;
 }
 
 /* ===== Sections ===== */
@@ -251,7 +255,15 @@ body{
 </div>
 
 
-<!--The following content is strictly prohibited from being modified and must be kept in its original form.-->
+<!-- Fit algorithm: binary-searches font size + image width so all content
+     fits within the 3 columns. Inherited from PaperX with one bug fix:
+     overflowColumns() now also detects vertical clipping. PaperX's
+     version checks only flow.scrollWidth (horizontal); content that
+     overflows vertically into the column's hidden area was silently
+     accepted as "fit OK", causing chart x-axes and bottom-of-section
+     text to be clipped without warning. The vertical check below
+     walks direct content children + their figures and flags any
+     element whose bottom extends past the flow's visible bottom. -->
 <script>
 (function(){
   const flow = document.getElementById("flow");
@@ -260,7 +272,18 @@ body{
   function setVar(k,v,u=""){ root.style.setProperty(k, v+u); }
 
   function overflowColumns(){
-    return flow.scrollWidth > flow.clientWidth + 1;
+    // Horizontal: content can't lay out within 3 columns
+    if (flow.scrollWidth > flow.clientWidth + 1) return true;
+    // Vertical: with column-fill:auto + fixed-height flow + overflow:hidden,
+    // a single tall element (figure, paragraph) can clip below the flow's
+    // visible bottom without affecting scrollWidth. Walk sections + their
+    // figure containers and flag any whose bottom is below flow's bottom.
+    const flowBottom = flow.getBoundingClientRect().bottom;
+    const probes = flow.querySelectorAll("section, .img-section, .img-section img");
+    for (const el of probes) {
+      if (el.getBoundingClientRect().bottom > flowBottom + 1) return true;
+    }
+    return false;
   }
 
   const PARA_GAP = 12;

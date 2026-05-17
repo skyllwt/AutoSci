@@ -566,35 +566,100 @@ def _parse_dims(html_path: Path) -> tuple[int, int]:
     return w, h
 
 
-def render_poster(
-    html_path: Path,
-    output_path: Optional[Path] = None,
-    scale: int = 2,
-) -> tuple[Path, str, int]:
-    """Render an HTML poster to PNG via a headless browser.
+def _render_via_playwright(
+    html_path: Path, output_path: Path, scale: int
+) -> None:
+    """Render via Playwright (Chromium) with PaperX-style event waits.
 
-    Parses the poster's CSS dimensions from --poster-width / --poster-height,
-    then screenshots at (W * effective_scale) × (H * effective_scale) pixels.
-    Default scale=2 yields a HiDPI image that multimodal LLMs can read.
-
-    On Firefox, scale is silently clamped to 1 (no --force-device-scale-factor
-    support); a warning is printed to stderr.
-
-    Returns (output_path, browser_type, effective_scale).
+    Waits for: domcontentloaded, .poster + #flow attached, document.fonts.ready,
+    all <img> in #flow loaded, and flow.scrollWidth stable for 10 consecutive
+    animation frames (fit() converged). This is the same convergence criterion
+    PaperX uses in their take_screenshot_poster, and is the only reliable way
+    to capture a stabilized layout — Chrome's --virtual-time-budget is a
+    wall-clock timeout that can race with slow CDN responses for fonts/KaTeX.
     """
-    if not html_path.is_file():
-        raise FileNotFoundError(f"poster HTML not found: {html_path}")
-    if scale not in (1, 2, 3):
-        raise ValueError(f"scale must be 1, 2, or 3 (got {scale})")
+    from playwright.sync_api import sync_playwright  # type: ignore[import]
 
-    if output_path is None:
-        output_path = html_path.with_suffix(".png")
-
-    browser, browser_type = _find_browser()
     w, h = _parse_dims(html_path)
-
     html_uri = "file://" + str(html_path.resolve())
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True, args=["--disable-dev-shm-usage"]
+        )
+        context = browser.new_context(
+            viewport={"width": w, "height": h},
+            device_scale_factor=scale,
+        )
+        page = context.new_page()
+        page.goto(html_uri, wait_until="domcontentloaded")
+
+        # Wait for structural attachment
+        page.wait_for_selector(".poster", state="attached", timeout=30_000)
+        page.wait_for_selector("#flow", state="attached", timeout=30_000)
+
+        # Wait for fonts (best-effort — older browsers may not support it)
+        try:
+            page.evaluate(
+                "() => document.fonts ? document.fonts.ready : Promise.resolve()"
+            )
+        except Exception:
+            pass
+
+        # Wait for every <img> inside #flow to fire load (or error)
+        page.evaluate(r"""
+        () => {
+          const flow = document.getElementById("flow");
+          if (!flow) return Promise.resolve();
+          const imgs = Array.from(flow.querySelectorAll("img"));
+          if (imgs.length === 0) return Promise.resolve();
+          return Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(res => {
+              img.addEventListener("load",  res, { once: true });
+              img.addEventListener("error", res, { once: true });
+            });
+          }));
+        }
+        """)
+
+        # Wait for fit() convergence: scrollWidth stable for 10 consecutive
+        # animation frames. Once fit() finishes its binary search and the
+        # MutationObserver settles, this terminates cleanly.
+        page.evaluate(r"""
+        () => new Promise((resolve) => {
+          const flow = document.getElementById("flow");
+          if (!flow) return resolve();
+          let last = -1;
+          let stableCount = 0;
+          function tick() {
+            const cur = flow.scrollWidth;
+            if (cur === last) stableCount += 1;
+            else stableCount = 0;
+            last = cur;
+            if (stableCount >= 10) return resolve();
+            requestAnimationFrame(tick);
+          }
+          tick();
+        })
+        """)
+
+        page.screenshot(path=str(output_path), full_page=False)
+        browser.close()
+
+
+def _render_via_subprocess(
+    html_path: Path, output_path: Path, scale: int
+) -> tuple[str, int]:
+    """Fallback: render via the system browser binary as a subprocess.
+
+    Used when Playwright isn't installed or its Chromium isn't downloaded.
+    Returns (browser_type, effective_scale). Firefox path clamps scale to 1.
+    """
+    browser, browser_type = _find_browser()
+    w, h = _parse_dims(html_path)
+    html_uri = "file://" + str(html_path.resolve())
 
     effective_scale = scale
     if browser_type == "chromium":
@@ -607,16 +672,12 @@ def render_poster(
             f"--screenshot={output_path}",
             f"--window-size={w},{h}",
             f"--force-device-scale-factor={scale}",
-            # 5s budget: gives KaTeX + Google Fonts + the fit() binary search
-            # enough time to converge. Empirically the fit usually settles
-            # in <1s, but cold font loads on first paint can push past 2s.
+            # 5s wall-clock budget. Less reliable than Playwright's event
+            # waits — used only as a fallback path.
             "--virtual-time-budget=5000",
             html_uri,
         ]
     elif browser_type == "firefox":
-        # Firefox CLI doesn't support --force-device-scale-factor or
-        # --virtual-time-budget. Falls back to 1x; layout may not be fully
-        # converged when the screenshot is taken.
         effective_scale = 1
         if scale != 1:
             print(
@@ -626,8 +687,8 @@ def render_poster(
             )
         print(
             "[warn] Using Firefox fallback: PNG may show pre-converged "
-            "fit() state (no virtual-time-budget). Install Chrome/Edge "
-            "for fully-stabilized layout.",
+            "fit() state (no virtual-time-budget). Install Playwright + "
+            "chromium for fully-stabilized layout.",
             file=sys.stderr,
         )
         cmd = [
@@ -647,7 +708,68 @@ def render_poster(
             f"{browser_type} ran but did not produce {output_path}. "
             f"Try running manually:\n  {' '.join(cmd)}"
         )
-    return output_path, browser_type, effective_scale
+    return browser_type, effective_scale
+
+
+def render_poster(
+    html_path: Path,
+    output_path: Optional[Path] = None,
+    scale: int = 2,
+) -> tuple[Path, str, int]:
+    """Render an HTML poster to PNG.
+
+    Prefers Playwright (event-based waits — matches PaperX). Falls back to
+    a subprocess against a system browser (Chrome/Edge/Chromium/Firefox)
+    when Playwright is unavailable. Returns (path, engine_label, scale).
+
+    engine_label is one of "playwright-chromium" (recommended) or the
+    underlying browser_type from `_find_browser` ("chromium" / "firefox").
+    """
+    if not html_path.is_file():
+        raise FileNotFoundError(f"poster HTML not found: {html_path}")
+    if scale not in (1, 2, 3):
+        raise ValueError(f"scale must be 1, 2, or 3 (got {scale})")
+
+    if output_path is None:
+        output_path = html_path.with_suffix(".png")
+
+    # Try Playwright first — strongly preferred because its event waits
+    # eliminate the timing races that hit the subprocess --virtual-time-
+    # budget path on slow networks.
+    try:
+        _render_via_playwright(html_path, output_path, scale)
+        return output_path, "playwright-chromium", scale
+    except ImportError:
+        # playwright not installed at all — silently fall back
+        pass
+    except Exception as e:
+        # playwright is there but something else failed (e.g. chromium browser
+        # not downloaded via `python -m playwright install chromium`). Surface
+        # a hint and fall back so the user still gets a PNG.
+        msg = str(e)
+        if (
+            "Executable doesn" in msg
+            or "playwright install" in msg
+            or "BrowserType" in msg
+        ):
+            print(
+                "[warn] Playwright installed but chromium browser missing. "
+                "Run: python -m playwright install chromium  "
+                "Falling back to system browser.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"[warn] Playwright render failed ({e}); falling back to "
+                "system browser.",
+                file=sys.stderr,
+            )
+
+    # Subprocess fallback
+    browser_type, eff_scale = _render_via_subprocess(
+        html_path, output_path, scale
+    )
+    return output_path, browser_type, eff_scale
 
 
 # ----------------------------------------------------------------------------

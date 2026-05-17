@@ -5,3 +5,8 @@ markdownify>=0.11.0
 chardet>=5.0.0
 deepxiv-sdk>=0.2.0
 PyYAML>=6.0
+# Optional: enables /poster Step 5b's event-driven render (matches PaperX's
+# wait semantics). After `pip install playwright`, run `python -m playwright
+# install chromium` once to download the browser. Without it, /poster falls
+# back to a subprocess call against any system browser found at common paths.
+playwright>=1.40

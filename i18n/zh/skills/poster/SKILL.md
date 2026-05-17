@@ -327,9 +327,13 @@ python3 tools/poster.py validate poster/poster.html
 python3 tools/poster.py render poster/poster.html
 ```
 
-调用系统 headless 浏览器二进制做截图,产出 `poster/poster.png`,默认 2× CSS 像素(2800×1800),无新 Python 依赖。用 `--scale {1,2,3}` 覆盖(1 = 快速预览,3 = 印刷质量)。
+产出 `poster/poster.png`,默认 2× CSS 像素(2800×1800)。用 `--scale {1,2,3}` 覆盖(1 = 快速预览,3 = 印刷质量)。
 
-**浏览器探测**:优先 Chromium 系(Chrome → Edge → Chromium),Firefox 作为兜底。Chrome/Edge/Chromium 三者等价(同引擎、同 CLI flag)。Firefox 也能用,但有两个限制 —— 不支持 HiDPI 缩放(无论 `--scale` 传什么,PNG 都是 1×);也没有 `--virtual-time-budget` 等价物(fit() / KaTeX / 字体加载可能在截图前还没收敛)。退化到 Firefox 时 `render` 会向 stderr 打印警告。
+**渲染引擎**:优先 Playwright(Chromium),其次是系统浏览器的子进程兜底。Playwright 之所以首选,是因为它在截图前**等到特定事件触发**——`document.fonts.ready`、所有 `<img>` `load` 事件、`flow.scrollWidth` 连续 10 帧不变(即 fit() 收敛)。子进程路径用 `--virtual-time-budget=5000` 这种 wall-clock 超时,在 CDN 慢响应时可能在 Google Fonts / KaTeX 加载前就截图。这正是 PaperX 用的等待语义。
+
+**安装 Playwright**(一次性,推荐):`pip install playwright && python -m playwright install chromium`。即使不装,`render` 也能走子进程路径;输出里会显示 `browser: chromium`(子进程)或 `browser: playwright-chromium`(首选)。
+
+**子进程兜底的浏览器探测**:Chrome → Edge → Chromium → Firefox(最后兜底)。Chrome/Edge/Chromium 三者等价(同引擎、同 CLI flag)。Firefox 也能用,但有两个限制 —— 不支持 HiDPI 缩放(无论 `--scale` 传什么,PNG 都是 1×);也没有 `--virtual-time-budget` 等价物。退化到 Firefox 时 `render` 会向 stderr 打印警告。
 
 **不支持 Safari** —— Safari 没有 headless CLI 截图 flag;接入需要 `safaridriver` + Selenium WebDriver。macOS 上只有 Safari 的用户可以 `brew install --cask google-chrome`(一行命令)解锁完整流程。
 
@@ -507,7 +511,8 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
 - `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution
-- Headless 浏览器(系统二进制)—— `render` 用来截图。自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox(兜底)。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持。
+- Playwright + Chromium(推荐,可选)—— `pip install playwright && python -m playwright install chromium`。启用事件驱动等待(字体/图片/fit 稳定)。若未安装会自动兜底。
+- 系统 headless 浏览器(兜底)—— 自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持(无 headless CLI)。
 
 ### MCP Servers
 - `mcp__llm-review__chat` —— 可选的跨模型评审(`--review`)
