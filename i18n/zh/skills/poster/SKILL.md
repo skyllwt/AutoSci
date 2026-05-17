@@ -64,11 +64,21 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sect
 
 整个交互流程用 `AskUserQuestion` 做是/否/布局选择,自由文本(路径与 venue)直接读取下一条用户消息。
 
-1. **作者** —— 仅当未传入 `--authors` 且未传入 `--anonymous`,且论文的 `\author{}` 解析为空 / "Anonymous" 时触发(本步骤前先看 dag.json 根节点的 `content` 字段,或快速 grep `paper/main.tex` 里的 `\author{...}`)。否则静默跳过。
-   - 用 `AskUserQuestion` 询问,选项:
+1. **作者** —— 论文级别的元数据,按下面的优先级解析:
+
+   1. 传入 `--authors STR` flag → 用它,不问也不持久化。
+   2. 传入 `--anonymous` flag → 强制 "Anonymous",不问也不持久化。
+   3. `paper/.author_display.txt` 存在 → 用文件内容,不问。这是"问一次,以后复用"的缓存。未来 `/paper-draft` 会在写作阶段填这个文件;在那之前,`/poster` Step 0 维护它(见下)。
+   4. dag.json 根节点 `content` (来自 `main.tex` 的 `\author{...}`) 非空且不是字面 "Anonymous" → 用它,不问。
+   5. **否则(匿名稿且没有缓存的 display name)**:问用户。
+
+   询问流程(只在第 5 条触发时进入):
+   - 用 `AskUserQuestion`,选项:
      - `"Keep 'Anonymous' (double-blind submission)"`(Recommended)
      - `"Provide author names (I'll ask for the string)"`
-   - 若用户选 "Provide author names":自由文本询问 *"海报上应显示什么作者字符串?例如 `Mingtian Yang, Co-Author Name`。回复字符串,或回复 `skip` 保留 'Anonymous'。"* 把下一条用户消息取作 authors 覆盖串,留给 Step 5。
+   - 若选 "Provide author names":自由文本询问 *"海报上应显示什么作者字符串?例如 `Mingtian Yang, Co-Author Name`。回复字符串,或回复 `skip` 保留 'Anonymous'。"* 把下一条用户消息取作 authors 字符串。
+   - **把答案持久化** 到 `paper/.author_display.txt`(单行,不要末尾换行)。下一次 `/poster` 跑时文件已存在 → step 0 Q1 静默跳过。用户想改的话,自己编辑或删除这个文件。
+   - 两个分支("Keep Anonymous" 或 自定义字符串)都要持久化 —— 目标是 **除非用户主动删文件,否则不再被问**。
 
 2. **Venue 文本** —— 若未传入 `--venue`:
    - 询问:*"海报 header 要显示什么 venue 文本?例如 `NeurIPS 2026`。回复文本,或回复 `skip` 留空。"*
@@ -506,7 +516,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Constraints
 
-- **不修改 `paper/`**:本 skill 对论文源是只读的,所有输出写入 `poster/`。
+- **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下唯一允许写入的是元数据 dotfile `paper/.author_display.txt`(Step 0 作者缓存 —— 见 Step 0 Q1)。其它所有输出写到 `poster/`。
 - **不创建 wiki 实体或图边**:海报是展示产物,不进知识图。
 - **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `/paper-compile`。
 - **遵循 `--anonymous`**:开启时,作者在 `dag.json` 与海报 header 中都写为 "Anonymous"。

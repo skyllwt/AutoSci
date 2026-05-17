@@ -248,12 +248,33 @@ def _extract_title(main_tex: str) -> str:
     return title or "Untitled"
 
 
-def _extract_authors(main_tex: str) -> str:
+def _extract_authors(
+    main_tex: str, paper_dir: Optional[Path] = None
+) -> str:
+    """Resolve the poster's authors string.
+
+    Precedence (first non-empty wins):
+      1. `paper/.author_display.txt` — paper-level metadata that survives
+         across /poster runs and other output skills. Lets the user answer
+         once and never be re-prompted. Future /paper-draft is expected to
+         seed this file during the writing stage.
+      2. `\\author{...}` from main.tex — the canonical paper authors. Often
+         empty for double-blind submissions, in which case we fall through.
+      3. Literal "Anonymous" fallback.
+    """
+    # 1. paper-level override
+    if paper_dir is not None:
+        override = paper_dir / ".author_display.txt"
+        if override.is_file():
+            content = override.read_text(encoding="utf-8").strip()
+            if content:
+                return content
+
+    # 2. \author{} from LaTeX
     m = AUTHOR_PATTERN.search(main_tex)
     if not m:
         return "Anonymous"
     authors = m.group(1).strip()
-    # Strip trailing % comment markers and inline comments
     authors = re.sub(r"%.*$", "", authors, flags=re.MULTILINE).strip()
     if not authors:
         return "Anonymous"
@@ -417,7 +438,10 @@ def build_dag(paper_dir: Path, output_path: Path, anonymous: bool = False) -> di
     main_tex_clean = COMMENT_PATTERN.sub("", main_tex)
 
     title = _extract_title(main_tex_clean)
-    authors = "Anonymous" if anonymous else _extract_authors(main_tex_clean)
+    authors = (
+        "Anonymous" if anonymous
+        else _extract_authors(main_tex_clean, paper_dir)
+    )
     section_order = _extract_section_order(main_tex_clean)
     cite_map = _build_citation_map(paper_dir)
     math_macros = _parse_math_macros(paper_dir)

@@ -65,11 +65,21 @@ Goal: collect venue text and (optionally) two logos to render in the poster head
 
 The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for paths and venue text in free-form (Claude reads the next user message as the answer).
 
-1. **Authors** — only triggers if `--authors` was not provided AND `--anonymous` was not provided AND the paper's `\author{}` resolves to empty / "Anonymous" (peek at the dag.json root node's `content` before this step, or quickly grep `\author{...}` from `paper/main.tex`). Otherwise skip silently.
+1. **Authors** — paper-level metadata, resolved with this precedence:
+
+   1. `--authors STR` flag → use that, do not prompt, do not persist.
+   2. `--anonymous` flag → force "Anonymous", do not prompt, do not persist.
+   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `/paper-draft` is expected to seed this file during the writing stage; until then, `/poster` Step 0 maintains it (see below).
+   4. dag.json root `content` (from `\author{...}` in `main.tex`) is non-empty AND not literally "Anonymous" → use it, do not prompt.
+   5. **Otherwise (anonymized paper, no cached display name)**: ASK the user.
+
+   Asking flow (only when reached):
    - Use `AskUserQuestion`:
      - `"Keep 'Anonymous' (double-blind submission)"` (Recommended)
      - `"Provide author names (I'll ask for the string)"`
-   - If the user picks "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors override string. Persist for Step 5.
+   - If "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors string.
+   - **Persist the answer** to `paper/.author_display.txt` (one line, no trailing newline beyond the string). On the *next* `/poster` run, the file exists → step 0 Q1 is silent. To change later, the user edits or deletes that file.
+   - Either branch ("Keep Anonymous" or a provided string) gets persisted — the goal is *no more prompts unless the user opts back in by removing the file*.
 
 2. **Venue text** — if `--venue` was not provided:
    - Ask: *"What venue text should appear in the poster header? e.g. `NeurIPS 2026`. Reply with the text, or `skip` to leave it blank."*
@@ -507,7 +517,7 @@ Print POSTER_REPORT:
 
 ## Constraints
 
-- **Do not modify `paper/`**: this skill is read-only over the source paper. All output goes to `poster/`.
+- **Do not modify `paper/` source files**: this skill is read-only over LaTeX source (`main.tex`, `sections/*.tex`, `figures/`, `references.bib`, `math_commands.tex`). The only write allowed to `paper/` is the metadata dotfile `paper/.author_display.txt` (Step 0 author cache — see Step 0 Q1). All other output goes to `poster/`.
 - **Do not create wiki entities or graph edges**: the poster is a presentation artifact.
 - **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `/paper-compile`.
 - **Respect `--anonymous`**: when set, authors become "Anonymous" in both `dag.json` and the poster header.
