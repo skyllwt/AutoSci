@@ -33,6 +33,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sect
 - `poster/poster.html` —— 最终自包含的 HTML 海报(浏览器打开即可)
 - `poster/poster.png` —— 2× CSS 尺寸的渲染截图(默认 2800×1800),见 Step 5b
 - `poster/poster.refine{N}.png` —— Step 5.5 每轮迭代前的截图存档(`--refine-iterations ≥ 1` 且实际跑过 refine 时才会有)
+- `poster/poster.overflow.json` —— Step 5.5 的程序化 DOM 溢出报告(海报是否有 clipping 的 ground truth)。`clipped` 数组为空即代表海报完整放下。
 - `poster/images/` —— 从 `paper/figures/` 复制/转换(PDF→PNG @ 200 DPI)而来的图片
 - **POSTER_REPORT**(输出到终端)
 - `wiki/log.md` —— 追加日志条目
@@ -339,80 +340,112 @@ python3 tools/poster.py render poster/poster.html
 
 若找不到任何支持的浏览器,`render` 以平台对应的安装提示退出。HTML 海报本身在任何浏览器里都能打开 —— 用户依然可以 `open poster/poster.html`。
 
-### Step 5.5: Critique-revise(Claude 截图驱动)
+### Step 5.5: Critique-revise(截图 + DOM 溢出报告双驱动)
 
-目标:把 Step 5b 渲染出的截图喂给 Claude(多模态),做一次性的 critique-revise。捕捉 `validate` 抓不到的问题 —— HTML 中残留的 LaTeX、章节文字溢出、标题里的编号前缀、配图渲染异常等。自动应用,无用户交互。
+目标:用**程序化的溢出报告**(从渲染后的 DOM 取的 ground truth)结合**截图**(视觉上下文)来修订 HTML。DOM 报告是 fit() 和 LLM 都可能漏看的东西 —— 它精确测量每个叶子元素的 bottom / right 与 flow 边缘的差,精确报出任何 clipping。LLM **不能**在报告显示 clipping 的情况下声明收敛,必须修剪文字直到报告 ok。
+
+自动应用,无用户交互。
 
 **跳过条件**:
 - 传入 `--no-refine` → 完全跳过。
 - `--refine-iterations 0` → 等同 `--no-refine`。
 - Step 5b 没产出 `poster/poster.png`(无可用 headless 浏览器)→ 警告后跳过。
 
-**迭代次数**:由 `--refine-iterations N` 决定(默认 1,硬上限 2)。
+**迭代次数**:由 `--refine-iterations N` 决定(默认 1,硬上限 2)。注意:收敛不再只看文字稳定,而是依赖溢出报告 —— 见下面的终止条件。
 
 **单轮迭代流程**(i = 1..N):
 
 1. 确保 `poster/poster.png` 反映当前 `poster/poster.html`。若 HTML 自上次渲染后有改动,重跑 `python3 tools/poster.py render poster/poster.html`。
-2. 存档当前截图:`cp poster/poster.png poster/poster.refine{i-1}.png`(方便用户 diff 每轮的变化)。
-3. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于 step 8 的收敛判定。
-4. 读取 `poster/poster.png`(用 Read,Claude 多模态读图)与 `poster/poster.html`(Read)。
-5. 应用下面的 refinement 提示词。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
-6. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
-7. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
-8. **收敛检查**(在 validate / 重新渲染之前):归一化 `pre_html` 与 `post_html` —— 去掉静态 `<head>` 块(它永不变化)、合并空白,然后只在 `<div class="flow" id="flow">…</div>` 区域内计算字符级对称差。若差异 **小于 50 个字符**(即 LLM 没做实质修改),声明收敛:
-   - 记录结果为 `"converged after {i} iteration(s) — no material changes"`。
-   - 跳过下面的 step 9–10(无需 re-validate / re-render,磁盘上的 PNG 已与 HTML 一致)。
-   - **即使迭代预算 `N` 还有剩余**,也退出迭代循环。
-9. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止迭代,告诉用户具体问题,HTML 保留原样供人工检查。
-10. 重新渲染 `poster/poster.png`,供下一轮(或作为最终渲染)。
+2. 运行 `python3 tools/poster.py check-overflow poster/poster.html` → 写出 `poster/poster.overflow.json`。读取该 JSON。
+3. **提前收敛(仅溢出报告路径)**:若 `i == 1` 且 `overflow.ok == true`,且认真比对截图后没看到任何明显的 LaTeX / 编码 / 编号问题(对自己应用下面 refinement 提示词里的强制 checklist),**可以**在这里就声明收敛:记录 `"converged after 0 iterations — DOM clean, no visible content issues"` 并退出。如果有**任何**疑虑就不要走这条捷径 —— 跑一轮 refinement 的成本远小于交付一张细节有问题的海报。
+4. 存档当前截图:`cp poster/poster.png poster/poster.refine{i-1}.png`(方便用户 diff 每轮的变化)。
+5. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于后面的文字稳定性判定。
+6. 读取 `poster/poster.png`(多模态)、`poster/poster.html`、以及 `poster/poster.overflow.json`(ground truth 的 clipping 报告)。
+7. 应用下面的 refinement 提示词。把 overflow JSON 作为 prompt 的一部分传入 —— LLM 凭它**精确**知道哪些章节要 trim,而不是从截图里猜。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
+8. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
+9. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
+10. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止,告诉用户具体问题,HTML 保留原样。
+11. 重新渲染 `poster/poster.png`。重跑 `check-overflow` → 更新 `poster.overflow.json`。
+12. **收敛检查(两个条件**都满足才算收敛**)**:
+    - (a) 新的 overflow 报告 `ok == true`,且
+    - (b) `pre_html` 与 `post_html` 在 `.flow` 区域字符差异 < 50。
+    
+    都满足:声明收敛(`"converged after {i} iteration(s) — DOM clean and prose stable"`)并退出。
+    
+    overflow.ok 仍为 false:下一轮**必须**继续 refine;即使 prose 稳定也不能停。LLM 没 trim 够。
+    
+    迭代预算用尽但 overflow.ok 还是 false:停止,清晰提示("Step 5.5 跑完 N 轮但仍有 DOM clipping —— 考虑 `--refine-iterations 2` 或调小 `--max-sections`"),HTML / PNG 留着给用户人工检查。
 
-**收敛 stop 的意义**:实际跑下来,当上游流程(Step 3 + Step 4)已经产出干净的文本(没有 LaTeX 漏出、没有编号前缀),step 5 的 LLM 没什么可改的。如果没这道收敛闸,第二轮迭代仍会触发一次 LLM 调用,代价不小但收益接近零。50 字符的阈值容忍空白/标点的微小差异,同时仍能捕获有意义的文字修订或 LaTeX 清理。
+**为什么这么设计**:上一版让 LLM 看降采样的 PNG 后凭感觉声明收敛。列边缘的细微 clipping 被漏掉。DOM 溢出报告把"clipping 的检测"从 LLM 判断里拿出来 —— 现在 clipping 是测量值,不是猜测。LLM 的活变成专门**修复**报告里标出的东西,不再兼职决定"有没有要修的"。
 
-**Refinement 提示词**(从 PaperX `poster_refinement_prompt` 移植,加了一个截图驱动的 layout 任务):
+**Refinement 提示词**(从 PaperX `poster_refinement_prompt` 移植;新增 overflow JSON 输入 + 强制 pre-flight checklist):
 
-> You are an expert Academic Poster Designer and Web Developer. Your task is to refine an existing HTML poster based on its visual rendering (screenshot) and the current code. Output ONLY the full, valid, and corrected HTML code inside a single fenced ```` ```html ```` code block.
+> You are an expert Academic Poster Designer and Web Developer. Your task is to refine an existing HTML poster based on its visual rendering (screenshot), the current HTML code, and a structured DOM overflow report.
 >
-> I will provide:
-> 1. **Current Poster Code (HTML)**
-> 2. **Visual Render (PNG screenshot)**
+> **INPUTS**:
+> 1. **Current Poster Code (HTML)** — full poster.html
+> 2. **Visual Render (PNG screenshot)** — poster.png attached via Read
+> 3. **DOM Overflow Report (JSON)** — output of `tools/poster.py check-overflow`. This is **ground truth** about which elements are clipped. If `clipped` is non-empty, you MUST fix each entry.
 >
-> **TASKS**:
+> **MANDATORY PRE-FLIGHT CHECKLIST** — answer BEFORE generating any HTML. Write this as a fenced ```` ```json ```` block first; then below it, output the corrected HTML in a separate ```` ```html ```` block.
 >
-> **Task 1: Fix LaTeX / encoding leaks**
-> - Scan the HTML for raw LaTeX that did not render (e.g., `$d_S \ge 10$`, `\textbf{...}`, `\citep{...}`, `\ref{fig:...}`).
-> - Replace with HTML entities or Unicode (e.g., `d_S ≥ 10`, `<strong>...</strong>`, `[N]`, "Fig. 1").
-> - Remove garbled characters from math-rendering failures.
+> ```json
+> {
+>   "overflow_report_ok": <true|false; copy from the report's "ok" field>,
+>   "clipped_count":     <integer; the length of the report's "clipped" array>,
+>   "col1_bottom_ok":    <true|false; from the screenshot, is the last text line in col 1 ≥ 10 px above the .poster bottom border AND fully readable?>,
+>   "col2_bottom_ok":    <true|false; same check for col 2 — pay specific attention to any figure's x-axis label>,
+>   "col3_bottom_ok":    <true|false; same check for col 3>,
+>   "latex_leaks":       <list of strings; raw LaTeX patterns you found, e.g. ["\\textbf{x}", "\\citep{key}"] — empty list if none>,
+>   "numbering_prefixes": <list of strings; section-bars with leading "1.", "A.", etc. — empty list if none>,
+>   "will_revise":       <true|false; if ANY of the above signal a problem, this MUST be true and the HTML block below MUST contain trimming/fixes>
+> }
+> ```
 >
-> **Task 2: Normalize section headers**
-> - Find all `<div class="section-bar">` elements.
-> - Strip leading numbering / alphabetic prefixes / meaningless punctuation (e.g. `1.`, `2.1`, `A.`, `E.`, `- `).
-> - Keep only the core title text.
+> If `will_revise: false`, your HTML block may be identical to the input.
 >
-> **Task 3: Fix visible layout issues (from the screenshot)**
-> - If any section's text overflows its column (visible in screenshot): shorten the prose conservatively. Never delete claims; trim filler words.
-> - If a `<div class="img-section">` figure renders cropped, distorted, or breaks the column flow: leave the structure intact (do not delete) but you may add `style="max-height: 280px"` to the `<img>` or wrap text differently.
-> - If a section is visually empty (just the title bar with no body text): leave a `<p>(content pending)</p>` placeholder, do NOT remove the section.
+> If `will_revise: true`, the HTML block MUST contain real edits addressing each flagged issue. **Do not output unchanged HTML claiming you fixed it** — that's the failure mode this checklist exists to prevent.
 >
-> **Output requirement**:
-> - Return the **complete, runnable HTML** wrapped in a single fenced ```` ```html ```` code block.
-> - Preserve the existing CSS layout exactly. Do NOT modify font-related settings (font-family, font-size, font-weight beyond what the template already defines).
-> - Do NOT modify the existing `<script>` block (the fit algorithm) or the `<style>` block.
-> - Only edit content inside `<section class="section">` elements and the `<h1 class="title">` / `<div class="authors">` if needed.
+> **TASKS** (apply only where flagged by the checklist):
+>
+> **Task 1: Fix LaTeX / encoding leaks** (when `latex_leaks` non-empty)
+> - Replace raw LaTeX with HTML entities or Unicode (`\\textbf{x}` → `<strong>x</strong>`, `\\citep{key}` → `[N]`, `$d_S \\ge 10$` → `d_S ≥ 10`).
+>
+> **Task 2: Normalize section headers** (when `numbering_prefixes` non-empty)
+> - Strip leading `1.`, `2.1`, `A.`, `E.`, `- `, etc. from `<div class="section-bar">` contents.
+>
+> **Task 3: Fix DOM-reported clipping** (when `overflow_report_ok: false`)
+> - The JSON's `clipped` array names every offending element with its `section_title`, `tag`, `bottom_overflow_px`, and a content `preview`. For each clipped element, **trim the corresponding section's prose conservatively** (drop filler words, tighten sentences) until that element fits. Never delete claims, citations, or math expressions.
+>
+> **Task 4: Fix screenshot-only issues** (when any `colN_bottom_ok: false`)
+> - The DOM check has tolerance; visually cramped content (line right against the border) may still pass `overflow.ok: true`. If the screenshot shows this, trim the relevant column's prose by 5–15 words.
+>
+> **Output requirements**:
+> - First, the ```` ```json ```` checklist block (mandatory).
+> - Then, the ```` ```html ```` block: complete, runnable HTML.
+> - Preserve the CSS, the `<script>` fit algorithm, and font-related settings exactly. Only edit content inside `<section class="section">` and the title/authors slots.
 >
 > **HTML poster**:
 > ```html
 > {full content of poster/poster.html}
 > ```
 >
+> **DOM Overflow Report**:
+> ```json
+> {full content of poster/poster.overflow.json}
+> ```
+>
 > **Screenshot**:
 > *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
 
 **终止条件**:
-- **收敛**(正常的提前退出):LLM 的修订在 `.flow` 区域差异 < 50 字符 —— 见上面 step 8。无论预算剩余多少,退出循环。
-- **达到 iteration 上限**:`i == N`。完成,进入 Step 6。
-- **LLM 输出里没有 ```` ```html ```` 围栏** → 停止,HTML 保留原样,记录警告。
-- **围栏里没有 `<section>` 或缺 `<h1 class="title">`** → 停止,HTML 保留原样,记录警告。
-- **修订后 validate 失败** → 停止,告诉用户具体问题,HTML 保留原样供人工检查。
+- **收敛(首选)**:overflow.ok=true 且 prose diff < 50 字符。正常退出。
+- **达到迭代上限且 overflow.ok=true**:也算正常退出。
+- **达到迭代上限但 overflow.ok=false**:停止并向用户告警 —— 预算不够清除全部 clipping。建议 `--refine-iterations 2` 或调小 `--max-sections 5`。
+- **LLM 输出缺 JSON checklist 块** → 停止,告警("refinement LLM 未产出强制 pre-flight checklist"),HTML 保留原样。
+- **LLM 输出缺 HTML 围栏块** → 停止,告警,HTML 保留原样。
+- **修订后 validate 失败** → 停止,告诉用户具体问题,HTML 保留原样。
+- **LLM 在 overflow.ok=false 的情况下声明 `will_revise: false`** → 告警("refinement LLM 忽略了 DOM clipping 报告"),若预算还有就继续下一轮,否则告警用户。
 
 ### Step 6: 可选 Review LLM 评审(`--review`)
 
@@ -508,6 +541,7 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/poster.py inject-figures --dag <path> --paper-dir <path> --poster-dir <path>` —— 复制/转换图片
 - `python3 tools/poster.py validate <poster.html>` —— 健康检查
 - `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless 浏览器(优先 Chrome / Edge / Chromium,Firefox 兜底)
+- `python3 tools/poster.py check-overflow <poster.html> [--output PATH]` —— 用 Playwright 查询渲染后的 DOM,产出 poster.overflow.json。Step 5.5 用它做 ground truth。
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
 - `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution

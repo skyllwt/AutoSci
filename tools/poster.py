@@ -773,6 +773,161 @@ def render_poster(
 
 
 # ----------------------------------------------------------------------------
+# check-overflow — programmatic clipping detector for Step 5.5
+# ----------------------------------------------------------------------------
+
+# JavaScript that walks the rendered DOM and returns a structured overflow
+# report. Probes leaf elements (img, .section-bar, p) inside #flow and
+# flags any whose bottom or right extends past flow's visible edges. This
+# is the ground truth that fit()/the LLM may miss — DOM measurements don't
+# lie about clipping.
+_OVERFLOW_PROBE_JS = r"""
+() => {
+  const flow = document.getElementById("flow");
+  if (!flow) return { ok: true, clipped: [], flow: null,
+                       error: "no #flow element" };
+  const fr = flow.getBoundingClientRect();
+  const TOL = 1;
+  const clipped = [];
+  const probes = flow.querySelectorAll(
+    ".section-bar, .section-body p, .img-section, .img-section img"
+  );
+  probes.forEach((el) => {
+    const r = el.getBoundingClientRect();
+    const bot_overflow = Math.round(r.bottom - fr.bottom);
+    const right_overflow = Math.round(r.right - fr.right);
+    if (bot_overflow > TOL || right_overflow > TOL) {
+      const sec = el.closest("section");
+      const titleEl = sec ? sec.querySelector(".section-bar") : null;
+      const title = titleEl ? titleEl.textContent.trim() : "";
+      let preview = "";
+      if (el.tagName === "IMG") {
+        preview = el.getAttribute("src") || "";
+      } else {
+        preview = (el.textContent || "").trim().slice(0, 80);
+      }
+      clipped.push({
+        tag: el.tagName.toLowerCase(),
+        section_title: title,
+        preview,
+        bottom_overflow_px: bot_overflow,
+        right_overflow_px: right_overflow,
+      });
+    }
+  });
+  return {
+    ok: clipped.length === 0,
+    clipped,
+    flow: { width: Math.round(fr.width), height: Math.round(fr.height) },
+  };
+}
+"""
+
+
+def check_overflow(
+    html_path: Path,
+    output_json_path: Optional[Path] = None,
+) -> dict:
+    """Query the rendered DOM for clipped content. Returns a structured
+    report; optionally writes it as JSON alongside the HTML.
+
+    Requires Playwright + Chromium for the DOM query. If Playwright is
+    unavailable, returns a degraded report with a warning.
+
+    Report schema:
+      { ok: bool,
+        clipped: [ { tag, section_title, preview,
+                     bottom_overflow_px, right_overflow_px }, ... ],
+        flow: { width, height } | null }
+    """
+    if not html_path.is_file():
+        raise FileNotFoundError(f"poster HTML not found: {html_path}")
+
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore[import]
+    except ImportError:
+        report = {
+            "ok": True,
+            "clipped": [],
+            "flow": None,
+            "warning": (
+                "Playwright not installed; cannot run overflow check. "
+                "Install with `pip install playwright && python -m "
+                "playwright install chromium` to enable. /poster Step 5.5 "
+                "will fall back to LLM-only visual evaluation."
+            ),
+        }
+        if output_json_path:
+            output_json_path.parent.mkdir(parents=True, exist_ok=True)
+            output_json_path.write_text(
+                json.dumps(report, indent=2), encoding="utf-8"
+            )
+        return report
+
+    w, h = _parse_dims(html_path)
+    html_uri = "file://" + str(html_path.resolve())
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True, args=["--disable-dev-shm-usage"]
+        )
+        # Use device_scale_factor=1 — the report is in CSS pixels regardless
+        context = browser.new_context(
+            viewport={"width": w, "height": h}, device_scale_factor=1
+        )
+        page = context.new_page()
+        page.goto(html_uri, wait_until="domcontentloaded")
+        page.wait_for_selector("#flow", state="attached", timeout=30_000)
+        try:
+            page.evaluate(
+                "() => document.fonts ? document.fonts.ready : Promise.resolve()"
+            )
+        except Exception:
+            pass
+        # Wait for images, then fit-stable (same as render — must measure
+        # the converged state, not a mid-fit intermediate)
+        page.evaluate(r"""
+        () => {
+          const flow = document.getElementById("flow");
+          if (!flow) return Promise.resolve();
+          const imgs = Array.from(flow.querySelectorAll("img"));
+          if (imgs.length === 0) return Promise.resolve();
+          return Promise.all(imgs.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise(res => {
+              img.addEventListener("load",  res, { once: true });
+              img.addEventListener("error", res, { once: true });
+            });
+          }));
+        }
+        """)
+        page.evaluate(r"""
+        () => new Promise((resolve) => {
+          const flow = document.getElementById("flow");
+          if (!flow) return resolve();
+          let last = -1, stable = 0;
+          function tick() {
+            const cur = flow.scrollWidth;
+            if (cur === last) stable += 1; else stable = 0;
+            last = cur;
+            if (stable >= 10) return resolve();
+            requestAnimationFrame(tick);
+          }
+          tick();
+        })
+        """)
+        report = page.evaluate(_OVERFLOW_PROBE_JS)
+        browser.close()
+
+    if output_json_path:
+        output_json_path.parent.mkdir(parents=True, exist_ok=True)
+        output_json_path.write_text(
+            json.dumps(report, indent=2), encoding="utf-8"
+        )
+    return report
+
+
+# ----------------------------------------------------------------------------
 # CLI
 # ----------------------------------------------------------------------------
 
@@ -841,6 +996,34 @@ def cmd_validate(args) -> int:
     for issue in issues:
         print(f"  - {issue}", file=sys.stderr)
     return 1
+
+
+def cmd_check_overflow(args) -> int:
+    html = Path(args.html).resolve()
+    json_path = (
+        Path(args.output).resolve()
+        if args.output
+        else html.with_suffix(".overflow.json")
+    )
+    try:
+        report = check_overflow(html, json_path)
+    except FileNotFoundError as e:
+        print(f"[error] {e}", file=sys.stderr)
+        return 1
+    print(f"[{'ok' if report.get('ok') else 'fail'}] {json_path}")
+    if not report.get("ok"):
+        for item in report.get("clipped", []):
+            print(
+                f"  clipped: {item['tag']:8s} '{item['section_title'][:40]}' "
+                f"bot+{item['bottom_overflow_px']}px "
+                f"right+{item['right_overflow_px']}px "
+                f"({item['preview'][:60]})",
+                file=sys.stderr,
+            )
+        return 1
+    if "warning" in report:
+        print(f"[warn] {report['warning']}", file=sys.stderr)
+    return 0
 
 
 def cmd_render(args) -> int:
@@ -935,6 +1118,19 @@ def main(argv: list[str] | None = None) -> int:
     p_val = sub.add_parser("validate", help="Sanity checks on the poster HTML")
     p_val.add_argument("poster", help="Path to poster.html")
     p_val.set_defaults(func=cmd_validate)
+
+    p_chk = sub.add_parser(
+        "check-overflow",
+        help="Query rendered DOM for clipped content (Playwright); "
+        "writes a JSON report. Used by /poster Step 5.5.",
+    )
+    p_chk.add_argument("html", help="Path to poster.html")
+    p_chk.add_argument(
+        "--output",
+        default=None,
+        help="Output JSON path (default: <html>.overflow.json)",
+    )
+    p_chk.set_defaults(func=cmd_check_overflow)
 
     p_render = sub.add_parser(
         "render",
