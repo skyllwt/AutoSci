@@ -32,6 +32,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Sibling module — sys.path[0] is tools/ when this file is invoked as
+# `python3 tools/wiki2dag.py …`, so a plain import resolves correctly
+# in both `python3 tools/wiki2dag.py` and `python3 -m wiki2dag` from
+# inside tools/. Used to rasterize TikZ figure envs that have no
+# \includegraphics counterpart.
+import rasterize_latex
+
 # Optional dependency: Pillow for raster image dimensions
 try:
     from PIL import Image  # type: ignore
@@ -75,7 +82,115 @@ CAPTION_PATTERN = re.compile(
 FIGURE_ENV_PATTERN = re.compile(
     r"\\begin\{figure\*?\}(.*?)\\end\{figure\*?\}", re.DOTALL
 )
+TIKZ_PICTURE_PATTERN = re.compile(
+    r"\\begin\{tikzpicture\}.*?\\end\{tikzpicture\}", re.DOTALL
+)
+LABEL_PATTERN = re.compile(r"\\label\{([^}]+)\}")
 COMMENT_PATTERN = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
+
+
+def _slugify_for_filename(s: str) -> str:
+    """Sanitize a LaTeX label or arbitrary text for use in a filename.
+
+    `fig:chain` -> `fig_chain`. Caps length at 60 chars to avoid
+    pathologically long filenames from weird labels.
+    """
+    s = re.sub(r"[:/\s\-]", "_", s)
+    s = re.sub(r"[^A-Za-z0-9_]", "", s)
+    return s[:60] or "fig"
+
+
+def _extract_tikz_figures(
+    section_text: str,
+    paper_dir: Path,
+    sec_basename: str,
+    preamble: str,
+    cite_map: Optional[dict] = None,
+) -> list[tuple[str, str]]:
+    """Rasterize `\\begin{figure}...\\begin{tikzpicture}...\\end{tikzpicture}...
+    \\end{figure}` blocks that have NO `\\includegraphics{}` counterpart.
+
+    Each surviving figure env is compiled via rasterize_latex into
+    `paper_dir/figures/_tikz_<sec_basename>_<slug>.png` (cached — delete
+    the PNG to force re-rasterization on the next run). Returns
+    `[(ref, caption), ...]` tuples mirroring the convention
+    `INCLUDE_GRAPHICS_PATTERN.findall(...)` returns for the regular
+    figure flow, so downstream `_resolve_figure_path` /
+    `_destination_image_name` / `inject_figures` handle TikZ figures
+    identically.
+
+    Defensive: if a figure env contains BOTH a tikzpicture AND an
+    \\includegraphics{}, this function skips it — the existing
+    \\includegraphics pipeline owns that case.
+
+    Failure mode: a RasterizeError from pdflatex is logged to stderr
+    and the figure is silently dropped. The rest of the section's
+    figures and the rest of the build continue unaffected (the
+    pre-existing behavior for missing figures is also a stderr warn
+    plus drop).
+    """
+    results: list[tuple[str, str]] = []
+    figures_dir = paper_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    seen_slugs: set[str] = set()
+
+    for idx, fig_match in enumerate(FIGURE_ENV_PATTERN.finditer(section_text)):
+        env_body = fig_match.group(1)
+        # Existing \includegraphics pipeline takes precedence — never
+        # double-rasterize an env that already references a real figure.
+        if INCLUDE_GRAPHICS_PATTERN.search(env_body):
+            continue
+        tikz_match = TIKZ_PICTURE_PATTERN.search(env_body)
+        if not tikz_match:
+            continue
+
+        # Slug: prefer the figure env's own \label{} so the cached PNG
+        # filename is meaningful; fall back to a position-based slug.
+        label_match = LABEL_PATTERN.search(env_body)
+        if label_match:
+            label_slug = _slugify_for_filename(label_match.group(1))
+        else:
+            label_slug = f"fig{idx}"
+        base_slug = f"_tikz_{sec_basename}_{label_slug}"
+        slug = base_slug
+        n = 1
+        while slug in seen_slugs:
+            n += 1
+            slug = f"{base_slug}_{n}"
+        seen_slugs.add(slug)
+
+        png_path = figures_dir / f"{slug}.png"
+        if not png_path.is_file():
+            tikz_body = tikz_match.group(0)
+            try:
+                rasterize_latex.rasterize_latex_snippet(
+                    snippet=tikz_body,
+                    out_dir=figures_dir,
+                    out_name=slug,
+                    preamble=preamble,
+                )
+            except rasterize_latex.RasterizeError as e:
+                print(
+                    f"[warn] TikZ rasterize failed for {slug} "
+                    f"(figure dropped): {e}",
+                    file=sys.stderr,
+                )
+                continue
+
+        # Caption — same scrub rules as _find_caption_for_figure
+        caption = ""
+        cap_match = CAPTION_PATTERN.search(env_body)
+        if cap_match:
+            caption = cap_match.group(1)
+            caption = re.sub(r"\\label\{[^}]*\}", "", caption)
+            caption = _replace_citations(caption, cite_map)
+            caption = re.sub(r"\\textbf\{([^}]*)\}", r"\1", caption)
+            caption = re.sub(r"\\emph\{([^}]*)\}", r"\1", caption)
+            caption = re.sub(r"\s+", " ", caption).strip()
+
+        results.append((f"figures/{slug}", caption))
+
+    return results
 
 
 def _replace_citations(text: str, cite_map: Optional[dict] = None) -> str:
@@ -461,6 +576,21 @@ def build_dag(
     cite_map = _build_citation_map(paper_dir) if citations else None
     math_macros = _parse_math_macros(paper_dir)
 
+    # Preamble for any rasterize_latex calls below — \usetikzlibrary
+    # lines from the paper's main.tex, plus the verbatim math_commands.tex
+    # so user macros like \Mbase, \Cforced expand the same way they would
+    # in a real pdflatex run on the paper itself.
+    tikz_setup = rasterize_latex.extract_tikz_setup(main_tex_path)
+    math_commands_path = paper_dir / "math_commands.tex"
+    math_commands_text = (
+        math_commands_path.read_text(encoding="utf-8")
+        if math_commands_path.is_file()
+        else ""
+    )
+    rasterize_preamble = "\n".join(
+        part for part in (tikz_setup, math_commands_text) if part.strip()
+    )
+
     # Build section nodes
     section_nodes = []
     section_names_in_order: list[str] = []
@@ -487,6 +617,19 @@ def build_dag(
 
         section_names_in_order.append(display_name)
 
+        # Append TikZ figures (figure envs without \includegraphics) by
+        # rasterizing each via pdflatex+pdftoppm into paper/figures/.
+        # They flow through the same _resolve_figure_path /
+        # _destination_image_name / inject_figures pipeline as regular
+        # figures from here on.
+        tikz_captions: dict[str, str] = {}
+        for ref, caption in _extract_tikz_figures(
+            sec_raw, paper_dir, sec_basename,
+            rasterize_preamble, cite_map,
+        ):
+            figure_refs.append(ref)
+            tikz_captions[ref] = caption
+
         # Map figure refs → destination paths + collect visual nodes
         visual_node_refs: list[str] = []
         for ref in figure_refs:
@@ -500,7 +643,11 @@ def build_dag(
             md_ref = f"![]({dest_name})"
 
             if dest_name not in visual_seen:
-                caption = _find_caption_for_figure(sec_raw, ref, cite_map)
+                # TikZ figures: caption was already cleaned during extraction.
+                # \includegraphics figures: look up caption from the figure env.
+                caption = tikz_captions.get(ref) or _find_caption_for_figure(
+                    sec_raw, ref, cite_map
+                )
                 resolution = _get_resolution(resolved)
                 visual_seen[dest_name] = {
                     "name": md_ref,
