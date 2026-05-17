@@ -32,12 +32,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Sibling module — sys.path[0] is tools/ when this file is invoked as
-# `python3 tools/wiki2dag.py …`, so a plain import resolves correctly
-# in both `python3 tools/wiki2dag.py` and `python3 -m wiki2dag` from
-# inside tools/. Used to rasterize TikZ figure envs that have no
-# \includegraphics counterpart.
-import rasterize_latex
+# Sibling module — used to rasterize TikZ figure envs that have no
+# \includegraphics counterpart. Try the script-style import first
+# (sys.path[0] = tools/ when run as `python3 tools/wiki2dag.py …`);
+# fall back to package-qualified import if invoked as a module from
+# elsewhere (e.g. `python -m tools.wiki2dag`, or imported from a host
+# Python program that adds the repo root to sys.path instead of tools/).
+try:
+    import rasterize_latex  # type: ignore
+except ImportError:  # pragma: no cover — package-import path
+    from tools import rasterize_latex  # type: ignore[no-redef]
 
 # Optional dependency: Pillow for raster image dimensions
 try:
@@ -216,8 +220,16 @@ TABULAR_ENV_PATTERN = re.compile(
     r"\\begin\{tabular\}\{([^}]+)\}(.*?)\\end\{tabular\}", re.DOTALL
 )
 MULTICOLUMN_PATTERN = re.compile(
-    r"\\multicolumn\{(\d+)\}\{[^}]*\}\{((?:[^{}]|\{[^{}]*\})*)\}"
+    # The content group must handle two-level brace nesting so cells like
+    # `\multicolumn{2}{c}{\textbf{$M_0$}}` (textbf wraps a $..$ which is
+    # itself a brace-balanced run) match correctly. One level was not
+    # enough for booktabs cells that combine \textbf / \textit with math.
+    r"\\multicolumn\{(\d+)\}\{[^}]*\}\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}"
 )
+# `\\` row separator in tabular, with optional trailing `[10pt]` etc. spacing.
+# Edge case: a math span containing `$a \\ b$` (math linebreak) would also
+# match here. Not seen in booktabs in practice — math cells rarely use \\
+# inside $..$ inside a tabular. Flagged for future tightening if it surfaces.
 ROW_SEP_PATTERN = re.compile(r"\\\\(?:\s*\[[^\]]*\])?")
 TABLE_RULE_PATTERN = re.compile(
     r"\\(?:toprule|midrule|bottomrule|cmidrule(?:\([^)]*\))?(?:\{[^}]*\})?"
@@ -230,10 +242,23 @@ def _clean_table_cell(cell: str, cite_map: Optional[dict] = None) -> str:
     KaTeX render in the browser. Translates the formatting commands that
     booktabs tables commonly carry."""
     cell = re.sub(r"\\phantom\{[^}]*\}", "", cell)
-    cell = re.sub(r"\\quad\b\s*", "", cell)
-    cell = re.sub(r"\\qquad\b\s*", "", cell)
+    # \quad / \qquad / "\ " produce horizontal spacing in LaTeX. Stripping
+    # to empty would collapse `value\quad(CI)` into `value(CI)`. Replace
+    # with a single space so the visual separation survives in HTML.
+    cell = re.sub(r"\\qquad\b\s*", " ", cell)
+    cell = re.sub(r"\\quad\b\s*", " ", cell)
     cell = re.sub(r"\\\s", " ", cell)
     cell = _replace_citations(cell, cite_map)
+    # Cell-level safety net for \ensuremath{X}: _strip_latex_text already
+    # runs a global unwrap, but it runs AFTER _extract_tables_to_html in
+    # the current order. Doing it here too keeps cells correct even if
+    # the pipeline order is changed later or _clean_table_cell is called
+    # standalone (e.g. unit tests). Belt and suspenders.
+    # CRITICAL: uses _normalize_ensuremath (context-aware) — a naive
+    # re.sub(r"\\ensuremath\{X\}", r"$X$") creates dollar-nesting bugs
+    # inside cells like `$|\ensuremath{C_4}-\ensuremath{C_0}|/...|$`
+    # where macros already live inside an outer math span.
+    cell = _normalize_ensuremath(cell)
     cell = re.sub(
         r"\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}", r"<strong>\1</strong>", cell
     )
@@ -451,12 +476,11 @@ def _strip_latex_text(
     text = re.sub(r"\\textit\{([^}]*)\}", r"\1", text)
     # Expand custom math macros so KaTeX sees standard commands
     text = _expand_math_macros(text, math_macros or {})
-    # \ensuremath{X} → $X$ : when a macro definition uses \ensuremath{}
-    # (e.g. \Mbase = \ensuremath{M_0} in math_commands.tex), the previous
-    # pass leaves the wrapper in place. KaTeX doesn't understand
-    # \ensuremath, so unwrap it into a $..$ math span that auto-render
-    # will pick up.
-    text = re.sub(r"\\ensuremath\{((?:[^{}]|\{[^{}]*\})*)\}", r"$\1$", text)
+    # \ensuremath{X} unwrap, context-aware: outside `$..$` → wrap in
+    # `$X$`; inside an existing `$..$` math span → drop the wrapper,
+    # keep just `X` (otherwise dollar-nesting breaks the span and KaTeX
+    # silently fails to render it).
+    text = _normalize_ensuremath(text)
     # Strip figure environments — captions pulled separately
     text = re.sub(
         r"\\begin\{figure\*?\}.*?\\end\{figure\*?\}", "", text, flags=re.DOTALL
@@ -544,6 +568,13 @@ def _expand_math_macros(text: str, macros: dict) -> str:
     of longer command names. Replacement is done via a lambda so that
     backslashes in the definition (e.g. `\\rho`, `\\depthratio`) are NOT
     interpreted as regex back-reference escapes.
+
+    Also consumes the LaTeX "empty group terminator" idiom: in LaTeX,
+    `\\Cbase{}` is equivalent to `\\Cbase ` — the empty `{}` is a
+    no-op that protects against unwanted argument absorption. After
+    macro expansion in plain text, that `{}` would otherwise become
+    visible (e.g. `$C_0${}` in the rendered HTML). Matching the
+    optional `\\{\\}` suffix consumes it during expansion.
     """
     if not macros:
         return text
@@ -551,12 +582,52 @@ def _expand_math_macros(text: str, macros: dict) -> str:
         prev = text
         for name, defn in macros.items():
             text = re.sub(
-                re.escape(name) + r"(?![A-Za-z])",
+                re.escape(name) + r"(?:\{\})?(?![A-Za-z])",
                 lambda m, d=defn: d,
                 text,
             )
         if text == prev:
             break
+    return text
+
+
+def _normalize_ensuremath(text: str) -> str:
+    """Unwrap `\\ensuremath{X}` with context awareness.
+
+    `math_commands.tex` style commonly defines macros via
+    `\\newcommand{\\Mbase}{\\ensuremath{M_0}}`. After `_expand_math_macros`
+    the source text contains `\\ensuremath{X}` tokens that KaTeX cannot
+    render natively. Two contexts to handle:
+
+      - Outside any `$..$` math span: wrap X in `$..$` so KaTeX's
+        auto-render picks it up. This is the typical "macro used in
+        prose" case (`the $C_0$ baseline ratings`).
+      - Inside an existing `$..$` math span: replace the wrapper
+        with just X. Wrapping in `$..$` here would create nested
+        dollars and KaTeX would silently fail to render the whole
+        span. This is the "macro used in a larger math expression"
+        case (e.g. `$|\\Cdefault-\\Cbase|/|\\Cforced-\\Cdefault|$`).
+
+    Order matters: handle inside-math FIRST (so the dollar-toggle
+    boundaries don't shift), then outside-math.
+    """
+    if r"\ensuremath" not in text:
+        return text
+
+    def _strip_in_math(span_match: re.Match) -> str:
+        span = span_match.group(0)
+        return re.sub(
+            r"\\ensuremath\{((?:[^{}]|\{[^{}]*\})*)\}",
+            r"\1",
+            span,
+        )
+
+    # `\$[^$]*\$` matches a single $..$ span without crossing other $
+    text = re.sub(r"\$[^$]*\$", _strip_in_math, text)
+    # The remaining \ensuremath{X} tokens are outside math — wrap in $..$
+    text = re.sub(
+        r"\\ensuremath\{((?:[^{}]|\{[^{}]*\})*)\}", r"$\1$", text
+    )
     return text
 
 
