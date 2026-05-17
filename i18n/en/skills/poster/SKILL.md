@@ -1,6 +1,6 @@
 ---
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
 # /poster
@@ -12,20 +12,23 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sect
 
 ## Inputs
 
+### Common
+
 - `paper_dir` (optional, default `paper/`): LaTeX project directory containing `main.tex` and `sections/`
 - `--review` (optional): cross-model Review LLM critique of the generated poster content
-- `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content or `--authors`
-- `--authors STR` (optional): override the authors text on the poster (e.g. `--authors "Morrow Yang, Co-Author"`). Useful when the paper's `\author{}` is intentionally empty for double-blind submission. Ignored if `--anonymous` is also set. If neither this flag nor `--anonymous` is passed and the resolved authors would be "Anonymous", Step 0 will ask interactively.
-- `--max-sections N` (optional, default 6): maximum poster sections to include
-- `--venue STR` (optional): venue text shown in the header right block (e.g. `"NeurIPS 2026"`); if omitted, asked interactively
-- `--affiliation-logo PATH` (optional): path to affiliation/lab logo (PNG/JPG/PDF); copied into `poster/images/`
-- `--conference-logo PATH` (optional): path to conference/journal logo (PNG/JPG/PDF); copied into `poster/images/`
-- `--layout corners|stacked` (optional, default `corners`): header layout. `corners` puts affiliation top-left and conference top-right; `stacked` puts both logos in the right `.conf` area with venue text above
-- `--no-logos` (optional): skip all logo prompts and ship a header with venue text only
-- `--auto-figures` (optional): skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). Wide figures auto-render full-width.
-- `--no-figures` (optional): skip all figures; render every section as text-only. Useful for text-heavy posters or when figures are not yet ready.
-- `--no-refine` (optional): skip Step 5.5 critique-revise. Default behavior runs 1 critique-revise iteration on the rendered PNG via Claude.
-- `--refine-iterations N` (optional, default 1, cap 2): number of critique-revise passes in Step 5.5. `0` is equivalent to `--no-refine`.
+- `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content, the `paper/.author_display.txt` cache, or `--authors`
+- `--no-figures` (optional): render every section as text-only (useful for text-heavy posters, or when figures aren't ready)
+- `--no-logos` (optional): skip the affiliation/conference-logo prompts; header shows venue text only
+- `--no-refine` (optional): skip Step 5.5 critique-revise (default runs 1 iteration via Claude)
+
+### Power-user (scripted use; rarely needed in interactive runs)
+
+- `--authors STR`: override the authors text on the poster (e.g. `--authors "Morrow Yang, Co-Author"`). Useful for one-off override; everyday use is handled by the `paper/.author_display.txt` cache populated in Step 0 Q1. Ignored if `--anonymous` is also set.
+- `--venue STR`: venue text for the header right block (e.g. `"NeurIPS 2026"`). Skips Step 0 venue prompt.
+- `--affiliation-logo PATH` / `--conference-logo PATH`: logo file paths (PNG/JPG/PDF); each skips the matching Step 0 prompt.
+- `--layout corners|stacked` (default `corners`): header layout. `corners` = affiliation top-left, conference top-right; `stacked` = both logos in the right `.conf` area with venue text above.
+- `--auto-figures`: skip the per-section figure questions; pick the largest candidate for each section (legacy behavior). Wide figures auto-render full-width.
+- `--refine-iterations N` (default 1, cap 2): number of critique-revise passes in Step 5.5. `0` is equivalent to `--no-refine`. Bump to 2 if a first pass might not converge on dense content.
 
 ## Outputs
 
@@ -146,7 +149,7 @@ This block is passed into the Step 3 prompt under the `{WIKI_CONTEXT}` slot. If 
 
 Goal: decide which figure (if any) belongs in each selected section. Runs after `dag.json` is built and before any LLM distillation, so the figure choice becomes an *input* to Step 3 rather than something the LLM guesses. Every figure renders inline within its section; the ⚠ wide marker in the manifest is purely informational — a heads-up that an aspect-extreme figure may look cramped in a single column, so the user can pick an alternative figure or skip it.
 
-**Section selection** (same priority list as before, capped at `--max-sections`, default 6):
+**Section selection** (priority list, hard-capped at 6 sections to keep the poster legible at 1400×900):
 
 1. **Introduction** (Abstract or first section)
 2. **Method** (the section describing the approach)
@@ -385,7 +388,7 @@ Auto-applied; no user interaction.
     
     If overflow.ok is still false: refinement is **mandatory** for the next iteration; the loop continues even if prose-stable. The LLM didn't trim enough.
     
-    If iteration budget is exhausted but overflow.ok is still false: stop with a clear warning ("Step 5.5 ran N iterations but couldn't clear DOM overflow — consider re-running with --refine-iterations 2 or trimming `--max-sections`"). Leave HTML / PNG as-is for the user to inspect.
+    If iteration budget is exhausted but overflow.ok is still false: stop with a clear warning ("Step 5.5 ran N iterations but couldn't clear DOM overflow — consider re-running with `--refine-iterations 2`, or hand-trim the longest section's prose in `poster/outline.html`"). Leave HTML / PNG as-is for the user to inspect.
 
 **Why this design**: in the previous version, the LLM declared convergence based on a casual visual scan of a downscaled PNG. Subtle clipping at column edges slipped through. The DOM overflow report removes LLM judgment from the *detection* of clipping — clipping is now a measurement, not a guess. The LLM's job becomes specifically *fixing* what the report flags, not also deciding whether there's anything to fix.
 
@@ -452,7 +455,7 @@ Auto-applied; no user interaction.
 **Termination conditions**:
 - **Convergence (preferred)**: overflow.ok=true AND prose diff < 50 chars. Exit normally.
 - **Iteration cap reached with overflow.ok=true**: also exit normally.
-- **Iteration cap reached with overflow.ok=false**: stop and warn the user — the budget wasn't enough to clear all clipping. Suggest `--refine-iterations 2` or `--max-sections 5`.
+- **Iteration cap reached with overflow.ok=false**: stop and warn the user — the budget wasn't enough to clear all clipping. Suggest `--refine-iterations 2` or hand-trimming the longest section's prose in `poster/outline.html`.
 - **LLM output missing the JSON checklist block** → stop, log warning ("refinement LLM did not produce the mandatory pre-flight checklist"), leave HTML as-is.
 - **LLM output missing the HTML fenced block** → stop, log warning, leave HTML as-is.
 - **Validation fails after revision** → stop, surface validation issues, leave HTML as-is.
@@ -521,7 +524,7 @@ Print POSTER_REPORT:
 - **Do not create wiki entities or graph edges**: the poster is a presentation artifact.
 - **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `/paper-compile`.
 - **Respect `--anonymous`**: when set, authors become "Anonymous" in both `dag.json` and the poster header.
-- **Max section limit**: hard cap at `--max-sections` (default 6) to keep the poster legible at 1400×900.
+- **Max section limit**: hard-coded at 6 sections to keep the poster legible at 1400×900. Sections are selected from the priority list in Step 2.5; Related Work / Background / Appendix get dropped first when papers have more sections than the cap.
 - **40-word summary**: per the poster_outline_prompt, each section paragraph stays ≤ 40 words before transitions are added.
 - **De-AI polish is mandatory**: per `shared-references/academic-writing.md`. Avoid signature openings ("In this work", "We propose", "Our approach"), replace inflated verbs ("leverage" → "use", "delve" → "examine").
 - **Strict template injection**: `tools/poster.py build` only injects between `<div class="flow" id="flow">...</div>`; do not edit the template's CSS or JavaScript fit algorithm.

@@ -1,6 +1,6 @@
 ---
 description: 从已撰写的论文生成学术海报 —— 提炼章节为单页 HTML 海报,包含配图和段落间过渡
-argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sections N] [--venue STR] [--affiliation-logo PATH] [--conference-logo PATH] [--layout corners|stacked] [--no-logos] [--auto-figures] [--no-figures] [--no-refine] [--refine-iterations N]"
+argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
 # /poster
@@ -11,20 +11,23 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--authors STR] [--max-sect
 
 ## Inputs
 
+### 常用
+
 - `paper_dir`(可选,默认 `paper/`):LaTeX 项目目录,需包含 `main.tex` 和 `sections/`
 - `--review`(可选):调用 Review LLM 对生成的海报内容进行跨模型评审
-- `--anonymous`(可选):强制将作者写为 "Anonymous",忽略 `\author{}` 的实际内容或 `--authors`
-- `--authors STR`(可选):覆盖海报上的作者文本(例如 `--authors "Mingtian Yang, Co-Author"`)。适用于论文 `\author{}` 因双盲投稿而留空但海报需要显示真实作者的情况。`--anonymous` 同时传入时仍以 `--anonymous` 为准。若两个 flag 都未传且解析出的作者为 "Anonymous",Step 0 会交互式询问。
-- `--max-sections N`(可选,默认 6):海报最多包含的章节数
-- `--venue STR`(可选):海报右上方显示的会议/期刊文本(例如 `"NeurIPS 2026"`);若不提供,会交互式询问
-- `--affiliation-logo PATH`(可选):单位/实验室 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
-- `--conference-logo PATH`(可选):会议/期刊 logo 文件路径(PNG/JPG/PDF),会被复制到 `poster/images/`
-- `--layout corners|stacked`(可选,默认 `corners`):header 布局。`corners` 把单位 logo 放在左上、会议 logo 放在右上;`stacked` 把两个 logo 都叠在右侧 `.conf` 区,venue 文本在最上
-- `--no-logos`(可选):跳过所有 logo 询问,header 只显示 venue 文本
-- `--auto-figures`(可选):跳过 Step 2.5 的逐章节配图询问,直接为每章选择面积最大的候选图(旧的"largest wins"逻辑)
-- `--no-figures`(可选):所有章节渲染为纯文本,不嵌入任何配图。适合文本密集型海报或配图尚未准备好时
-- `--no-refine`(可选):跳过 Step 5.5 的截图驱动 critique-revise。默认会跑 1 轮 critique-revise
-- `--refine-iterations N`(可选,默认 1,硬上限 2):Step 5.5 的迭代次数。`0` 等同于 `--no-refine`
+- `--anonymous`(可选):强制将作者写为 "Anonymous",忽略 `\author{}`、`paper/.author_display.txt` 缓存以及 `--authors` flag
+- `--no-figures`(可选):所有章节渲染为纯文本(适合文本密集型海报,或配图尚未准备好时)
+- `--no-logos`(可选):跳过 affiliation / conference logo 询问,header 只显示 venue 文本
+- `--no-refine`(可选):跳过 Step 5.5 critique-revise(默认会跑 1 轮)
+
+### 进阶(脚本化使用;交互场景一般用不到)
+
+- `--authors STR`:覆盖海报上的作者文本(例如 `--authors "Mingtian Yang, Co-Author"`)。一次性覆盖用;日常需求由 Step 0 Q1 的 `paper/.author_display.txt` 缓存自动处理。`--anonymous` 同时传入时仍以 `--anonymous` 为准。
+- `--venue STR`:header 右块的 venue 文本(例如 `"NeurIPS 2026"`)。跳过 Step 0 的 venue 询问。
+- `--affiliation-logo PATH` / `--conference-logo PATH`:logo 文件路径(PNG/JPG/PDF);各自跳过 Step 0 对应的询问。
+- `--layout corners|stacked`(默认 `corners`):header 布局。`corners` = 单位 logo 左上 + 会议 logo 右上;`stacked` = 两个 logo 都叠在右侧 `.conf` 区,venue 文本在最上。
+- `--auto-figures`:跳过 Step 2.5 的逐章节配图询问,直接为每章选择面积最大的候选图(旧的 "largest wins" 行为)。
+- `--refine-iterations N`(默认 1,硬上限 2):Step 5.5 的迭代次数。`0` 等同于 `--no-refine`。文字密集且首轮可能无法收敛时,调到 2。
 
 ## Outputs
 
@@ -145,7 +148,7 @@ outcome: <一句话总结>
 
 目标:决定每个被选中的章节应配哪张图(或无图)。在 `dag.json` 构建之后、LLM 提炼之前运行,使配图选择成为 Step 3 的*输入*,而不是让 LLM 猜。每张图都内联渲染在章节中;manifest 中的 ⚠ wide 标记仅作信息提示 —— 提醒比例极端的图在单列里可能被压扁,用户可以选其它图或跳过。
 
-**章节选择**(优先级表同前,上限 `--max-sections`,默认 6):
+**章节选择**(优先级表,硬上限 6 个章节,保持 1400×900 下可读):
 
 1. **Introduction**(摘要或第一节)
 2. **Method**(方法/方案章节)
@@ -384,7 +387,7 @@ python3 tools/poster.py render poster/poster.html
     
     overflow.ok 仍为 false:下一轮**必须**继续 refine;即使 prose 稳定也不能停。LLM 没 trim 够。
     
-    迭代预算用尽但 overflow.ok 还是 false:停止,清晰提示("Step 5.5 跑完 N 轮但仍有 DOM clipping —— 考虑 `--refine-iterations 2` 或调小 `--max-sections`"),HTML / PNG 留着给用户人工检查。
+    迭代预算用尽但 overflow.ok 还是 false:停止,清晰提示("Step 5.5 跑完 N 轮但仍有 DOM clipping —— 考虑 `--refine-iterations 2`,或在 `poster/outline.html` 里手动 trim 最长那节的文字"),HTML / PNG 留着给用户人工检查。
 
 **为什么这么设计**:上一版让 LLM 看降采样的 PNG 后凭感觉声明收敛。列边缘的细微 clipping 被漏掉。DOM 溢出报告把"clipping 的检测"从 LLM 判断里拿出来 —— 现在 clipping 是测量值,不是猜测。LLM 的活变成专门**修复**报告里标出的东西,不再兼职决定"有没有要修的"。
 
@@ -451,7 +454,7 @@ python3 tools/poster.py render poster/poster.html
 **终止条件**:
 - **收敛(首选)**:overflow.ok=true 且 prose diff < 50 字符。正常退出。
 - **达到迭代上限且 overflow.ok=true**:也算正常退出。
-- **达到迭代上限但 overflow.ok=false**:停止并向用户告警 —— 预算不够清除全部 clipping。建议 `--refine-iterations 2` 或调小 `--max-sections 5`。
+- **达到迭代上限但 overflow.ok=false**:停止并向用户告警 —— 预算不够清除全部 clipping。建议 `--refine-iterations 2`,或在 `poster/outline.html` 里手动 trim 最长那节的文字。
 - **LLM 输出缺 JSON checklist 块** → 停止,告警("refinement LLM 未产出强制 pre-flight checklist"),HTML 保留原样。
 - **LLM 输出缺 HTML 围栏块** → 停止,告警,HTML 保留原样。
 - **修订后 validate 失败** → 停止,告诉用户具体问题,HTML 保留原样。
@@ -520,7 +523,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **不创建 wiki 实体或图边**:海报是展示产物,不进知识图。
 - **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `/paper-compile`。
 - **遵循 `--anonymous`**:开启时,作者在 `dag.json` 与海报 header 中都写为 "Anonymous"。
-- **章节数上限**:硬上限 `--max-sections`(默认 6),保证 1400×900 下可读。
+- **章节数上限**:硬上限 6 个章节,保证 1400×900 下可读。章节按 Step 2.5 的优先级表选;论文章节数超过上限时,Related Work / Background / Appendix 优先被丢弃。
 - **40 词摘要**:按 poster_outline_prompt,每章正文段在加过渡句前不超过 40 词。
 - **强制去 AI 风格化**:按 `shared-references/academic-writing.md`。避开 "In this work" / "We propose" / "Our approach" 等签名开头,把 "leverage" 换成 "use","delve" 换成 "examine"。
 - **严格模板注入**:`tools/poster.py build` 仅注入到 `<div class="flow" id="flow">...</div>` 之间,不修改模板的 CSS 与 fit 算法。
