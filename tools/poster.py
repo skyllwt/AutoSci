@@ -645,15 +645,19 @@ def _render_via_playwright(
         })
         """)
 
-        # Screenshot the .poster element directly, NOT the viewport.
-        # The .stage has padding:24px which centers .poster inside the
-        # viewport — but with .poster's explicit width:1400px the right
-        # ~24px ends up past the 1400px viewport edge. page.screenshot()
-        # captures only the viewport (1400×900) so any content past
-        # viewport.right gets dropped from the PNG, NOT clipped by
-        # overflow:hidden. Locator-based screenshot captures the
-        # .poster's bounding box regardless of viewport — output is
-        # exactly W × H × scale, matching the design.
+        # Before screenshotting, remove the .stage padding. The .stage uses
+        # padding:24px to give the .poster visual breathing room when viewed
+        # in a browser, but with viewport==W×H that padding shoves the
+        # .poster's right + bottom borders past the visible viewport.
+        # locator.screenshot() then silently clips them. Zeroing .stage's
+        # padding parks .poster at (0,0) within the viewport, so its full
+        # 1400×900 box (including all four 3px borders) is captured.
+        # The template's CSS stays untouched — this override only applies
+        # to the headless render.
+        page.evaluate(
+            "() => { const s = document.querySelector('.stage');"
+            "if (s) { s.style.padding = '0'; s.style.minHeight = '0'; } }"
+        )
         page.locator(".poster").screenshot(path=str(output_path))
         browser.close()
 
