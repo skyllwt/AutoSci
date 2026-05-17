@@ -212,25 +212,186 @@ def _replace_citations(text: str, cite_map: Optional[dict] = None) -> str:
     return re.sub(r"\\cite[a-z]*(?:\[[^\]]*\])*\{([^}]+)\}", _sub, text)
 
 
-def _extract_table_captions(text: str) -> str:
-    """Replace each `\\begin{table}…\\end{table}` env with `[Table: <caption>]`.
+TABULAR_ENV_PATTERN = re.compile(
+    r"\\begin\{tabular\}\{([^}]+)\}(.*?)\\end\{tabular\}", re.DOTALL
+)
+MULTICOLUMN_PATTERN = re.compile(
+    r"\\multicolumn\{(\d+)\}\{[^}]*\}\{((?:[^{}]|\{[^{}]*\})*)\}"
+)
+ROW_SEP_PATTERN = re.compile(r"\\\\(?:\s*\[[^\]]*\])?")
+TABLE_RULE_PATTERN = re.compile(
+    r"\\(?:toprule|midrule|bottomrule|cmidrule(?:\([^)]*\))?(?:\{[^}]*\})?"
+    r"|addlinespace(?:\[[^\]]*\])?|hline)\b"
+)
 
-    Preserves the table's information as a flat paragraph so the LLM
-    distilling can mention key results. Tabular data itself is dropped —
-    no room for a real table on a 1400×900 poster.
+
+def _clean_table_cell(cell: str, cite_map: Optional[dict] = None) -> str:
+    """LaTeX → HTML at the cell level. Preserves `$..$` math intact for
+    KaTeX render in the browser. Translates the formatting commands that
+    booktabs tables commonly carry."""
+    cell = re.sub(r"\\phantom\{[^}]*\}", "", cell)
+    cell = re.sub(r"\\quad\b\s*", "", cell)
+    cell = re.sub(r"\\qquad\b\s*", "", cell)
+    cell = re.sub(r"\\\s", " ", cell)
+    cell = _replace_citations(cell, cite_map)
+    cell = re.sub(
+        r"\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}", r"<strong>\1</strong>", cell
+    )
+    cell = re.sub(
+        r"\\emph\{((?:[^{}]|\{[^{}]*\})*)\}", r"<em>\1</em>", cell
+    )
+    cell = re.sub(
+        r"\\textit\{((?:[^{}]|\{[^{}]*\})*)\}", r"<em>\1</em>", cell
+    )
+    cell = re.sub(
+        r"\\texttt\{((?:[^{}]|\{[^{}]*\})*)\}", r"<code>\1</code>", cell
+    )
+    cell = re.sub(
+        r"\\textsc\{((?:[^{}]|\{[^{}]*\})*)\}", r"\1", cell
+    )
+    cell = re.sub(r"\\footnote\{[^}]*\}", "", cell)
+    cell = re.sub(r"\\label\{[^}]*\}", "", cell)
+    cell = re.sub(r"\\ref\{[^}]*\}", "", cell)
+    # Common LaTeX text-mode escapes that survived earlier passes
+    # (cells aren't passed through _strip_latex_text's full whitespace
+    # collapse). \_ → _ , \% → % , \& → & , \# → # .
+    cell = cell.replace(r"\_", "_").replace(r"\%", "%")
+    cell = cell.replace(r"\&", "&amp;").replace(r"\#", "#")
+    return cell.strip()
+
+
+def _parse_row_cells(
+    row: str, cite_map: Optional[dict] = None
+) -> list[tuple[str, str]]:
+    """Split a row on unescaped `&` and clean each cell. Returns
+    [(content_html, attrs_str), ...] where attrs_str is e.g. ' colspan="8"'
+    for a \\multicolumn cell, otherwise ''."""
+    cells = re.split(r"(?<!\\)&", row)
+    result: list[tuple[str, str]] = []
+    for c in cells:
+        c = c.strip()
+        mc = MULTICOLUMN_PATTERN.match(c)
+        if mc:
+            colspan = int(mc.group(1))
+            content = _clean_table_cell(mc.group(2), cite_map)
+            result.append((content, f' colspan="{colspan}"'))
+        else:
+            content = _clean_table_cell(c, cite_map)
+            result.append((content, ""))
+    return result
+
+
+def _tabular_to_html(
+    tabular_match: re.Match, cite_map: Optional[dict] = None
+) -> str:
+    """Convert a \\begin{tabular}{spec} ... \\end{tabular} match into an
+    HTML <table class="poster-table"> string. Booktabs convention:
+    rows above the first \\midrule are headers; rows after are body.
+    Subsequent \\midrule occurrences are treated as visual separators
+    (no extra header rows) — the poster CSS handles striping.
     """
-    def _sub(m):
-        body = m.group(0)
-        cap = CAPTION_PATTERN.search(body)
-        if not cap:
+    body = tabular_match.group(2)
+    raw_rows = ROW_SEP_PATTERN.split(body)
+
+    rendered: list[tuple[str, str]] = []  # (section, row_html)
+    current = "thead"
+    for raw_row in raw_rows:
+        had_midrule = bool(re.search(r"\\midrule\b", raw_row))
+        # Booktabs convention: content on the same parsed row as \midrule
+        # is the FIRST tbody row, not the last thead row (the \midrule
+        # acts as the separator, sitting above the body content). So
+        # transition BEFORE rendering this row.
+        if had_midrule and current == "thead":
+            current = "tbody"
+        cleaned = TABLE_RULE_PATTERN.sub("", raw_row).strip()
+        if not cleaned:
+            continue
+        cells = _parse_row_cells(cleaned, cite_map)
+        if not cells or all(not c[0] for c in cells):
+            continue
+        tag = "th" if current == "thead" else "td"
+        cell_strs = "".join(
+            f"<{tag}{attrs}>{content}</{tag}>" for content, attrs in cells
+        )
+        rendered.append((current, f"<tr>{cell_strs}</tr>"))
+
+    thead = "".join(r for s, r in rendered if s == "thead")
+    tbody = "".join(r for s, r in rendered if s == "tbody")
+
+    parts = ['<table class="poster-table">']
+    if thead:
+        parts.append(f"<thead>{thead}</thead>")
+    if tbody:
+        parts.append(f"<tbody>{tbody}</tbody>")
+    parts.append("</table>")
+    return "".join(parts)
+
+
+def _extract_tables_to_html(
+    text: str, cite_map: Optional[dict] = None
+) -> str:
+    """Replace each `\\begin{table}…\\end{table}` env with a live HTML
+    `<table class="poster-table">` (with `<caption>` carrying the
+    booktabs caption text). Replaces the old behavior of squashing the
+    table down to `[Table: <caption>]` — the poster now renders the
+    actual rows/columns and the fit() algorithm sizes them.
+
+    Edge cases intentionally NOT handled (rare in mainstream paper
+    drafts; flagged for future): nested `\\begin{tabular}` inside
+    cells, `array` envs, `\\rotatebox{}`, `\\resizebox{}`,
+    `\\multirow{...}`. For the common booktabs table with
+    `\\multicolumn`, `\\textbf`/`\\textit`/`\\texttt` cells, footnote
+    daggers, and math macros, this implementation is sufficient.
+    """
+    def _build_caption_html(body: str) -> str:
+        cap_match = CAPTION_PATTERN.search(body)
+        if not cap_match:
             return ""
-        cap_text = cap.group(1)
+        cap_text = cap_match.group(1)
         cap_text = re.sub(r"\\label\{[^}]*\}", "", cap_text)
         cap_text = re.sub(r"\\ref\{[^}]*\}", "", cap_text)
-        cap_text = re.sub(r"\\textbf\{([^}]*)\}", r"\1", cap_text)
-        cap_text = re.sub(r"\\emph\{([^}]*)\}", r"\1", cap_text)
+        cap_text = _replace_citations(cap_text, cite_map)
+        cap_text = re.sub(
+            r"\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}",
+            r"<strong>\1</strong>",
+            cap_text,
+        )
+        cap_text = re.sub(
+            r"\\emph\{((?:[^{}]|\{[^{}]*\})*)\}", r"<em>\1</em>", cap_text
+        )
+        cap_text = re.sub(
+            r"\\textit\{((?:[^{}]|\{[^{}]*\})*)\}", r"<em>\1</em>", cap_text
+        )
+        cap_text = re.sub(
+            r"\\texttt\{((?:[^{}]|\{[^{}]*\})*)\}",
+            r"<code>\1</code>",
+            cap_text,
+        )
+        cap_text = cap_text.replace(r"\_", "_").replace(r"\%", "%")
+        cap_text = cap_text.replace(r"\&", "&amp;").replace(r"\#", "#")
         cap_text = re.sub(r"\s+", " ", cap_text).strip()
-        return f"\n\n[Table: {cap_text}]\n\n"
+        return f"<caption>{cap_text}</caption>" if cap_text else ""
+
+    def _sub(m):
+        body = m.group(0)
+        caption_html = _build_caption_html(body)
+        tabular_match = TABULAR_ENV_PATTERN.search(body)
+        if not tabular_match:
+            # No tabular inside the env — keep caption as a flat marker
+            # so the LLM at Step 3 can at least mention it in prose.
+            inner = caption_html.replace("<caption>", "").replace(
+                "</caption>", ""
+            )
+            return f"\n\n[Table: {inner}]\n\n" if inner else "\n\n"
+        table_html = _tabular_to_html(tabular_match, cite_map)
+        if caption_html:
+            table_html = table_html.replace(
+                '<table class="poster-table">',
+                f'<table class="poster-table">{caption_html}',
+                1,
+            )
+        return f"\n\n{table_html}\n\n"
+
     return re.sub(
         r"\\begin\{table\*?\}.*?\\end\{table\*?\}",
         _sub,
@@ -244,14 +405,25 @@ def _strip_latex_text(
     cite_map: Optional[dict] = None,
     math_macros: Optional[dict] = None,
 ) -> str:
-    """Best-effort LaTeX → plain text.
+    """Best-effort LaTeX → mixed plain-text + KaTeX-renderable HTML.
 
     Preserves math ($…$, $$…$$, \\(…\\), \\[…\\]) intact for downstream KaTeX
     rendering in the poster HTML. Expands custom math macros (parsed from
-    `math_commands.tex`) so KaTeX can render them. Replaces \\cite*{} via
-    cite_map. Extracts table captions before stripping the tabular envs.
-    Drops figure envs (their captions are pulled separately by
+    `math_commands.tex`) so KaTeX sees standard commands; if a macro
+    expands to `\\ensuremath{X}` (LaTeX's "math-mode wrapper"), the
+    wrapper is unwrapped into `$X$` so KaTeX picks it up.
+
+    Replaces \\cite*{} via cite_map. Converts `\\begin{table}...
+    \\end{table}` envs to live HTML `<table class="poster-table">`
+    (with cells, multicolumn handling, booktabs awareness). Drops
+    figure envs (their captions are pulled separately by
     `_find_caption_for_figure`).
+
+    Pipeline order matters — table extraction runs BEFORE the global
+    `\\textbf{}` / `\\emph{}` strip so cell-level formatting can map to
+    `<strong>` / `<em>` instead of being silently lost. Math-macro
+    expansion runs BEFORE `\\ensuremath{}` unwrapping so macros that
+    expand to ensuremath-wrapped definitions render correctly.
     """
     text = COMMENT_PATTERN.sub("", text)
     text = re.sub(r"\\section\*?\{[^}]*\}", "", text)
@@ -260,21 +432,75 @@ def _strip_latex_text(
     text = re.sub(r"\\label\{[^}]*\}", "", text)
     text = re.sub(r"\\ref\{[^}]*\}", "", text)
     text = _replace_citations(text, cite_map)
+    # Tables → HTML first, so cell scrubbing preserves \textbf inside cells
+    text = _extract_tables_to_html(text, cite_map)
+    # Global text-style strip — won't touch HTML tags emitted by table extraction
     text = re.sub(r"\\textbf\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\emph\{([^}]*)\}", r"\1", text)
     text = re.sub(r"\\textit\{([^}]*)\}", r"\1", text)
     # Expand custom math macros so KaTeX sees standard commands
     text = _expand_math_macros(text, math_macros or {})
-    # Extract table captions first, before they're swallowed by the env regex
-    text = _extract_table_captions(text)
+    # \ensuremath{X} → $X$ : when a macro definition uses \ensuremath{}
+    # (e.g. \Mbase = \ensuremath{M_0} in math_commands.tex), the previous
+    # pass leaves the wrapper in place. KaTeX doesn't understand
+    # \ensuremath, so unwrap it into a $..$ math span that auto-render
+    # will pick up.
+    text = re.sub(r"\\ensuremath\{((?:[^{}]|\{[^{}]*\})*)\}", r"$\1$", text)
     # Strip figure environments — captions pulled separately
     text = re.sub(
         r"\\begin\{figure\*?\}.*?\\end\{figure\*?\}", "", text, flags=re.DOTALL
     )
+    # Common LaTeX text-mode escapes: \_ \% \& \# survive earlier passes
+    # because the regexes target commands with braces, not these single-
+    # char escapes. Replace them with the literal characters.
+    text = text.replace(r"\_", "_").replace(r"\%", "%")
+    text = text.replace(r"\&", "&").replace(r"\#", "#")
     # Collapse whitespace (math survives — $…$ tokens are not touched)
     text = re.sub(r"\n\s*\n", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+def _expand_inputs(
+    text: str, paper_dir: Path, max_depth: int = 3
+) -> str:
+    """Expand `\\input{path}` directives to the contents of the referenced
+    file. Tries `path` then `path.tex`. Recurses up to `max_depth` levels
+    so a \\input that itself inputs another file (rare) resolves.
+
+    Why this matters: in mainstream paper drafts, tables and figures
+    often live in their own files (`tables/foo.tex`, `figures/foo.tex`)
+    and are included into section bodies via `\\input{tables/foo}`.
+    Without expansion, _extract_tables_to_html and _extract_tikz_figures
+    see only the bare `\\input{}` directive and miss the content.
+
+    Cycles + missing files are tolerated: max_depth caps any recursion
+    blowup, and a missing target file just leaves the directive in place
+    (downstream scrub will drop it).
+    """
+    if max_depth <= 0:
+        return text
+
+    def _resolve(path_str: str) -> Optional[Path]:
+        p = paper_dir / path_str
+        if p.is_file():
+            return p
+        p_tex = paper_dir / (path_str + ".tex")
+        if p_tex.is_file():
+            return p_tex
+        return None
+
+    def _sub(m):
+        target = _resolve(m.group(1).strip())
+        if target is None:
+            return m.group(0)
+        try:
+            inner = target.read_text(encoding="utf-8")
+        except OSError:
+            return m.group(0)
+        return _expand_inputs(inner, paper_dir, max_depth - 1)
+
+    return INPUT_PATTERN.sub(_sub, text)
 
 
 def _parse_math_macros(paper_dir: Path) -> dict:
@@ -429,27 +655,36 @@ def _extract_section_order(main_tex: str) -> list[str]:
 
 def _read_section_file(
     path: Path,
+    paper_dir: Path,
     cite_map: Optional[dict] = None,
     math_macros: Optional[dict] = None,
-) -> tuple[str, str, list[str]]:
-    """Read a section .tex file. Returns (display_name, content_text, figure_refs).
+) -> tuple[str, str, list[str], str]:
+    """Read a section .tex file and inline `\\input{}` directives.
 
-    figure_refs are basenames as they appear in \\includegraphics{...}, e.g.
-    "figures/layer_curves.pdf" or "figures/layer_curves" (extension may be missing).
+    Returns (display_name, content_text, figure_refs, raw_expanded).
+
+    raw_expanded is the section .tex text with `\\input{...}` resolved
+    one or more levels deep (typical use: section -> tables/foo.tex).
+    Both _find_caption_for_figure and _extract_tikz_figures need this
+    expanded form to find tables/figures that aren't inlined directly
+    in the section.
+
+    figure_refs are basenames as they appear in \\includegraphics{...}.
     """
     raw = path.read_text(encoding="utf-8")
+    raw_expanded = _expand_inputs(raw, paper_dir)
 
     # Display name: first \section{...}, fallback to capitalized filename
-    sec_match = SECTION_NAME_PATTERN.search(raw)
+    sec_match = SECTION_NAME_PATTERN.search(raw_expanded)
     if sec_match:
         display_name = sec_match.group(1).strip()
     else:
         display_name = path.stem.replace("_", " ").title()
 
-    figure_refs = INCLUDE_GRAPHICS_PATTERN.findall(raw)
+    figure_refs = list(INCLUDE_GRAPHICS_PATTERN.findall(raw_expanded))
 
-    content = _strip_latex_text(raw, cite_map, math_macros)
-    return display_name, content, figure_refs
+    content = _strip_latex_text(raw_expanded, cite_map, math_macros)
+    return display_name, content, figure_refs, raw_expanded
 
 
 def _resolve_figure_path(ref: str, paper_dir: Path) -> Optional[Path]:
@@ -606,9 +841,8 @@ def build_dag(
             )
             continue
 
-        sec_raw = sec_path.read_text(encoding="utf-8")
-        display_name, content_text, figure_refs = _read_section_file(
-            sec_path, cite_map, math_macros
+        display_name, content_text, figure_refs, sec_raw = _read_section_file(
+            sec_path, paper_dir, cite_map, math_macros
         )
 
         if not display_name or display_name.lower() == "abstract":
