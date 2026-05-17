@@ -193,27 +193,54 @@ aspect 由 `resolution`(W×H)计算。⚠ wide 标记来自 dag.json 的 `wide` 
 |---|---|---|
 | 0 | — | 无图(不询问,静默) |
 | 1 | any | 静默 inline 使用(manifest 已展示;若 `wide`,⚠ 标记即提示)。用户可重跑加 `--no-figures` 来移除。 |
-| ≥2 | any | **询问 Q-Pick**: *"Which figure for {Section}?"* —— 选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest)` / `No figure`。 |
+| ≥2 | any | **询问 Q-Pick**(多选):*"Which figure(s) for {Section}?"* —— `AskUserQuestion` 配 `multiSelect: true`,选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest one)` / `No figure`。用户可选一张、多张或全部。 |
 
 每次询问用 `AskUserQuestion`,选项数 ≤ 4。若某章节有 4 个以上候选,去掉 `Let Claude decide` 这一项以满足上限(用户已经在显式选了)。
+
+**跟进:同一章节选了 ≥2 张时询问布局。** 用 `AskUserQuestion`(单选):
+
+| 选项 | 行为 | 何时推荐 |
+|---|---|---|
+| `side-by-side` | 所有选中图都放进 **一个** `<div class="img-section">`;flex 布局自动水平平分宽度。 | 默认。3 列海报里最省空间。零 CSS 改动。 |
+| `vertical-stack` | 每张图一个独立 `<div class="img-section">`,自上而下堆叠。每张图占满列宽。 | 单图细节重要时;但章节会很高,fit() 会更激进地缩小文字。 |
+| `after-table` | 章节里**同时有** `<table class="poster-table">` 时使用,figures 横向并排,放在表格**之后**。 | 章节内容密;尊重论文阅读顺序。 |
+
+HTML 模板已原生支持 `side-by-side` 与 `vertical-stack`(flex 布局 + 多个 `.img-section`)。`after-table` 只是放置变体,不是新 CSS 类。
 
 所有决策做完后,打印一行汇总:
 
 ```
 Figures chosen:
-  Experiments → bootstrap.png (inline)
-  (other sections: text only)
+  Experiments → fig2.png + fig3.png (side-by-side)
+  Method      → tikz_chain.png (inline)
+  (其他章节:仅文字)
 ```
 
 **决策记录**:用按章节显示名作 key 的内存 dict 保留选择:
 
 ```python
 {
-  "Experiments": {"figure": "images/bootstrap.png", "layout": "inline", "alt": "<caption>"},
-  "Conclusion": {"figure": None, "layout": None, "alt": None},
+  "Experiments": {
+    "figures": ["images/fig2.png", "images/fig3.png"],   # 列表,即使只 1 张
+    "alts":    ["<caption fig2>",  "<caption fig3>"],    # 平行列表
+    "layout":  "inline-multi-side",                       # 见下
+  },
+  "Method": {
+    "figures": ["images/tikz_chain.png"],
+    "alts":    ["<caption>"],
+    "layout":  "inline",                                  # 单图场景
+  },
+  "Conclusion": {"figures": [], "alts": [], "layout": "none"},
   ...
 }
 ```
+
+`layout` 取值:
+- `"none"` —— 章节仅文字,无图
+- `"inline"` —— 一张图在一个 `.img-section` 中(向后兼容单图流程)
+- `"inline-multi-side"` —— ≥2 张图放进**同一个** `.img-section`(flex 水平)
+- `"inline-multi-stack"` —— ≥2 张图,每张一个 `.img-section`(垂直堆叠)
+- `"inline-multi-after-table"` —— ≥2 张图横向并排,放在章节内容的 `<table class="poster-table">` **之后**
 
 Step 3 会消费此 dict 填入每章节的提示词变量。
 
@@ -224,9 +251,9 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 对每个章节,准备下面提示词所需的变量。配图相关变量从 Step 2.5 的决策 dict 取,**不要**在这里重新算。
 
 - `SECTION_JSON`:从 `poster/dag.json` 取该 section 节点,**去掉** `visual_node` 字段(visual 单独传入)。只保留 `name`, `content`, `level`。
-- `LAYOUT`:`"none"` 或 `"inline"`,从 `decisions[section_name]["layout"]` 取。决定 HTML 模板分支。
-- `IMAGE_SRC`:例如 `images/layer_curves.png`,从 `decisions[section_name]["figure"]` 取。`LAYOUT == "none"` 时为空字符串。
-- `ALT_TEXT`:从 `decisions[section_name]["alt"]` 取(caption)。`LAYOUT == "none"` 时为空。
+- `LAYOUT`:`"none"` / `"inline"` / `"inline-multi-side"` / `"inline-multi-stack"` / `"inline-multi-after-table"` 之一,从 `decisions[section_name]["layout"]` 取。决定 HTML 模板分支。
+- `IMAGE_SRCS`:图源列表,从 `decisions[section_name]["figures"]` 取(如 `["images/fig2.png", "images/fig3.png"]`)。`LAYOUT == "none"` 时为空列表。
+- `ALT_TEXTS`:与 `IMAGE_SRCS` 一一对应的 caption 列表(`decisions[section_name]["alts"]`)。
 - `WIKI_CONTEXT`(可选):Step 2 编译出的字符串(假设、新颖性、关键数值)。无 wiki 上下文时为空。
 
 对每个章节调用下面的提示词(从 PaperX `poster_outline_prompt` 移植,扩展了 `LAYOUT` 与 `WIKI_CONTEXT`):
@@ -236,12 +263,12 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > SECTION_JSON:
 > {SECTION_JSON}
 >
-> LAYOUT: {LAYOUT}    # one of "none" | "inline"
+> LAYOUT: {LAYOUT}    # one of "none" | "inline" | "inline-multi-side" | "inline-multi-stack" | "inline-multi-after-table"
 >
-> If LAYOUT is "inline", you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+> If LAYOUT is not "none", you are also given IMAGE_SRCS (a list of image paths) and ALT_TEXTS (parallel list of captions). The visual content MUST ONLY come from these provided sources (do not invent or substitute any other image). For single-figure layouts (`"inline"`), the lists each have length 1. For multi-figure layouts, length ≥ 2 and the order in the list is the order figures should appear in the rendered HTML (left-to-right for `*-side`, top-to-bottom for `*-stack`).
 >
-> IMAGE_SRC: {IMAGE_SRC}
-> ALT_TEXT: {ALT_TEXT}
+> IMAGE_SRCS: {IMAGE_SRCS}
+> ALT_TEXTS: {ALT_TEXTS}
 >
 > WIKI_CONTEXT (optional, may be empty — use it ONLY to ground concrete numbers/claims, never to invent content not in the section):
 > {WIKI_CONTEXT}
@@ -256,7 +283,10 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
 > - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
-> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is `IMAGE_SRCS[0]` and `alt` is `ALT_TEXTS[0]`.
+> - LAYOUT == `"inline-multi-side"`: output ONE `<div class="img-section">` containing all `<img>` tags in `IMAGE_SRCS` order; the template's flex layout splits them horizontally.
+> - LAYOUT == `"inline-multi-stack"`: output MULTIPLE `<div class="img-section">` blocks, one per `<img>`, in `IMAGE_SRCS` order. Stacked top-to-bottom.
+> - LAYOUT == `"inline-multi-after-table"`: same as `"inline-multi-side"` (one `.img-section` with all `<img>` tags) but place that `.img-section` AFTER the `<table class="poster-table">` block(s) inside `<div class="section-body">`. Useful when the section's table is the primary artifact and figures serve as visual support.
 > - **TABLES**: if `SECTION_JSON.content` contains one or more `<table class="poster-table">…</table>` blocks, include EACH ONE verbatim (preserve the entire block byte-for-byte, including `<caption>`, `<thead>`, `<tbody>`, all `<tr>` / `<th>` / `<td>` tags and their attributes) inside `<div class="section-body">` AFTER your summary `<p>`. Do NOT paraphrase, restructure, or trim the table HTML. Exception — drop a table only if it is obviously too large for one column (> 5 columns AND > 6 rows) AND summarizing 2–3 key cells in prose would preserve the result; in that case, drop the table and call out the key numbers in your summary `<p>`.
 >
 > **Required HTML templates**(按 LAYOUT 选择对应变体):
@@ -271,29 +301,71 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > </section>
 > ```
 >
-> *LAYOUT = "inline"*:
+> *LAYOUT = "inline"* (single figure):
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
 >   <div class="section-body" contenteditable="true">
 >     <p>SUMMARY_TEXT</p>
 >     <div class="img-section">
->       <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
 >     </div>
 >   </div>
 > </section>
 > ```
 >
-> *With a table* (either LAYOUT, when `SECTION_JSON.content` contains
-> `<table class="poster-table">`): insert the verbatim table block(s)
-> after the summary `<p>` (and before the `<div class="img-section">`
-> if LAYOUT is "inline"). Example shape:
+> *LAYOUT = "inline-multi-side"* (≥2 figures, horizontal):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>       <!-- repeat for IMAGE_SRCS[2], etc. -->
+>     </div>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline-multi-stack"* (≥2 figures, vertical):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>     </div>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>     </div>
+>     <!-- one .img-section per figure -->
+>   </div>
+> </section>
+> ```
+>
+> *With a table* — when `SECTION_JSON.content` contains
+> `<table class="poster-table">`, insert the verbatim table block(s)
+> after the summary `<p>`. Default placement order inside
+> `<div class="section-body">`:
+>   1. summary `<p>`
+>   2. `<table class="poster-table">…</table>` (all tables, in source order)
+>   3. `<div class="img-section">…</div>` (if LAYOUT requires figures)
+>
+> If LAYOUT is `"inline-multi-after-table"` the order is the same — the
+> name is just a hint that the table is the primary artifact. Example:
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
 >   <div class="section-body" contenteditable="true">
 >     <p>SUMMARY_TEXT</p>
 >     <table class="poster-table">…verbatim from SECTION_JSON.content…</table>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>     </div>
 >   </div>
 > </section>
 > ```

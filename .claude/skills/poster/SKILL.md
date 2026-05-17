@@ -194,15 +194,26 @@ For each section, decide what to ask based on candidate count and wide-flags:
 |---|---|---|
 | 0 | — | No figure (no question, silent) |
 | 1 | any | Use it inline (no question — the manifest already showed it; if `wide`, the ⚠ marker is the heads-up). User can re-run with `--no-figures` to drop it. |
-| ≥2 | any | **Ask Q-Pick**: *"Which figure for {Section}?"* — options: each candidate (label includes ⚠ wide marker if applicable) / `Let Claude decide (pick largest)` / `No figure`. |
+| ≥2 | any | **Ask Q-Pick** (multi-select): *"Which figure(s) for {Section}?"* — `AskUserQuestion` with `multiSelect: true`, options: each candidate (label includes ⚠ wide marker if applicable) / `Let Claude decide (pick largest one)` / `No figure`. User may pick one, several, or all. |
 
 Use `AskUserQuestion` for each prompt; cap at 4 options total. When a section has 4+ candidates, drop the `Let Claude decide` option to stay within the limit (the user is being explicit anyway).
+
+**Follow-up: layout when ≥2 figures were picked for the same section.** Ask via `AskUserQuestion` (single-select):
+
+| Option | What it does | When to recommend |
+|---|---|---|
+| `side-by-side` | Both/all chosen figures inside ONE `<div class="img-section">`; the template's flex layout splits horizontal space evenly. | Default. Most space-efficient for a 3-col poster. Works zero-CSS-changes. |
+| `vertical-stack` | One `<div class="img-section">` per figure, stacked top-to-bottom. Each figure gets full column width. | When fine detail matters per figure; risks tall section + fit() shrinking text aggressively. |
+| `after-table` | Used when the section ALSO contains a `<table class="poster-table">`. Figures go side-by-side AFTER the table. | The section is content-dense; respect paper's read order. |
+
+The HTML template already supports both `side-by-side` and `vertical-stack` natively (flex layout, plus the option of multiple `.img-section` divs). `after-table` is a placement variant, not a new CSS class.
 
 After all decisions, print a final summary line:
 
 ```
 Figures chosen:
-  Experiments → bootstrap.png (inline)
+  Experiments → fig2.png + fig3.png (side-by-side)
+  Method      → tikz_chain.png (inline)
   (other sections: text only)
 ```
 
@@ -210,11 +221,27 @@ Figures chosen:
 
 ```python
 {
-  "Experiments": {"figure": "images/bootstrap.png", "layout": "inline", "alt": "<caption>"},
-  "Conclusion": {"figure": None, "layout": None, "alt": None},
+  "Experiments": {
+    "figures": ["images/fig2.png", "images/fig3.png"],   # list, even when 1
+    "alts":    ["<caption fig2>",  "<caption fig3>"],    # parallel list
+    "layout":  "inline-multi-side",                       # see below
+  },
+  "Method": {
+    "figures": ["images/tikz_chain.png"],
+    "alts":    ["<caption>"],
+    "layout":  "inline",                                  # single-figure case
+  },
+  "Conclusion": {"figures": [], "alts": [], "layout": "none"},
   ...
 }
 ```
+
+`layout` enum:
+- `"none"` — section is text-only, no figures
+- `"inline"` — exactly one figure inside one `.img-section` (back-compat with single-figure flow)
+- `"inline-multi-side"` — 2+ figures inside ONE `.img-section` (flex side-by-side)
+- `"inline-multi-stack"` — 2+ figures, each in its own `.img-section` (vertical stack)
+- `"inline-multi-after-table"` — 2+ figures side-by-side, placed AFTER any `<table class="poster-table">` in the section content
 
 This dict is consumed in Step 3 to fill the per-section prompt variables.
 
@@ -225,9 +252,9 @@ Load `poster/dag.json` and the figure-decision dict from Step 2.5. Iterate the s
 For each selected section, prepare the variables for the prompt below. Figure variables come from the Step 2.5 decision dict — do NOT re-derive them here.
 
 - `SECTION_JSON`: the section node from `poster/dag.json` with the `visual_node` field **removed** (the visual is conveyed separately). Keep only `name`, `content`, `level`.
-- `LAYOUT`: one of `"none"` or `"inline"` from `decisions[section_name]["layout"]`. Drives the HTML template branch.
-- `IMAGE_SRC`: e.g. `images/layer_curves.png` from `decisions[section_name]["figure"]`. Empty string if `LAYOUT == "none"`.
-- `ALT_TEXT`: the chosen visual's caption from `decisions[section_name]["alt"]`. Empty if `LAYOUT == "none"`.
+- `LAYOUT`: one of `"none"` / `"inline"` / `"inline-multi-side"` / `"inline-multi-stack"` / `"inline-multi-after-table"` from `decisions[section_name]["layout"]`. Drives the HTML template branch.
+- `IMAGE_SRCS`: list of image sources from `decisions[section_name]["figures"]`, e.g. `["images/fig2.png", "images/fig3.png"]`. Empty list if `LAYOUT == "none"`.
+- `ALT_TEXTS`: parallel list of captions from `decisions[section_name]["alts"]`. Same length as `IMAGE_SRCS`.
 - `WIKI_CONTEXT` (optional): a short block compiled from Step 2 — hypothesis statement, novelty argument, key-result numbers from linked ideas/experiments. Empty string if no wiki context was loaded.
 
 Run the following prompt for each section (ported from PaperX `poster_outline_prompt`, extended for `LAYOUT` and `WIKI_CONTEXT`):
@@ -237,12 +264,12 @@ Run the following prompt for each section (ported from PaperX `poster_outline_pr
 > SECTION_JSON:
 > {SECTION_JSON}
 >
-> LAYOUT: {LAYOUT}    # one of "none" | "inline"
+> LAYOUT: {LAYOUT}    # one of "none" | "inline" | "inline-multi-side" | "inline-multi-stack" | "inline-multi-after-table"
 >
-> If LAYOUT is "inline", you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+> If LAYOUT is not "none", you are also given IMAGE_SRCS (a list of image paths) and ALT_TEXTS (parallel list of captions). The visual content MUST ONLY come from these provided sources (do not invent or substitute any other image). For single-figure layouts (`"inline"`), the lists each have length 1. For multi-figure layouts, length ≥ 2 and the order in the list is the order figures should appear in the rendered HTML (left-to-right for `*-side`, top-to-bottom for `*-stack`).
 >
-> IMAGE_SRC: {IMAGE_SRC}
-> ALT_TEXT: {ALT_TEXT}
+> IMAGE_SRCS: {IMAGE_SRCS}
+> ALT_TEXTS: {ALT_TEXTS}
 >
 > WIKI_CONTEXT (optional, may be empty — use it ONLY to ground concrete numbers/claims, never to invent content not in the section):
 > {WIKI_CONTEXT}
@@ -257,7 +284,10 @@ Run the following prompt for each section (ported from PaperX `poster_outline_pr
 > - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
 > - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
-> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is `IMAGE_SRCS[0]` and `alt` is `ALT_TEXTS[0]`.
+> - LAYOUT == `"inline-multi-side"`: output ONE `<div class="img-section">` containing all `<img>` tags in `IMAGE_SRCS` order; the template's flex layout splits them horizontally.
+> - LAYOUT == `"inline-multi-stack"`: output MULTIPLE `<div class="img-section">` blocks, one per `<img>`, in `IMAGE_SRCS` order. Stacked top-to-bottom.
+> - LAYOUT == `"inline-multi-after-table"`: same as `"inline-multi-side"` (one `.img-section` with all `<img>` tags) but place that `.img-section` AFTER the `<table class="poster-table">` block(s) inside `<div class="section-body">`. Useful when the section's table is the primary artifact and figures serve as visual support.
 > - **TABLES**: if `SECTION_JSON.content` contains one or more `<table class="poster-table">…</table>` blocks, include EACH ONE verbatim (preserve the entire block byte-for-byte, including `<caption>`, `<thead>`, `<tbody>`, all `<tr>` / `<th>` / `<td>` tags and their attributes) inside `<div class="section-body">` AFTER your summary `<p>`. Do NOT paraphrase, restructure, or trim the table HTML. Exception — drop a table only if it is obviously too large for one column (> 5 columns AND > 6 rows) AND summarizing 2–3 key cells in prose would preserve the result; in that case, drop the table and call out the key numbers in your summary `<p>`.
 >
 > **Required HTML templates** (pick the one matching LAYOUT):
@@ -272,29 +302,71 @@ Run the following prompt for each section (ported from PaperX `poster_outline_pr
 > </section>
 > ```
 >
-> *LAYOUT = "inline"*:
+> *LAYOUT = "inline"* (single figure):
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
 >   <div class="section-body" contenteditable="true">
 >     <p>SUMMARY_TEXT</p>
 >     <div class="img-section">
->       <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
 >     </div>
 >   </div>
 > </section>
 > ```
 >
-> *With a table* (either LAYOUT, when `SECTION_JSON.content` contains
-> `<table class="poster-table">`): insert the verbatim table block(s)
-> after the summary `<p>` (and before the `<div class="img-section">`
-> if LAYOUT is "inline"). Example shape:
+> *LAYOUT = "inline-multi-side"* (≥2 figures, horizontal):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>       <!-- repeat for IMAGE_SRCS[2], etc. -->
+>     </div>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline-multi-stack"* (≥2 figures, vertical):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>     </div>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>     </div>
+>     <!-- one .img-section per figure -->
+>   </div>
+> </section>
+> ```
+>
+> *With a table* — when `SECTION_JSON.content` contains
+> `<table class="poster-table">`, insert the verbatim table block(s)
+> after the summary `<p>`. Default placement order inside
+> `<div class="section-body">`:
+>   1. summary `<p>`
+>   2. `<table class="poster-table">…</table>` (all tables, in source order)
+>   3. `<div class="img-section">…</div>` (if LAYOUT requires figures)
+>
+> If LAYOUT is `"inline-multi-after-table"` the order is the same — the
+> name is just a hint that the table is the primary artifact. Example:
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
 >   <div class="section-body" contenteditable="true">
 >     <p>SUMMARY_TEXT</p>
 >     <table class="poster-table">…verbatim from SECTION_JSON.content…</table>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>     </div>
 >   </div>
 > </section>
 > ```
