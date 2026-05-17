@@ -257,7 +257,18 @@ def _clean_table_cell(cell: str, cite_map: Optional[dict] = None) -> str:
     # collapse). \_ → _ , \% → % , \& → & , \# → # .
     cell = cell.replace(r"\_", "_").replace(r"\%", "%")
     cell = cell.replace(r"\&", "&amp;").replace(r"\#", "#")
-    return cell.strip()
+    cell = cell.strip()
+    # Numeric-cell normalization: wrap purely-numeric content (sign + digits +
+    # decimals, optionally with $...$ already) in $..$ so KaTeX renders both
+    # positives and negatives in the same math-mode layout. Without this,
+    # source-side asymmetry (LaTeX authors typically write `4.45` plain but
+    # `$-0.98$` in math) leaks into the rendered table — same family but
+    # text-mode vs math-mode glyph metrics differ subtly (math uses U+2212
+    # minus, adds operator spacing). Treating all numeric cells uniformly
+    # eliminates the seam between positive and negative rows.
+    if re.fullmatch(r"[-+]?\d+(?:\.\d+)?", cell):
+        cell = f"${cell}$"
+    return cell
 
 
 def _parse_row_cells(
