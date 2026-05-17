@@ -35,8 +35,6 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `poster/outline.html` —— 模板注入前的 `<section>` 块拼接结果
 - `poster/poster.html` —— 最终自包含的 HTML 海报(浏览器打开即可)
 - `poster/poster.png` —— 2× CSS 尺寸的渲染截图(默认 2800×1800),见 Step 5b
-- `poster/poster.refine{N}.png` —— Step 5.5 每轮迭代前的截图存档(`--refine-iterations ≥ 1` 且实际跑过 refine 时才会有)
-- `poster/poster.overflow.json` —— Step 5.5 的程序化 DOM 溢出报告(海报是否有 clipping 的 ground truth)。`clipped` 数组为空即代表海报完整放下。
 - `poster/images/` —— 从 `paper/figures/` 复制/转换(PDF→PNG @ 200 DPI)而来的图片
 - **POSTER_REPORT**(输出到终端)
 - `wiki/log.md` —— 追加日志条目
@@ -369,17 +367,16 @@ python3 tools/poster.py render poster/poster.html
 **单轮迭代流程**(i = 1..N):
 
 1. 确保 `poster/poster.png` 反映当前 `poster/poster.html`。若 HTML 自上次渲染后有改动,重跑 `python3 tools/poster.py render poster/poster.html`。
-2. 运行 `python3 tools/poster.py check-overflow poster/poster.html` → 写出 `poster/poster.overflow.json`。读取该 JSON。
+2. 运行 `python3 tools/poster.py check-overflow poster/poster.html --output raw/tmp/poster.overflow.json`(scratch 路径 —— `poster/` 里只放最终产物)。读取该 JSON。
 3. **提前收敛(仅溢出报告路径)**:若 `i == 1` 且 `overflow.ok == true`,且认真比对截图后没看到任何明显的 LaTeX / 编码 / 编号问题(对自己应用下面 refinement 提示词里的强制 checklist),**可以**在这里就声明收敛:记录 `"converged after 0 iterations — DOM clean, no visible content issues"` 并退出。如果有**任何**疑虑就不要走这条捷径 —— 跑一轮 refinement 的成本远小于交付一张细节有问题的海报。
-4. 存档当前截图:`cp poster/poster.png poster/poster.refine{i-1}.png`(方便用户 diff 每轮的变化)。
-5. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于后面的文字稳定性判定。
-6. 读取 `poster/poster.png`(多模态)、`poster/poster.html`、以及 `poster/poster.overflow.json`(ground truth 的 clipping 报告)。
-7. 应用下面的 refinement 提示词。把 overflow JSON 作为 prompt 的一部分传入 —— LLM 凭它**精确**知道哪些章节要 trim,而不是从截图里猜。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
-8. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
-9. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
-10. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止,告诉用户具体问题,HTML 保留原样。
-11. 重新渲染 `poster/poster.png`。重跑 `check-overflow` → 更新 `poster.overflow.json`。
-12. **收敛检查(两个条件**都满足才算收敛**)**:
+4. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于后面的文字稳定性判定。
+5. 读取 `poster/poster.png`(多模态)、`poster/poster.html`、以及 `raw/tmp/poster.overflow.json`(ground truth 的 clipping 报告)。
+6. 应用下面的 refinement 提示词。把 overflow JSON 作为 prompt 的一部分传入 —— LLM 凭它**精确**知道哪些章节要 trim,而不是从截图里猜。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
+7. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
+8. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
+9. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止,告诉用户具体问题,HTML 保留原样。
+10. 重新渲染 `poster/poster.png`。重跑 `check-overflow --output raw/tmp/poster.overflow.json` → 更新报告。
+11. **收敛检查(两个条件**都满足才算收敛**)**:
     - (a) 新的 overflow 报告 `ok == true`,且
     - (b) `pre_html` 与 `post_html` 在 `.flow` 区域字符差异 < 50。
     
@@ -445,7 +442,7 @@ python3 tools/poster.py render poster/poster.html
 >
 > **DOM Overflow Report**:
 > ```json
-> {full content of poster/poster.overflow.json}
+> {full content of raw/tmp/poster.overflow.json}
 > ```
 >
 > **Screenshot**:

@@ -36,8 +36,6 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `poster/outline.html` — concatenated `<section>` blocks before template injection
 - `poster/poster.html` — final self-contained HTML poster (open in browser)
 - `poster/poster.png` — rendered screenshot at 2× CSS dimensions (default 2800×1800) — see Step 5b
-- `poster/poster.refine{N}.png` — pre-revision screenshots archived by Step 5.5 (one per iteration) — only present if `--refine-iterations ≥ 1` and refinement actually ran
-- `poster/poster.overflow.json` — programmatic DOM overflow report from Step 5.5 (ground truth for "is anything clipped?"). Empty `clipped` array means the poster fits cleanly.
 - `poster/images/` — figures copied/converted (PDF→PNG @ 200 DPI) from `paper/figures/`
 - **POSTER_REPORT** (printed to terminal)
 - `wiki/log.md` — appended log entry
@@ -370,17 +368,16 @@ Auto-applied; no user interaction.
 **Workflow per iteration** (i = 1..N):
 
 1. Ensure `poster/poster.png` reflects the current `poster/poster.html`. If the HTML was modified since the last render, re-run `python3 tools/poster.py render poster/poster.html`.
-2. Run `python3 tools/poster.py check-overflow poster/poster.html` → writes `poster/poster.overflow.json`. Read this JSON.
+2. Run `python3 tools/poster.py check-overflow poster/poster.html --output raw/tmp/poster.overflow.json` (scratch path — `poster/` only ever contains final artifacts). Read the JSON.
 3. **Early convergence (overflow-only path)**: if `i == 1` AND `overflow.ok == true` AND no obvious LaTeX/encoding/numbering issues are visible in the screenshot at a careful look (apply the mandatory checklist in the refinement prompt below to your own evaluation), you MAY declare convergence here: record `"converged after 0 iterations — DOM clean, no visible content issues"` and exit. Skip this shortcut if you have *any* doubt — the cost of one refinement pass is small compared to shipping a poster with subtle issues.
-4. Archive the BEFORE screenshot: `cp poster/poster.png poster/poster.refine{i-1}.png` (so the user can diff each pass).
-5. Snapshot `pre_html = <current poster.html>` in memory — needed for the prose-stability convergence check.
-6. Read `poster/poster.png` (multimodal), `poster/poster.html`, and `poster/poster.overflow.json` (the ground-truth clipping report).
-7. Apply the refinement prompt below. Pass the overflow JSON as part of the prompt — the LLM uses it to know *exactly* which sections need trimming, instead of guessing from the screenshot. Use Claude (in-session, multimodal). Do NOT use `mcp__llm-review__chat` — text-only per `mcp-servers/llm-review/server.py`.
-8. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
-9. Write the revised HTML back to `poster/poster.html`. Snapshot it as `post_html`.
-10. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop, surface issues to the user, leave HTML as-is.
-11. Re-render to `poster/poster.png`. Re-run `check-overflow` → updated `poster.overflow.json`.
-12. **Convergence check (requires BOTH)**:
+4. Snapshot `pre_html = <current poster.html>` in memory — needed for the prose-stability convergence check.
+5. Read `poster/poster.png` (multimodal), `poster/poster.html`, and `raw/tmp/poster.overflow.json` (the ground-truth clipping report).
+6. Apply the refinement prompt below. Pass the overflow JSON as part of the prompt — the LLM uses it to know *exactly* which sections need trimming, instead of guessing from the screenshot. Use Claude (in-session, multimodal). Do NOT use `mcp__llm-review__chat` — text-only per `mcp-servers/llm-review/server.py`.
+7. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
+8. Write the revised HTML back to `poster/poster.html`. Snapshot it as `post_html`.
+9. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop, surface issues to the user, leave HTML as-is.
+10. Re-render to `poster/poster.png`. Re-run `check-overflow --output raw/tmp/poster.overflow.json` → updated report.
+11. **Convergence check (requires BOTH)**:
     - (a) New overflow report shows `ok == true`, AND
     - (b) `pre_html` and `post_html` differ by < 50 chars inside the `.flow` region.
     
@@ -446,7 +443,7 @@ Auto-applied; no user interaction.
 >
 > **DOM Overflow Report**:
 > ```json
-> {full content of poster/poster.overflow.json}
+> {full content of raw/tmp/poster.overflow.json}
 > ```
 >
 > **Screenshot**:
