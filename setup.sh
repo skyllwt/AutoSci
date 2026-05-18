@@ -212,6 +212,8 @@ check_tool_import "tools/fetch_s2.py" "from fetch_s2 import search"
 check_tool_import "tools/fetch_arxiv.py" "from fetch_arxiv import fetch_recent"
 check_tool_import "tools/research_wiki.py" "from research_wiki import slugify"
 check_tool_import "tools/lint.py" "from lint import check_missing_fields"
+check_tool_import "tools/wiki2dag.py" "from wiki2dag import build_dag"
+check_tool_import "tools/poster.py" "from poster import build_poster"
 
 # DeepXiv is optional; surface it as a warning-only diagnostic.
 if "$VENV_PYTHON" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" >/dev/null 2>&1; then

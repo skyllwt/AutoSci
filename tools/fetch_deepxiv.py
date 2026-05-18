@@ -91,7 +91,11 @@ def search(
         date_from=date_from,
         date_to=date_to,
     )
-    results = data.get("results", [])
+    results = data.get("results")
+    if results is None:
+        # DeepXiv SDK/API versions around the retrieval-service update use
+        # `result`; keep the older `results` spelling for compatibility.
+        results = data.get("result", [])
     # Normalise output to a consistent shape
     papers = []
     for r in results:
@@ -108,7 +112,7 @@ def search(
                 "authors": authors,
                 "categories": r.get("categories", []),
                 "year": r.get("year", None),
-                "citation_count": r.get("citation", 0),
+                "citation_count": r.get("citation_count", r.get("citation", 0)),
                 "relevance_score": r.get("score", 0.0),
                 "published": r.get("publish_at", ""),
             }

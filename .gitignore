@@ -29,6 +29,9 @@ Thumbs.db
 # Virtual environment
 .venv/
 
+# Local and CI scratch files for /daily-arxiv runs
+.daily-arxiv/
+
 # ---------------------------------------------------------------------------
 # Per-user data — NEVER commit, NEVER push to upstream.
 #

@@ -4,14 +4,16 @@
 
 ## What it catches
 
-For each candidate, `tools/discover.py` extracts the `arxiv_id` from the candidate record (S2's `externalIds.ArXiv`, DeepXiv's `arxiv_id`, etc.) and checks whether any existing `wiki/papers/*.md` page has a matching `arxiv` (or legacy `arxiv_id`) in its frontmatter. Matches are dropped from the shortlist before scoring; the count is reported as `wiki_dedup_count`.
+For each candidate, `tools/discover.py` extracts the `arxiv_id` from the candidate record (S2's `externalIds.ArXiv`, DeepXiv's `arxiv_id`, Paper Copilot arXiv fields/URLs when present, etc.) and checks whether any existing `wiki/papers/*.md` page has a matching `arxiv` (or legacy `arxiv_id`) in its frontmatter. Matches are dropped from the shortlist before scoring; the number of removed candidates is reported as `wiki_dedup_count`.
 
 This catches the typical case: an already-ingested paper bubbles up as a recommendation again. Surfacing such a paper would waste the user's review attention; dropping it is correct.
 
+For venue mode, candidates are also filtered by normalized title against `wiki/papers/*.md`. Paper Copilot records often lack arXiv IDs, so title fallback is a practical dedup layer for that source. Those title fallback removals are included in `wiki_dedup_count`.
+
 ## What it does not catch
 
-- **Title-only matches**: a paper in the wiki without `arxiv` or `arxiv_id` (e.g., a journal article ingested via `/edit`) will not match a candidate by title alone. This is intentional — fuzzy title matching produces false positives that hide legitimate candidates.
-- **arXiv version skew**: `2106.09685` and `2106.09685v3` should both be treated as the same paper. The frontmatter scanner strips `arxiv:`/`ARXIV:` prefixes but does not currently strip `vN` suffixes. If you find duplicates leaking through, normalise the version suffix in the candidate's `arxiv_id` before comparison.
+- **Title-only matches outside venue mode**: a paper in the wiki without `arxiv` or `arxiv_id` (e.g., a journal article ingested via `/edit`) will not match anchor/topic/wiki candidates by title alone. This is intentional — broad fuzzy title matching produces false positives that hide legitimate candidates.
+- **Loose fuzzy titles**: venue title fallback uses normalized exact title keys, not semantic/fuzzy title matching.
 - **Cross-source duplicates within the candidate set**: the dedup pass before wiki filtering uses `_candidate_key` (arxiv → S2 paperId → title-slug) which catches most cross-source duplicates from S2 and DeepXiv. Fully missing IDs and titles are dropped silently.
 
 ## What to do with a "high dedup" report

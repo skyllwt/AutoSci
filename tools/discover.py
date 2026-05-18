@@ -2,11 +2,12 @@
 """Discovery tool — assemble a ranked shortlist of candidate papers.
 
 This is the deterministic core behind the /discover skill. It produces a
-recommendation shortlist from one of three seed modes:
+recommendation shortlist from one of four seed modes:
 
     from-anchors  — given one or more anchor paper IDs (post-/ingest case)
     from-topic    — given a topic/query string (lighter alternative to /init)
     from-wiki     — derive anchors from the wiki's most recent papers
+    from-venue    — papers from a specific venue/year, ranked by wiki relevance
 
 Output is a JSON shortlist on stdout (and optionally a checkpoint file).
 Dedupes against papers already in wiki/. Ranking is *not* the same as
@@ -19,6 +20,8 @@ Usage:
     python3 tools/discover.py from-topic "diffusion model fine-tuning" \\
         [--wiki-root wiki/] [--limit 10]
     python3 tools/discover.py from-wiki --wiki-root wiki/ [--limit 10]
+    python3 tools/discover.py from-venue --venue neurips --year 2024 \\
+        [--wiki-root wiki/] [--limit 10]
 """
 
 from __future__ import annotations
@@ -29,6 +32,10 @@ import json
 import math
 import re
 import sys
+import time
+import urllib.parse
+import urllib.request
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -90,7 +97,7 @@ def _normalize_candidate(raw: dict[str, Any], *, source: str, anchor: str = "") 
 
 
 def _candidate_key(c: dict[str, Any]) -> str:
-    """Stable dedup key — prefer arxiv_id, fall back to S2 paperId, then title."""
+    """Stable dedup key — prefer arxiv_id, fall back to paperId, then title."""
     if c.get("arxiv_id"):
         return f"arxiv:{c['arxiv_id']}"
     if c.get("paperId"):
@@ -107,16 +114,60 @@ def _merge_candidate(existing: dict[str, Any], incoming: dict[str, Any]) -> None
     for anchor in incoming.get("_anchors", []):
         if anchor and anchor not in existing["_anchors"]:
             existing["_anchors"].append(anchor)
-    for key in ("abstract", "tldr", "venue", "url"):
+    for key in (
+        "abstract",
+        "tldr",
+        "venue",
+        "url",
+        "openreview",
+        "site",
+        "pdf",
+        "project",
+        "github",
+        "review",
+        "metareview",
+        "_papercopilot_id",
+        "_track",
+        "_primary_area",
+        "_topic",
+        "_status",
+    ):
         if not existing.get(key) and incoming.get(key):
             existing[key] = incoming[key]
     if not existing.get("authors") and incoming.get("authors"):
         existing["authors"] = incoming["authors"]
-    if not existing.get("fields_of_study") and incoming.get("fields_of_study"):
-        existing["fields_of_study"] = incoming["fields_of_study"]
+    for key in ("fields_of_study", "keywords"):
+        if incoming.get(key):
+            merged = list(existing.get(key) or [])
+            seen = {_title_key(str(value)) for value in merged}
+            for value in incoming.get(key) or []:
+                marker = _title_key(str(value))
+                if marker and marker not in seen:
+                    seen.add(marker)
+                    merged.append(value)
+            existing[key] = merged
     # Numeric fields: prefer the larger reading (S2 is authoritative; DeepXiv often lacks them).
     for key in ("max_h_index", "citation_count", "influential_citation_count"):
         existing[key] = max(existing.get(key) or 0, incoming.get(key) or 0)
+    if "_papercopilot_review_count" in existing or "_papercopilot_review_count" in incoming:
+        existing["_papercopilot_review_count"] = max(
+            existing.get("_papercopilot_review_count") or 0,
+            incoming.get("_papercopilot_review_count") or 0,
+        )
+    if "_papercopilot_rating" in existing or "_papercopilot_rating" in incoming:
+        existing["_papercopilot_rating"] = max(
+            float(existing.get("_papercopilot_rating") or 0),
+            float(incoming.get("_papercopilot_rating") or 0),
+        )
+    if "_papercopilot_replies_avg" in existing or "_papercopilot_replies_avg" in incoming:
+        existing["_papercopilot_replies_avg"] = max(
+            float(existing.get("_papercopilot_replies_avg") or 0),
+            float(incoming.get("_papercopilot_replies_avg") or 0),
+        )
+    if "_wiki_relevance" in existing or "_wiki_relevance" in incoming:
+        if float(incoming.get("_wiki_relevance") or 0) > float(existing.get("_wiki_relevance") or 0):
+            existing["_wiki_relevance"] = incoming.get("_wiki_relevance")
+            existing["_wiki_matched_terms"] = incoming.get("_wiki_matched_terms") or []
     # Influential-edge is a union: if any anchor↔candidate edge was flagged influential,
     # the candidate keeps the flag even when other channels surfaced it without the flag.
     existing["is_influential_edge"] = bool(existing.get("is_influential_edge") or incoming.get("is_influential_edge"))
@@ -137,10 +188,246 @@ def _dedupe(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return list(out.values())
 
 
+# ---------- paper copilot source -------------------------------------------
+
+_PAPER_COPILOT_ALIASES: dict[str, str] = {
+    "neurips": "nips",
+}
+_PAPER_COPILOT_BASE_URL = (
+    "https://raw.githubusercontent.com/papercopilot/paperlists/main"
+)
+_ARXIV_ID_RE = re.compile(
+    r"(?:arxiv:|arxiv\.org/(?:abs|pdf)/)?"
+    r"([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?|[a-z\-]+(?:\.[A-Z]{2})?/[0-9]{7}(?:v[0-9]+)?)",
+    re.IGNORECASE,
+)
+
+
+def _papercopilot_url(venue: str, year: int) -> str:
+    canonical = _PAPER_COPILOT_ALIASES.get(venue.lower(), venue.lower())
+    return f"{_PAPER_COPILOT_BASE_URL}/{canonical}/{canonical}{year}.json"
+
+
+def _fetch_papercopilot(venue: str, year: int) -> list[dict[str, Any]]:
+    """Download the venue/year JSON from Paper Copilot's public GitHub repo."""
+    url = _papercopilot_url(venue, year)
+    data: Any = None
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as resp:  # noqa: S310
+                data = json.loads(resp.read().decode("utf-8"))
+            break
+        except Exception as exc:
+            if attempt == 0:
+                time.sleep(1.0)
+                continue
+            raise RuntimeError(f"Paper Copilot fetch failed for {venue} {year}: {exc}") from exc
+    if not isinstance(data, list):
+        raise RuntimeError(f"Unexpected Paper Copilot response shape for {venue} {year}: expected list, got {type(data).__name__}")
+    return data
+
+
+def _first_text(raw: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = raw.get(key)
+        if value is None:
+            continue
+        if isinstance(value, (dict, list)):
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
+def _normalize_url_text(value: Any) -> str:
+    if value is None or isinstance(value, (dict, list)):
+        return ""
+    text = str(value).strip()
+    if not text or text in {";", ";;"}:
+        return ""
+    if text.lower().startswith("www."):
+        text = f"https://{text}"
+    parsed = urllib.parse.urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return text
+
+
+def _first_url(raw: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        text = _normalize_url_text(raw.get(key))
+        if text:
+            return text
+    return ""
+
+
+def _first_url_containing(raw: dict[str, Any], needle: str, *keys: str) -> str:
+    needle = needle.lower()
+    for key in keys:
+        text = _normalize_url_text(raw.get(key))
+        if text and needle in text.lower():
+            return text
+    return ""
+
+
+def _split_text_values(value: Any, *, separators: str = r"[;,]") -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        out: list[str] = []
+        for item in value:
+            if isinstance(item, dict):
+                text = _first_text(item, "name", "full_name", "value", "text")
+            else:
+                text = str(item).strip()
+            if text:
+                out.append(text)
+        return out
+    return [part.strip() for part in re.split(separators, str(value)) if part.strip()]
+
+
+def _parse_int(value: Any) -> int:
+    if isinstance(value, bool) or value is None:
+        return 0
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, float):
+        return max(0, int(value))
+    text = str(value).replace(",", "").strip()
+    if not text:
+        return 0
+    try:
+        return max(0, int(float(text)))
+    except ValueError:
+        return 0
+
+
+def _parse_rating(value: Any) -> float:
+    if value is None:
+        return 0.0
+    if isinstance(value, list) and value:
+        return _parse_rating(value[0])
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return max(0.0, float(value))
+    text = str(value).strip()
+    if not text:
+        return 0.0
+    try:
+        return max(0.0, float(text))
+    except ValueError:
+        return 0.0
+
+
+def _unique_text_values(*values: Any, separators: str = r"[;,]") -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        for text in _split_text_values(value, separators=separators):
+            key = _title_key(text)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(text)
+    return out
+
+
+def _extract_arxiv_id_from_record(raw: dict[str, Any]) -> str:
+    external_ids = raw.get("externalIds") or raw.get("external_ids") or {}
+    if isinstance(external_ids, dict):
+        aid = _arxiv_id_from_external(external_ids)
+        if aid:
+            return aid
+    for key in ("arxiv_id", "arxivId", "arxiv", "arxiv_url", "url", "pdf"):
+        value = raw.get(key)
+        if not value:
+            continue
+        match = _ARXIV_ID_RE.search(str(value))
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _normalize_papercopilot_record(raw: dict[str, Any], *, venue: str, year: int) -> dict[str, Any]:
+    """Flatten a Paper Copilot record into the discover shortlist schema."""
+    if not raw:
+        return {}
+    title = str(raw.get("title") or "").strip()
+    if not title:
+        return {}
+    authors = _split_text_values(raw.get("authors") or raw.get("author"), separators=r";")
+    keyword_list = _unique_text_values(
+        raw.get("keywords"),
+        raw.get("keyword"),
+        raw.get("primary_area"),
+        raw.get("primaryArea"),
+        raw.get("topic"),
+        raw.get("topics"),
+    )
+    pc_id = str(raw.get("id") or "").strip()
+    arxiv_id = _extract_arxiv_id_from_record(raw)
+    s2_id = _first_text(raw, "paperId", "s2_id", "s2Id", "semantic_scholar_id")
+    openreview = _first_url_containing(raw, "openreview.net", "openreview", "openreview_url", "site", "url")
+    site = _first_url(raw, "site")
+    pdf = _first_url(raw, "pdf", "pdf_url")
+    url = _first_url(raw, "url")
+    project = _first_url(raw, "project")
+    github = _first_url(raw, "github")
+    site = site or project
+    url = url or site or openreview or pdf
+    citation_count = _parse_int(
+        raw.get("gs_citation")
+        or raw.get("citation_count")
+        or raw.get("citationCount")
+        or raw.get("citations")
+    )
+    review_count = _parse_int(raw.get("review_count") or raw.get("reviews_count") or raw.get("num_reviews"))
+    replies_avg = _parse_rating(raw.get("replies_avg") or raw.get("reply_avg"))
+    rating_avg = _parse_rating(raw.get("rating_avg") or raw.get("rating"))
+    record_year = _parse_int(raw.get("year")) or year
+    return {
+        "paperId": s2_id or pc_id,
+        "arxiv_id": arxiv_id,
+        "title": title,
+        "abstract": str(raw.get("abstract") or "").strip(),
+        "tldr": _first_text(raw, "tldr", "tl_dr", "summary"),
+        "year": record_year,
+        "venue": str(raw.get("venue") or venue).strip(),
+        "authors": authors,
+        "max_h_index": 0,
+        "citation_count": citation_count,
+        "influential_citation_count": 0,
+        "fields_of_study": keyword_list,
+        "keywords": keyword_list,
+        "publication_types": [],
+        "url": url,
+        "openreview": openreview,
+        "site": site,
+        "pdf": pdf,
+        "project": project,
+        "github": github,
+        "review": _first_url(raw, "review"),
+        "metareview": _first_url(raw, "metareview", "meta_review"),
+        "is_influential_edge": False,
+        "_sources": ["papercopilot"],
+        "_anchors": [],
+        # Venue-mode specific signals (prefixed to avoid collision).
+        "_papercopilot_id": pc_id,
+        "_papercopilot_rating": rating_avg,
+        "_papercopilot_review_count": review_count,
+        "_papercopilot_replies_avg": replies_avg,
+        "_track": str(raw.get("track") or "").strip(),
+        "_primary_area": str(raw.get("primary_area") or raw.get("primaryArea") or "").strip(),
+        "_topic": str(raw.get("topic") or raw.get("topics") or "").strip(),
+        "_status": str(raw.get("status") or raw.get("decision") or "").strip(),
+    }
+
+
 # ---------- wiki dedup -----------------------------------------------------
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
 _ARXIV_LINE_RE = re.compile(r"^arxiv(?:_id)?\s*:\s*[\"']?([^\"'\n]+)[\"']?\s*$", re.MULTILINE)
+_TITLE_LINE_RE = re.compile(r"^title\s*:\s*[\"']?([^\"'\n]+)[\"']?\s*$", re.MULTILINE)
 
 
 def _extract_arxiv_id_from_paper(path: Path) -> str:
@@ -168,14 +455,224 @@ def _wiki_known_arxiv_ids(wiki_root: Path | None) -> set[str]:
         aid = _extract_arxiv_id_from_paper(path)
         if aid:
             # Strip arXiv prefixes for match consistency.
-            seen.add(aid.removeprefix("arXiv:").removeprefix("ARXIV:").removeprefix("arxiv:").strip())
+            bare = aid.removeprefix("arXiv:").removeprefix("ARXIV:").removeprefix("arxiv:").strip()
+            seen.add(re.sub(r"v[0-9]+$", "", bare, flags=re.IGNORECASE))
     return seen
 
 
-def _filter_against_wiki(candidates: list[dict[str, Any]], known: set[str]) -> list[dict[str, Any]]:
-    if not known:
+def _title_key(title: str) -> str:
+    title = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", " ", (title or "").lower())
+    return " ".join(title.split())
+
+
+def _extract_title_from_paper(path: Path) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+    m = _FRONTMATTER_RE.match(text)
+    if m:
+        tm = _TITLE_LINE_RE.search(m.group(1))
+        if tm:
+            return tm.group(1).strip()
+    hm = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+    if hm:
+        return hm.group(1).strip()
+    return path.stem.replace("-", " ").replace("_", " ")
+
+
+def _wiki_known_title_keys(wiki_root: Path | None) -> set[str]:
+    """Scan wiki/papers/*.md for normalized title keys."""
+    if not wiki_root or not wiki_root.exists():
+        return set()
+    papers_dir = wiki_root / "papers"
+    if not papers_dir.exists():
+        return set()
+    seen: set[str] = set()
+    for path in papers_dir.glob("*.md"):
+        key = _title_key(_extract_title_from_paper(path))
+        if key:
+            seen.add(key)
+    return seen
+
+
+def _filter_against_wiki(
+    candidates: list[dict[str, Any]],
+    known_arxiv_ids: set[str],
+    *,
+    known_title_keys: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    if not known_arxiv_ids and not known_title_keys:
         return candidates
-    return [c for c in candidates if c.get("arxiv_id", "").strip() not in known]
+    out: list[dict[str, Any]] = []
+    known_title_keys = known_title_keys or set()
+    for c in candidates:
+        arxiv_id = c.get("arxiv_id", "").strip()
+        if arxiv_id:
+            arxiv_id = arxiv_id.removeprefix("arXiv:").removeprefix("ARXIV:").removeprefix("arxiv:").strip()
+            arxiv_id = re.sub(r"v[0-9]+$", "", arxiv_id, flags=re.IGNORECASE)
+        if arxiv_id and arxiv_id in known_arxiv_ids:
+            continue
+        title_key = _title_key(c.get("title") or "")
+        if known_title_keys and title_key and title_key in known_title_keys:
+            continue
+        out.append(c)
+    return out
+
+
+# ---------- wiki relevance corpus ------------------------------------------
+
+_WIKI_STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from",
+    "has", "have", "in", "into", "is", "it", "of", "on", "or", "that",
+    "the", "their", "this", "to", "we", "with", "you", "your",
+}
+_WIKI_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9.+/_-]*|[\u4e00-\u9fff]{1,}")
+
+
+def _tokenize(text: str) -> list[str]:
+    """Extract meaningful tokens from text for deterministic local ranking."""
+    tokens: list[str] = []
+    for token in _WIKI_TOKEN_RE.findall(text.lower()):
+        token = token.strip("._/+ -")
+        if not token:
+            continue
+        if re.fullmatch(r"[a-z0-9]+", token) and len(token) < 2:
+            continue
+        if token in _WIKI_STOP_WORDS:
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _add_weighted_terms(counts: Counter[str], text: str, weight: float) -> None:
+    for token in _tokenize(text):
+        counts[token] += weight
+
+
+def _split_frontmatter(text: str) -> tuple[str, str]:
+    if not text.startswith("---"):
+        return "", text
+    parts = text.split("---", 2)
+    if len(parts) >= 3:
+        return parts[1], parts[2]
+    return "", text
+
+
+def _extract_wiki_relevance_corpus(wiki_root: Path) -> dict[str, Any]:
+    """Build a deterministic BM25-style corpus from existing wiki documents."""
+    if not wiki_root or not wiki_root.exists():
+        return {"docs": [], "postings": {}, "df": Counter(), "terms": set(), "avg_len": 0.0}
+
+    dirs_to_scan: list[Path] = []
+    for sub in ("papers", "concepts", "topics"):
+        d = wiki_root / sub
+        if d.exists():
+            dirs_to_scan.append(d)
+    if not dirs_to_scan:
+        # Fallback: scan everything under wiki/
+        dirs_to_scan.append(wiki_root)
+
+    docs: list[dict[str, Any]] = []
+    postings: dict[str, list[tuple[int, float]]] = {}
+    df: Counter[str] = Counter()
+    terms: set[str] = set()
+    for d in dirs_to_scan:
+        for path in d.rglob("*.md"):
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            fm, body = _split_frontmatter(text)
+            title_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
+            frontmatter_title = ""
+            title_line = _TITLE_LINE_RE.search(fm)
+            if title_line:
+                frontmatter_title = title_line.group(1).strip()
+            title = title_match.group(1).strip() if title_match else frontmatter_title
+            if not title:
+                title = path.stem.replace("-", " ").replace("_", " ")
+
+            counts: Counter[str] = Counter()
+            _add_weighted_terms(counts, title, 4.0)
+            _add_weighted_terms(counts, fm, 1.5)
+            _add_weighted_terms(counts, body, 1.0)
+            if not counts:
+                continue
+            doc_idx = len(docs)
+            length = float(sum(counts.values()))
+            docs.append({
+                "path": str(path),
+                "kind": path.parent.name,
+                "length": length,
+            })
+            for term, tf in counts.items():
+                postings.setdefault(term, []).append((doc_idx, float(tf)))
+            doc_terms = set(counts)
+            df.update(doc_terms)
+            terms.update(doc_terms)
+
+    avg_len = sum(float(doc["length"]) for doc in docs) / len(docs) if docs else 0.0
+    return {"docs": docs, "postings": postings, "df": df, "terms": terms, "avg_len": avg_len}
+
+
+def _candidate_relevance_terms(candidate: dict[str, Any]) -> Counter[str]:
+    counts: Counter[str] = Counter()
+    _add_weighted_terms(counts, candidate.get("title", ""), 4.0)
+    _add_weighted_terms(counts, candidate.get("abstract", ""), 1.0)
+    _add_weighted_terms(counts, candidate.get("tldr", ""), 1.5)
+    keyword_terms: list[str] = []
+    seen_keywords: set[str] = set()
+    for value in list(candidate.get("fields_of_study") or []) + list(candidate.get("keywords") or []):
+        marker = _title_key(str(value))
+        if marker and marker not in seen_keywords:
+            seen_keywords.add(marker)
+            keyword_terms.append(str(value))
+    _add_weighted_terms(counts, " ".join(keyword_terms), 2.0)
+    _add_weighted_terms(counts, str(candidate.get("_track") or ""), 1.2)
+    _add_weighted_terms(counts, str(candidate.get("_primary_area") or ""), 1.5)
+    _add_weighted_terms(counts, str(candidate.get("_topic") or ""), 1.5)
+    return counts
+
+
+def _wiki_relevance_score(candidate: dict[str, Any], corpus: dict[str, Any]) -> tuple[float, list[str]]:
+    """Score a candidate against the wiki with weighted local BM25 signals."""
+    query_terms = _candidate_relevance_terms(candidate)
+    docs = corpus.get("docs") or []
+    postings = corpus.get("postings") or {}
+    df = corpus.get("df") or Counter()
+    avg_len = float(corpus.get("avg_len") or 0.0)
+    if not query_terms or not docs or avg_len <= 0:
+        return 0.0, []
+
+    n_docs = len(docs)
+    k1 = 1.2
+    b = 0.75
+    doc_scores: Counter[int] = Counter()
+    matched_weights: dict[str, float] = {}
+    for term, q_weight in query_terms.items():
+        term_postings = postings.get(term)
+        if not term_postings:
+            continue
+        term_df = int(df.get(term, 0))
+        idf = math.log(1.0 + (n_docs - term_df + 0.5) / (term_df + 0.5))
+        weighted_query = min(3.0, 1.0 + math.log1p(float(q_weight)))
+        matched_weights[term] = weighted_query * idf
+        for doc_idx, tf in term_postings:
+            doc_len = float(docs[doc_idx]["length"])
+            norm = tf + k1 * (1.0 - b + b * doc_len / avg_len)
+            doc_scores[doc_idx] += weighted_query * idf * ((tf * (k1 + 1.0)) / norm)
+
+    if not doc_scores:
+        return 0.0, []
+    top_scores = sorted(doc_scores.values(), reverse=True)[:3]
+    aggregate = sum(score * (0.5 ** idx) for idx, score in enumerate(top_scores))
+    score = 1.0 - math.exp(-aggregate / 8.0)
+    matched = [
+        term
+        for term, _ in sorted(matched_weights.items(), key=lambda item: (-item[1], item[0]))[:12]
+    ]
+    return min(score, 1.0), matched
 
 
 # ---------- ranking --------------------------------------------------------
@@ -287,6 +784,64 @@ def _rationale(c: dict[str, Any], *, anchor_mode: bool) -> str:
     return "; ".join(bits) if bits else "candidate"
 
 
+def _rating_score(rating: float) -> float:
+    """Normalize Paper Copilot average rating (typically 0–10) to 0–1."""
+    return min(1.0, max(0.0, float(rating or 0)) / 10.0)
+
+
+def _status_score(status: str) -> float:
+    """Use Paper Copilot decision/status as a small venue-mode tie-breaker."""
+    text = (status or "").lower()
+    if not text:
+        return 0.5
+    if any(marker in text for marker in ("reject", "withdraw", "desk")):
+        return 0.0
+    if "workshop" in text:
+        return 0.65
+    if any(marker in text for marker in ("oral", "spotlight")):
+        return 1.0
+    if any(marker in text for marker in ("accept", "poster", "main")):
+        return 0.85
+    return 0.5
+
+
+def _score_venue(c: dict[str, Any]) -> float:
+    """Rank venue-mode candidates by wiki relevance + secondary signals."""
+    rel = float(c.get("_wiki_relevance", 0.0))
+    influence = _influence_score(0, c.get("citation_count", 0))
+    fresh = _freshness_score(c.get("year"))
+    rating = _rating_score(c.get("_papercopilot_rating", 0))
+    status = _status_score(str(c.get("_status") or ""))
+    return (
+        0.50 * rel
+        + 0.20 * influence
+        + 0.15 * fresh
+        + 0.10 * rating
+        + 0.05 * status
+    )
+
+
+def _rationale_venue(c: dict[str, Any]) -> str:
+    bits: list[str] = []
+    matched = c.get("_wiki_matched_terms")
+    if matched:
+        bits.append(f"wiki relevance {len(matched)} term(s)")
+    if c.get("citation_count"):
+        bits.append(f"{c['citation_count']} citations")
+    if c.get("year"):
+        bits.append(str(c["year"]))
+    rating = c.get("_papercopilot_rating")
+    if rating:
+        bits.append(f"rating {round(float(rating), 1)}")
+    status = c.get("_status")
+    if status:
+        bits.append(status)
+    track = c.get("_track")
+    if track:
+        bits.append(track)
+    return "; ".join(bits) if bits else "candidate"
+
+
 # ---------- candidate gathering --------------------------------------------
 
 def _gather_from_anchors(
@@ -392,6 +947,17 @@ def _wiki_recent_anchors(wiki_root: Path, k: int) -> list[str]:
     return anchors
 
 
+def _gather_from_venue(venue: str, year: int) -> list[dict[str, Any]]:
+    """Fetch and normalize Paper Copilot records for a venue/year."""
+    raw_records = _fetch_papercopilot(venue, year)
+    candidates: list[dict[str, Any]] = []
+    for raw in raw_records:
+        norm = _normalize_papercopilot_record(raw, venue=venue, year=year)
+        if norm:
+            candidates.append(norm)
+    return candidates
+
+
 # ---------- shortlist assembly ---------------------------------------------
 
 def build_shortlist(
@@ -400,6 +966,8 @@ def build_shortlist(
     positive_ids: list[str] | None = None,
     negative_ids: list[str] | None = None,
     topic: str = "",
+    venue: str = "",
+    year: int | None = None,
     wiki_root: Path | None = None,
     limit: int = 10,
     per_anchor_limit: int = 50,
@@ -450,16 +1018,52 @@ def build_shortlist(
             "derived_anchors": derived,
             "citation_expand": citation_expand,
         }
+    elif mode == "venue":
+        if not venue:
+            raise ValueError("from-venue requires --venue")
+        if year is None:
+            raise ValueError("from-venue requires --year")
+        if not wiki_root:
+            raise ValueError("from-venue requires --wiki-root for relevance scoring")
+        wiki_corpus = _extract_wiki_relevance_corpus(wiki_root)
+        if len(wiki_corpus.get("terms") or set()) < 20:
+            raise ValueError(
+                "Wiki too sparse to compute relevance for venue mode. "
+                "Ingest some papers or use topic mode."
+            )
+        candidates = _gather_from_venue(venue, year)
+        if not candidates:
+            raise ValueError(f"Paper Copilot returned no records for venue mode: {venue} {year}")
+        seed_summary = {"mode": "venue", "venue": venue, "year": year}
+        # Pre-compute relevance so we can score/rank later.
+        for c in candidates:
+            rel, matched = _wiki_relevance_score(c, wiki_corpus)
+            c["_wiki_relevance"] = rel
+            c["_wiki_matched_terms"] = matched
     else:
         raise ValueError(f"unknown mode: {mode}")
 
     candidates = _dedupe(candidates)
     known = _wiki_known_arxiv_ids(wiki_root) if wiki_root else set()
-    candidates = _filter_against_wiki(candidates, known)
+    known_titles = _wiki_known_title_keys(wiki_root) if wiki_root and mode == "venue" else set()
+    before_wiki_filter_count = len(candidates)
+    candidates = _filter_against_wiki(candidates, known, known_title_keys=known_titles)
+    wiki_dedup_count = before_wiki_filter_count - len(candidates)
 
-    for c in candidates:
-        c["_score"] = round(_score(c, anchor_mode=anchor_mode), 4)
-        c["_rationale"] = _rationale(c, anchor_mode=anchor_mode)
+    if mode == "venue":
+        candidates = [c for c in candidates if float(c.get("_wiki_relevance", 0.0)) > 0]
+        if not candidates:
+            raise ValueError(
+                "No venue candidates matched the existing wiki relevance corpus after filtering existing wiki papers. "
+                "Expand the wiki or use topic mode."
+            )
+        for c in candidates:
+            c["_score"] = round(_score_venue(c), 4)
+            c["_rationale"] = _rationale_venue(c)
+    else:
+        for c in candidates:
+            c["_score"] = round(_score(c, anchor_mode=anchor_mode), 4)
+            c["_rationale"] = _rationale(c, anchor_mode=anchor_mode)
 
     candidates.sort(key=lambda c: c["_score"], reverse=True)
     shortlist = candidates[:limit]
@@ -467,7 +1071,7 @@ def build_shortlist(
     return {
         "generated_at": _dt.datetime.now().isoformat(timespec="seconds"),
         "seed": seed_summary,
-        "wiki_dedup_count": len(known),
+        "wiki_dedup_count": wiki_dedup_count,
         "candidates_total": len(candidates),
         "shortlist_count": len(shortlist),
         "shortlist": shortlist,
@@ -488,6 +1092,8 @@ def _format_markdown(payload: dict[str, Any]) -> str:
         seed_desc = f'topic: "{seed.get("topic", "")}"'
     elif mode == "wiki":
         seed_desc = f"derived from wiki anchors: {', '.join(seed.get('derived_anchors', []))}"
+    elif mode == "venue":
+        seed_desc = f"venue: {seed.get('venue', '')} {seed.get('year', '')}"
     else:
         seed_desc = mode
 
@@ -536,9 +1142,11 @@ def main() -> None:
     common_args: list[tuple[str, dict[str, Any]]] = [
         ("--wiki-root", {"type": Path, "default": None, "help": "Wiki root for dedup against existing papers"}),
         ("--limit", {"type": int, "default": 10, "help": "Max shortlist size (default 10)"}),
-        ("--per-anchor-limit", {"type": int, "default": 50, "help": "Recs requested per anchor (default 50)"}),
         ("--output-checkpoint", {"default": None, "help": "Also write JSON to this file or directory path"}),
         ("--markdown", {"action": "store_true", "help": "Print human-readable markdown instead of JSON"}),
+    ]
+    anchor_common_args: list[tuple[str, dict[str, Any]]] = [
+        ("--per-anchor-limit", {"type": int, "default": 50, "help": "Recs requested per anchor (default 50)"}),
     ]
 
     # Citation-expansion flags apply only to anchor and wiki modes.
@@ -552,6 +1160,8 @@ def main() -> None:
     p_anchors.add_argument("--negative", dest="negative_ids", action="append", default=[], help="Push recommendations away from this ID (repeatable)")
     for flag, kwargs in common_args:
         p_anchors.add_argument(flag, **kwargs)
+    for flag, kwargs in anchor_common_args:
+        p_anchors.add_argument(flag, **kwargs)
     for flag, kwargs in anchor_expand_args:
         p_anchors.add_argument(flag, **kwargs)
 
@@ -559,12 +1169,23 @@ def main() -> None:
     p_topic.add_argument("topic", help="Topic or query string")
     for flag, kwargs in common_args:
         p_topic.add_argument(flag, **kwargs)
+    # Preserve the previous no-op flag acceptance for topic mode without showing
+    # an anchor-only option in help.
+    p_topic.add_argument("--per-anchor-limit", type=int, default=50, help=argparse.SUPPRESS)
 
     p_wiki = sub.add_parser("from-wiki", help="Derive seeds from the wiki's recent papers")
     for flag, kwargs in common_args:
         p_wiki.add_argument(flag, **kwargs)
+    for flag, kwargs in anchor_common_args:
+        p_wiki.add_argument(flag, **kwargs)
     for flag, kwargs in anchor_expand_args:
         p_wiki.add_argument(flag, **kwargs)
+
+    p_venue = sub.add_parser("from-venue", help="Recommend papers from a venue/year ranked by wiki relevance")
+    p_venue.add_argument("--venue", required=True, help="Venue slug (e.g. neurips, icml, iclr)")
+    p_venue.add_argument("--year", type=int, required=True, help="Year (e.g. 2024)")
+    for flag, kwargs in common_args:
+        p_venue.add_argument(flag, **kwargs)
 
     args = parser.parse_args()
 
@@ -586,7 +1207,6 @@ def main() -> None:
             topic=args.topic,
             wiki_root=args.wiki_root,
             limit=args.limit,
-            per_anchor_limit=args.per_anchor_limit,
         )
         seed_slug = _slugify(args.topic)
     elif args.command == "from-wiki":
@@ -601,6 +1221,20 @@ def main() -> None:
             citation_limit=args.citation_limit,
         )
         seed_slug = "wiki"
+    elif args.command == "from-venue":
+        if not args.wiki_root:
+            parser.error("from-venue requires --wiki-root")
+        try:
+            payload = build_shortlist(
+                mode="venue",
+                venue=args.venue,
+                year=args.year,
+                wiki_root=args.wiki_root,
+                limit=args.limit,
+            )
+        except (RuntimeError, ValueError) as exc:
+            parser.error(str(exc))
+        seed_slug = _slugify(f"{args.venue}-{args.year}")
     else:
         parser.error(f"unknown command: {args.command}")
         return

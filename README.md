@@ -117,6 +117,24 @@
 
 ## 🆕 What's New
 
+### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
+
+Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
+
+<p align="center">
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
+  <br/>
+  <sub><em>Title, author, venue, and prose are placeholder nonsense to avoid exposing real research; tables and figures preserve the pipeline demo.</em></sub>
+</p>
+
+### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
+
+Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for *your* research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
+
+### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
+
+Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
+
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
 Your research graph now has two ways to explore:
@@ -221,11 +239,37 @@ and are best run from WSL2 or Linux/macOS.
 | Key | Required? | How to get | What it enables |
 |-----|-----------|-----------|-----------------|
 | `ANTHROPIC_API_KEY` | **Yes** | `claude login` (automatic) | Powers all Claude Code skills |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
 
 > **Cross-model review**: ΩmegaWiki uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in Claude-only mode.
+
+### Daily arXiv Recommendations
+
+`/daily-arxiv` runs a one-off fresh-paper recommendation pass even before
+automation is configured. To schedule the same pipeline in GitHub Actions, copy
+`config/daily-arxiv.yml.example` to `config/daily-arxiv.yml`, then run
+`/daily-arxiv setup`. The config stores non-secret preferences such as mode,
+categories, caps, and schedule; SMTP/API credentials stay in `.env` or GitHub
+Actions secrets. In CI inform mode, recommendations can use Claude Code auth
+(`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`) or the OpenAI-compatible
+`LLM_*` review model; auto-ingest still requires Claude Code.
+
+> See [`docs/daily-arxiv-deployment.md`](docs/daily-arxiv-deployment.md) for
+> the GitHub Actions setup checklist and symptom-keyed troubleshooting.
+
+<details>
+<summary><b>Sample digest</b></summary>
+
+<div align="center">
+<img src="assets/daily-arxiv-demo.png" width="720" alt="Sample /daily-arxiv digest">
+</div>
+
+A real `/daily-arxiv` run: ranked recommendations with scores, rationales, wiki connections, and an auto-ingest section.
+
+</details>
 
 ## Skills
 
@@ -245,7 +289,7 @@ and are best run from WSL2 or Linux/macOS.
 | `/prefill <domain>` | Optionally seed `foundations/` with background knowledge |
 | `/init [topic]` | Bootstrap a full wiki from user raw sources plus optional discovery |
 | `/ingest <source>` | Parse a paper → wiki pages + cross-references |
-| `/discover` | Recommend ranked next-read papers from anchors, a topic, or the current wiki |
+| `/discover` | Recommend ranked next-read papers from anchors, a topic, the current wiki, or a venue/year |
 | `/edit <request>` | Add/remove sources or update wiki content |
 | `/ask <question>` | Query the wiki, crystallize answers back |
 | `/check` | Health scan: broken links, missing cross-refs, consistency |
@@ -254,7 +298,7 @@ and are best run from WSL2 or Linux/macOS.
 
 | Command | What it does |
 |---------|-------------|
-| `/daily-arxiv` | Auto-fetch & filter new arXiv papers (+ GitHub Actions cron) |
+| `/daily-arxiv` | Run/manage a daily arXiv recommendation feed (+ optional GitHub Actions scheduler) |
 | `/ideate` | Multi-phase idea generation from cross-topic connections |
 | `/novelty <idea>` | Multi-source novelty verification (web + S2 + wiki + review LLM) |
 | `/review <artifact>` | Cross-model adversarial review for any research artifact |
@@ -301,10 +345,13 @@ All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian fo
 
 ## Automation
 
-**GitHub Actions** runs `/daily-arxiv` at UTC 00:00 daily:
+**GitHub Actions** runs the `/daily-arxiv` recommendation pipeline at UTC 00:17 daily (08:17 Beijing time):
 
-1. Add `ANTHROPIC_API_KEY` to repo **Settings → Secrets**
-2. `.github/workflows/daily-arxiv.yml` fetches arXiv, runs ingestion, auto-commits
+1. Add SMTP secrets to repo **Settings → Secrets** when e-mail delivery is enabled: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `DAILY_ARXIV_EMAIL_TO`
+2. Optional inform-mode LLM recommendation: add `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, or `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` for any OpenAI-compatible provider
+3. `.github/workflows/daily-arxiv.yml` fetches arXiv, deduplicates against the wiki, builds a recommendation context, uploads artifacts, and sends the digest by SMTP
+
+`auto-ingest` mode is explicit and requires Claude Code in CI, because plain API LLMs cannot invoke slash skills such as `/ingest`. Use manual dispatch with `send_email=false` for a dry run without SMTP secrets.
 
 ## Project Structure
 
@@ -327,7 +374,7 @@ OmegaWiki/
 │   └── log.md                   #   Chronological log
 ├── raw/                         # Source materials
 │   ├── papers/                  #   User-owned .tex / .pdf files
-│   ├── discovered/              #   /init and /daily-arxiv-downloaded external papers
+│   ├── discovered/              #   external papers from /init and explicit /daily-arxiv auto-ingest
 │   ├── tmp/                     #   generated prepared local sidecars for /init and direct local /ingest
 │   ├── notes/                   #   User-owned .md notes
 │   └── web/                     #   User-owned HTML / Markdown
@@ -468,7 +515,7 @@ Then run `claude` as usual. / 保存后正常运行 `claude` 即可。
 
 ## Community / 交流群
 
-<img src="assets/wechat_group.png" width="240" alt="WeChat Group QR Code">
+<img src="assets/wechat_group_3.jpg" width="240" alt="WeChat Group QR Code">
 
 Scan to join the ΩmegaWiki WeChat group / 扫码加入微信交流群
 
@@ -540,9 +587,29 @@ claude
 | Key | 必须？ | 获取方式 | 用途 |
 |-----|--------|---------|------|
 | `ANTHROPIC_API_KEY` | **是** | `claude login` | 驱动所有 Skill |
+| `CLAUDE_CODE_OAUTH_TOKEN` | 可选 | `claude setup-token` | Pro/Max 用户的 GitHub Actions Claude Code auth |
 | `SEMANTIC_SCHOLAR_API_KEY` | 可选 | [semanticscholar.org](https://www.semanticscholar.org/product/api)（免费） | 引用图谱、论文搜索 |
 | `DEEPXIV_TOKEN` | 可选 | `setup.sh` 自动注册 | 语义搜索、热门趋势 |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 任意 OpenAI 兼容 API | 跨模型评审 |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 任意 OpenAI 兼容 API | 跨模型评审；`/daily-arxiv` inform 推荐 |
+
+### 自动化
+
+GitHub Actions 每天 UTC 00:17（北京时间 08:17）运行 `/daily-arxiv` 推荐 pipeline：拉取 arXiv、按 wiki 去重、构建 recommendation context、上传 artifacts，并可通过 SMTP 发送 digest 邮件。
+
+启用邮件时，在 repo **Settings → Secrets** 添加：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`DAILY_ARXIV_EMAIL_TO`。
+
+CI inform mode 可使用 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 启动 Claude Code，也可使用 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 接入任意 OpenAI-compatible provider。`auto-ingest` 是显式模式，并且需要 Claude Code，因为普通 API LLM 不能调用 `/ingest` 这类 slash skill。手动触发时可设置 `send_email=false`，用于无 SMTP secrets 的 dry run。
+
+<details>
+<summary><b>Digest 示例 / Sample digest</b></summary>
+
+<div align="center">
+<img src="assets/daily-arxiv-demo.png" width="720" alt="/daily-arxiv digest 示例">
+</div>
+
+一次真实的 `/daily-arxiv` 运行结果：带分数、理由、wiki 关联以及 auto-ingest 区块的推荐 digest。
+
+</details>
 
 ### 24 个 Skill 命令
 
@@ -553,11 +620,11 @@ claude
 | `/prefill` | 可选地预填 `foundations/` 背景知识 |
 | `/init` | 基于用户 raw 素材并按需做外部发现来搭建 wiki |
 | `/ingest` | 消化论文，创建页面 + 交叉引用 |
-| `/discover` | 从 anchor、topic 或当前 wiki 推荐排序后的下一批待读论文 |
+| `/discover` | 从 anchor、topic、当前 wiki 或 venue/year 推荐排序后的下一批待读论文 |
 | `/edit` | 增删 raw 或更新 wiki |
 | `/ask` | 对 wiki 提问 |
 | `/check` | wiki 健康检查 |
-| `/daily-arxiv` | 每日 arXiv 新论文（CI 自动） |
+| `/daily-arxiv` | 运行/管理每日 arXiv 推荐 feed（可选 CI 定时） |
 | `/ideate` | 跨方向构思研究 idea |
 | `/novelty` | 多源新颖性验证 |
 | `/review` | 跨模型评审 |

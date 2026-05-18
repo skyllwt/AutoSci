@@ -1,53 +1,314 @@
-name: Daily arXiv digest
+name: Daily arXiv recommendation
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # UTC 00:00 = 08:00 Beijing time
+    - cron: '17 0 * * *'  # 00:17 UTC = 08:17 Beijing time
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "inform or auto-ingest"
+        required: false
+        default: ""
+      hours:
+        description: "Lookback window in hours"
+        required: false
+        default: ""
+      categories:
+        description: "Optional arXiv categories, separated by spaces or commas"
+        required: false
+        default: ""
+      max_recommendations:
+        description: "Maximum recommendations in the digest"
+        required: false
+        default: ""
+      max_auto_ingest:
+        description: "Maximum high-confidence papers to ingest when mode=auto-ingest"
+        required: false
+        default: ""
+      send_email:
+        description: "Send the digest by SMTP"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  # contents: write — auto-ingest commit step pushes to main.
+  # id-token: write — claude-code-action exchanges OIDC for an app token.
+  contents: write
+  id-token: write
+
+concurrency:
+  group: daily-arxiv-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  digest:
+  daily-arxiv:
     runs-on: ubuntu-latest
+    env:
+      HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
+      # Repo secrets must be exposed as env vars here for the Python steps;
+      # otherwise S2/DeepXiv calls run anonymous and hit rate-limit walls.
+      SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+      DEEPXIV_TOKEN: ${{ secrets.DEEPXIV_TOKEN }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Fetch arXiv feed
-        run: python tools/fetch_arxiv.py -o /tmp/arxiv_feed.json
-
-      - name: Run daily-arxiv
+      - name: Resolve run configuration
+        id: resolve
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+          INPUT_HOURS: ${{ github.event.inputs.hours }}
+          INPUT_CATEGORIES: ${{ github.event.inputs.categories }}
+          INPUT_MAX_RECOMMENDATIONS: ${{ github.event.inputs.max_recommendations }}
+          INPUT_MAX_AUTO_INGEST: ${{ github.event.inputs.max_auto_ingest }}
+          INPUT_SEND_EMAIL: ${{ github.event.inputs.send_email }}
         run: |
           set -euo pipefail
-          claude -p "Run /daily-arxiv using the feed at /tmp/arxiv_feed.json." | tee /tmp/claude_output.txt
-          if ! grep -qi 'ingest\|added\|updated\|no new papers\|0 papers' /tmp/claude_output.txt; then
-            echo "::warning::claude -p produced no recognized output — check logs"
+
+          run_dir=".daily-arxiv/run"
+          mkdir -p "$run_dir"
+
+          args=(config --config config/daily-arxiv.yml --out "$run_dir/resolved-config.json")
+          if [ -n "${INPUT_MODE:-}" ]; then
+            args+=(--mode "$INPUT_MODE")
+          fi
+          if [ -n "${INPUT_HOURS:-}" ]; then
+            args+=(--hours "$INPUT_HOURS")
+          fi
+          if [ -n "${INPUT_CATEGORIES:-}" ]; then
+            normalized="${INPUT_CATEGORIES//,/ }"
+            read -r -a category_args <<< "$normalized"
+            args+=(--categories "${category_args[@]}")
+          fi
+          if [ -n "${INPUT_MAX_RECOMMENDATIONS:-}" ]; then
+            args+=(--max-recommendations "$INPUT_MAX_RECOMMENDATIONS")
+          fi
+          if [ -n "${INPUT_MAX_AUTO_INGEST:-}" ]; then
+            args+=(--max-auto-ingest "$INPUT_MAX_AUTO_INGEST")
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            args+=(--send-email "${INPUT_SEND_EMAIL:-true}")
           fi
 
-      - name: Commit changes
+          python tools/daily_arxiv.py "${args[@]}"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path(".daily-arxiv/run/resolved-config.json").read_text())
+          cfg = payload["config"]
+          env_lines = [
+              "DAILY_ARXIV_RUN_DIR=.daily-arxiv/run",
+              f"DAILY_ARXIV_MODE={cfg['mode']}",
+              f"DAILY_ARXIV_HOURS={cfg['hours']}",
+              "DAILY_ARXIV_CATEGORIES=" + " ".join(cfg["categories"]),
+              f"DAILY_ARXIV_MAX_RECOMMENDATIONS={cfg['max_recommendations']}",
+              f"DAILY_ARXIV_MAX_AUTO_INGEST={cfg['max_auto_ingest']}",
+              f"DAILY_ARXIV_SEND_EMAIL={str(cfg['email']['enabled']).lower()}",
+              f"DAILY_ARXIV_SCHEDULE_ENABLED={str(cfg['schedule']['enabled']).lower()}",
+              "DAILY_ARXIV_FEED=.daily-arxiv/run/feed.json",
+              "DAILY_ARXIV_CONTEXT=.daily-arxiv/run/recommendation-context.json",
+              "DAILY_ARXIV_DECISIONS=.daily-arxiv/run/llm-decisions.json",
+              "DAILY_ARXIV_DIGEST_MD=.daily-arxiv/run/digest.md",
+              "DAILY_ARXIV_DIGEST_JSON=.daily-arxiv/run/digest.json",
+          ]
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write("\n".join(env_lines) + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"schedule_enabled={str(cfg['schedule']['enabled']).lower()}\n")
+              fh.write(f"mode={cfg['mode']}\n")
+          PY
+
+      - name: Note disabled schedule
+        if: github.event_name == 'schedule' && steps.resolve.outputs.schedule_enabled != 'true'
+        run: echo "daily-arxiv schedule is disabled in config/daily-arxiv.yml." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate auto-ingest credentials
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add wiki/
-          if git diff --cached --quiet; then
-            echo "No wiki changes to commit"
-          else
-            git commit -m "daily-digest: $(date +%Y-%m-%d)"
-            git push
+          set -euo pipefail
+          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::error::mode=auto-ingest requires Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) so Claude can judge and invoke /ingest."
+            exit 1
           fi
+
+      - name: Prepare recommendation context
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        run: |
+          set -euo pipefail
+
+          args=(
+            prepare
+            --config config/daily-arxiv.yml
+            --mode "$DAILY_ARXIV_MODE"
+            --hours "$DAILY_ARXIV_HOURS"
+            --max-recommendations "$DAILY_ARXIV_MAX_RECOMMENDATIONS"
+            --max-auto-ingest "$DAILY_ARXIV_MAX_AUTO_INGEST"
+            --out-feed "$DAILY_ARXIV_FEED"
+            --wiki-root wiki
+            --out "$DAILY_ARXIV_CONTEXT"
+          )
+          read -r -a category_args <<< "$DAILY_ARXIV_CATEGORIES"
+          if [ "${#category_args[@]}" -gt 0 ]; then
+            args+=(--categories "${category_args[@]}")
+          fi
+
+          python tools/daily_arxiv.py "${args[@]}"
+
+      - name: Run Claude recommendation and optional ingest
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Run OmegaWiki /daily-arxiv for this scheduled job.
+
+            Read .daily-arxiv/run/recommendation-context.json. Make LLM-first recommendation decisions from the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence.
+
+            Write .daily-arxiv/run/llm-decisions.json as:
+            {
+              "decisions": [
+                {
+                  "arxiv_id": "...",
+                  "decision": "strong_recommend|maybe|skip|ingest",
+                  "confidence": "high|medium|low",
+                  "score": 0.0,
+                  "rationale": "short reason grounded in the evidence",
+                  "wiki_connections": ["..."],
+                  "signals_used": ["arxiv", "wiki_profile", "semantic_scholar", "deepxiv"]
+                }
+              ]
+            }
+
+            If the context mode is "auto-ingest", mark only high-confidence selected papers as "ingest", never more than config.max_auto_ingest. Invoke /ingest sequentially for those selected papers using their arXiv URLs. Do not hand-write wiki pages, graph files, paper pages, concepts, methods, or index entries. Record "ingest_status" or "ingest_error" in the matching decision after each attempt.
+
+            If the mode is "inform", do not ingest or mutate the wiki. Keep borderline papers as "maybe".
+          claude_args: |
+            # 100 turns fits the decision step plus one full /ingest cycle
+            # (~40–50 tool calls per paper); raise if max_auto_ingest > 1.
+            # allowedTools must include Skill or /ingest cannot be invoked;
+            # TodoWrite and Agent support /ingest's task tracking and
+            # subagent fan-out.
+            --max-turns 100
+            --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
+
+      - name: Note skipped Claude recommendation
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH != 'true'
+        run: |
+          if [ "$DAILY_ARXIV_MODE" = "inform" ] && [ "${HAS_REVIEW_LLM:-false}" = "true" ]; then
+            echo "Claude Code Action auth is not configured; using OpenAI-compatible LLM recommendation for inform mode." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Claude Code Action auth is not configured; finalizing a tool-ranked fallback digest." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run OpenAI-compatible LLM recommendation
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH != 'true' && env.HAS_REVIEW_LLM == 'true' && steps.resolve.outputs.mode == 'inform'
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_FALLBACK_MODEL: ${{ secrets.LLM_FALLBACK_MODEL }}
+        run: |
+          set -euo pipefail
+          python tools/daily_arxiv.py recommend-llm \
+            --context "$DAILY_ARXIV_CONTEXT" \
+            --out "$DAILY_ARXIV_DECISIONS"
+
+      - name: Finalize digest
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        run: |
+          set -euo pipefail
+          decisions_arg=()
+          if [ -f "$DAILY_ARXIV_DECISIONS" ]; then
+            decisions_arg=(--decisions "$DAILY_ARXIV_DECISIONS")
+          fi
+          python tools/daily_arxiv.py finalize \
+            --context "$DAILY_ARXIV_CONTEXT" \
+            "${decisions_arg[@]}" \
+            --out-md "$DAILY_ARXIV_DIGEST_MD" \
+            --out-json "$DAILY_ARXIV_DIGEST_JSON"
+
+      - name: Add digest to job summary
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        run: cat "$DAILY_ARXIV_DIGEST_MD" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload daily arXiv artifacts
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-arxiv-${{ github.run_id }}
+          path: |
+            .daily-arxiv/run/resolved-config.json
+            .daily-arxiv/run/feed.json
+            .daily-arxiv/run/recommendation-context.json
+            .daily-arxiv/run/llm-decisions.json
+            .daily-arxiv/run/digest.md
+            .daily-arxiv/run/digest.json
+          if-no-files-found: ignore
+
+      - name: Commit auto-ingest changes
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "$DAILY_ARXIV_MODE" != "auto-ingest" ]; then
+            echo "Auto-ingest disabled; no repository writeback attempted." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add wiki raw/discovered
+          if git diff --cached --quiet; then
+            echo "Auto-ingest mode ran, but no wiki/raw changes were staged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git commit -m "daily-arxiv auto-ingest"
+          # claude-code-action clears the auth header that actions/checkout
+          # installed; re-embed GITHUB_TOKEN before pushing.
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push
+
+      - name: Send digest e-mail
+        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          DAILY_ARXIV_EMAIL_TO: ${{ secrets.DAILY_ARXIV_EMAIL_TO }}
+        run: |
+          set -euo pipefail
+          if [ "$DAILY_ARXIV_SEND_EMAIL" != "true" ]; then
+            echo "E-mail sending disabled for this run." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python tools/send_email.py --check-config
+          subject="OmegaWiki daily arXiv recommendations $(date -u +%F)"
+          python tools/send_email.py \
+            --subject "$subject" \
+            --body-file "$DAILY_ARXIV_DIGEST_MD"

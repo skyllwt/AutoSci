@@ -43,6 +43,24 @@ Wiki mode picks the wiki's most recently modified paper pages, extracts their ar
 
 If `wiki/papers/` is empty or no papers carry an `arxiv` or `arxiv_id` frontmatter field, wiki mode cannot run. Tell the user the wiki is too sparse and suggest topic mode (or `/init`).
 
+## Venue mode (`from-venue`)
+
+Use when the user asked for papers from a specific conference or workshop and year.
+
+Triggers:
+
+- "show me NeurIPS 2024 papers relevant to my wiki"
+- "what did ICML 2023 have on diffusion models"
+- "any ICLR 2024 papers I should read"
+
+Venue mode fetches the full paper list for that venue/year from Paper Copilot's public GitHub JSON source (`papercopilot/paperlists`), normalizes each record, and ranks them by relevance to the user's existing wiki content. It requires a non-sparse wiki — if the wiki is too empty, the tool fails clearly rather than returning an unpersonalized list.
+
+Venue mode does **not** use Semantic Scholar or DeepXiv. It does not write to `wiki/` or `raw/`.
+
 ## What if the user gave both an anchor and a topic?
 
 Prefer anchor mode. Anchors are a much stronger signal than a topic string. Mention the topic in the user-facing report so they know it was noted, but the discovery itself runs through `from-anchors`.
+
+## What if the user gave both a venue and a topic?
+
+Prefer venue mode if the user explicitly named a venue and year. The topic can be mentioned in the report, but venue mode's ranking is driven by wiki relevance, not by the topic string. If the wiki is too sparse for venue mode, stop with a clear sparse-wiki failure and suggest ingesting more papers or running a separate topic discovery; do not silently fall back to an unpersonalized venue ranking.

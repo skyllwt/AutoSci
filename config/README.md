@@ -4,6 +4,18 @@ This directory contains configuration templates. Copy them to the correct locati
 
 ## Files
 
+### `daily-arxiv.yml.example`
+
+Daily arXiv recommendation preferences. Copy to `config/daily-arxiv.yml`:
+
+```bash
+cp config/daily-arxiv.yml.example config/daily-arxiv.yml
+```
+
+This file stores non-secret settings such as mode, categories, recommendation
+caps, schedule, and profile hints. Keep API keys and SMTP credentials in `.env`
+or GitHub Actions secrets.
+
 ### `.env.example`
 
 Environment variables for API keys. Copy to project root:
@@ -27,16 +39,18 @@ cp config/settings.local.json.example .claude/settings.local.json
 
 | Permission | Why it's needed |
 |-----------|-----------------|
-| `Bash(pip install:*)` | Install Python packages (e.g., during setup) |
-| `Bash(python:*)` | Run Python tools (fetch_arxiv, fetch_s2, lint, etc.) |
-| `Bash(python3:*)` | Same as above, for systems where `python3` is the command |
-| `Bash(cp:*)` | Copy files (e.g., templates during /init) |
-| `Bash(mkdir:*)` | Create directories (e.g., wiki subdirectories) |
-| `Bash(git ls-tree:*)` | List files in git (used by some tools for discovery) |
+| `Bash(*)` | Run any shell command — covers `python3 tools/*.py`, `pip install`, `latexmk` (paper compile), `nvidia-smi` (GPU check), `cp`, `mkdir`, `git`, and other commands used across skills |
+| `Read(*)` | Read wiki pages, raw files, config, and experiment results |
+| `Edit(*)` | Write wiki pages and update metadata |
+| `WebSearch` | Search for papers during novelty checks, landscape scans, and daily-arxiv |
+| `WebFetch(*)` | Fetch BibTeX from DBLP/CrossRef (used by `/paper-draft`, `/survey`) |
+| `MCP(*)` | Call the llm-review MCP server for cross-model review |
 
-These are the **minimum permissions** for ΩmegaWiki skills to function. Claude Code will prompt you for approval when a skill tries to use a tool not in this list.
+`enableAllProjectMcpServers: true` auto-starts the `llm-review` server declared in `.mcp.json` without a first-run prompt.
 
-**To customize:** You can add more permissions (e.g., `Bash(git add:*)` for auto-commit) or remove permissions if you want more manual control. See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for the full permissions format.
+These permissions grant broad access so that all skills work without interruption. Claude Code will **not** prompt for individual tool calls covered by this list.
+
+**To restrict access:** If you prefer more manual control, you can replace `Bash(*)` with specific patterns (e.g., `Bash(python3:*)`, `Bash(latexmk:*)`) and remove permissions you don't need. Note that some skills may then require additional approval prompts. See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for the full permissions format.
 
 ### `server.yaml.example`
 
@@ -64,4 +78,6 @@ Then edit `config/server.yaml` with your server's SSH details, GPU info, conda e
 
 ## All Done by `setup.sh`
 
-If you ran `setup.sh`, both files are already copied to the right locations. You only need to edit `.env` if you want to add optional API keys.
+If you ran `setup.sh`, `.env` and `.claude/settings.local.json` are already
+copied to the right locations. `daily-arxiv.yml` and `server.yaml` are optional
+and can be created later when you use those features.

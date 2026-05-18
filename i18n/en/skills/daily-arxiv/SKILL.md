@@ -1,238 +1,91 @@
 ---
-description: Daily arXiv pull, relevance filtering, auto-ingest of high-priority papers, and SOTA update detection
-argument-hint: "[--hours 24] [--max-ingest 5] [--dry-run]"
+description: Run or manage the daily arXiv recommendation feed. Use for one-off fresh-paper recommendations, scheduled GitHub Actions setup/status/disable, email digests, and explicit high-confidence auto-ingest through /ingest.
+argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---
 
 # /daily-arxiv
 
-> Pulls new papers from arXiv RSS daily, automatically assesses relevance based on research directions and concepts in the wiki,
-> calls /ingest to fully incorporate highly relevant papers into the wiki, detects SOTA updates, and generates a digest log.
-> Supports cron-scheduled automatic execution as well as manual triggering.
+> Run or manage the daily paper recommendation feed. Bare `/daily-arxiv` means "run today's recommendation pass now"; GitHub Actions is only the unattended scheduler for the same pipeline.
+
+Load references only when needed:
+
+- `references/recommendation-and-ingest-policy.md` — evidence, LLM decision schema, confidence gate, and auto-ingest guardrails
+- `references/automation-scaffold.md` — GitHub Actions setup/status behavior, secrets, artifacts, and failure modes
+
+## Commands
+
+- `/daily-arxiv`: run a one-off recommendation pass now. If `config/daily-arxiv.yml` is missing, infer defaults from the wiki and continue.
+- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required secrets. See *Setup Workflow* below for the exact patch procedure.
+- `/daily-arxiv status`: inspect config, workflow presence, schedule, mode, API/e-mail secret availability, and recent artifacts when available.
+- `/daily-arxiv disable`: set `schedule.enabled: false` in config or tell the user what to change; manual `/daily-arxiv` must still work.
+
+> When running `setup` or `status`, treat S2/DeepXiv repo secrets as required (not optional) for any daily-cadence pipeline, and point the user at [`docs/daily-arxiv-deployment.md`](../../../docs/daily-arxiv-deployment.md) for the full setup checklist and symptom-keyed troubleshooting.
 
 ## Inputs
 
-- `--hours N`: pull papers from the last N hours (default 24)
-- `--max-ingest N`: maximum papers to ingest per run (default 5, prevents wiki overload)
-- `--dry-run`: generate digest only, do not execute ingest
-- `--categories`: override default arXiv categories (default: cs.LG cs.CV cs.CL cs.AI stat.ML)
+- `--mode inform|auto-ingest`: default `inform`. Never infer `auto-ingest` from repo state.
+- `--hours N`: pull papers from the last N hours; config/default is 24.
+- `--categories <cat...>`: override configured arXiv categories.
+- `--max-recommendations N`: maximum papers shown in the digest; config/default is 10.
+- `--max-auto-ingest N`: cap for high-confidence auto-ingest; config/default is 1.
+- `--send-email true|false`: workflow/setup preference for SMTP delivery.
 
-## Outputs
+## Setup Workflow
 
-- `raw/discovered/{slug}/` or `raw/discovered/{slug}.pdf` — fetched source artifact for each auto-ingested paper
-- `wiki/papers/{slug}.md` — highly relevant paper pages (created via /ingest)
-- Corresponding `concepts/`, `people/`, `methods/` pages (created via /ingest)
-- Updated `wiki/topics/*.md` — SOTA tracker annotations (if SOTA update detected)
-- Updated `wiki/graph/` — edges.jsonl, context_brief.md, open_questions.md (maintained via /ingest)
-- Updated `wiki/index.md` and `wiki/log.md`
+Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo is a no-op.
+
+1. **Config**: if `config/daily-arxiv.yml` is missing, copy from `config/daily-arxiv.yml.example`. If present, leave it alone (the user's preferences are durable).
+
+2. **Workflow file**: confirm `.github/workflows/daily-arxiv.yml` exists. If absent, point the user at `docs/daily-arxiv-deployment.md` and stop — re-creating the workflow from scratch is out of scope for setup.
+
+3. **Workflow env exposures (auto-patch)**: in `.github/workflows/daily-arxiv.yml`, locate the `daily-arxiv:` job's `env:` block. Use the Edit tool to ensure both lines are present as siblings of `HAS_CLAUDE_CODE_AUTH`:
+
+   ```yaml
+   SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+   DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
+   ```
+
+   - If both lines already exist, do nothing.
+   - If only one is missing, append the missing line.
+   - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` flags. Do not touch any other step.
+   - After any patch, tell the user what was changed and remind them to commit.
+
+4. **Secrets check**: list which of `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets the user has configured. Use `gh secret list` when available; otherwise instruct the user to run it. Surface any missing-but-required secrets with the exact `gh secret set` command they need.
+
+5. **Summary**: report what was created, patched, and what the user still needs to do (install the GitHub App, set missing secrets, verify with one `gh workflow run daily-arxiv.yml`).
+
+## Run Workflow
+
+1. Resolve the Python interpreter and run the deterministic preparation:
+
+   ```bash
+   python3 tools/daily_arxiv.py prepare --wiki-root wiki --out .daily-arxiv/run/recommendation-context.json --out-feed .daily-arxiv/run/feed.json
+   ```
+
+2. Read `.daily-arxiv/run/recommendation-context.json`. Judge candidates with an LLM using the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence. Write `.daily-arxiv/run/llm-decisions.json` with `decision`, `confidence`, `score`, `rationale`, `wiki_connections`, and `signals_used`. In CI inform mode, an OpenAI-compatible review LLM may do this via:
+
+   ```bash
+   python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
+   ```
+
+3. If mode is `auto-ingest`, use Claude Code runtime only: choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Third-party LLMs are recommendation-only and must not auto-ingest.
+
+4. Finalize the digest:
+
+   ```bash
+   python3 tools/daily_arxiv.py finalize --context .daily-arxiv/run/recommendation-context.json --decisions .daily-arxiv/run/llm-decisions.json --out-md .daily-arxiv/run/digest.md --out-json .daily-arxiv/run/digest.json
+   ```
+
+5. Report strong recommendations, maybe-interesting papers, skipped duplicates, degraded signals, auto-ingest outcomes, and setup/status hints.
 
 ## Wiki Interaction
 
-### Reads
-- `wiki/topics/*.md` — extract Overview keywords and SOTA tracker, used for relevance scoring and SOTA detection
-- `wiki/concepts/*.md` — extract Definition keywords, assist relevance scoring
-- `wiki/index.md` — check whether a paper is already collected (deduplicate by arXiv URL)
-- `wiki/papers/*.md` — check whether an arxiv ID already exists
-- `wiki/graph/open_questions.md` — prioritize ingesting papers that fill knowledge gaps
+Reads `wiki/index.md`, `wiki/papers/`, `wiki/topics/`, `wiki/concepts/`, `wiki/methods/`, `wiki/ideas/`, and `wiki/log.md` to build the interest profile and dedupe candidates.
 
-### Writes
-- `wiki/papers/{slug}.md` — CREATE via /ingest
-- `wiki/concepts/{slug}.md` — CREATE/EDIT via /ingest
-- `wiki/people/{slug}.md` — CREATE/EDIT via /ingest
-- `wiki/methods/{slug}.md` — CREATE/EDIT via /ingest
-- `wiki/topics/{slug}.md` — EDIT (SOTA tracker annotations)
-- `wiki/graph/edges.jsonl` — APPEND via /ingest
-- `wiki/graph/context_brief.md` — REBUILD (once at the end)
-- `wiki/graph/open_questions.md` — REBUILD (once at the end)
-- `wiki/index.md` — EDIT via /ingest
-- `wiki/log.md` — APPEND
+Writes only scratch files under `.daily-arxiv/` during inform runs. In `auto-ingest`, all durable wiki/raw mutations must come from `/ingest`.
 
-### Graph edges created
-- All edges created by /ingest (paper → concept, paper → method, etc.)
+## Relationships
 
-## Workflow
-
-**Pre-conditions**: confirm the working directory is the wiki project root (directory containing `wiki/`, `raw/`, `tools/`).
-Set `WIKI_ROOT=wiki/`.
-
-### Step 1: Pull arXiv RSS + Trending Papers
-
-1. Run fetch_arxiv.py to get the new paper list:
-   ```bash
-   python3 tools/fetch_arxiv.py --hours <hours> -o /tmp/arxiv_feed.json
-   ```
-2. Fetch DeepXiv trending papers (past 7 days):
-   ```bash
-   python3 tools/fetch_deepxiv.py trending --days 7 --limit 20
-   ```
-   Merge trending papers into the candidate list (deduplicated by arxiv_id); trending papers receive extra attention in subsequent scoring.
-   **If DeepXiv is unavailable**: skip this sub-step, use RSS results only.
-3. Parse results to obtain the paper list (title, abstract, authors, arxiv_url, arxiv_id, category)
-4. **Deduplication**: read `wiki/index.md`, skip papers whose arXiv URL is already in the wiki. Also check existing arxiv IDs in the `wiki/papers/` directory.
-5. If no new papers, skip directly to Step 6 to generate an empty digest.
-
-### Step 2: Build Relevance Context + DeepXiv Enhancement
-
-1. Read `wiki/topics/*.md` and extract for each topic:
-   - Core keywords from the Overview paragraph
-   - Open problems / Research gaps list
-   - Current best results from the SOTA tracker
-2. Read `wiki/concepts/*.md` and extract for each concept:
-   - Key terms from the Definition paragraph
-   - tags list
-3. Read `wiki/graph/open_questions.md` for the current knowledge gap list
-4. Synthesize a "research direction summary" (≤ 2000 characters) containing: core topics, active concepts, gaps to fill
-5. **DeepXiv TLDR enhancement** (optional): for each new paper, fetch an AI summary and keywords to improve scoring quality:
-   ```bash
-   python3 tools/fetch_deepxiv.py brief <arxiv_id>
-   ```
-   Supplement the original abstract with the returned `tldr` and `keywords` to help the LLM judge relevance more precisely.
-   **If DeepXiv is unavailable**: use only the RSS original title + abstract for scoring (fallback to original behavior).
-
-### Step 3: Relevance Scoring
-
-For each new paper, LLM assesses relevance based on title and abstract vs. the research direction summary:
-
-| Score | Meaning | Action |
-|------|------|----------|
-| 3 | Highly relevant: significant advance in a core direction | Auto-ingest |
-| 2 | Moderately relevant: worth noting but not core | List in digest, do not auto-ingest |
-| 1 | Weakly relevant: for reference only | Collapsed listing |
-| 0 | Not relevant | Skip |
-
-**Bonus rules** (can promote a score of 2 to 3):
-- Paper directly addresses a knowledge gap in open_questions.md → +1
-- Paper's benchmark may update the SOTA tracker → +1 (capped at 3)
-
-**Batch scoring**: submit all papers' title+abstract to the LLM in a single call and return scores as JSON. Avoid per-paper calls.
-
-### Step 4: Auto-Ingest High-Priority Papers (with checkpoint resume)
-
-1. Filter papers with relevance = 3, sorted by the following priority:
-   - Papers that fill gap_map gaps first
-   - Papers with higher citation counts first (if abstract mentions SOTA results)
-2. Load checkpoint (skip already-completed papers if one exists):
-   ```bash
-   python3 tools/research_wiki.py checkpoint-load wiki/ "daily-arxiv-{date}"
-   ```
-3. Take the first `--max-ingest` papers (default 5). For each selected paper:
-   - Download the source artifact into `raw/discovered/` first:
-     ```bash
-     python3 tools/init_discovery.py download --raw-root raw --arxiv-id <arxiv_id> --title "<title>"
-     ```
-   - Pass the returned `canonical_ingest_path` from `raw/discovered/` into `/ingest`, not the bare arXiv URL
-   - /ingest completes the full wiki incorporation flow (paper + concepts + people + methods + cross-refs + graph)
-   - After each success, record checkpoint:
-     ```bash
-     python3 tools/research_wiki.py checkpoint-save wiki/ "daily-arxiv-{date}" "{arxiv_id}"
-     ```
-   - On failure, mark and continue:
-     ```bash
-     python3 tools/research_wiki.py checkpoint-save wiki/ "daily-arxiv-{date}" "{arxiv_id}" --failed
-     ```
-4. If `--dry-run`, skip both the `raw/discovered/` download and the actual ingest; mark "would ingest" in the digest
-5. After all done, clear checkpoint:
-   ```bash
-   python3 tools/research_wiki.py checkpoint-clear wiki/ "daily-arxiv-{date}"
-   ```
-
-### Step 5: SOTA Detection and Update
-
-1. For each paper ingested in Step 4, check the benchmark numbers in its Results section
-2. Compare benchmarks against the `## SOTA tracker` in the corresponding `wiki/topics/` page
-3. If the paper's results beat the current SOTA record:
-   - Append/update an entry in the topic page's `## SOTA tracker`:
-     ```
-     - **{benchmark_name}**: {score} ← [[{paper-slug}]] ({year}) [previously: {old_score}]
-     ```
-   - Set `sota_updated` for that topic to today's date
-4. If SOTA updates are detected, highlight them in the digest
-
-### Step 6: Generate Digest and Write to Log
-
-1. Rebuild graph derived files (only if any ingest happened):
-   ```bash
-   python3 tools/research_wiki.py rebuild-context-brief wiki/
-   python3 tools/research_wiki.py rebuild-open-questions wiki/
-   ```
-
-2. Append digest to `wiki/log.md`:
-   ```bash
-   python3 tools/research_wiki.py log wiki/ "daily-arxiv | {N_ingested} ingested, {N_relevant} relevant / {N_total} total"
-   ```
-
-3. Append detailed digest below the current day's log entry:
-   ```markdown
-   ### High Priority (ingested)
-   - [[paper-slug]] — {title} ({one-line insight})
-
-   ### Worth Watching (relevance = 2)
-   - {title} — {arxiv_url} — {one-line summary}
-
-   ### Trending This Week (from DeepXiv)
-   - {title} — {arxiv_id} — {tweets} tweets, {views} views
-
-   ### SOTA Updates
-   - {topic}: {benchmark} new record by [[paper-slug]]
-
-   <details>
-   <summary>Weakly Relevant ({K} papers)</summary>
-
-   - {title} — {arxiv_url}
-
-   </details>
-   ```
-
-### Step 7: Report to User
-
-Output summary:
-- Total papers scanned / count after deduplication
-- Distribution across relevance levels
-- List of ingested papers (with slug links)
-- List of SOTA updates (if any)
-- Recommended manual ingest candidates (top 3 most notable from relevance = 2)
-- Next run time reminder
-
-## Constraints
-
-- **Only ingest papers with relevance >= 3**: leave the rest for user judgment, do not auto-create wiki pages
-- **At most `--max-ingest` papers per run** (default 5): prevents single-run wiki overload
-- **`/daily-arxiv` is raw-read-only except `raw/discovered/` for auto-ingested papers**: never write to `raw/papers/`, `raw/tmp/`, `raw/notes/`, or `raw/web/`
-- **graph/ maintained via tools only**: do not manually edit graph files
-- **Bidirectional links**: guaranteed by /ingest
-- **Deduplication must be strict**: double-check by both arxiv_url and arxiv_id
-- **Batch scoring**: one LLM call to score all papers, no per-paper calls
-- **Digest stays concise**: see individual papers pages for details; at most one line per paper in the digest
-- **log.md is append-only**: use `python3 tools/research_wiki.py log` to append
-
-## Error Handling
-
-- **DeepXiv API unavailable**: fall back to pure RSS mode (original behavior). Trending section omitted from digest; scoring uses only raw RSS data. Note DeepXiv unavailability in the report.
-- **RSS fetch fails**: report network error, suggest user check network and retry. Do not modify the wiki.
-- **Partial ingest failures**: keep completed ingests, mark failed papers in the report, suggest user manually `/ingest <url>`.
-- **wiki directory does not exist**: prompt user to run `/init` first.
-- **Empty RSS results**: normal situation (fewer papers on holidays/weekends), generate empty digest without error.
-- **SOTA comparison fails**: if benchmark format does not match, skip and note in report.
-
-## Dependencies
-
-### Skills（via Skill tool）
-- `/ingest` — full paper incorporation flow (called in Step 4)
-
-### Tools（via Bash）
-- `python3 tools/fetch_arxiv.py --hours <N> -o <path>` — pull arXiv RSS
-- `python3 tools/fetch_deepxiv.py trending --days 7 --limit 20` — fetch trending papers
-- `python3 tools/fetch_deepxiv.py brief <arxiv_id>` — fetch paper TLDR and keywords
-- `python3 tools/init_discovery.py download --raw-root raw --arxiv-id <id> --title "<title>"` — download selected papers into `raw/discovered/`
-- `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild compressed context
-- `python3 tools/research_wiki.py rebuild-open-questions wiki/` — rebuild knowledge gap map
-- `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
-
-### External APIs
-- arXiv RSS (via tools/fetch_arxiv.py)
-- DeepXiv API (via tools/fetch_deepxiv.py, optional; graceful fallback when unavailable)
-
-### Scheduling
-- Can be scheduled for daily automatic execution via CronCreate:
-  ```
-  CronCreate: schedule "/daily-arxiv" daily at 08:00
-  ```
+- `/discover` answers deliberate next-read requests from anchors, topics, or wiki state; it never ingests.
+- `/daily-arxiv` watches the fresh arXiv stream and can notify daily or manually.
+- `/ingest` is the only paper incorporation path. `/daily-arxiv` may call it only in explicit `auto-ingest` mode.
