@@ -134,7 +134,7 @@
 | **Graph edges** | paper-paper, paper-concept, claim/experiment | + bio relations (`targets_protein`, `binds`, `degrades`, `phosphorylates`, `ubiquitinates`, …), validation/translation (`clinical_trial_for`, `fda_approved_for`), dataset-version provenance |
 | **Experiment cost** | single `estimated_hours` | structured: `gpu_hours`, `cpu_hours`, `md_wallclock_hours`, `wet_lab_usd`, `fte_weeks`, `dataset_access_lead_time_days` |
 | **Skill prompts** | CS examples | bio NER pre-pass in `/ingest`, MD/wet-lab budgeting in `/exp-design`, GRADE weighting in `/novelty`, result-first writing in `/paper-draft`, …  |
-| **Worked example** | LLM papers, LoRA, flash-attention | 11 papers covering AlphaFold 2/3, PTM site prediction, E3 ligase platforms, geometric DL for molecules; 22 ideas, 8 designed experiments, 73 graph edges |
+| **Worked example** | LLM papers, LoRA, flash-attention | 11 papers covering AlphaFold 2/3, PTM site prediction, E3 ligase platforms, geometric DL for molecules; 22 ideas (11 validated / 2 failed), 8 designed experiments, 80 graph edges |
 
 Full per-item rationale and lint metrics across the migration: [`docs/bio-adaptation/REPORT.en.md`](docs/bio-adaptation/REPORT.en.md)（中文：[`REPORT.zh.md`](docs/bio-adaptation/REPORT.zh.md)）.
 
@@ -143,6 +143,27 @@ Full per-item rationale and lint metrics across the migration: [`docs/bio-adapta
 <br>
 <sub>PTM-aware degrader neighborhood — exported from <code>wiki/canvases/focus-ideas-ptm-aware-degrader-target-nomination.canvas</code>.</sub>
 </div>
+
+### Bio Quick Tour — 一眼看清生物适配做了什么
+
+> **2026-05-12 backlog 完结快照**：A 8/8 (Schema) · B 14/14 + infra (Graph) · C 9/9 (Skills) · D 2/2 (Conventions) —— 累计 **39 pilots** 在 16 个 commit 内合并；lint 0 🔴 / 0 🟡 / 11 🔵 (base) + 0/0/0 (bio)。
+
+| 维度 | 数量 | 内容 / live 证据 |
+|---|---|---|
+| **Wiki 实体类型** | **10** (vs upstream 9) | `datasets/` 是新增第 10 类一等公民；当前 1 个 dataset (`ternarydb`) live，含 versions 表 + `key_papers` 反向链接 |
+| **Bio edge types 注册** | **14** | `binds` · `targets_protein` · `degrades` · `phosphorylates` · `ubiquitinates` · `sumoylates` · `acetylates` · `methylates` · `glycosylates` · `wet_lab_validated` · `clinical_validated` · `clinical_trial_for` · `fda_approved_for` · `validates_in_species` · `dataset_version_used` |
+| **Bio edges live** | **7 条 / 5 类型** | 80 总边中 7 条 bio relation；含 `targets_protein` ×1 · `binds` ×2 · `ubiquitinates` ×1 · `validates_in_species` ×1 · `dataset_version_used` ×2 |
+| **Typed metadata schemas** | **5** | `dataset_version_used` · `binds` · `clinical_trial_for` · `fda_approved_for` · `validates_in_species` —— closed-set + required keys + type checks，由 `runtime/loader.py` 在 load 时强制 |
+| **Bio setup 字段** (`experiments.setup`) | **9** | `in_silico_or_wet` · `species` · `cell_line` · `assay_type` · `force_field` · `solvent_model` · `simulation_length` · `weight_version` · `random_seed_protocol` —— 8/8 experiments 已回填 |
+| **Reproducibility ID 维度** (`experiments.reproducibility`) | **5** | `rrid` · `cellosaurus` · `addgene` · `pdb_versions[]` · `dataset_versions[]` —— `tools/lint_bio.py` 闭环 cross-check 与 `datasets/*.versions[]` 双向一致 |
+| **Bio lint 检查** (`tools/lint_bio.py`) | **5** | dataset_version cross-check / domain slug 规范化 / setup 字段一致性 / cost 块完整性 / reproducibility ID 格式 |
+| **Domain 受控词表** | **15 canonical slugs** | A4 把 9 个 free-text variants → 7 canonical slug（覆盖 24 页面），如 `bioinformatics` · `comp-drug-discovery` · `protein-engineering` |
+| **Multi-source novelty channels** (`/novelty`) | **5** | WebSearch · Semantic Scholar · **PubMed E-utilities** (bio 独占满权重) · wiki dedup · Review LLM cross-verify |
+| **`/exp-design` 统计默认值形态** | **4** | bootstrap CI · stratified k-fold · LOO-CV · bio×tech replicates —— 按 setup type 自动路由 |
+| **`concepts.maturity` 状态机** | **9 enum** (D2 扩展自 4) | `hypothesis` → `contested` → `well-supported` → `consensus` / `falsified` 等 —— wiki 自身的认知演进维度 |
+
+完整 backlog × pilot 表见 [`docs/bio-adaptation/CHANGELOG.zh.md`](docs/bio-adaptation/CHANGELOG.zh.md)（39 entries）。
+比赛 (智源 Agent for Science) 上下文、视频脚本、P0-P2 优化清单见 [`docs/bio-adaptation/COMPETITION_NOTES.zh.md`](docs/bio-adaptation/COMPETITION_NOTES.zh.md)。
 
 ### Try the demo locally
 
@@ -153,7 +174,7 @@ git clone https://github.com/skyllwt/OmegaWiki.git && cd OmegaWiki
 # 1. lint the wiki — 0 🔴 / 0 🟡 / 11 🔵 informational
 .venv/bin/python tools/lint.py
 
-# 2. open the SPA knowledge graph (63 nodes / 66 edges)
+# 2. open the SPA knowledge graph (65 nodes / 80 edges)
 .venv/bin/python tools/serve.py   # then visit http://127.0.0.1:8765/
 
 # 3. run the daily-arxiv demo — DeepSeek ranks 9 candidate papers
