@@ -117,6 +117,16 @@
 
 ## 🆕 What's New
 
+### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
+
+Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
+
+<p align="center">
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
+  <br/>
+  <sub><em>Title, author, venue, and prose are placeholder nonsense to avoid exposing real research; tables and figures preserve the pipeline demo.</em></sub>
+</p>
+
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
 
 Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for *your* research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).

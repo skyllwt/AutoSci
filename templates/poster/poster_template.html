@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Academic Poster</title>
+
+<!-- Fonts:
+     - EB Garamond: body font (serif). Without this <link> Chrome would
+       silently fall back to Georgia / Times New Roman.
+     - Inter: section bars + venue text (sans-serif). Replaces the previous
+       "Helvetica Neue", Arial, sans-serif chain — Helvetica Neue is a
+       macOS system font, missing from Playwright's bundled Chromium, so
+       fonts.ready returned but glyph widths still differed between the
+       headless PNG and a real Chrome window. Inter is a deliberate
+       Helvetica-Neue-alike and loads identically in every Chromium. -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;600;700;800&display=swap"/>
+
+<!-- KaTeX: renders LaTeX math ($..$ inline, $$..$$ display) directly in HTML.
+     Loads synchronously enough for the headless screenshot (Step 5b's
+     --virtual-time-budget gives ~5s for these to land). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous"/>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"
+        onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false},{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}],throwOnError:false});"></script>
+
+<style>
+:root{
+  --poster-width: 1400px;
+  --poster-height: 900px;
+
+  --header-bg: #cfe9ff;
+  --border: #1f1f1f;
+  --gap: 18px;
+
+  --section-bar: #0b3d91;
+  --section-bg: #eef6ff;
+
+  /* ===== Adjustable parameters (driven by the fit algorithm) ===== */
+  --base-font: 16px;
+  --line-height: 1.35;
+  --para-gap: 10px;
+  --li-gap: 6px;
+  --img-max-width: 100%;
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: #e9eef5;
+  font-family: "EB Garamond", "Computer Modern Serif", "Latin Modern Roman", Georgia, "Times New Roman", serif;
+}
+
+.stage{
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.poster{
+  width: var(--poster-width);
+  height: var(--poster-height);
+  background: #fff;
+  border: 3px solid var(--border);
+  display: grid;
+  grid-template-rows: 2fr 11fr;
+  overflow: hidden;
+}
+
+/* ===== Header ===== */
+.header{
+  background: var(--header-bg);
+  border-bottom: 3px solid var(--border);
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: 7fr 1fr;
+  gap: var(--gap);
+}
+
+.title-block{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.logo-affiliation{
+  flex: 0 0 auto;
+  display: none;
+  max-width: 180px;
+  max-height: 96px;
+  align-items: center;
+  justify-content: center;
+}
+.logo-affiliation:not(:empty){ display: flex; }
+.logo-affiliation img{
+  max-width: 100%;
+  max-height: 96px;
+  object-fit: contain;
+}
+
+.title-text{
+  flex: 1;
+  min-width: 0;
+}
+
+.title{
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.authors{
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.conf{
+  border-left: 3px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px;
+}
+
+.conf .venue{
+  font-size: 32px;
+  font-weight: 800;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.05;
+  text-align: center;
+  /* Force the .venue to .conf's full width so multi-token venues like
+     "AAAI 2026" wrap at the space instead of overflowing right (which
+     the .poster's overflow:hidden would silently clip). The flex parent
+     uses align-items:center which would otherwise shrink .venue to its
+     content width regardless of max-width. width:100% wins. */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+}
+.conf .venue:empty{ display: none; }
+
+.logo-conference{
+  display: none;
+  max-width: 100%;
+  max-height: 96px;
+  align-items: center;
+  justify-content: center;
+}
+.logo-conference:not(:empty){ display: flex; }
+.logo-conference img{
+  max-width: 100%;
+  max-height: 96px;
+  object-fit: contain;
+}
+
+/* ===== Main ===== */
+.main{
+  padding: 18px;
+  overflow: hidden;
+}
+
+.flow{
+  height: 100%;
+  column-count: 3;
+  column-gap: var(--gap);
+  column-fill: auto;
+  /* Bottom breathing room: keeps the last line of every column from
+     sitting flush against the .poster border. Fit() respects this
+     reduced inner height when binary-searching font/image sizes. */
+  padding-bottom: 14px;
+}
+
+/* ===== Sections ===== */
+.section{
+  margin-bottom: 18px;
+  break-inside: auto;
+  background: var(--section-bg);
+}
+
+.section-bar{
+  background: var(--section-bar);
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+.section-body{
+  font-size: var(--base-font);
+  line-height: var(--line-height);
+  padding: 0 6px;
+}
+
+.section-body p{
+  margin: 0 0 var(--para-gap) 0;
+}
+
+.section-body ul{
+  margin: 0 0 var(--para-gap) 20px;
+  padding: 0;
+}
+
+.section-body li{
+  margin-bottom: var(--li-gap);
+}
+
+/* Tables emitted by tools/wiki2dag.py _extract_tables_to_html.
+   Sizing: width:100% so columns stretch to the poster column width;
+   font-size is relative to --base-font so the fit() binary search
+   shrinks tables alongside body text. caption-side:top is the
+   academic convention.
+
+   Font: KaTeX_Main is the font KaTeX itself uses to render $..$
+   spans. Putting it first in the stack makes plain-text cell
+   content (e.g. "Condition", "base") render in the same family
+   as the math glyphs ($C_0$, $-0.98$, $[4.41, 4.50]$) that
+   appear in the same cells — eliminates the visual seam where a
+   cell mixes math and text. EB Garamond and the existing fallback
+   chain remain for environments where KaTeX_Main never loads
+   (e.g. JS disabled). */
+.section-body table.poster-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 var(--para-gap) 0;
+  font-size: 0.88em;
+  table-layout: auto;
+  font-family: KaTeX_Main, "EB Garamond", "Computer Modern Serif",
+               Georgia, "Times New Roman", serif;
+}
+.section-body table.poster-table caption {
+  caption-side: top;
+  text-align: left;
+  font-style: italic;
+  font-size: 0.85em;
+  margin-bottom: 3px;
+  /* Allow long captions to break instead of overflowing the column */
+  overflow-wrap: break-word;
+}
+.section-body table.poster-table th,
+.section-body table.poster-table td {
+  border: 1px solid #444;
+  padding: 1px 4px;
+  text-align: left;
+  vertical-align: top;
+  /* Long words (e.g. compound identifiers) shouldn't push column width */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.section-body table.poster-table thead th {
+  background: #dde7f4;
+  font-weight: 700;
+}
+.section-body table.poster-table tbody tr:nth-child(even) {
+  background: #f5f8fc;
+}
+
+.img-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--para-gap) 0;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.img-section img {
+  flex: 1;
+
+  min-width: 0;
+  max-width: var(--img-max-width);
+  height: auto;
+
+  object-fit: contain;
+  border: 1px solid #000;
+
+  margin: 0;
+}
+
+</style>
+</head>
+
+<body>
+<div class="stage">
+<div class="poster">
+
+  <header class="header">
+    <div class="title-block">
+      <div class="logo-affiliation" data-slot="affiliation"></div>
+      <div class="title-text">
+        <h1 class="title">Paper Title</h1>
+        <div class="authors">Anonymous Authors</div>
+      </div>
+    </div>
+    <div class="conf" data-slot="conf">
+      <div class="venue"></div>
+      <div class="logo-conference" data-slot="conference"></div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="flow" id="flow">
+
+    </div>
+  </main>
+
+</div>
+</div>
+
+
+<!-- Fit algorithm: binary-searches font size + image width so all content
+     fits within the 3 columns. Inherited from PaperX with one bug fix:
+     overflowColumns() now also detects vertical clipping. PaperX's
+     version checks only flow.scrollWidth (horizontal); content that
+     overflows vertically into the column's hidden area was silently
+     accepted as "fit OK", causing chart x-axes and bottom-of-section
+     text to be clipped without warning. The vertical check below
+     walks direct content children + their figures and flags any
+     element whose bottom extends past the flow's visible bottom. -->
+<script>
+(function(){
+  const flow = document.getElementById("flow");
+  const root = document.documentElement;
+
+  function setVar(k,v,u=""){ root.style.setProperty(k, v+u); }
+
+  function overflowColumns(){
+    // Horizontal: content can't lay out within 3 columns
+    if (flow.scrollWidth > flow.clientWidth + 1) return true;
+    // Vertical: with column-fill:auto + fixed-height flow + overflow:hidden,
+    // a single tall element (figure, paragraph) can clip below the flow's
+    // visible bottom without affecting scrollWidth. Walk sections + their
+    // figure containers and flag any whose bottom is below flow's bottom.
+    const flowBottom = flow.getBoundingClientRect().bottom;
+    // Tables are a separate clipping risk: a too-tall <table> spills
+    // below the flow bottom in the same way a too-tall figure does
+    // (column-fill:auto + overflow:hidden silently clips). Probing
+    // .section-body table.poster-table here lets fit()'s binary
+    // search shrink font-size until tables fit.
+    const probes = flow.querySelectorAll(
+      "section, .img-section, .img-section img, .section-body table.poster-table"
+    );
+    for (const el of probes) {
+      if (el.getBoundingClientRect().bottom > flowBottom + 1) return true;
+    }
+    return false;
+  }
+
+  const PARA_GAP = 12;
+
+  const MIN_FONT = 10, MAX_FONT = 20;
+  const MIN_IMG = 60,  MAX_IMG = 100;
+
+  const STEP_FONT = 0.1;
+  const STEP_IMG = 1;
+
+  function getDependentVars(f) {
+    const ratio = (f - MIN_FONT) / (MAX_FONT - MIN_FONT);
+    let lh = 1.05 + ratio * 0.55;
+    let lg = 2 + ratio * 6;
+    return { lh, lg };
+  }
+
+  function tryFit(f, w) {
+    f = Math.round(f * 10) / 10;
+    w = Math.round(w);
+
+    const { lh, lg } = getDependentVars(f);
+
+    setVar("--base-font", f, "px");
+    setVar("--img-max-width", w, "%");
+    setVar("--line-height", lh.toFixed(3));
+    setVar("--li-gap", lg.toFixed(1), "px");
+    setVar("--para-gap", PARA_GAP, "px");
+
+    return !overflowColumns();
+  }
+
+  function fit(){
+    setVar("--img-max-width",100,"%");
+    setVar("--base-font",16,"px");
+
+    let low = MIN_FONT;
+    let high = MAX_FONT;
+    let bestFont = MIN_FONT;
+
+    while (low <= high) {
+      let mid = (low + high) / 2;
+      mid = Math.floor(mid / STEP_FONT) * STEP_FONT;
+
+      if (tryFit(mid, MIN_IMG)) {
+        bestFont = mid;
+        low = mid + STEP_FONT;
+      } else {
+        high = mid - STEP_FONT;
+      }
+    }
+
+    let wLow = MIN_IMG;
+    let wHigh = MAX_IMG;
+    let bestImg = MIN_IMG;
+
+    while (wLow <= wHigh) {
+      let mid = Math.floor((wLow + wHigh) / 2);
+
+      if (tryFit(bestFont, mid)) {
+        bestImg = mid;
+        wLow = mid + STEP_IMG;
+      } else {
+        wHigh = mid - STEP_IMG;
+      }
+    }
+
+    tryFit(bestFont, bestImg);
+  }
+
+  window.addEventListener("load", fit);
+
+  window.addEventListener("resize", () => {
+    clearTimeout(window.__fitTimer);
+    window.__fitTimer = setTimeout(fit, 80);
+  });
+
+  const mo = new MutationObserver(() => {
+    clearTimeout(window.__fitTimer2);
+    window.__fitTimer2 = setTimeout(fit, 80);
+  });
+  mo.observe(flow, { childList: true, subtree: true, characterData: true });
+
+  function hookImages(){
+    const imgs = flow.querySelectorAll("img");
+    imgs.forEach(img=>{
+      if (img.__fitHooked) return;
+      img.__fitHooked = true;
+      img.addEventListener("load", () => setTimeout(fit, 50));
+      img.addEventListener("error", () => setTimeout(fit, 50));
+    });
+  }
+  hookImages();
+  const mo2 = new MutationObserver(hookImages);
+  mo2.observe(flow, { childList: true, subtree: true });
+
+})();
+</script>
+
+</body>
+</html>
