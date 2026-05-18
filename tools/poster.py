@@ -935,9 +935,12 @@ _OVERFLOW_PROBE_JS = r"""
     }
   }
 
-  // 1) Flow content — strict bounds (catches content bleeding past columns)
+  // 1) Flow content — strict bounds (catches content bleeding past columns).
+  // table.poster-table is included so a too-tall booktabs table clipped
+  // below the flow bottom shows up in the report; Step 5.5's refinement
+  // LLM uses this to trim the corresponding section's prose or table.
   flow.querySelectorAll(
-    ".section-bar, .section-body p, .img-section, .img-section img"
+    ".section-bar, .section-body p, .img-section, .img-section img, .section-body table.poster-table"
   ).forEach((el) => record(el, fr, "flow"));
 
   // 2) Header content — checked against the outer .poster

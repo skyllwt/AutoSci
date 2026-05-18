@@ -215,6 +215,56 @@ body{
   margin-bottom: var(--li-gap);
 }
 
+/* Tables emitted by tools/wiki2dag.py _extract_tables_to_html.
+   Sizing: width:100% so columns stretch to the poster column width;
+   font-size is relative to --base-font so the fit() binary search
+   shrinks tables alongside body text. caption-side:top is the
+   academic convention.
+
+   Font: KaTeX_Main is the font KaTeX itself uses to render $..$
+   spans. Putting it first in the stack makes plain-text cell
+   content (e.g. "Condition", "base") render in the same family
+   as the math glyphs ($C_0$, $-0.98$, $[4.41, 4.50]$) that
+   appear in the same cells — eliminates the visual seam where a
+   cell mixes math and text. EB Garamond and the existing fallback
+   chain remain for environments where KaTeX_Main never loads
+   (e.g. JS disabled). */
+.section-body table.poster-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 var(--para-gap) 0;
+  font-size: 0.88em;
+  table-layout: auto;
+  font-family: KaTeX_Main, "EB Garamond", "Computer Modern Serif",
+               Georgia, "Times New Roman", serif;
+}
+.section-body table.poster-table caption {
+  caption-side: top;
+  text-align: left;
+  font-style: italic;
+  font-size: 0.85em;
+  margin-bottom: 3px;
+  /* Allow long captions to break instead of overflowing the column */
+  overflow-wrap: break-word;
+}
+.section-body table.poster-table th,
+.section-body table.poster-table td {
+  border: 1px solid #444;
+  padding: 1px 4px;
+  text-align: left;
+  vertical-align: top;
+  /* Long words (e.g. compound identifiers) shouldn't push column width */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.section-body table.poster-table thead th {
+  background: #dde7f4;
+  font-weight: 700;
+}
+.section-body table.poster-table tbody tr:nth-child(even) {
+  background: #f5f8fc;
+}
+
 .img-section {
   display: flex;
   justify-content: center;
@@ -294,7 +344,14 @@ body{
     // visible bottom without affecting scrollWidth. Walk sections + their
     // figure containers and flag any whose bottom is below flow's bottom.
     const flowBottom = flow.getBoundingClientRect().bottom;
-    const probes = flow.querySelectorAll("section, .img-section, .img-section img");
+    // Tables are a separate clipping risk: a too-tall <table> spills
+    // below the flow bottom in the same way a too-tall figure does
+    // (column-fill:auto + overflow:hidden silently clips). Probing
+    // .section-body table.poster-table here lets fit()'s binary
+    // search shrink font-size until tables fit.
+    const probes = flow.querySelectorAll(
+      "section, .img-section, .img-section img, .section-body table.poster-table"
+    );
     for (const el of probes) {
       if (el.getBoundingClientRect().bottom > flowBottom + 1) return true;
     }

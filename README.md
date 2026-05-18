@@ -117,12 +117,14 @@
 
 ## 🆕 What's New
 
-### 🎨 2026-05-17 · /poster — drafted paper → print-ready conference poster
+### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
 
-Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline and template adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)) — DAG intermediate, critique-revise pass, fit algorithm — wired into OmegaWiki's LaTeX source and `wiki/outputs/paper-plan-*.md` for grounded distillation. Export to PDF from your browser's print dialog. Future updates will support nanobanana-style figures and higher-level customization of the poster.
+Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
 
 <p align="center">
-  <img src="assets/poster_demo.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG" width="720" />
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
+  <br/>
+  <sub><em>Title, author, venue, and prose are placeholder nonsense to avoid exposing real research; tables and figures preserve the pipeline demo.</em></sub>
 </p>
 
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"

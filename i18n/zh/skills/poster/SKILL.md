@@ -117,9 +117,10 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 - **Visual**(`level: 2`):`name` 为 markdown 图片引用,`content` 为 caption,`resolution` 为 `WxH`
 
 `wiki2dag.py` 保留论文中的:
-- **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。
+- **数学公式**:`$…$`、`$$…$$`、`\(…\)`、`\[…\]` 原样进入章节内容,后续由海报 HTML 中的 KaTeX 渲染。`math_commands.tex` 里的宏会被展开,残留的 `\ensuremath{X}` 包装会被解包为 `$X$`,让 KaTeX 能识别。
 - **引用** —— *默认丢弃*:`\citep{key}` / `\citet{...}` 标记被剥成空。基于对 CCF-A 海报的调研,实际会场上的海报通常不在正文里渲染 `[N]` 内联标注(没地方放参考文献列表)。如果你的海报样式确实需要它们,在 `wiki2dag.py build` 上加 `--citations` flag 可以恢复为 `[N]` / `[N, M]`(按首次出现顺序的 `bibkey → ordinal`)。未来支持参考文献页脚的样式可以默认开启。
-- **表格**:`\begin{table}…\caption{...}…\end{table}` 被替换为 `[Table: <caption text>]`,让 caption 流入正文。表体数据丢弃(1400×900 海报放不下整张表)。
+- **表格**:`\begin{table}…\end{table}` envs(包括通过 `\input{tables/foo}` 内联的)被转为活的 HTML `<table class="poster-table">` 块,booktabs caption 渲染为 `<caption>`,`\multicolumn`、`\textbf`、`\emph`、`\textit`、`\texttt` 在 cell 层处理。Step 3 的 LLM 在 `SECTION_JSON.content` 中看到这段 HTML,必须**原样**插入到 summary 段落之后(见 Step 3)。fit() 算法会与正文文字一起缩放表格字号;若表格仍然溢出,Step 5.5 的 DOM 溢出探针会发现并要求修剪。
+- **TikZ 图**:`\begin{figure}` envs 中含 `\begin{tikzpicture}` 但**没有** `\includegraphics{}` 的,通过 `tools/rasterize_latex.py`(pdflatex + pdftoppm)自动光栅化到 `paper/figures/_tikz_<sec>_<label>.png`。生成的 PNG 在桥接层眼里就是普通 visual node,Step 3 完全一样处理。若同一个 figure env 里**同时**有 `\includegraphics{}`,现有流水线优先(TikZ 跳过)。光栅化失败时 stderr 告警 + 丢弃该图,其它流程继续。跨次运行缓存 —— 删除 PNG 即强制重建。
 
 ### Step 2: 编译 WIKI_CONTEXT(可选)
 
@@ -192,27 +193,54 @@ aspect 由 `resolution`(W×H)计算。⚠ wide 标记来自 dag.json 的 `wide` 
 |---|---|---|
 | 0 | — | 无图(不询问,静默) |
 | 1 | any | 静默 inline 使用(manifest 已展示;若 `wide`,⚠ 标记即提示)。用户可重跑加 `--no-figures` 来移除。 |
-| ≥2 | any | **询问 Q-Pick**: *"Which figure for {Section}?"* —— 选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest)` / `No figure`。 |
+| ≥2 | any | **询问 Q-Pick**(多选):*"Which figure(s) for {Section}?"* —— `AskUserQuestion` 配 `multiSelect: true`,选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest one)` / `No figure`。用户可选一张、多张或全部。 |
 
 每次询问用 `AskUserQuestion`,选项数 ≤ 4。若某章节有 4 个以上候选,去掉 `Let Claude decide` 这一项以满足上限(用户已经在显式选了)。
+
+**跟进:同一章节选了 ≥2 张时询问布局。** 用 `AskUserQuestion`(单选):
+
+| 选项 | 行为 | 何时推荐 |
+|---|---|---|
+| `side-by-side` | 所有选中图都放进 **一个** `<div class="img-section">`;flex 布局自动水平平分宽度。 | 默认。3 列海报里最省空间。零 CSS 改动。 |
+| `vertical-stack` | 每张图一个独立 `<div class="img-section">`,自上而下堆叠。每张图占满列宽。 | 单图细节重要时;但章节会很高,fit() 会更激进地缩小文字。 |
+| `after-table` | 章节里**同时有** `<table class="poster-table">` 时使用,figures 横向并排,放在表格**之后**。 | 章节内容密;尊重论文阅读顺序。 |
+
+HTML 模板已原生支持 `side-by-side` 与 `vertical-stack`(flex 布局 + 多个 `.img-section`)。`after-table` 只是放置变体,不是新 CSS 类。
 
 所有决策做完后,打印一行汇总:
 
 ```
 Figures chosen:
-  Experiments → bootstrap.png (inline)
-  (other sections: text only)
+  Experiments → fig2.png + fig3.png (side-by-side)
+  Method      → tikz_chain.png (inline)
+  (其他章节:仅文字)
 ```
 
 **决策记录**:用按章节显示名作 key 的内存 dict 保留选择:
 
 ```python
 {
-  "Experiments": {"figure": "images/bootstrap.png", "layout": "inline", "alt": "<caption>"},
-  "Conclusion": {"figure": None, "layout": None, "alt": None},
+  "Experiments": {
+    "figures": ["images/fig2.png", "images/fig3.png"],   # 列表,即使只 1 张
+    "alts":    ["<caption fig2>",  "<caption fig3>"],    # 平行列表
+    "layout":  "inline-multi-side",                       # 见下
+  },
+  "Method": {
+    "figures": ["images/tikz_chain.png"],
+    "alts":    ["<caption>"],
+    "layout":  "inline",                                  # 单图场景
+  },
+  "Conclusion": {"figures": [], "alts": [], "layout": "none"},
   ...
 }
 ```
+
+`layout` 取值:
+- `"none"` —— 章节仅文字,无图
+- `"inline"` —— 一张图在一个 `.img-section` 中(向后兼容单图流程)
+- `"inline-multi-side"` —— ≥2 张图放进**同一个** `.img-section`(flex 水平)
+- `"inline-multi-stack"` —— ≥2 张图,每张一个 `.img-section`(垂直堆叠)
+- `"inline-multi-after-table"` —— ≥2 张图横向并排,放在章节内容的 `<table class="poster-table">` **之后**
 
 Step 3 会消费此 dict 填入每章节的提示词变量。
 
@@ -223,9 +251,9 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 对每个章节,准备下面提示词所需的变量。配图相关变量从 Step 2.5 的决策 dict 取,**不要**在这里重新算。
 
 - `SECTION_JSON`:从 `poster/dag.json` 取该 section 节点,**去掉** `visual_node` 字段(visual 单独传入)。只保留 `name`, `content`, `level`。
-- `LAYOUT`:`"none"` 或 `"inline"`,从 `decisions[section_name]["layout"]` 取。决定 HTML 模板分支。
-- `IMAGE_SRC`:例如 `images/layer_curves.png`,从 `decisions[section_name]["figure"]` 取。`LAYOUT == "none"` 时为空字符串。
-- `ALT_TEXT`:从 `decisions[section_name]["alt"]` 取(caption)。`LAYOUT == "none"` 时为空。
+- `LAYOUT`:`"none"` / `"inline"` / `"inline-multi-side"` / `"inline-multi-stack"` / `"inline-multi-after-table"` 之一,从 `decisions[section_name]["layout"]` 取。决定 HTML 模板分支。
+- `IMAGE_SRCS`:图源列表,从 `decisions[section_name]["figures"]` 取(如 `["images/fig2.png", "images/fig3.png"]`)。`LAYOUT == "none"` 时为空列表。
+- `ALT_TEXTS`:与 `IMAGE_SRCS` 一一对应的 caption 列表(`decisions[section_name]["alts"]`)。
 - `WIKI_CONTEXT`(可选):Step 2 编译出的字符串(假设、新颖性、关键数值)。无 wiki 上下文时为空。
 
 对每个章节调用下面的提示词(从 PaperX `poster_outline_prompt` 移植,扩展了 `LAYOUT` 与 `WIKI_CONTEXT`):
@@ -235,12 +263,12 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > SECTION_JSON:
 > {SECTION_JSON}
 >
-> LAYOUT: {LAYOUT}    # one of "none" | "inline"
+> LAYOUT: {LAYOUT}    # one of "none" | "inline" | "inline-multi-side" | "inline-multi-stack" | "inline-multi-after-table"
 >
-> If LAYOUT is "inline", you are also given IMAGE_SRC and ALT_TEXT. The visual content MUST ONLY come from this provided IMAGE_SRC (do not invent or substitute any other image).
+> If LAYOUT is not "none", you are also given IMAGE_SRCS (a list of image paths) and ALT_TEXTS (parallel list of captions). The visual content MUST ONLY come from these provided sources (do not invent or substitute any other image). For single-figure layouts (`"inline"`), the lists each have length 1. For multi-figure layouts, length ≥ 2 and the order in the list is the order figures should appear in the rendered HTML (left-to-right for `*-side`, top-to-bottom for `*-stack`).
 >
-> IMAGE_SRC: {IMAGE_SRC}
-> ALT_TEXT: {ALT_TEXT}
+> IMAGE_SRCS: {IMAGE_SRCS}
+> ALT_TEXTS: {ALT_TEXTS}
 >
 > WIKI_CONTEXT (optional, may be empty — use it ONLY to ground concrete numbers/claims, never to invent content not in the section):
 > {WIKI_CONTEXT}
@@ -255,7 +283,11 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > - The `<div class="section-bar">` must be the section title (use `SECTION_JSON.name`).
 > - Replace the sample paragraph with your summary.
 > - LAYOUT == `"none"`: output the section block with NO `<div class="img-section">`.
-> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is exactly `IMAGE_SRC` and `alt` is `ALT_TEXT`.
+> - LAYOUT == `"inline"`: output the section block with exactly one `<div class="img-section">` containing one `<img>` whose `src` is `IMAGE_SRCS[0]` and `alt` is `ALT_TEXTS[0]`.
+> - LAYOUT == `"inline-multi-side"`: output ONE `<div class="img-section">` containing all `<img>` tags in `IMAGE_SRCS` order; the template's flex layout splits them horizontally.
+> - LAYOUT == `"inline-multi-stack"`: output MULTIPLE `<div class="img-section">` blocks, one per `<img>`, in `IMAGE_SRCS` order. Stacked top-to-bottom.
+> - LAYOUT == `"inline-multi-after-table"`: same as `"inline-multi-side"` (one `.img-section` with all `<img>` tags) but place that `.img-section` AFTER the `<table class="poster-table">` block(s) inside `<div class="section-body">`. Useful when the section's table is the primary artifact and figures serve as visual support.
+> - **TABLES**: if `SECTION_JSON.content` contains one or more `<table class="poster-table">…</table>` blocks, include EACH ONE verbatim (preserve the entire block byte-for-byte, including `<caption>`, `<thead>`, `<tbody>`, all `<tr>` / `<th>` / `<td>` tags and their attributes) inside `<div class="section-body">` AFTER your summary `<p>`. Do NOT paraphrase, restructure, or trim the table HTML. Exception — drop a table only if it is obviously too large for one column (> 5 columns AND > 6 rows) AND summarizing 2–3 key cells in prose would preserve the result; in that case, drop the table and call out the key numbers in your summary `<p>`.
 >
 > **Required HTML templates**(按 LAYOUT 选择对应变体):
 >
@@ -269,14 +301,70 @@ Step 3 会消费此 dict 填入每章节的提示词变量。
 > </section>
 > ```
 >
-> *LAYOUT = "inline"*:
+> *LAYOUT = "inline"* (single figure):
 > ```html
 > <section class="section">
 >   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
 >   <div class="section-body" contenteditable="true">
 >     <p>SUMMARY_TEXT</p>
 >     <div class="img-section">
->       <img src="IMAGE_SRC" alt="ALT_TEXT" class="figure" />
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>     </div>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline-multi-side"* (≥2 figures, horizontal):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>       <!-- repeat for IMAGE_SRCS[2], etc. -->
+>     </div>
+>   </div>
+> </section>
+> ```
+>
+> *LAYOUT = "inline-multi-stack"* (≥2 figures, vertical):
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>     </div>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
+>     </div>
+>     <!-- one .img-section per figure -->
+>   </div>
+> </section>
+> ```
+>
+> *With a table* — when `SECTION_JSON.content` contains
+> `<table class="poster-table">`, insert the verbatim table block(s)
+> after the summary `<p>`. Default placement order inside
+> `<div class="section-body">`:
+>   1. summary `<p>`
+>   2. `<table class="poster-table">…</table>` (all tables, in source order)
+>   3. `<div class="img-section">…</div>` (if LAYOUT requires figures)
+>
+> If LAYOUT is `"inline-multi-after-table"` the order is the same — the
+> name is just a hint that the table is the primary artifact. Example:
+> ```html
+> <section class="section">
+>   <div class="section-bar" contenteditable="true">SECTION_TITLE</div>
+>   <div class="section-body" contenteditable="true">
+>     <p>SUMMARY_TEXT</p>
+>     <table class="poster-table">…verbatim from SECTION_JSON.content…</table>
+>     <div class="img-section">
+>       <img src="IMAGE_SRCS[0]" alt="ALT_TEXTS[0]" class="figure" />
+>       <img src="IMAGE_SRCS[1]" alt="ALT_TEXTS[1]" class="figure" />
 >     </div>
 >   </div>
 > </section>
@@ -533,7 +621,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Constraints
 
-- **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下唯一允许写入的是元数据 dotfile `paper/.author_display.txt`(Step 0 作者缓存 —— 见 Step 0 Q1)。其它所有输出写到 `poster/`。
+- **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下允许写入的只有:(a) `paper/.author_display.txt`(Step 0 作者缓存);(b) `paper/figures/_tikz_<sec>_<label>.png`(Step 1 的 TikZ 光栅化缓存,见 Step 1 "TikZ 图")。`_tikz_` 前缀标识它们是从 `paper/sections/*.tex` 派生的产物;删除安全(下次运行重建)。其它输出全部写到 `poster/`。
 - **不创建 wiki 实体或图边**:海报是展示产物,不进知识图。
 - **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `/paper-compile`。
 - **遵循 `--anonymous`**:开启时,作者在 `dag.json` 与海报 header 中都写为 "Anonymous"。
@@ -570,7 +658,8 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/poster.py render <poster.html> [--scale 1|2|3] [--output PATH]` —— HTML → PNG,走 headless 浏览器(优先 Chrome / Edge / Chromium,Firefox 兜底)
 - `python3 tools/poster.py check-overflow <poster.html> [--output PATH]` —— 用 Playwright 查询渲染后的 DOM,产出 poster.overflow.json。Step 5.5 用它做 ground truth。
 - `python3 tools/research_wiki.py log wiki/ "<message>"` —— 追加日志
-- `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI
+- `pdflatex`(TeX Live)—— Step 1 的 TikZ 光栅化必需;`brew install --cask mactex` / `apt install texlive-full` 安装。需要 `tikz`、`pgfplots`、`standalone`、`booktabs`、`multirow`、`array`、`xcolor`、`amsmath`、`amssymb` 等包。若未安装,figure env 中没有 `\includegraphics{}` 的 TikZ 图会被 stderr 告警 + 丢弃,其余构建继续。
+- `pdftoppm`(poppler)—— PDF → PNG @ 200 DPI(用于论文 PDF 图和 TikZ 光栅化产物)
 - `pdfinfo`(poppler)—— PDF 页面尺寸,用于 resolution
 - Playwright + Chromium(推荐,可选)—— `pip install playwright && python -m playwright install chromium`。启用事件驱动等待(字体/图片/fit 稳定)。若未安装会自动兜底。
 - 系统 headless 浏览器(兜底)—— 自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持(无 headless CLI)。
