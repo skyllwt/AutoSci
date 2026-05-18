@@ -117,6 +117,14 @@
 
 ## 🆕 What's New
 
+### 🎨 2026-05-17 · /poster — drafted paper → print-ready conference poster
+
+Run `/poster` after `/paper-draft` + `/paper-compile` for a self-contained 1400×900 HTML poster plus a 2× PNG render. Pipeline and template adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)) — DAG intermediate, critique-revise pass, fit algorithm — wired into OmegaWiki's LaTeX source and `wiki/outputs/paper-plan-*.md` for grounded distillation. Export to PDF from your browser's print dialog. Future updates will support nanobanana-style figures and higher-level customization of the poster.
+
+<p align="center">
+  <img src="assets/poster_demo.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG" width="720" />
+</p>
+
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
 
 Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for *your* research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
