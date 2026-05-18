@@ -6,21 +6,43 @@
 >
 > 如需英文镜像，告诉我，我同步建一份 `DEMO_GUIDE.en.md`。
 
+## 0. 比赛上下文与本指南角色（2026-05-18 加注）
+
+本指南原本是为 GitHub README 配图设计的"静态 8 图"方案。**自 2026-05-18 起**，团队报名了**第八届北京智源大会 · Agent for Science 创意大赛**（征集截止 2026-05-30）。比赛要求**五项交付**：① 基础信息 · ② ≤9 页英文 ICLR 模板技术报告 · ③ Poster 海报 · ④ 公开仓库 · ⑤ Demo 视频。
+
+本指南的角色因此扩展为**多用途素材采集**，不再只服务 README：
+
+| 用途 | 由本指南输出 | 备注 |
+|---|---|---|
+| GitHub README "Demo" 段 | 8 张 PNG 直接用 | 原始目标 |
+| **Poster bio panel** | 图 4、图 6、图 7、（可选）图 9 提供 PTM-PROTAC 邻域素材 | 论文 §4 case study 同源 |
+| **Demo 视频中段 bio reveal** | 图 4、图 6、图 7 是分镜原画；现场再补 1–2 段录屏 | §6 录屏脚本见 [`COMPETITION_NOTES.zh.md`](COMPETITION_NOTES.zh.md) §6.2 |
+| **技术报告 §4 Domain Adaptation** | 图 5、图 6 嵌入 1.5–2 页 bio 章节 | 论文模板：https://www.overleaf.com/read/bvsdjzdttszt#4023ef |
+
+bio 模块在比赛里的定位：**case study，不是分赛道**。主线由团队 PM 主导（科研 Agent · self-evolving · multi-agent），bio 在视频中段 20 秒 reveal、poster 占 1 个 panel、论文占 1.5–2 页。详细 framing 与 P0/P1/P2 优化清单见 [`COMPETITION_NOTES.zh.md`](COMPETITION_NOTES.zh.md)。
+
 ## 1. 最终交付物清单（8 张 PNG + 1 张可选）
 
-| # | 文件名 | 内容 | 时间预估 |
-|---|---|---|---|
-| 1 | `assets/demo-01-paper.png` | musitedeep paper frontmatter（A3 + A4 live） | 3 min |
-| 2 | `assets/demo-02-idea-main.png` | PTM-aware degrader idea（A7 grade + 8 linked experiments） | 3 min |
-| 3 | `assets/demo-03-idea-failed.png` | ptm-site-disorder failed idea（C3 banlist scope） | 3 min |
-| 4 | `assets/demo-04-experiment.png` | deepternary-baseline experiment（A5 + A6 + A8） | 5 min |
-| 5 | `assets/demo-05-dataset.png` | ternarydb dataset page（A1） | 2 min |
-| 6 | `assets/demo-06-spa-graph.png` | SPA 全图，聚焦 PTM 邻域（B1/B2/B3 边） | 5 min |
-| 7 | `assets/demo-07-spa-metadata.png` | SPA 悬停一条带 typed metadata 的 bio 边（B-infra） | 3 min |
-| 8 | `assets/demo-08-digest.png` | terminal `bash demo/run-demo.sh` 输出 | 3 min |
-| 9（可选） | `assets/demo-09-canvas.png` | Obsidian Canvas PTM 邻域知识图 | 8 min |
+下表新增 **用途** 列，标记每张图在哪些比赛产物里被使用 —— 截图时请用同一组高分辨率、同一主题，避免事后重截。
+
+| # | 文件名 | 内容 | 时间预估 | 用途（README / Poster / Video / Paper §4）|
+|---|---|---|---|---|
+| 1 | `assets/demo-01-paper.png` | musitedeep paper frontmatter（A3 + A4 live） | 3 min | README · Paper |
+| 2 | `assets/demo-02-idea-main.png` | PTM-aware degrader idea（A7 grade + 8 linked experiments） | 3 min | README · Poster · Paper |
+| 3 | `assets/demo-03-idea-failed.png` | ptm-site-disorder failed idea（C3 banlist scope） | 3 min | README · Video（self-evolving reveal）|
+| 4 | `assets/demo-04-experiment.png` | deepternary-baseline experiment（A5 + A6 + A8）—— **5-ID 复现块最高密度生物锤** | 5 min | README · **Poster · Video · Paper**（四投）|
+| 5 | `assets/demo-05-dataset.png` | ternarydb dataset page（A1） | 2 min | README · Paper |
+| 6 | `assets/demo-06-spa-graph.png` | SPA 全图，聚焦 PTM 邻域（14 bio edges live）| 5 min | README · **Poster · Video · Paper**（四投）|
+| 7 | `assets/demo-07-spa-metadata.png` | typed metadata JSONL grep 输出（B-infra） | 3 min | README · **Video**（bio reveal 50-55s 替代镜头）|
+| 8 | `assets/demo-08-digest.png` | terminal `bash demo/run-demo.sh` 输出 | 3 min | README · Video（hook 0-10s） |
+| 9（可选） | `assets/demo-09-canvas.png` | Obsidian Canvas PTM 邻域知识图 | 8 min | Poster · Video（bio reveal 40-45s 替代镜头）|
 
 总计 **30-40 分钟**（含一次性 setup）。
+
+> **新增素材**（不在本指南里，由 `COMPETITION_NOTES.zh.md` §5 P0 任务交付）：
+> - `examples/output/bio-novelty-report.md` —— 视频锤 3（PubMed multi-source）
+> - `examples/output/bio-ideate-banlist.md` —— 视频锤 5/6（scope-overlap + dose_response）
+> - 这两份是终端输出文本，由我（Claude）写，不用截图。视频里直接 `cat` 显示即可。
 
 ## 2. Pre-flight（5 分钟）
 
@@ -160,13 +182,22 @@ bash demo/run-demo.sh
 
 **建议**：caption "B1+B2+B3 全 live：14 个 bio 边类型注册，4/7 live 边带 typed metadata。`ternarydb` 与 `crbn` 通过 PTM idea 形成 hub。"
 
-### 图 7 ——`demo-07-spa-metadata.png`（typed metadata tooltip）
+### 图 7 ——`demo-07-spa-metadata.png`（typed metadata via JSONL）
+
+> **2026-05-18 验证**：SPA **不显示**边 metadata —— `app/modules/graph.js:146-160` 把边映射到 Cytoscape 时只保留 `id/source/target/label/workflow/symmetric`，`metadata/evidence/confidence/date` 全被丢弃；且没有 edge `tap`/`hover` 处理器。所以图 7 直接走 JSONL 终端截图（DEMO_GUIDE 原本就把这条列为后备）。
 
 **操作**：
 
-1. 同 SPA，鼠标悬停一条带 metadata 的边 —— 推荐：`phase0-noise-floor → ternarydb`（B3 `dataset_version_used` 带 `metadata.{version, subset}`）
-2. 等 tooltip / detail pane 显示 metadata 内容
-3. 截图，确保 tooltip 完整入镜
+1. 干净终端 `clear`
+2. 跑：
+
+```bash
+grep -F 'phase0-noise-floor-calibration-deepternary-ptm-perturbations' wiki/graph/edges.jsonl \
+  | grep -F 'dataset_version_used' \
+  | python3 -m json.tool
+```
+
+3. 截图终端窗口（包含命令本身 + pretty-printed JSON 输出）
 
 **应展示**：
 
@@ -175,9 +206,7 @@ bash demo/run-demo.sh
 - `confidence: high`
 - `metadata: {"version": "v1", "subset": "crbn-vhl-training"}` ← **关键**
 
-**建议**：caption "B-infra typed metadata schema 验证：metadata.* 是 closed-set，未声明 key 触发 lint warning；lint_bio cross-checks `version` 与 `datasets/ternarydb.md::versions`"。
-
-> 如果 SPA 不显示 tooltip，可改截 `wiki/graph/edges.jsonl` 中的对应 JSON 行（终端 `grep` 出来 + 截图代替）。
+**建议**：caption "B-infra typed metadata：closed-set schema 验证（loader.py 校验 required key + type），未声明 key 触发 lint warning；lint_bio cross-checks `metadata.version` 与 `datasets/ternarydb.md::versions[].version`"。
 
 ### 图 8 ——`demo-08-digest.png`（daily-arxiv 输出）
 
