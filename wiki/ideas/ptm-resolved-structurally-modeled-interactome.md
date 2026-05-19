@@ -3,7 +3,7 @@ title: "PTM-resolved structurally-modeled human interactome via ΔpDockQ-per-PTM
 slug: "ptm-resolved-structurally-modeled-interactome"
 status: proposed
 origin: "ideate: gap G5 (PTM-resolved structurally-modeled interactome) + weakly_supported claim/ptm-protein-isoforms-enable-selective-drug"
-origin_gaps: [[ptm-protein-isoforms-enable-selective-drug]], [[alphafold2-enables-large-scale-structural-modeling]]
+origin_gaps: []
 tags: [alphafold-multimer, protein-protein-interaction, ptm, interactome, drug-target]
 domain: "ml-for-science"
 priority: 5

@@ -4,11 +4,11 @@ aliases: ["Cereblon", "CRL4-CRBN substrate receptor"]
 tags: [e3-ligase, protac, ubiquitin-ligase, drug-discovery]
 maturity: active
 definition: "Substrate receptor of the CUL4-DDB1-CRBN (CRL4-CRBN) E3 ubiquitin ligase complex. Hijacked by PROTACs, IMiDs (thalidomide, lenalidomide, pomalidomide), and molecular glue degraders to recruit neo-substrates for proteasomal degradation."
-key_papers: [[ubiquitin-ligases-oncogenic-transformation-cancer-therapy]]
+key_papers: [ubiquitin-ligases-oncogenic-transformation-cancer-therapy]
 first_introduced: "thalidomide tragedy (1957) — molecular target identified 2010 (Ito et al., Science)"
 date_updated: 2026-05-11
-related_concepts: [[ubiquitin-ligase-e3]], [[ubiquitylation]], [[posttranslational-modification-inspired-drug-design]]
-linked_ideas: [[ptm-aware-degrader-target-nomination]]
+related_concepts: [ubiquitin-ligase-e3, ubiquitylation, posttranslational-modification-inspired-drug-design]
+linked_ideas: [ptm-aware-degrader-target-nomination]
 # bio-A2 (light pilot 2026-05-11): protein-anchor fields filled because this concept IS a
 # specific gene product (vs the class concept ubiquitin-ligase-e3 which keeps these empty).
 gene_symbol: "CRBN"

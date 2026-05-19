@@ -3,7 +3,7 @@ title: "PTM-conditioned pair-representation scaling for calibrated conformationa
 slug: "ptm-conditioned-ensemble-prediction"
 status: proposed
 origin: "ideate: weakly_supported claim/diffusion-based-generation-eliminates-need-equivariant + documented gap that AF3-phospho collapses to a single dominant state (Bouvier 2025; Ramasamy Protein Sci. 2026)"
-origin_gaps: [[diffusion-based-generation-eliminates-need-equivariant]], [[msa-depth-bounds-structure-prediction-accuracy]]
+origin_gaps: []
 tags: [alphafold, conformational-ensemble, ptm, structure-prediction, pair-representation]
 domain: "ml-for-science"
 priority: 4
