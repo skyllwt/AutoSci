@@ -49,5 +49,12 @@ examples/output/digest.json
 examples/output/digest.md
 
 # Local-only demo workpads (用户自用，不推送)
-docs/bio-adaptation/DEMO_SUBMISSION.zh.md
 docs/bio-adaptation/DEMO_WALKTHROUGH.zh.md
+docs/bio-adaptation/DEMO_PLAN.en.md
+docs/bio-adaptation/DEMO_PLAN.zh.md
+docs/bio-adaptation/DEMO_GUIDE.zh.md
+
+# Personal session checkpoints + competition operating notes
+# (each clone keeps its own; never share across forks)
+docs/bio-adaptation/CHECKPOINT-*.md
+docs/bio-adaptation/COMPETITION_NOTES.zh.md
