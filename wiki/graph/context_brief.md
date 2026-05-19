@@ -20,18 +20,17 @@ _Auto-generated open questions. Do not edit._
 - [4] Geometric deep learning on molecular representations
 - [5] Towards a proteome-scale map of the human protein-protein interaction network
 - [4] Towards a structurally resolved human protein interaction network
-- [4] Ubiquitin ligases in oncogenic transformation and cancer therapy
 - [3] Drug design targeting active posttranslational modification protein isoforms
 - [3] An integrated bioinformatics platform for investigating the human E3 ubiquitin ligase-substrate interaction network
+- [4] Ubiquitin ligases in oncogenic transformation and cancer therapy
 - [3] MusiteDeep: a deep-learning based webserver for protein post-translational modification site prediction and visualization
 - [2] From Data to Cure: A Comprehensive Exploration of Multi-omics Data Analysis for Targeted Therapies
-## Recent Relationships (80 total)
-  ideas/ptm-resolved-structurally-modeled-interactome --inspired_by--> concepts/folddock-pipeline
-  ideas/ptm-resolved-structurally-modeled-interactome --inspired_by--> concepts/pdockq-score
-  experiments/deepternary-baseline-ternarydb-crbn-vhl-reproduction --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
-  experiments/phase0-noise-floor-calibration-deepternary-ptm-perturbations --tested_by--> ideas/noise-floor-calibrated-deltapternary-improves-ranking
+## Recent Relationships (84 total)
   experiments/calibrated-deltapternary-phospho-protac-ranking --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
   experiments/ablation-uncalibrated-vs-calibrated-deltapternary --tested_by--> ideas/noise-floor-calibrated-deltapternary-improves-ranking
   experiments/ablation-boltz2-ptm-vs-md-relaxed-route --tested_by--> ideas/md-relaxed-phospho-route-comparable-to-native-ptm-tokens
   experiments/ablation-deepternary-vs-protac-stan-scorer --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
-  experime
+  experiments/robustness-cross-ptm-type-ubiq-methyl --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
+  experiments/robustness-mutant-isoform-track-y220c-r175h --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
+  experiments/deepternary-baseline-ternarydb-crbn-vhl-reproduction --tested_by--> ideas/ptm-protein-isoforms-enable-selective-drug
+  experiments/calibrated-deltapternary-phospho-protac-ranking --tested_by--> ideas/ptm-protein-isoforms-enable-se
