@@ -1,5 +1,5 @@
 ---
-description: Experiment verdict gate — Review LLM independently judges results → 4 verdict paths → auto-update the linked idea's status / pilot_result / failure_reason and graph edges
+description: Experiment verdict gate — Review LLM independently judges results → 4 verdict paths → auto-update the linked idea's status / failure_reason and graph edges
 argument-hint: <experiment-slug> [--auto]
 ---
 
@@ -9,7 +9,7 @@ argument-hint: <experiment-slug> [--auto]
 > Review LLM acts as an impartial judge (following cross-model-review), independently evaluating how experimental results affect the linked idea's hypothesis.
 > Four verdict paths: supported → idea validated / partially_supported → supplementary experiments /
 > not_supported → idea failed / inconclusive → debug.
-> Auto-updates the linked idea's `status`, `pilot_result`, `failure_reason`, and graph edges.
+> Auto-updates the linked idea's `status`, `failure_reason`, and graph edges.
 
 ## Inputs
 
@@ -18,8 +18,8 @@ argument-hint: <experiment-slug> [--auto]
 
 ## Outputs
 
-- `wiki/ideas/{linked-idea}.md` — updated `status`, `pilot_result`, `failure_reason`, `date_resolved`
-- `wiki/experiments/{slug}.md` — `## Idea updates` section filled in (records the linked idea's status / pilot_result transition)
+- `wiki/ideas/{linked-idea}.md` — updated `status`, `failure_reason`, `date_resolved`
+- `wiki/experiments/{slug}.md` — `## Idea updates` section filled in (records the linked idea's status transition; replaces the legacy `## Claim updates` heading)
 - `wiki/graph/edges.jsonl` — new `supports` / `invalidates` edges added (experiment → idea)
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/graph/open_questions.md` — rebuilt
@@ -30,13 +30,13 @@ argument-hint: <experiment-slug> [--auto]
 
 ### Reads
 - `wiki/experiments/{slug}.md` — experiment results: `outcome`, `key_result`, `metrics`, full Results section, `linked_idea`
-- `wiki/ideas/{linked-idea}.md` — linked idea current state: `status`, `## Hypothesis`, `## Risks`, prior `pilot_result`
+- `wiki/ideas/{linked-idea}.md` — linked idea current state: `status`, `## Hypothesis`, `## Risks`
 - `wiki/experiments/*.md` — sibling experiments with the same `linked_idea` (aggregate assessment)
 - `wiki/graph/context_brief.md` — global context
 - `.claude/skills/shared-references/cross-model-review.md` — reviewer independence principle
 
 ### Writes
-- `wiki/ideas/{linked-idea}.md` — update `status`, `pilot_result`, `failure_reason`, `date_resolved`
+- `wiki/ideas/{linked-idea}.md` — update `status`, `failure_reason`, `date_resolved`
 - `wiki/experiments/{slug}.md` — fill in `## Idea updates` section
 - `wiki/graph/edges.jsonl` — add `supports` / `invalidates` edges (experiment → idea)
 - `wiki/graph/context_brief.md` — rebuild
@@ -63,7 +63,7 @@ argument-hint: <experiment-slug> [--auto]
    - `hypothesis`
 
 2. **Read linked idea** `wiki/ideas/{linked-idea}.md`:
-   - Current `status` and `pilot_result`
+   - Current `status`
    - `## Hypothesis`, `## Approach sketch`, `## Risks`, `## Novelty argument`
 
 3. **Load sibling experiments** (same `linked_idea`):
@@ -142,8 +142,7 @@ Record Review LLM's verdict.
 #### Path A: SUPPORTED (experiment supports the idea's hypothesis)
 
 1. **Update idea**:
-   - `pilot_result`: short summary of `key_result` (1-2 sentences) — append to existing `pilot_result` rather than overwriting if a sibling experiment already wrote one
-   - If the idea covers a single hypothesis and this experiment is the validation block, transition the idea to `validated`:
+   - If the idea covers a single hypothesis and this experiment is the main experiment block, transition the idea to `validated`:
      ```bash
      python3 tools/research_wiki.py transition wiki/ideas/{linked-idea}.md --to validated
      ```
@@ -161,7 +160,6 @@ Record Review LLM's verdict.
 #### Path B: PARTIALLY_SUPPORTED (partial support)
 
 1. **Update idea**:
-   - `pilot_result`: append a short note (1-2 sentences) describing what was supported and what is still missing
    - Lifecycle stays at the current state (`in_progress` or `tested`)
 
 2. **Add graph edge**:
@@ -213,7 +211,7 @@ Record Review LLM's verdict.
 
 #### All Paths (common steps)
 
-1. **Fill in the `## Idea updates` section of the experiment page** (records changes to the linked idea):
+1. **Fill in the `## Idea updates` section of the experiment page** (records changes to the linked idea, not a separate claim entity):
    ```markdown
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}
@@ -256,7 +254,6 @@ Record Review LLM's verdict.
    | Entity | Field | Before | After |
    |--------|-------|--------|-------|
    | ideas/{slug} | status | {old} | {new} |
-   | ideas/{slug} | pilot_result | {old} | {new} |
 
    ## Graph Edges Added
    - experiments/{slug} → ideas/{linked-idea} (supports/invalidates)
@@ -302,7 +299,6 @@ Record Review LLM's verdict.
 
 ### Tools（via Bash）
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to validated|failed [--reason "..."]` — advance idea lifecycle
-- `python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "<text>"` — update pilot_result
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild query_pack
 - `python3 tools/research_wiki.py rebuild-open-questions wiki/` — rebuild gap_map

@@ -1,50 +1,47 @@
 ---
-description: Idea-driven experiment design — scope an idea's hypothesis → design experiment blocks (baseline / validation / ablation / robustness) → build run order → optional Review LLM review → write to wiki
-argument-hint: <idea-slug-or-hypothesis> [--linked-idea <idea-slug>] [--review] [--budget <gpu-hours>]
+description: Idea-driven experiment design with iterative ablation — method candidate generation (direct / hybrid / cross-idea combination) → benchmark selection → iterative ablation (non-linear: ablation can trigger method simplification and re-planning) → sensitivity analysis → main experiment → optional generalization → deep analysis of intermediate quantities. Use when designing a full experiment suite for an idea after pilot evaluation.
+argument-hint: <idea-slug>
 ---
 
 # /exp-design
 
-> Given an idea (or a free-text hypothesis), design a complete experiment plan.
-> Ideas are the core: scope the idea's hypothesis across three dimensions — Target, Decomposition, and Threats.
-> Design four types of experiment blocks: baseline (reproduce baseline), validation (core verification), ablation (factor isolation), and robustness (stress testing).
-> Experiments are ordered by dependency with decision gates between stages (sanity fail → early stop).
-> Optional Review LLM review checks experiment plan completeness. All experiments are written to `wiki/experiments/` and reverse-link back to the idea via the `linked_idea` frontmatter field.
+> Design a complete, non-linear experiment suite for an idea.
+> This skill supports method candidate generation, iterative ablation with method simplification, sensitivity analysis, and deep analysis of intermediate quantities.
+> The ablation loop is the core non-linear feature: ablation results classify factors as essential/contributing/marginal/harmful, and marginal/harmful factors trigger method simplification and re-planning (capped at 2 iterations).
 
 ## Inputs
 
-- `idea`: one of:
-  - A slug from `wiki/ideas/` (e.g. `sparse-lora-for-edge-devices`) — the recommended path
-  - A free-text hypothesis description (acceptable; an idea page will be created or referenced)
-- `--linked-idea <idea-slug>` (optional): explicit binding when the positional arg is free text but the user already has an idea page they want every new experiment to reference. Equivalent to passing the slug positionally; provided so the SPA can call `/exp-design --linked-idea <slug>` from the idea reader page.
-- `--review` (optional): enable Review LLM review to check experiment plan completeness
-- `--budget <gpu-hours>` (optional): total compute budget cap (GPU hours), affects robustness experiment scope
+- `idea-slug`: the idea to design experiments for (reads from `wiki/ideas/{slug}.md`)
 
 ## Outputs
 
-- `wiki/experiments/{slug}.md` — one page per experiment block (status: planned, `linked_idea` set)
-- `wiki/graph/edges.jsonl` — new `tested_by` edges: idea → experiment
+- Experiment wiki pages: `wiki/experiments/{exp-slug}.md` — one per experiment block (ablation, sensitivity, main, generalization, analysis), each with `status: planned` and `linked_idea` set
+- Master design document: `experiments/designs/{slug}-master.md` — detailed specs for all experiment blocks
+- `wiki/graph/edges.jsonl` — new `tested_by` edges: idea → each experiment
 - `wiki/ideas/{slug}.md` — updated `linked_experiments` field
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/graph/open_questions.md` — rebuilt
 - `wiki/log.md` — appended log entry
-- **EXPERIMENT_PLAN_REPORT** (printed to terminal) — experiment block summary, run order, compute budget
+- **DESIGN_REPORT** (printed to terminal) — experiment suite summary, run order, compute budget
 
 ## Wiki Interaction
 
 ### Reads
-- `wiki/ideas/{slug}.md` — idea's hypothesis, approach, risks, novelty argument, `origin_gaps`
-- `wiki/concepts/*.md` and `wiki/topics/*.md` — referenced via the idea's `origin_gaps` (concepts/topics this idea closes)
-- `wiki/methods/*.md` — relevant reusable methods that the idea builds on (sourced from the idea's `## Approach sketch` references)
-- `wiki/papers/*.md` — for baseline setups and prior experiment protocols, traversed via `concepts.key_papers` / `methods.source_papers`
-- `wiki/experiments/*.md` — existing experiments (avoid duplicate designs, reference setup configs)
+- `wiki/ideas/{slug}.md` — idea's hypothesis, approach, risks, novelty argument
+- `wiki/ideas/*.md` — other ideas (for Candidate C cross-idea combination, filtering for validated/pilot-passed ideas)
+- `experiments/pilot/{slug}/report.md` — pilot evaluation results (if exists)
+- `wiki/papers/*.md` — related papers for baseline setups and method details
+- `wiki/concepts/*.md` and `wiki/topics/*.md` — referenced via idea's `origin_gaps`
+- `wiki/methods/*.md` — reusable methods the idea builds on
+- `wiki/experiments/*.md` — existing experiments (avoid duplicate designs)
 - `wiki/graph/context_brief.md` — global context
-- `wiki/graph/open_questions.md` — knowledge gaps (guide experiment priority)
+- `wiki/graph/open_questions.md` — knowledge gaps
 
 ### Writes
-- `wiki/experiments/{slug}.md` — create experiment pages (one per experiment block); each includes a non-empty `linked_idea` frontmatter field
-- `wiki/ideas/{slug}.md` — append new experiment slugs to `linked_experiments`; transition status from `proposed` to `in_progress` if applicable
-- `wiki/graph/edges.jsonl` — add `tested_by` edges (idea → experiment)
+- `wiki/experiments/{exp-slug}.md` — experiment wiki pages (one per block, following entity schema)
+- `experiments/designs/{slug}-master.md` — master design document with detailed block specs
+- `wiki/ideas/{slug}.md` — append experiment slugs to `linked_experiments`
+- `wiki/graph/edges.jsonl` — add `tested_by` edges (idea → each experiment)
 - `wiki/graph/context_brief.md` — rebuild
 - `wiki/graph/open_questions.md` — rebuild
 - `wiki/log.md` — append operation log
@@ -56,61 +53,114 @@ argument-hint: <idea-slug-or-hypothesis> [--linked-idea <idea-slug>] [--review] 
 
 **Precondition**: confirm working directory is the wiki project root (directory containing `wiki/`, `raw/`, `tools/`).
 
-### Step 1: Load Context
+---
 
-1. **Parse idea input**:
-   - If a slug (or `--linked-idea` was passed): read `wiki/ideas/{slug}.md`, extract `## Motivation`, `## Hypothesis`, `## Approach sketch`, `## Novelty argument`, `## Risks` plus the frontmatter fields `origin_gaps`, `tags`, `target_venue`, `priority`, `novelty_score`.
-   - If free text: use directly as the hypothesis description and warn that no idea page is bound; the user should pass `--linked-idea` so each experiment can carry a `linked_idea` slug. Without an idea slug, exit with an error — `linked_idea` is required on every experiment in the new schema.
-2. **Load relevant wiki context**:
-   - Read `wiki/graph/context_brief.md` (global context)
-   - Read `wiki/graph/open_questions.md` (knowledge gaps)
-   - From the idea's `origin_gaps`, read each `wiki/concepts/{slug}.md` or `wiki/topics/{slug}.md`. From their `key_papers` (concepts) / `## Seminal works` + `## SOTA tracker` (topics), recover the relevant `wiki/papers/*.md` for baseline setups.
-   - From `## Approach sketch` wikilinks, read the referenced `wiki/methods/{slug}.md` pages — these tell you which reusable techniques the idea inherits and shape the ablation factors.
-   - Read existing `wiki/experiments/*.md` whose `linked_idea` matches this idea (avoid duplicating prior designs).
+### Phase 1: Load Context & Validate Prerequisites
 
-### Step 2: Scope the Hypothesis
+1. **Read idea page**: load `wiki/ideas/{slug}.md`, extract `## Motivation`, `## Hypothesis`, `## Approach sketch`, `## Novelty argument`, `## Risks` plus frontmatter fields `origin_gaps`, `tags`, `target_venue`, `priority`, `novelty_score`.
 
-Decompose the idea's `## Hypothesis` along three dimensions. The output of this step is a tabular scope sheet, not new wiki pages — `/exp-design` does not create concepts or methods. (If the scoping reveals a missing concept, the right move is `/edit` or `/ingest`, not silent creation here.)
+2. **Read pilot results** (if exists): load `experiments/pilot/{slug}/report.md` to understand pilot outcome. If pilot passed, proceed with confidence. If no pilot exists, proceed with caution and note reduced confidence in design document.
 
-1. **Target dimension** — the idea's central proposition restated as one testable statement. Typically 1, at most 2.
-2. **Decomposition dimension** — list each independent factor in the proposed approach. One row per factor; this is the ablation backbone.
-3. **Threats dimension** — known risks, alternative explanations, boundary conditions. Sources: the idea's `## Risks`, the source papers' `## Limitations`, and any related concept/topic `## Open problems` entries. This is the robustness backbone.
+3. **Load relevant wiki context**:
+   - Read `wiki/graph/context_brief.md` and `wiki/graph/open_questions.md`
+   - From idea's `origin_gaps`, read referenced `wiki/concepts/*.md` and `wiki/topics/*.md`
+   - From `## Approach sketch` wikilinks, read referenced `wiki/methods/*.md`
+   - Read existing `wiki/experiments/*.md` whose `linked_idea` matches this idea
 
-Output: a markdown table with columns `dimension | proposition | source (idea section / concept / method / paper)`.
+4. **Read related papers**: from `wiki/papers/*.md`, extract baseline setups and method details relevant to the idea.
 
-### Step 3: Design Experiment Blocks
+---
 
-Design experiment blocks for each scope row. Four types:
+### Phase 2: Method Candidate Generation
 
-**A. Baseline experiments (reproduce baseline)**:
-- Purpose: confirm the problem exists and the baseline is reproducible
-- Reproduce the core experiment from the most relevant paper (resolved via `origin_gaps → concept.key_papers` or `## Approach sketch → method.source_papers`)
-- Success criterion: baseline results deviate < 5% from reported paper values (this threshold is the same one used by the Stage 1 decision gate below — do not introduce a different number elsewhere)
-- Compute: typically minimal
+Generate 2–3 method candidates from the idea. Each candidate represents a different implementation strategy:
 
-**B. Validation experiments (validate Target)**:
-- Purpose: validate the idea's central proposition on top of the baseline
-- Metrics: statistically significant improvement over baseline
-- Requires sufficient seed/run count for reliability (recommend >= 3 seeds)
-- Compute: moderate
+- **Candidate A — Direct**: straight implementation of the idea's proposed method from `## Approach sketch`
+- **Candidate B — Hybrid/Fusion**: combine the idea's method with an existing method (from `wiki/methods/`) to balance performance and cost
+- **Candidate C — Cross-idea Combination**: combine this idea with another existing idea that has been validated or passed pilot experiments (check `wiki/ideas/` for ideas with `pilot_result: passed` or `status: validated`). This tests whether two complementary ideas can compound gains.
 
-**C. Ablation experiments (validate Decomposition factors)**:
-- Purpose: isolate the contribution of each independent factor
-- Each ablation removes one factor and validates the resulting performance drop
-- N factors → N ablation experiments
-- Compute: similar to validation × N
+For each candidate, document:
+- Core mechanism / algorithm sketch (2–4 sentences)
+- Expected advantages and risks
+- Implementation complexity: low / medium / high
+- Computational cost estimate (relative to baseline)
 
-**D. Robustness experiments (rule out Threats)**:
-- Purpose: rule out known risks and alternative explanations; verify the method holds under varied conditions
-- Variation dimensions: model size, dataset, hyperparameters, domain
-- Test at least 2 variation dimensions
-- Compute: depends on `--budget`
+**Present candidates to user for review and selection.** User selects 1–2 candidates to proceed with. If user doesn't select, re-present with clearer trade-off comparison.
+
+---
+
+### Phase 3: Benchmark & Metric Selection
+
+> Select the benchmark, including datasets, evaluation metrics and baseline methods. Among them, the datasets and evaluation metrics shall adopt the universally recognized standard benchmarks in the corresponding research field.
+
+1. **Identify benchmark(s)** based on:
+   - The idea's domain (NLP, CV, RL, etc.)
+   - Standard benchmarks used in related papers (from `wiki/papers/`)
+   - Dataset availability and compute constraints
+
+2. **Select Dataset**:
+   - Clarify the dataset to be used (taking into account task adaptability, scale and standardization level)
+   - Specify the composition structure, usage methods and specifications of the dataset
+
+3. **Select metrics**:
+   - Primary metric: the single most important measure of success (e.g., accuracy, F1, reward)
+   - Secondary metrics: supplementary measures (e.g., latency, memory, throughput)
+
+4. **Define baselines**: list all methods the selected candidate(s) will be compared against. Include:
+   - The reproduced baseline from the most relevant paper
+   - Any SOTA methods from related work
+
+5. **Document rationale**: why these benchmarks and metrics are appropriate for the idea's hypothesis.
+
+---
+
+### Phase 4: Experiment Suite Design (non-linear, with iteration)
+
+This phase designs all experiment blocks. The ablation loop (Step 4.6) is the core non-linear feature.
+
+#### Step 4.1 — Design Ablation Experiment
+
+- Identify **ablation factors**: each independent component or hypothesis of the method that can be toggled on/off
+- Design the **ablation matrix**: which combinations to test (typically: full method minus one factor per run)
+- Define **metrics to collect**: not just final performance — also intermediate quantities (loss components, gradient norms, etc.) that help diagnose why each factor matters
+- Each factor will later be classified as: ESSENTIAL / CONTRIBUTING / MARGINAL / HARMFUL
+
+#### Step 4.2 — Design Sensitivity Analysis
+
+- Identify **hyperparameters to sweep**: learning rate, method-specific parameters (e.g., sparsity ratio, fusion weight), model-specific params
+- Define **sweep ranges and resolution**: start broad, refine later
+- Plan **incremental execution**: run on a subset first (fewer steps, smaller dataset), then run full sweep with narrowed ranges
+
+#### Step 4.3 — Design Main Experiment
+
+- Selected method candidate(s) vs all baselines on full benchmark
+- Multi-seed (>= 3 seeds for variance estimation)
+- Full training budget
+- Collect both final metrics and intermediate quantities (for deep analysis in Step 4.5)
+
+#### Step 4.4 — Design Generalization Experiment (optional)
+
+- Test on a different benchmark, dataset, or setting
+- Verify the method's assumptions hold beyond the primary setup
+- Only include if the idea's hypothesis makes generalization claims
+- If included, document: what changes from main experiment, what new insight it provides
+
+#### Step 4.5 — Design Deep Analysis
+
+- Identify **intermediate quantities to log** during main experiment:
+  - Gradient norms (per-layer, per-component)
+  - Attention patterns or feature distributions
+  - Loss decomposition (individual loss terms)
+  - Anything that validates or invalidates the method's core hypothesis
+- Define **analysis scripts/visualizations** to produce after experiments complete
+- This is NOT about final metrics — it's about understanding *why* the method works (or doesn't)
+- Specify which quantities must be collected *before* experiments run (instrumentation requirements)
 
 Each experiment block carries:
 - `title`: descriptive title
-- `linked_idea`: the source idea slug (mandatory; required by the schema and validated at write time)
+- `linked_idea`: the source idea slug (mandatory; required by the schema)
 - `hypothesis`: specific hypothesis the experiment tests
-- `type`: baseline / validation / ablation / robustness — captured as a tag rather than a frontmatter enum (the schema has no `type` field on experiments)
+- `type`: ablation / sensitivity / main / generalization / analysis — captured as a tag
 - `setup`: model, dataset, hardware, framework
 - `metrics`: list of evaluation metrics
 - `baseline`: comparison baseline
@@ -118,71 +168,159 @@ Each experiment block carries:
 - `estimated_gpu_hours`: estimated compute time
 - `seeds`: number of random seeds (recommend >= 3)
 
-### Step 4: Build Run Order
+Block-specific requirements:
 
-Sort experiments by dependency and set decision gates:
+**Ablation**:
+- Purpose: isolate the contribution of each independent factor of the method
+- Each ablation removes one factor and validates the resulting performance drop
+- N factors → N ablation runs (plus full method as control)
+- Collect intermediate quantities for each run (not just final metrics)
+- Success criterion: factor classification table (ESSENTIAL / CONTRIBUTING / MARGINAL / HARMFUL)
+- Compute: similar to main experiment × N factors
+
+**Sensitivity**:
+- Purpose: find optimal hyperparameter values for the method
+- Identify all method-specific hyperparameters (learning rate, sparsity ratio, fusion weight, etc.)
+- Define sweep ranges (start broad) and resolution (grid or random search)
+- Incremental: run on subset first, narrow ranges, then full sweep
+- Success criterion: identified optimal hparams with clear sensitivity patterns
+- Compute: moderate (subset sweep is cheap, full sweep depends on param count)
+
+**Main**:
+- Purpose: validate the idea's central proposition vs all baselines on full benchmark
+- Selected method with best hparams from sensitivity analysis
+- Multi-seed (>= 3 seeds) for statistical reliability
+- Collect both final metrics and intermediate quantities for deep analysis
+- Success criterion: statistically significant improvement over baselines
+- Compute: highest (full training budget, multiple seeds, multiple baselines)
+
+**Generalization** (optional):
+- Purpose: verify the method holds under different conditions
+- Test on at least 2 variation dimensions (different dataset, model size, domain, etc.)
+- Uses finalized method and best hparams from main experiment
+- Success criterion: performance holds (no catastrophic degradation) on new settings
+- Compute: depends on number of variation dimensions
+
+**Analysis**:
+- Purpose: understand *why* the method works (or doesn't) by examining intermediate quantities
+- Input: logs and intermediate data collected during main experiment
+- Produce visualizations: gradient norms, attention patterns, loss decomposition, etc.
+- Success criterion: intermediate quantities confirm (or contradict) the method's core hypothesis
+- Compute: minimal (post-hoc analysis, no new training runs)
+
+#### Step 4.6 — Iterative Ablation Loop (non-linear core)
+
+This is the key difference from linear experiment design. After initial ablation results:
 
 ```
-Stage 0: Sanity check
-  └── Small-scale run (1 epoch / 100 steps) to verify no code bugs, data loads, GPU available, loss decreasing
-  └── Gate: sanity fails → stop, fix code
-
-Stage 1: Baseline (reproduce baseline)
-  └── Reproduce baseline results
-  └── Gate: baseline deviation > 5% → stop, check implementation (same threshold as Step 3 success criterion)
-
-Stage 2: Validation (core verification)
-  └── Validate the idea's central proposition on top of the baseline
-  └── Gate: no improvement → stop, analyze reason (idea may not hold)
-
-Stage 3: Ablation (factor isolation)
-  └── Multiple ablations can run in parallel
-  └── Gate: if a factor ablation shows no effect → record it, but continue other ablations
-
-Stage 4: Robustness (robustness verification)
-  └── Only execute after Stage 2 succeeds
-  └── Scope determined by remaining --budget
+iteration = 0
+while iteration < 2:
+    run ablation experiment (via /exp-run)
+    classify each ablation factor based on results:
+      - ESSENTIAL:   removing it causes major performance degradation (>10%)  → keep
+      - CONTRIBUTING: removing it causes moderate degradation (3-10%)        → keep
+      - MARGINAL:    removing it has negligible effect (<3%)                 → candidate for removal
+      - HARMFUL:     removing it improves performance                        → remove
+    if any MARGINAL or HARMFUL factors found:
+      simplify method:
+        - Remove all HARMFUL factors
+        - Discuss with user whether to remove MARGINAL factors
+      re-plan ablation with reduced factor set
+      iteration += 1
+    else:
+      break  # method is clean, proceed to main experiment
 ```
 
-Output:
-- Ordered experiment list (with dependencies)
-- Decision gate conditions for each stage
-- Total compute budget estimate (if exceeding `--budget`, adjust Stage 4 scope)
+- After loop exits (max 2 iterations): finalize method design
+- Record full iteration history in design document (what was removed, why, results at each iteration)
+- The finalized method from this loop becomes the method used in main experiment (Step 4.3)
 
-### Step 5: Optional Review LLM Review (`--review`)
+---
 
-If `--review` is specified:
+### Phase 5: Build Run Order
+
+Order experiments by dependency and set decision gates:
 
 ```
-mcp__llm-review__chat:
-  system: "You are a senior ML researcher reviewing an experiment plan.
-           Focus on: missing baselines, missing ablations, unfair comparisons,
-           statistical rigor (enough seeds?), and dataset selection.
-           For every issue found, suggest a concrete fix."
-  message: |
-    ## Idea
-    {idea title, hypothesis, novelty argument}
+Stage 0: Ablation (iteration 1)
+  └── Run ablation matrix
+  └── Classify factors → simplify if needed → re-run (iteration 2, up to max 2)
+  
+Stage 1: Sensitivity analysis (subset)
+  └── Run on small subset to narrow hyperparameter ranges
+  └── Gate: if no reasonable hparams found → stop, reconsider method
 
-    ## Experiment Plan
-    {complete experiment plan: scope sheet, blocks, run order, budgets}
+Stage 2: Main experiment
+  └── Finalized method vs baselines, full benchmark, multi-seed
+  └── Gate: no improvement over baseline → stop, analyze via deep analysis
 
-    ## Context
-    {related papers' experiment setups, concepts/methods the idea inherits}
+Stage 3: Generalization (optional)
+  └── Only if generalization experiment was designed in Step 4.4
+  └── Uses finalized method and best hparams
 
-    ## Review Questions
-    1. Are any critical experiments missing?
-    2. Are the baselines fair and comprehensive?
-    3. Is the ablation design sufficient to isolate each contribution?
-    4. Are the success criteria well-defined and reasonable?
-    5. Any statistical concerns (sample size, variance, seeds)?
+Stage 4: Deep analysis
+  └── Analyze intermediate quantities collected during Stage 2
+  └── Produce visualizations and diagnostic report
 ```
 
-Revise the experiment plan based on Review LLM feedback (add missing experiments, correct unreasonable criteria).
+Estimate total compute budget. Generate execution checklist with dependencies.
 
-### Step 6: Write to Wiki
+---
 
-1. **Create experiment pages**:
-   For each experiment block:
+### Gate: User reviews designed experimental modules and execution sequence
+
+**Before finalizing experimental modules and preparing design documents and wiki pages, confirmation must be obtained from users. Users are required to manually inspect the designed experimental modules. Proceed to Phase6 once confirmed; otherwise, make revisions repeatedly until users give approval.**
+
+### Phase 6: Write Design Document
+
+1. **Create master design document** at `experiments/designs/{slug}-master.md`:
+   ```markdown
+   ---
+   title: "Experiment Design: {idea-title}"
+   slug: "{idea-slug}-design"
+   status: planned
+   linked_idea: "{idea-slug}"
+   tags: ["exp-design"]
+   date_planned: YYYY-MM-DD
+   ---
+
+   ## Idea Summary
+   {idea hypothesis and approach sketch}
+
+   ## Method Candidates
+   {table of candidates with selection rationale}
+
+   ## Benchmark & Metrics
+   {dataset, metrics, baselines}
+
+   ## Experiment Blocks
+
+   ### Ablation
+   {ablation factors, matrix, metrics}
+
+   ### Sensitivity Analysis
+   {hyperparameters, sweep ranges}
+
+   ### Main Experiment
+   {method vs baselines, full config}
+
+   ### Generalization (optional)
+   {different setting/benchmark}
+
+   ### Deep Analysis
+   {intermediate quantities, analysis plan}
+
+   ## Ablation Iteration History
+   {record of each iteration: factors classified, simplifications made}
+
+   ## Run Order & Budget
+   {stage dependencies, estimated GPU-hours}
+
+   ## Results
+   (to be filled after /exp-run)
+   ```
+
+2. **Create experiment wiki pages** — one page per experiment block (following `runtime/schema/entities.yaml` and `runtime/templates/experiments.md.tmpl`):
    ```bash
    python3 tools/research_wiki.py slug "<experiment-title>"
    ```
@@ -194,7 +332,7 @@ Revise the experiment plan based on Review LLM feedback (add missing experiments
    status: planned
    linked_idea: "{idea-slug}"   # MANDATORY (required by schema). Reverse link to wiki/ideas/{idea-slug}.md::linked_experiments via xref.yaml.
    hypothesis: ""
-   tags: []                     # include the type tag here: ["baseline"], ["validation"], ["ablation"], or ["robustness"]
+   tags: []                     # include the type tag here: ["ablation"], ["sensitivity"], ["main"], ["generalization"], or ["analysis"]
    setup:
      model: ""
      dataset: ""
@@ -216,136 +354,156 @@ Revise the experiment plan based on Review LLM feedback (add missing experiments
      started: ""
      completed: ""
    ---
-
-   ## Objective
-   {what this experiment proves about the linked idea}
-
-   ## Setup
-   {detailed setup: model, dataset, hardware, hyperparameters}
-
-   ## Procedure
-   {step-by-step execution plan, including the explicit success criterion}
-
-   ## Results
-   (to be filled after /exp-run)
-
-   ## Analysis
-   (to be filled after /exp-run)
-
-   ## Idea updates
-   (to be filled after /exp-eval — records the linked idea's status / pilot_result transition)
-
-   ## Follow-up
-   {contingency plans: what to do if success / failure}
    ```
 
-2. **Add graph edges**:
+   Body sections per block type:
+
+   **Ablation** (`tags: ["ablation"]`):
+   - `## Objective` — which factors are being tested, what the ablation reveals about the method
+   - `## Setup` — ablation matrix (factor combinations), model, dataset, hardware, hyperparameters
+   - `## Procedure` — step-by-step: run each factor combination, collect metrics and intermediate quantities
+   - `## Results` (to be filled after /exp-run) — factor classification table: ESSENTIAL / CONTRIBUTING / MARGINAL / HARMFUL
+   - `## Analysis` (to be filled after /exp-run) — which factors to remove, iteration history
+   - `## Follow-up` — if MARGINAL/HARMFUL found: simplify method and re-run ablation (iteration 2); if all ESSENTIAL/CONTRIBUTING: proceed to main experiment
+
+   **Sensitivity** (`tags: ["sensitivity"]`):
+   - `## Objective` — which hyperparameters are being swept, what range is optimal
+   - `## Setup` — sweep ranges and resolution, model, dataset, hardware
+   - `## Procedure` — step-by-step: run subset first, narrow ranges, then full sweep
+   - `## Results` (to be filled after /exp-run) — best hyperparameter values, performance curves
+   - `## Analysis` (to be filled after /exp-run) — sensitivity patterns, recommended values for main experiment
+   - `## Follow-up` — pass best hparams to main experiment
+
+   **Main** (`tags: ["main"]`):
+   - `## Objective` — what this experiment proves about the linked idea vs baselines
+   - `## Setup` — method vs all baselines, full benchmark, multi-seed (>=3), best hparams from sensitivity
+   - `## Procedure` — step-by-step execution plan with explicit success criterion; collect intermediate quantities for deep analysis
+   - `## Results` (to be filled after /exp-run) — metric comparison table (method vs baselines), statistical significance
+   - `## Analysis` (to be filled after /exp-run) — why method works/fails, intermediate quantity analysis
+   - `## Follow-up` — contingency plans: what to do if success / failure
+
+   **Generalization** (`tags: ["generalization"]`, optional):
+   - `## Objective` — what generalization claim is being tested
+   - `## Setup` — different benchmark/dataset/setting from main experiment
+   - `## Procedure` — run finalized method with best hparams on new setting
+   - `## Results` (to be filled after /exp-run) — performance on new setting vs main setting
+   - `## Analysis` (to be filled after /exp-run) — does the method generalize?
+   - `## Follow-up` — if fails: identify which assumption breaks
+
+   **Analysis** (`tags: ["analysis"]`):
+   - `## Objective` — which intermediate quantities to analyze, what hypothesis they validate
+   - `## Setup` — data sources (logs from main experiment), visualization specs
+   - `## Procedure` — run analysis scripts, produce plots and diagnostic tables
+   - `## Results` (to be filled after /exp-run) — plots, tables, key observations
+   - `## Analysis` (to be filled after /exp-run) — do intermediate quantities confirm the method's hypothesis?
+   - `## Follow-up` — if hypothesis not confirmed: identify what went wrong
+
+3. **Add graph edges**:
    ```bash
-   # For each experiment, idea → experiment
+   # For each experiment page, idea → experiment
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "ideas/{idea-slug}" --to "experiments/{slug}" \
+     --from "ideas/{idea-slug}" --to "experiments/{exp-slug}" \
      --type tested_by --evidence "Designed by /exp-design"
    ```
 
-3. **Update idea page**:
-   - Append all new experiment slugs to `linked_experiments` in `wiki/ideas/{idea-slug}.md`
-   - If idea status is `proposed`, transition to `in_progress` via `tools/research_wiki.py transition`
+4. **Update idea page**: append all experiment slugs to `linked_experiments` in `wiki/ideas/{slug}.md`.
 
-4. **Update index.md**: append entries under the experiments category.
-
-5. **Rebuild derived data**:
+6. **Rebuild derived data**:
    ```bash
    python3 tools/research_wiki.py rebuild-context-brief wiki/
    python3 tools/research_wiki.py rebuild-open-questions wiki/
    ```
 
-6. **Append log**:
+7. **Append log**:
    ```bash
    python3 tools/research_wiki.py log wiki/ \
      "exp-design | {N} experiments designed for idea {slug} | linked_idea: {slug}"
    ```
 
-7. **Print EXPERIMENT_PLAN_REPORT to terminal**:
+8. **Print DESIGN_REPORT to terminal**:
    ```markdown
-   # Experiment Plan Report
+   # Design Report: {idea-slug}
 
    ## Target Idea
    - Idea: [[idea-slug]]
    - Hypothesis: {hypothesis}
-   - Novelty score: N/5 (or "—" if not yet scored)
 
-   ## Scoped Hypothesis
-   | Dimension | Proposition | Source |
-   |-----------|-------------|--------|
-   | target | {target proposition} | idea ## Hypothesis |
-   | decomposition | {factor 1} | method [[method-slug]] |
-   | decomposition | {factor 2} | method [[method-slug]] |
-   | threat | {known risk} | idea ## Risks / concept ## Open problems |
+   ## Method Candidates
+   | # | Candidate | Type | Complexity | Selected |
+   |---|-----------|------|------------|----------|
+   | A | {name} | Direct | {low/med/high} | {yes/no} |
+   | B | {name} | Hybrid/Fusion | {low/med/high} | {yes/no} |
+   | C | {name} | Cross-idea Combination | {low/med/high} | {yes/no} |
+
+   ## Benchmark
+   - Primary: {benchmark} | Metric: {metric}
+   - Baselines: {list}
 
    ## Experiment Blocks
-   | # | Experiment | Type | Linked idea | GPU-hrs | Stage |
-   |---|-----------|------|-------------|---------|-------|
-   | 1 | [[baseline-slug]] | baseline | idea-slug | 2 | 1 |
-   | 2 | [[validation-slug]] | validation | idea-slug | 8 | 2 |
-   | 3 | [[ablation-1-slug]] | ablation | idea-slug | 8 | 3 |
-   | 4 | [[robustness-slug]] | robustness | idea-slug | 16 | 4 |
+   | # | Experiment | Type | GPU-hrs | Stage |
+   |---|-----------|------|---------|-------|
+   | 1 | [[slug]] | sensitivity | {N} | 0 |
+   | 2 | [[slug]] | ablation | {N} | 1 |
+   | 3 | [[slug]] | main | {N} | 2 |
+   | 4 | [[slug]] | generalization | {N} | 3 |
+
+   ## Ablation Iterations
+   - Iterations planned: {N} (max 2)
+   - Factors: {list with classifications}
 
    ## Run Order
-   Stage 0: Sanity → Stage 1: Baseline → Stage 2: Validation → Stage 3: Ablation → Stage 4: Robustness
-   Decision gates at each stage boundary.
+   Stage 0: Sensitivity → Stage 1: Ablation → Stage 2: Main → Stage 3: Generalization → Stage 4: Deep Analysis
 
    ## Budget
    - Total estimated: {N} GPU-hours
-   - Budget limit: {--budget or "unlimited"}
 
    ## Next Steps
-   - Run `/exp-run [[baseline-slug]]` to start Stage 1
-   - After each stage, run `/exp-eval` to update the linked idea's status / pilot_result
+   - Run `/exp-run [[sensitivity-slug]]` to start Stage 0
    ```
 
 ## Constraints
 
-- **Every experiment must reference an idea**: `linked_idea` is required by the schema and by this skill's contract. If no idea page exists, refuse to design experiments — instruct the user to run `/ideate` or write an idea page first.
-- **No duplicate experiments**: before creating, scan `wiki/experiments/*.md` for existing experiments with the same `linked_idea` + `hypothesis`.
-- **Scoped propositions are not persisted**: the dimension table from Step 2 is a planning artifact, not a wiki write. Do not create new concept/method/topic pages from `/exp-design`.
-- **Success criteria must be quantified**: each experiment block's success criterion must include a specific number (e.g. "> 2% accuracy improvement"). Place it in the `## Procedure` body section.
-- **At least 3 seeds**: experiments requiring statistical reliability (validation, ablation) must specify >= 3 random seeds.
+- **Every experiment must reference an idea**: `linked_idea` is required by the schema. If no idea page exists, refuse to design — instruct user to run `/ideate` first.
+- **No duplicate experiments**: before creating, scan `wiki/experiments/*.md` for existing experiments with same `linked_idea` + `hypothesis`.
+- **Do NOT overwrite existing design files**: if `experiments/designs/{slug}-master.md` already exists, ask user before overwriting.
+- **Method candidates must be grounded**: no hallucinated methods — all candidates must derive from the idea page's content.
+- **Ablation loop capped at 2 iterations**: prevents infinite loops. After 2 iterations, finalize with current design.
+- **Sensitivity sweep must be incremental**: subset first, full sweep second.
+- **Deep analysis must be pre-planned**: specify which intermediate quantities to collect *before* experiments run — this is instrumentation, not post-hoc analysis.
 - **Graph edges via tools/research_wiki.py**: do not manually edit `edges.jsonl`.
-- **Idea status advances only forward**: `proposed → in_progress`, irreversible (governed by `entities.yaml::ideas.lifecycle`).
-- **Slug uniqueness**: check for existing slug before creating.
+- **At least 3 seeds**: experiments requiring statistical reliability (main experiment) must specify >= 3 random seeds.
+- **Success criteria must be quantified**: each experiment block needs a specific pass/fail number.
 
 ## Error Handling
 
-- **Idea not found**: prompt user to check slug, list candidates in `wiki/ideas/`.
-- **Free-text input without `--linked-idea`**: refuse to proceed — direct the user to `/ideate` first or to pass `--linked-idea`.
+- **Idea page not found**: report error, suggest running `/ideate` first.
+- **No pilot results**: warn user, proceed but note reduced confidence in design document.
+- **User doesn't select any method candidate**: re-present candidates with clearer trade-off comparison, ask for explicit choice.
+- **Benchmark unavailable**: suggest alternatives, let user decide.
+- **Ablation loop hits 2 iterations**: finalize with current design, note remaining marginal factors in report.
 - **Similar experiment already exists**: list existing experiments, ask user whether to add or skip.
-- **Review LLM unavailable** (`--review` mode): skip Step 5, note "unreviewed — Review LLM unavailable" in report.
-- **Budget insufficient**: reduce Stage 4 robustness experiment scope, note actual budget allocation in report.
-- **Slug conflict**: append numeric suffix (e.g. `sparse-lora-ablation-v2`).
-- **Wiki is empty**: proceed normally but baseline experiments have no prior results to reference; recommend running `/ingest` for relevant papers first.
+- **Insufficient compute budget**: reduce generalization experiment scope, note actual allocation in report.
 
 ## Dependencies
 
-### Tools（via Bash）
+### Skills (via Skill tool)
+- `/exp-run` — execute designed experiments
+- `/exp-pilot-eval` — prerequisite: pilot evaluation should complete before formal design
+
+### Tools (via Bash)
 - `python3 tools/research_wiki.py slug "<title>"` — generate slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge
-- `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to in_progress` — advance idea lifecycle
-- `python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md linked_experiments [<slug>] --append` — update idea linked_experiments
-- `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild query_pack
-- `python3 tools/research_wiki.py rebuild-open-questions wiki/` — rebuild gap_map
+- `python3 tools/research_wiki.py set-meta ...` — update frontmatter fields
+- `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild context
+- `python3 tools/research_wiki.py rebuild-open-questions wiki/` — rebuild gaps
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
-
-### MCP Servers
-- `mcp__llm-review__chat` — Step 5 experiment plan review (optional)
 
 ### Claude Code Native
 - `Read` — read wiki pages
+- `Write` — create design documents and experiment pages
 - `Glob` — find existing experiments
-
-### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Step 5 Review LLM review independence (if enabled)
+- `AskUserQuestion` — method candidate selection
 
 ### Called by
-- `/research` Stage 2 (experiment design stage)
+- `/ideate` (after pilot evaluation)
 - User directly
-- The SPA's idea-page action button (`/exp-design --linked-idea <idea-slug>` via `tools/serve.py`)
