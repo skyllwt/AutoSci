@@ -167,13 +167,11 @@ Full per-item rationale and lint metrics across the migration: [`docs/bio-adapta
 
 ### 📷 Bio Demo Gallery — 9 张截图端到端讲透
 
-完整 9 图 walkthrough（每张图 caption + 系统能力证据 + 对叙事贡献）：[**`docs/bio-adaptation/DEMO_WALKTHROUGH.zh.md`**](docs/bio-adaptation/DEMO_WALKTHROUGH.zh.md)
-
 | | 主题 | 截图 |
 |---|---|---|
 | 图 1 | Paper frontmatter (DOI + PMID + domain) | [`assets/demo-01-paper.png`](assets/demo-01-paper.png) |
 | 图 2 | Main idea (GRADE + 8 linked experiments) | [`assets/demo-02-idea-main.png`](assets/demo-02-idea-main.png) |
-| 图 3 | Failed idea + C3 banlist scope | [`assets/demo-03-idea-failed.png`](assets/demo-03-idea-failed.png) |
+| 图 3 | Failed idea + scope ban | [`assets/demo-03-idea-failed.png`](assets/demo-03-idea-failed.png) |
 | 图 4 | Experiment 全字段（setup + cost + reproducibility）| [`assets/demo-04-experiment.png`](assets/demo-04-experiment.png) |
 | 图 5 | Dataset 第 10 类一等公民 + versions 表 | [`assets/demo-05-dataset.png`](assets/demo-05-dataset.png) |
 | 图 6 | SPA 知识图谱 + 14 bio edge types | [`assets/demo-06-spa-graph.png`](assets/demo-06-spa-graph.png) |
@@ -181,7 +179,7 @@ Full per-item rationale and lint metrics across the migration: [`docs/bio-adapta
 | 图 8 | daily-arxiv DeepSeek 排序 + digest | [`assets/demo-08-digest.png`](assets/demo-08-digest.png) |
 | 图 9 | Obsidian Canvas 策展知识地图 | [`assets/demo-09-canvas.png`](assets/demo-09-canvas.png) |
 
-Bio case study 完整论文（同一 idea graph 端到端产出，Stanford Agentic Reviewer 6.0/10）：[**`paper/main.tex`**](paper/main.tex)；规划见 [`wiki/outputs/paper-plan-ptm-aware-degrader-target-nomination-2026-05-19.md`](wiki/outputs/paper-plan-ptm-aware-degrader-target-nomination-2026-05-19.md)。
+bio fork 入口文档：[`docs/bio-adaptation/README.zh.md`](docs/bio-adaptation/README.zh.md)。同一 idea graph 端到端产出的 ICLR 论文：[`paper/main.tex`](paper/main.tex)。
 
 ### Try the demo locally
 

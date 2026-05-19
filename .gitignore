@@ -47,3 +47,7 @@ examples/output/context.json
 examples/output/decisions.json
 examples/output/digest.json
 examples/output/digest.md
+
+# Local-only demo workpads (用户自用，不推送)
+docs/bio-adaptation/DEMO_SUBMISSION.zh.md
+docs/bio-adaptation/DEMO_WALKTHROUGH.zh.md
