@@ -112,7 +112,7 @@ bash demo/run-demo.sh
 - `status: in_progress`
 - `priority: 5`
 - `grade: "low"` ← A7
-- `linked_experiments:`（8 项 wikilink 列表）
+- `linked_experiments:`（8 项 flow list，裸 slug；2026-05-19 从 `[[wikilink]]` 形式规范化以通过 Obsidian frontmatter 校验，详 commit `726ef38`）
 - `domain: "comp-drug-discovery"` ← A4
 - `tags: [...]`
 
@@ -174,13 +174,15 @@ bash demo/run-demo.sh
 
 ### 图 6 ——`demo-06-spa-graph.png`（SPA 全图）
 
-**操作**：
+**操作**（2026-05-19 修订 —— 原计划"4 节点同框"基于过乐观拓扑假设，`ternarydb` 实际在 PTM-aware-degrader 2 跳外、`crbn`/`ubiquitin-ligase-e3` 在 3 跳外，硬塞同帧会缩到 label 不可读）：
 
 1. 浏览器开 `http://localhost:8765/`
-2. 等图加载完（约 80 边、~40 节点），缩放使 `ptm-aware-degrader-target-nomination` 节点 + `ternarydb` + `crbn` + `ubiquitin-ligase-e3` 都在视野内
-3. 截图整个浏览器视口（不必含 URL 栏，但要让读者看出是 web app）
+2. 左侧搜索框输 `ptm-aware-degrader-target-nomination`，点搜索结果让节点居中 + BFS 高亮邻居（`app/modules/graph.js:53,350`）
+3. BFS 深度 = **2**：一跳直邻 + 二跳邻居入镜（5 inspiring papers + 5 close ideas + 5 experiments 经由 `ptm-protein-isoforms-enable-selective-drug` hub）
+4. 滚轮放大到 label 可读（节点名约 12-14px）
+5. 截图浏览器视口（不必含 URL 栏，但要让读者看出是 web app）
 
-**建议**：caption "B1+B2+B3 全 live：14 个 bio 边类型注册，4/7 live 边带 typed metadata。`ternarydb` 与 `crbn` 通过 PTM idea 形成 hub。"
+**建议**：caption "PTM-aware-degrader idea hub @ BFS depth 2：4 papers / 3 experiments / 2 concepts / 2 邻接 ideas 全在视野；14 个 bio edge labels live（`tested_by` / `addresses_gap` / `inspired_by` / `introduces_concept` 在画面里都能读）。`ternarydb` 与 `crbn` 在 +1 跳外（typed metadata 见图 7）。"
 
 ### 图 7 ——`demo-07-spa-metadata.png`（typed metadata via JSONL）
 
@@ -210,23 +212,25 @@ grep -F 'phase0-noise-floor-calibration-deepternary-ptm-perturbations' wiki/grap
 
 ### 图 8 ——`demo-08-digest.png`（daily-arxiv 输出）
 
+**前置**（2026-05-19 加注）：`demo/run-demo.sh` 跑 LLM 排序需要 `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` 三个环境变量都在 `.env` 或 `~/.env` 里就位（与 Review LLM 共用一套配置）。原脚本 `:45` 处 gate 写成 `DEEPSEEK_API_KEY` 是过时变量名，commit `e54c2f5` 已修。验证：`grep -E "^LLM_(API_KEY|BASE_URL|MODEL)=" .env` 应输出 3 行。
+
 **操作**：
 
 1. 一个干净的终端（`clear`）
-2. 跑 `bash demo/run-demo.sh`
-3. 等输出完成，确保最后一段 digest 内容在屏幕上
-4. 截图整个终端窗口（包含命令 + 头部 + 至少一段 strong recommendation）
+2. 跑 **`bash demo/run-demo.sh && echo && head -25 examples/output/digest.md`** —— `run-demo.sh` 本身不打印 digest 内容，串个 `head` 把 `## Strong Recommendations` 第一段一起呈现
+3. 等到 `Decision: strong_recommend / confidence high / score X.X` 行出现
+4. 截图整个终端窗口（命令首行 + 3-step progress + Summary + 第一篇 strong recommendation）
 
-**建议**：用深色背景终端（更显专业）。Caption "live daily-arxiv：9 篇 q-bio.BM mock feed → DeepSeek v4-flash 排序 → strong/maybe/skip digest"。
+**建议**：用深色背景终端（更显专业）。Caption "live daily-arxiv：9 篇 q-bio.BM mock feed → DeepSeek v4-flash 排序（N decisions）→ strong/maybe/skip digest（score + rationale by LLM）。第 2 步缺 LLM_API_KEY 时优雅退化为 tool-signals-only fallback —— 见 `demo/run-demo.sh:45` 的 gate。"
 
 ### （可选）图 9 ——`demo-09-canvas.png`（Obsidian Canvas）
 
 **操作**：
 
-1. Obsidian 打开 `wiki/` 作为 vault
-2. 导航到 `wiki/canvases/knowledge-map.canvas`（或 `/visualize` 实际写入的文件）
-3. 手动布局让 PTM idea + 8 experiments + ternarydb + crbn 排列美观（可以用 Obsidian Canvas 拖拽）
-4. 截图整个 canvas 视口
+1. Obsidian 打开 `wiki/` 作为 vault（WSL Linux 端原生跑：`~/bin/obsidian /home/yukino/OmegaWiki/wiki`，详 `CHECKPOINT-2026-05-18.zh.md` §3.3）
+2. 导航到 `wiki/canvases/focus-ideas-ptm-aware-degrader-target-nomination.canvas`（由 `/visualize --canvas --focus ideas/ptm-aware-degrader-target-nomination --depth 2` 生成，5 行流水线布局 v2，2750×1900）
+3. 手动微调节点位置消除遮挡（拖拽 live-sync 到 `.canvas` 文件，但 `wiki/canvases/` 在 `.gitignore` 里，本地工作产物不进 git；最终截图进 git）
+4. 截图整个 canvas 视口 → `assets/demo-09-canvas.png`（已存在，commit `31e8cfe`）
 
 ## 4. 截图素养（让图看起来专业）
 
