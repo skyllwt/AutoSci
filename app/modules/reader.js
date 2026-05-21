@@ -12,7 +12,7 @@ import { showToast } from "./ui.js";
 import { triggerIntent } from "./intent.js";
 
 marked.use({ gfm: true, breaks: false });
-marked.use(markedKatex({ throwOnError: false, output: "html", nonStandard: true }));
+marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
 
 // --- viewIndex --------------------------------------------------------------
 
