@@ -38,3 +38,26 @@ Wikilinks: `[[slug]]`. Slugs are lowercase, hyphen-separated, no spaces.
 ## Python Environment
 
 Prefer in order: `.venv/bin/python` (`.venv/Scripts/python.exe` on Windows) → active conda env → `python3` (`python` on Windows). Tools auto-load API keys from `~/.env` and project-root `.env` via `tools/_env.py`.
+
+---
+
+## 语言策略（KnowledgeBase 强制）
+
+无论用户用什么语言提问、原始论文用什么语言、上游 skill prompt 用什么语言，
+**所有你生成的内容都必须用中文**：
+
+- 给用户的回复：中文
+- Wiki 页面正文（papers / concepts / methods / topics / ideas / experiments / Summary / foundations）：中文
+- 生成的 LaTeX 论文、poster、survey：中文，除非用户在 runtime 明确要求英文
+- 终端状态消息、面向用户的报告：中文
+- 代码注释：遵循所在项目已有风格；若没有既有风格，优先英文
+
+**保留英文原文的例外**（不强行翻译）：
+
+- 学术术语：LoRA、attention、transformer、reinforcement learning、in-context learning、prompt、token、embedding 等
+- 论文标题、作者姓名、机构名、会议名（NeurIPS / ICML / ACL ...）、URL、文献引用
+- 代码标识符：变量名、函数名、类名、模块名
+- 文件路径、命令行参数、环境变量、配置 key
+- arXiv ID、DOI、commit hash 等技术标识符
+
+写法：中文叙述 + 英文术语原样嵌入，例如 "本文提出基于 attention 的 LoRA 微调方法" 而不是 "本文提出基于注意力机制的低秩适配方法"。
