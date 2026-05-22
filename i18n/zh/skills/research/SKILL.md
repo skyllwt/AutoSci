@@ -197,11 +197,11 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ```
 Skill: ideate
-Args: "{direction}" --domain {domain}
+Args: "{direction}" --auto
 ```
 
 **完成后**：
-1. 读取生成的 ideas，按 priority 排序
+1. 读取生成的 ideas，按 pilot预实验结果和priority 排序
 2. 更新 pipeline-progress：Stage 1 → completed，记录生成的 idea slugs
 3. 追加日志
 
@@ -212,7 +212,7 @@ Args: "{direction}" --domain {domain}
 - 在终端输出选择结果，不等待确认
 
 **若交互模式**：
-- 列出所有生成的 ideas（slug、title、priority、novelty score）
+- 列出所有生成的 ideas（slug、title、priority、novelty score\pilot result）
 - 使用 AskUserQuestion 提示用户选择一个 idea（或输入 stop 停止）
 - 若用户选择 stop：保存进度，终止流水线
 
@@ -226,11 +226,11 @@ Args: "{direction}" --domain {domain}
 
 ```
 Skill: exp-design
-Args: "{idea_slug}" --review
+Args: "{idea_slug}"
 ```
 
 **完成后**：
-1. 读取生成的 experiment slugs（从 wiki/experiments/ 中 linked_idea == idea_slug 的页面）
+1. 读取生成的 experiment slugs（从 wiki/experiments/ 中 linked_idea == idea_slug 的页面,以及根据exp-slug在experiments/designs/{slug}-master.md获取实验块详细spec）
 2. 更新 pipeline-progress：Stage 2 → completed，记录 experiment_slugs
 
 ### Stage 3: Experiment Execution（非阻塞）
@@ -239,7 +239,7 @@ Stage 3 分为三个子阶段，允许实验在后台异步运行，不阻塞 se
 
 #### Stage 3a: Deploy All
 
-按 run order（baseline → validation → ablation → robustness）依次调用 `/exp-run {experiment_slug}`（默认 deploy 模式，Phase 1+2）：
+按 run order（design中"ablation""sensitivity""main""generalization""analysis"）依次调用 `/exp-run {experiment_slug}`（默认 deploy 模式，Phase 1+2）：
 
 ```
 Skill: exp-run
@@ -331,6 +331,9 @@ Args: "{experiment_slug} --collect"
   python3 tools/research_wiki.py log wiki/ \
     "research | stage3c | collected {N} experiments | pipeline: {slug}"
   ```
+
+- 更新linked idea 的 status: in_progress-> tested
+
 - 继续进入 Stage 4
 
 ### Stage 4: Verdict & Iteration
@@ -346,11 +349,11 @@ Args: "{experiment_slug}" --auto
 1. 读取主要 linked idea（及任何辅助 idea）的最新状态
 2. 判断是否需要迭代：
    - **充分**（主要 linked idea 已切换为 `validated`，或 ≥1 个支持性实验 `outcome=succeeded`）→ 进入 Gate 2
-   - **不足**（idea 仍为 `proposed` 且所有关联实验都是 `failed`/`inconclusive`，或 idea 为 `invalidated`）→ 进入迭代
+   - **不足**（idea 仍为 `proposed`或`in_progress`或`tested` 且所有关联实验都是 `failed`/`inconclusive`，或 idea 为 `failed`）→ 进入迭代
 
 **迭代路径**（不足时，最多 1 次重试）：
 1. 分析失败原因
-2. 调用 `/refine` 改进 experiment plan：
+2. 对相应的需要改进的实验块调用 `/refine` 改进 experiment plan：
    ```
    Skill: refine
    Args: "{experiment_plan_slug}" --max-rounds 2 --focus evidence

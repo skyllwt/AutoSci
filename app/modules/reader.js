@@ -3,6 +3,7 @@
 
 import { marked } from "https://cdn.jsdelivr.net/npm/marked@14.1.4/lib/marked.esm.js";
 import yaml from "https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/+esm";
+import markedKatex from "https://cdn.jsdelivr.net/npm/marked-katex-extension@5.1.4/+esm";
 import { getEntity, patchEntity, postEdge, postCitation, getGraph } from "./api.js";
 import { resolveWikilinks } from "./wikilink.js";
 import { state } from "./state.js";
@@ -11,6 +12,7 @@ import { showToast } from "./ui.js";
 import { triggerIntent } from "./intent.js";
 
 marked.use({ gfm: true, breaks: false });
+marked.use(markedKatex({ throwOnError: false, nonStandard: true }));
 
 // --- viewIndex --------------------------------------------------------------
 

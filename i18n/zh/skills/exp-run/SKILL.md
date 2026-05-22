@@ -1,11 +1,12 @@
 ---
-description: 实验执行全流程：准备代码 → 部署运行 → 监控状态 → 收集结果，支持三种运行模式
+description: 实验执行全流程：准备代码 → 部署运行(运行前需向用户确认，申请用户手动检查) → 监控状态 → 收集结果，支持三种运行模式
 argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---
 
 # /exp-run
 
 > 执行 wiki/experiments/ 中已规划的实验。
+> **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(如数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
 > **三种运行模式**，适应不同场景：
 > - **默认（deploy）**：仅 Phase 1-2，部署后立即返回，适合需要数小时/天的实验。
 > - **`--collect`**：仅 Phase 3-4，检查已部署实验是否完成，完成则收集结果（`--check` 为 alias）。
@@ -55,7 +56,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
   - `experiments/code/{slug}/config.yaml` — 超参数配置文件
   - `experiments/code/{slug}/run.sh` — 启动封装脚本（含 CUDA_VISIBLE_DEVICES 等）
   - `experiments/code/{slug}/requirements.txt` — 依赖（若与主项目不同）
-- `wiki/experiments/{slug}.md` — 更新 status、outcome、key_result、date_completed、run_log、remote 块
+- `wiki/experiments/{slug}.md` — 更新 status、outcome、key_result、date_completed、run_log、remote 块（deploy / collect 模式）
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
@@ -82,8 +83,16 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    - 读取相关论文的方法描述（算法细节）
    - 读取同一 idea 的其他实验（参考代码结构）
 
-3. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
-   - `train.py`：根据 setup 配置生成训练/评估脚本，包含：
+3. **检验数据集以及其余配置**
+   - 数据集在`wiki/experiments/{slug}.md`的setup 中有指定
+   - 获取数据集路径(根据 --env 参数选择在本地或远程获取)，**可向用户询问本地(远程)的数据集的路径以及自行检索**
+   - 若 数据集不存在，向用户提示，明确**下载数据集的需求**，向用户确认**安装路径**及**下载渠道**
+   - 检查数据集是否完整、可用，明确数据集附带的一些结构、使用说明
+   - 其余配置如：调用LLM的模型名称，url，api key等
+
+4. **编写实验代码**，统一写入 `experiments/code/{slug}/`：
+   **代码的编写模块化思想，除非实验规模较小，逻辑简单，否则不要把大量代码放在一个文件里**
+   - `train.py`：根据 setup 配置生成训练/评估脚本，作为程序的入口，包含：
      - 参数解析（argparse，所有超参数可配置）
      - 数据加载（支持 setup.dataset）
      - 模型初始化（支持 setup.model 和 baseline 模型）
@@ -92,11 +101,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      - 结果保存（JSON 格式，路径：`results/{slug}/seed_{N}.json`）
      - 随机种子控制（多 seed 运行）
      - Checkpoint 保存/恢复（`checkpoints/{slug}/`）
+   - 其余所需的utils、tools 等代码文件夹或者文件（如 `utils.py`、`data_loader.py` 等）
    - `config.yaml`：所有超参数（learning_rate, batch_size, epochs, seeds 等）
    - `run.sh`：封装完整启动命令（含 CUDA_VISIBLE_DEVICES、logging、conda 激活）
    - `requirements.txt`：实验专属依赖（若与主项目 requirements 不同）
 
-4. **可选 Review LLM code review**（`--review`）：
+5. **可选 Review LLM code review**（`--review`）：
    ```
    mcp__llm-review__chat:
      system: "You are a senior ML engineer reviewing experiment code.
@@ -118,16 +128,22 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    ```
    根据 Review LLM 反馈修正代码。
 
-5. **Sanity check（小规模验证）**：
+6. **Sanity check（小规模验证）**：
    - 用极小规模运行（1 epoch / 100 steps / 小 subset）
    - 验证：代码无 crash、数据加载正确、GPU 可用、loss 下降
    - 若 sanity 失败 → 修复代码，重试一次；仍然失败则报告错误并停止
+
+
+**Gate： 用户手动检查**
+
+> **注意**：在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行
+
 
 **Phase 2: 部署（Deploy）**
 
 #### Local 模式（`--env local` 或默认）
 
-1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够
+1. **检查 GPU**：`nvidia-smi` 确认 GPU 可用、显存足够。若 `setup.hardware` 为 `cpu`/`none`/空且生成代码无 CUDA/GPU 关键字，跳过 GPU 检查直接进入步骤 2。
 2. **启动**：
    ```bash
    screen -dmS exp-{slug} bash -c \
@@ -163,7 +179,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 1. **确认连通**：`python3 tools/remote.py status`
    - 若不可达 → 报错并建议检查 config/server.yaml
-2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`
+2. **查找空闲 GPU**：`python3 tools/remote.py gpu-status`（若 `setup.hardware` 为 `cpu`/`none`/空且代码无 CUDA/GPU 关键字则跳过）
    - 若无空闲 GPU → 报告各 GPU 占用情况，建议等待
 3. **同步代码**：`python3 tools/remote.py sync-code`
 4. **安装依赖**（首次或 requirements 有变化）：`python3 tools/remote.py setup-env`
@@ -354,7 +370,7 @@ done
 - **collect 模式只接受 running 实验**：若 status 为 planned，提示先 deploy；若为 completed，提示已完成
 - **collect 模式：alive 时不写 wiki**：仅报告进度，不修改任何 wiki 文件
 - **代码统一写入 experiments/code/{slug}/**：不写到项目根目录或其他位置
-- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status / pilot_result 由 /exp-eval 负责更新
+- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status 由 /exp-eval 负责更新
 - **sanity check 必须通过**：Phase 1 sanity 失败则不部署（除非用户明确 override）
 - **结果文件必须保存**：所有实验结果以 JSON 格式保存在 `results/{slug}/seed_{N}.json`
 - **多 seed 结果取均值**：报告 mean ± std，不报告单次运行

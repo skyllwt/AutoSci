@@ -197,11 +197,11 @@ Call `/ideate`:
 
 ```
 Skill: ideate
-Args: "{direction}" --domain {domain}
+Args: "{direction}" --auto
 ```
 
 **After completion**:
-1. Read the generated ideas, sorted by priority
+1. Read the generated ideas and sort them according to the pilot experiment results and priority.
 2. Update pipeline-progress: Stage 1 → completed, record generated idea slugs
 3. Append log
 
@@ -212,7 +212,7 @@ Args: "{direction}" --domain {domain}
 - Output selection result to terminal without waiting for confirmation
 
 **If interactive mode**:
-- List all generated ideas (slug, title, priority, novelty score)
+- List all generated ideas (slug, title, priority, novelty score，pilot result)
 - Use AskUserQuestion to prompt user to select one idea (or enter "stop" to halt)
 - If user selects stop: save progress, terminate pipeline
 
@@ -226,11 +226,11 @@ Call `/exp-design`:
 
 ```
 Skill: exp-design
-Args: "{idea_slug}" --review
+Args: "{idea_slug}"
 ```
 
 **After completion**:
-1. Read generated experiment slugs (pages in wiki/experiments/ where linked_idea == idea_slug)
+1. Read generated experiment slugs (pages in wiki/experiments/ where linked_idea == idea_slug，and retrieve the detailed specs of the experiment block from experiments/designs/{slug}-master.md based on the exp-slug)
 2. Update pipeline-progress: Stage 2 → completed, record experiment_slugs
 
 ### Stage 3: Experiment Execution (non-blocking)
@@ -331,6 +331,9 @@ Args: "{experiment_slug} --collect"
   python3 tools/research_wiki.py log wiki/ \
     "research | stage3c | collected {N} experiments | pipeline: {slug}"
   ```
+
+- Update the status of linked idea: in_progress -> tested
+
 - Proceed to Stage 4
 
 ### Stage 4: Verdict & Iteration
@@ -346,11 +349,11 @@ Args: "{experiment_slug}" --auto
 1. Read the latest status of the primary linked idea (and any supporting ideas)
 2. Determine whether iteration is needed:
    - **Sufficient** (primary linked idea has been transitioned to `validated`, OR ≥1 supporting experiment has `outcome=succeeded`) → proceed to Gate 2
-   - **Insufficient** (idea remains `proposed` and all linked experiments are `failed`/`inconclusive`, or idea is `invalidated`) → enter iteration
+   - **Insufficient** (idea remains `proposed`or`in_progress`or`tested` and all linked experiments are `failed`/`inconclusive`, or idea is `failed`) → enter iteration
 
 **Iteration path** (when insufficient, up to 1 retry):
 1. Analyze the cause of failure
-2. Call `/refine` to improve the experiment plan:
+2. Call `/refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
    ```
    Skill: refine
    Args: "{experiment_plan_slug}" --max-rounds 2 --focus evidence

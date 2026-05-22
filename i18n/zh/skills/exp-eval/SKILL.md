@@ -1,5 +1,5 @@
 ---
-description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判决路径 → 自动更新 linked idea 的 status / pilot_result / failure_reason 与 graph edges
+description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判决路径 → 自动更新 linked idea 的 status / failure_reason 与 graph edges
 argument-hint: <experiment-slug> [--auto]
 ---
 
@@ -9,7 +9,7 @@ argument-hint: <experiment-slug> [--auto]
 > Review LLM 作为 impartial judge（遵循 cross-model-review），独立评估实验结果对 linked idea 的 hypothesis 的影响。
 > 4 种判决路径：supported → idea validated / partially_supported → 补充实验 /
 > not_supported → idea failed / inconclusive → debug。
-> 自动更新 linked idea 的 `status`、`pilot_result`、`failure_reason` 与 graph edges。
+> 自动更新 linked idea 的 `status`、`failure_reason` 与 graph edges。
 
 ## Inputs
 
@@ -18,8 +18,8 @@ argument-hint: <experiment-slug> [--auto]
 
 ## Outputs
 
-- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`pilot_result`、`failure_reason`、`date_resolved`
-- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section（记录 linked idea 的 status / pilot_result 变化）
+- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`failure_reason`、`date_resolved`
+- `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section（记录 linked idea 的 status 变化；旧名为 `## Claim updates`）
 - `wiki/graph/edges.jsonl` — 新增 `supports` / `invalidates` 边（experiment → idea）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/graph/open_questions.md` — 重建
@@ -30,13 +30,13 @@ argument-hint: <experiment-slug> [--auto]
 
 ### Reads
 - `wiki/experiments/{slug}.md` — 实验结果：`outcome`、`key_result`、`metrics`、完整 Results section、`linked_idea`
-- `wiki/ideas/{linked-idea}.md` — linked idea 当前状态：`status`、`## Hypothesis`、`## Risks`、已有 `pilot_result`
+- `wiki/ideas/{linked-idea}.md` — linked idea 当前状态：`status`、`## Hypothesis`、`## Risks`
 - `wiki/experiments/*.md` — 同一 `linked_idea` 的 sibling 实验（综合评估）
 - `wiki/graph/context_brief.md` — 全局上下文
 - `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则
 
 ### Writes
-- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`pilot_result`、`failure_reason`、`date_resolved`
+- `wiki/ideas/{linked-idea}.md` — 更新 `status`、`failure_reason`、`date_resolved`
 - `wiki/experiments/{slug}.md` — 填充 `## Idea updates` section
 - `wiki/graph/edges.jsonl` — 新增 `supports` / `invalidates` 边（experiment → idea）
 - `wiki/graph/context_brief.md` — 重建
@@ -63,7 +63,7 @@ argument-hint: <experiment-slug> [--auto]
    - `hypothesis`
 
 2. **读取 linked idea** `wiki/ideas/{linked-idea}.md`：
-   - 当前 `status` 与 `pilot_result`
+   - 当前 `status`
    - `## Hypothesis`、`## Approach sketch`、`## Risks`、`## Novelty argument`
 
 3. **加载 sibling 实验**（同一 `linked_idea`）：
@@ -142,8 +142,7 @@ mcp__llm-review__chat:
 #### 路径 A: SUPPORTED（实验支持 idea 的 hypothesis）
 
 1. **更新 idea**：
-   - `pilot_result`：`key_result` 的简短摘要（1-2 句）—— 若已有 sibling 实验写过 `pilot_result`，追加而非覆盖
-   - 若 idea 只覆盖单一 hypothesis 且本实验是 validation 块，把 idea 推进到 `validated`：
+   - 若 idea 只覆盖单一 hypothesis 且本实验是 主实验 块，把 idea 推进到 `validated`：
      ```bash
      python3 tools/research_wiki.py transition wiki/ideas/{linked-idea}.md --to validated
      ```
@@ -161,7 +160,6 @@ mcp__llm-review__chat:
 #### 路径 B: PARTIALLY_SUPPORTED（部分支持）
 
 1. **更新 idea**：
-   - `pilot_result`：追加一段简短说明（1-2 句），描述哪些被支持、哪些仍缺
    - 生命周期保持当前状态（`in_progress` 或 `tested`）
 
 2. **添加 graph edge**：
@@ -213,7 +211,7 @@ mcp__llm-review__chat:
 
 #### 所有路径通用
 
-1. **更新实验页面的 `## Idea updates` section**（记录 linked idea 的更新）：
+1. **更新实验页面的 `## Idea updates` section**（记录 linked idea 的更新；不再有独立的 claim 实体）：
    ```markdown
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}
@@ -256,7 +254,6 @@ mcp__llm-review__chat:
    | Entity | Field | Before | After |
    |--------|-------|--------|-------|
    | ideas/{slug} | status | {old} | {new} |
-   | ideas/{slug} | pilot_result | {old} | {new} |
 
    ## Graph Edges Added
    - experiments/{slug} → ideas/{linked-idea} (supports/invalidates)
@@ -302,7 +299,6 @@ mcp__llm-review__chat:
 
 ### Tools（via Bash）
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to validated|failed [--reason "..."]` — 推进 idea 生命周期
-- `python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "<text>"` — 更新 pilot_result
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加 graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — 重建 query_pack
 - `python3 tools/research_wiki.py rebuild-open-questions wiki/` — 重建 gap_map

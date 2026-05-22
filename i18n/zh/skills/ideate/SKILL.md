@@ -1,20 +1,21 @@
 ---
-description: 多阶段研究 idea 生成管道：景观扫描 → 双模型脑暴 → 初筛 → 深度验证 → 写入 wiki
-argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation] [--auto]"
+description: 多阶段研究 idea 生成管道：景观扫描 → 双模型脑暴 → 筛选与验证 → 写入 wiki → 预实验
+argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation] [--skip-pilot] [--auto]"
 ---
 
 # /ideate
 
 > 基于 wiki 知识库和外部搜索，通过 5 阶段管道生成高质量研究 idea。
 > Phase 1 扫描研究景观（wiki + WebSearch + S2），Phase 2 双模型脑暴（Claude + Review LLM 独立生成），
-> Phase 3 初步筛选（可行性 + 快速 novelty），Phase 4 深度验证（调用 /novelty + /review），
-> Phase 5 写入 wiki（ideas/ + graph edges），包括被淘汰的 ideas（记录原因作为 anti-repetition 记忆）。
+> Phase 3 初步筛选 + 深度验证（可行性、novelty、review），Phase 4 将 ideas 写入 wiki（包括被淘汰的 ideas，记录原因作为 anti-repetition 记忆），
+> Phase 5 对幸存 ideas 进行预实验（idea 页面已存在）并更新结果。
 
 ## Inputs
 
 - `direction`（可选）：研究方向、关键词或具体问题描述。若不指定，则从 open_questions.md 自动选择最有价值的方向。
 - `--max-ideas N`（可选，默认 3）：最终写入 wiki 的 idea 数量上限
-- `--skip-validation`：跳过 Phase 4 深度验证（快速模式，仅做 Phase 1-3 + Phase 5）
+- `--skip-validation`：跳过 Phase 3 步骤 2 深度验证（跳过 /novelty 和 /review，快速模式仅做初步筛选）
+- `--skip-pilot`：跳过 Phase 5 预实验（快速模式，仅做 Phase 1-4）
 - `--auto`：全自动模式，不暂停等待用户确认（用于 /research 调用）
 
 ## Outputs
@@ -117,23 +118,50 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 1. **Claude 生成 6-10 个 ideas**：
    - 输入：景观报告 + wiki gaps + active list + banlist
-   - 策略：
-     - 跨方向组合（Topic A 的方法 + Topic B 的问题）
+   - **结构化生成路径** — 每个 idea 必须遵循以下四条路径之一：
+
+     | 路径 | 名称 | 读取的 wiki 字段 | 产出形态 |
+     |------|------|------------------|----------|
+     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic/research 描述直接设计" |
+     | B | 增量改进 (Incremental) | `wiki/methods/*.md` 中的 `method.limitations` | "在方法 M 上修复局限 L" |
+     | C | 有机融合 (Combination) | 同 topic 下两个 method 的 `tradeoff_profile`（`wiki/methods/*.md`） | "组合 M1 + M2 的优势" |
+     | D | 共性盲点 (Innovation) | 同 topic 下 N 个 method 的 `assumptions` 交集（`wiki/methods/*.md`） | "打破共有假设 P" |
+     | E | 跨域迁移 (Cross-domain transfer) | 跨 topic 的 method 的 `mechanism` 相似度（`wiki/methods/*.md`） | "把机制 M 从领域 X 迁移到 Y" |
+
+     对每条路径，先提取相关 wiki 字段，再生成 idea。每个 idea 必须声明来自哪条路径（A/B/C/D/E）。
+
+   - 补充策略（在路径 A–E 之上叠加）：
      - 填补 gap_map 与 topic / concept open-problem 章节中的空白
-     - 反驳或替换 `### Methodological gaps` 下暴露的假设
      - SOTA 的已知 limitation → 改进方向
-   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、`origin_gaps`（idea 针对的 concept / topic slug）、estimated feasibility（高/中/低）
+   - 每个 idea 包含：title、hypothesis（1-2 句）、approach sketch（3-5 句）、`origin_gaps`（idea 针对的 concept / topic slug）、estimated feasibility（高/中/低）、generation_path（A/B/C/D/E）
 
 2. **Review LLM 独立生成 4-6 个 ideas**（并行执行）：
    ```
    mcp__llm-review__chat:
      system: "You are a creative ML researcher brainstorming research ideas.
               Generate novel, concrete, and feasible ideas based on the given context.
+              Each idea MUST follow one of the five structured generation paths below.
               For each idea, provide: title, hypothesis (1-2 sentences),
-              approach sketch (3-5 sentences), and feasibility assessment."
+              approach sketch (3-5 sentences), feasibility assessment,
+              and generation_path (A/B/C/D/E)."
      message: |
+       ## Structured Generation Paths
+
+       Each idea must follow exactly one of these paths:
+
+       | Path | Name | Wiki input | Output form |
+       |------|------|------------|-------------|
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic/research description" |
+       | B | Incremental | method.limitations | "Fix limitation L in method M" |
+       | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
+       | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
+       | E | Cross-domain transfer | mechanism similarity across different topics | "Transfer mechanism M from domain X to Y" |
+
        ## Research Landscape
        {landscape report from Phase 1 — gaps, SOTA, trends}
+
+       ## Methods (for paths B–E)
+       {wiki/methods/*.md — limitations, tradeoff_profile, assumptions, mechanism fields}
 
        ## Knowledge Gaps
        {gap_map entries}
@@ -147,6 +175,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
        Generate 4-6 novel research ideas that address the gaps above.
        Focus on ideas that are: (1) genuinely novel, (2) feasible within 3-6 months,
        (3) directly address a knowledge gap.
+       Each idea MUST declare its generation_path (A/B/C/D/E).
    ```
 
 3. **合并与去重**：
@@ -156,11 +185,11 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 去除与 active list 高度重复的 ideas
    - 输出：8-12 个候选 ideas
 
-### Phase 3: 初步筛选（First-Pass Filter）
+### Phase 3: 筛选与验证（Filter & Validation）
 
-目标：快速淘汰明显不可行或不够新颖的 ideas。
+目标：淘汰不可行或不够新颖的 ideas，然后深度验证幸存者。
 
-对每个候选 idea 进行以下检查：
+**步骤 1 — 初步筛选**（对所有 8-12 个候选 idea 执行）：
 
 1. **可行性检查**：
    - GPU/计算需求是否在合理范围内（参考 wiki 中已有 experiments 的 setup）
@@ -182,23 +211,21 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 淘汰条件：feasibility=低 AND novelty 筛查发现相似已发表工作
    - 淘汰条件：与 banlist 的 failure_reason 高度相关
    - 保留：feasibility >= 中 AND 未被淘汰
-   - 输出：4-6 个幸存 ideas（排名）
+   - 输出：4-6 个幸存 ideas
 
-### Phase 4: 深度验证（Deep Validation）
+**步骤 2 — 深度验证**（对幸存 ideas 执行；若 `--skip-validation` 则跳过）：
 
-（若 `--skip-validation` 则跳过此步，直接到 Phase 5）
-
-对 Phase 3 排名前 3 的 ideas 进行深度验证：
+（跳过时：直接进入 Phase 4: 写入 Wiki，所有幸存 ideas 默认 priority = 3）
 
 1. **调用 /novelty `--write`**（逐个执行）：
    ```
-   对每个 top idea：
+   对每个幸存 idea：
    Skill: novelty
    Args: "<idea-slug>" --write
    ```
    `--write` 标志会把得到的 `novelty_score`（1-5）写入 idea frontmatter。记录该分数用于 IDEA_REPORT。
 
-2. **调用 /review**（对 top 2 ideas）：
+2. **调用 /review**（对 top ideas）：
    ```
    Skill: review
    Args: "<idea-full-description>" --difficulty hard --focus method
@@ -211,9 +238,13 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 若 novelty_score <= 2 → 降级为「modify needed」
    - 若 review_score <= 4 → 降级为「major issues」
 
-4. **若 `--auto` 未设置**：在终端展示排名结果，等待用户确认或调整
+4. **验证后筛选**：
+   - 淘汰 novelty_score <= 2 且 review_score <= 4 的 ideas
+   - 输出：排名后的幸存者（通过初步筛选和深度验证）
 
-### Phase 5: 写入 Wiki
+5. **若 `--auto` 未设置**：在终端展示排名结果，等待用户确认或调整
+
+### Phase 4: 写入 Wiki
 
 将验证后的 ideas 写入 wiki（包括被淘汰的 ideas，记录淘汰原因）。
 
@@ -233,18 +264,17 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    origin_gaps: []           # [[concept-slug]] 或 [[topic-slug]] 列表 — 该 idea 针对的 concept / topic
    tags: []                  # 2-5 个主题标签（从 origin_gaps / direction 继承）
    target_venue: ""          # NeurIPS / ICLR / ICML / ACL / COLM — 未定时留空
-   novelty_score: ""         # 1-5 — Phase 4 由 /novelty --write 写入；否则留空
+   novelty_score: ""         # 1-5 — Phase 3 中 深度验证 由 /novelty --write 写入；否则留空
    priority: 3               # 1-5 — 见下方 Priority 计算
-   pilot_result: ""          # 留空，由 /exp-eval 填写
-   failure_reason: ""        # proposed ideas 留空
+   pilot_result: ""          # 留空；预实验在 Phase 5 运行，结果由 /exp-pilot-eval 填入。
    linked_experiments: []    # 留空，由 /exp-design 创建 experiment 后填写
    date_proposed: YYYY-MM-DD
    date_resolved: ""         # 留空，validated/failed 时填写
    ---
    ```
 
-   **Priority 计算**（把 Phase 4 信号映射到 1-5 分）：
-   - 若 `--skip-validation`：默认 `priority = 3`
+   **Priority 计算**（把 Phase 3 验证信号映射到 1-5 分）：
+   - 若 `--skip-validation`：默认 `priority = 3`（跳过 novelty/review 评分）
    - 否则从 `novelty_score`（/novelty 给出的 1-5）开始
    - `+1` 若 `gap_alignment_bonus > 0`（直接命中 gap_map 条目）
    - `-1` 若 `review_score <= 4`（major issues 降权）
@@ -271,18 +301,18 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    可行性评级（high/medium/low）+ top 2-3 风险。包含 /review 揭示的主要弱点。
 
    ## Pilot results
-   （留空 — 由 /exp-eval 跑完实验后填写）
+   （留空 — 由 /exp-pilot-run和/exp-pilot-eval 后填写）
 
    ## Lessons learned
    （留空 — 由 /exp-eval 在 idea 达到终态后填写）
    ```
 
 2. **写入被淘汰的 ideas**（status: failed）：
-   对 Phase 3/4 中被淘汰的 ideas，也用**上方同一模板**创建 `wiki/ideas/{slug}.md`，应用以下覆盖：
+   对 Phase 3 中被淘汰的 ideas，也用**上方同一模板**创建 `wiki/ideas/{slug}.md`，应用以下覆盖：
    - `status: failed`
    - `priority: 1`（被淘汰的 ideas 永远不会阻塞更高优先级的工作）
    - `date_resolved: YYYY-MM-DD`（今天）
-   - `failure_reason: "[filter] <具体淘汰原因>"` — `[filter]` 前缀用于区分 ideate 阶段淘汰和实验后失败（/exp-eval 用不同标签）。例如：`"[filter] 已有高度相似的发表工作: <paper-title>"`、`"[filter] 可行性不足：GPU 需求过高"`
+   - `failure_reason: "[filter] <具体淘汰原因>"` — `[filter]` 前缀区分 Phase 3 筛选淘汰与 /exp-eval 的实验后失败。预实验失败（Phase 5）由 `/exp-pilot-eval` 直接写入已有的 idea 页面。
    - `## Motivation` 和 `## Hypothesis` 仍需填写（供未来 banlist 匹配）；`## Approach sketch` 可简略；`## Expected outcome` 和 `## Risks` 可说明淘汰原因
    - 这些 failed ideas 成为未来 ideate 的 banlist
 
@@ -319,24 +349,25 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - Direction: {direction}
    - Phase 1: Scanned {N} external papers, {M} wiki gaps identified
    - Phase 2: Generated {X} candidates (Claude: {a}, Review LLM: {b})
-   - Phase 3: {Y} survived initial filter (from {X})
-   - Phase 4: Deep validation on top {Z}
-   - Phase 5: {K} ideas written to wiki
+   - Phase 3: {Y} survived filter & validation (from {X})
+   - Phase 4: {K} ideas written to wiki
 
    ## Top Ideas (ranked)
 
-   | Rank | Idea | Novelty | Review | Gap Align | Status |
-   |------|------|---------|--------|-----------|--------|
-   | 1 | [[slug]] | 4/5 | 7/10 | +2 | proposed |
-   | 2 | [[slug]] | 3/5 | 6/10 | +0 | proposed |
+   | Rank | Idea | Novelty | Review | Gap Align | Pilot | Status |
+   |------|------|---------|--------|-----------|-------|--------|
+   | 1 | [[slug]] | 4/5 | 7/10 | +2 | pass | proposed |
+   | 2 | [[slug]] | 3/5 | 6/10 | +0 | pass | proposed |
 
    ## Filtered Out
    | Idea | Reason | Status |
    |------|--------|--------|
-   | [[slug]] | 已有相似发表工作 | failed |
-   | [[slug]] | GPU 需求过高 | failed |
+   | [[slug]] | 已有相似发表工作 | failed [filter] |
+   | [[slug]] | 方法在预实验中发散 | failed [pilot] |
+   | [[slug]] | GPU 需求过高 | failed [filter] |
 
    ## Suggested Next Steps
+   - If --skip-pilot is not specified, run the pilot experiment for further screening.
    - Run `/exp-design {top-idea-slug}` to design experiments
    - Run `/novelty` on any idea before investing time
 
@@ -351,11 +382,105 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    （仅展示 delta != 0 的行。数据来自前置 step 3 的 `maturity_before` 与此处重新调用 `maturity --json` 的对比。）
    ```
 
+7. **若用户输入了 `--skip-pilot`则跳过预实验部分，否则记得向用户确定要进行预实验，并让用户选择幸存idea中需要进行预实验的idea**
+
+
+### Phase 5: 预实验（Pilot Experiments）
+
+（若 `--skip-pilot` 则跳过，管道在 Phase 4 后结束）
+
+目标：对幸存的idea中**用户选择的**进行轻量级预实验，在投入完整实验前检测明显失败。
+
+**按 `generation_path` 的预实验策略**：
+
+| 路径 | 预实验方式 |
+|------|-----------|
+| A (景观驱动) | 基于 topic/research 描述直接实现提出的方法。在小规模 benchmark 上运行，验证 idea 可行且产生非退化输出。与简单 baseline 对比。 |
+| B (增量改进) | 从原方法的论文 repo 出发，应用提出的修复并运行最小评估。与原方法对比验证局限是否被解决。 |
+| C (有机融合) | 实现 M1 + M2 的组合版本。在小规模 benchmark 上运行，检查性能/成本 tradeoff 是否达到预期平衡（不被纯 M1 或纯 M2 支配）。 |
+| D (共性盲点) | 在新设定下（共有假设 P 被打破时）运行现有方法。验证它们确实失败或退化，确认 gap 真实存在。 |
+| E (跨域迁移) | 在目标领域实现迁移的机制。运行最小评估，检查机制是否兼容且产生非退化输出。 |
+
+**Pilot Spec — 结构化输出**（GPU 资源充足时**可并行执行多个预实验**）：
+
+写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
+
+```yaml
+# Pilot Spec for: {idea-slug}
+pilot_spec:
+  hypothesis: "<可测试命题>"
+  approach_sketch: "<方法描述>"
+  implementation:
+    repo: "<基础代码 repo URL 或 'from-scratch'>"
+    entry_point: "<主脚本>"
+    modifications: "<具体代码改动>"
+    files_to_create:
+      - "<文件>: <用途>"
+  setup:
+    model: "<模型>"
+    dataset: "<数据集>"
+    hardware: "<GPU>"
+    framework: "<PyTorch/JAX/TF>"
+    batch_size: "<缩减的 batch size，通常为论文的 1/4 到 1/8>"
+    max_steps: "<缩短的训练步数，完整步数的 10-30%>"
+    learning_rate: "<lr>"
+    seeds: "<种子数，预实验默认 1>"
+    other_hparams: "<关键超参数>"
+  metrics:
+    - name: "<指标>"
+      why: "<为什么用这个指标>"
+  baseline:
+    method: "<baseline 方法>"
+    source: "<论文 repo 或 wiki slug>"
+    expected_value: "<已知性能>"
+  success_criterion:
+    pass: "<量化条件>"
+    fail: "<量化条件>"
+    inconclusive: "<其他>"
+```
+
+**预实验要求**：
+- **减小 batch size**：使用能产生有意义梯度的最小 batch size（通常为论文报告 batch size 的 1/4 到 1/8）
+- **缩短训练**：训练到前中期（完整训练步数的 10-30%），非完整收敛
+- **目标**：检测明显的退化或失败，而非追求 SOTA
+- **对比**：始终包含 baseline（路径 A 用简单默认 baseline，路径 B 用原方法，路径 C 用纯 M1/M2，路径 D 用现有方法，路径 E 用目标领域 SOTA）
+- **success_criterion**：必须是量化可判定的条件
+
+**通过 `/exp-pilot-run` 运行预实验**：
+
+用户选择的幸存 idea 写入 Pilot Spec 到 `experiments/pilot/{slug}.yaml` 后：
+
+```
+Skill: exp-pilot-run
+Args: "{idea-slug}"
+```
+
+`/exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
+- **Results**：指标值 vs baseline（mean ± std）
+- **Details**：完成步数、运行时间、日志路径
+
+**通过 `/exp-pilot-eval` 评估预实验结果**：
+
+`/exp-pilot-run` 返回 PILOT_REPORT 后，评估结果并更新 idea 页面（已在 Phase 4 创建）：
+
+```
+Skill: exp-pilot-eval
+Args: "{idea-slug}"
+```
+
+`/exp-pilot-eval` 读取预实验结果，应用判定逻辑（宽松阈值——目的是检测明显失败，非衡量最终性能），更新 idea 页面：
+- **Pass**：设置 `pilot_result: "pass — ..."`，status 不变
+- **Fail**：设置 `failure_reason: "[pilot] ..."`，status 转为 `failed`，同时设置`pilot_result: "fail — ..."`
+- **Inconclusive**：设置 `pilot_result: "inconclusive — needs full experiment"`，status 不变
+
+**若 `--auto` 未设置**：在终端展示预实验结果，对边界情况等待用户确认
+
+**所有预实验完成后**：输出最终 IDEA_REPORT（见 Phase 4 Step 6）
 ## Constraints
 
 - **wiki cold 时自动切换 cold-start mode**：外部搜索扩展（WebSearch 8 查询，S2/DeepXiv limit 30），不阻塞执行
 - **所有 idea 必须有 wiki 依据**：每个 idea 至少引用 2 个 wiki 页面（paper / concept / method / topic）
-- **必须加载 banlist**：Phase 1 必须读取 failed ideas 的 failure_reason，Phase 2/3 必须检查重叠
+- **必须加载 banlist**：Phase 1 必须读取 failed ideas 的 failure_reason，Phase 2/3/4 必须检查重叠
 - **Review LLM 独立性**：Phase 2 中 Review LLM 不看 Claude 的 idea 列表（cross-model-review.md）
 - **被淘汰的 ideas 也写入 wiki**：status=failed + failure_reason，作为 anti-repetition 记忆
 - **不凭空编造**：所有 ideas 必须基于 wiki 已有知识或外部搜索结果推导，不编造不存在的论文或方法
@@ -369,8 +494,10 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 - **Semantic Scholar API 不可用**：跳过 S2 搜索，依赖 DeepXiv + WebSearch 补偿
 - **DeepXiv API 不可用**：跳过 DeepXiv 搜索和 trending，依赖 S2 + WebSearch（回退到原有行为）
 - **Review LLM 不可用**：Phase 2 仅用 Claude 生成（无双模型多样性，在报告中标注）
-- **/novelty 失败**：Phase 4 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
-- **/review 失败**：Phase 4 中 review 失败时，标注「unreviewed」继续，建议用户手动 /review
+- **/novelty 失败**：Phase 3 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
+- **/review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动 /review
+- **预实验失败**：标记为 failed 并在 failure_reason 中加 `[pilot]` 前缀，其余 ideas 继续
+- **所有预实验都失败**：idea 页面已存在（Phase 4 已写入），报告建议用户查看预实验日志并调整方案
 - **slug 冲突**：若 wiki/ideas/ 中已存在相同 slug，追加数字后缀（如 `sparse-lora-v2`）
 - **所有 ideas 都被淘汰**：仍写入 wiki（status: failed），报告中建议用户扩大搜索方向或 /ingest 更多论文
 
@@ -389,14 +516,16 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 - `python3 tools/fetch_deepxiv.py trending --days 14` — 热门论文趋势
 
 ### Skills（via Skill tool）
-- `/novelty` — Phase 4 深度 novelty 验证
-- `/review` — Phase 4 跨模型审查
+- `/novelty` — Phase 3 深度 novelty 验证
+- `/review` — Phase 3 跨模型审查
+- `/exp-pilot-run` — Phase 5 预实验执行
+- `/exp-pilot-eval` — Phase 5 预实验结果评估与 idea 页面更新
 
 ### MCP Servers
 - `mcp__llm-review__chat` — Phase 2 Review LLM 独立脑暴
 
 ### Claude Code Native
-- `WebSearch` — Phase 1 外部搜索、Phase 3 快速 novelty 筛查
+- `WebSearch` — Phase 1 外部搜索、Phase 3 快速 novelty 筛查、Phase 5 预实验验证
 - `Agent` tool — Phase 1 并行搜索、Phase 2 并行脑暴
 
 ### Shared References
