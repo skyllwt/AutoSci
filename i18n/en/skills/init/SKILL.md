@@ -191,6 +191,13 @@ After all subagents complete:
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
+Then backfill `cites` edges via Semantic Scholar — `fetch_s2.py references` was skipped per-worktree (parallel safety) and must be reinstated serially here. Best-effort: S2 outages must not fail `/init`.
+
+```bash
+"$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/ \
+  || echo "WARN: citation backfill failed or partial; check stderr above" >&2
+```
+
 Then regenerate visualization artifacts (best-effort; visualize failure must not fail `/init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `config/visualize.json` so the per-entity-type color groups stay in sync with the runtime config — Obsidian's graph view shows uncolored nodes when `colorGroups` is empty, so this step keeps the graph readable across rebuilds.
 
 ```bash

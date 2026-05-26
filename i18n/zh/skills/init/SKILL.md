@@ -191,6 +191,13 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
+接着通过 Semantic Scholar 回填 `cites` 边 —— `fetch_s2.py references` 在每个 worktree 内被跳过（并发安全考虑），必须在此处串行补回。best-effort：S2 故障不可阻塞 `/init`。
+
+```bash
+"$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/ \
+  || echo "WARN: citation backfill failed or partial; check stderr above" >&2
+```
+
 随后重新生成可视化产物（best-effort；visualize 失败不可阻塞 `/init`）。`generate-obsidian-config` 会从 `config/visualize.json` 重写 `wiki/.obsidian/graph.json`，让按实体类型的 colorGroups 与运行时配置保持同步 —— Obsidian 的图谱视图在 `colorGroups` 为空时显示为无色节点，所以这一步保证图谱在每次重建后仍然可读。交互式网页 Graph 视图是 SPA 的 `#/graph` 路由（由 `tools/serve.py` 服务）；本阶段不生成单独的 HTML 文件。
 
 ```bash

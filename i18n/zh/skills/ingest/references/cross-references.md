@@ -52,14 +52,14 @@ paper-to-paper semantic edge 应该保持稀疏。它要求两篇论文的贡献
 
 semantic edge 类型选择：
 
-- **`same_problem_as`** —— 对称；两篇论文处理同一个具体任务、研究问题或问题形式化，因此它们的答案可以直接比较。不要因为都属于 “attention”、“video generation” 或 “LLM evaluation” 这类宽泛方向就使用它。
-- **`similar_method_to`** —— 对称；两篇论文共享有辨识度的机制、形式化、训练策略或算法设计。不要因为都“使用 transformer”、“使用 diffusion” 或 “使用 RL” 就使用它。
-- **`complementary_to`** —— 对称；两篇论文的方法或组件可以以技术上具体的方式组合，且论文文本或方法细节给出了兼容性依据。不要仅因为二者可能同属某个未来系统就使用它。
-- **`builds_on`** —— 有方向；当前论文直接依赖、改造或扩展另一篇论文的具体方法、形式化、数据集、结果或系统。不要用于模糊的 inspiration。
-- **`compares_against`** —— 有方向；当前论文把另一篇论文作为显式 baseline、比较对象或 ablation 参照。
-- **`improves_on`** —— 有方向；当前论文在可比较设置中明确声称相对另一篇论文有质量、效率、鲁棒性、简洁性或适用范围上的改进。
+- **`same_problem_as`** —— 对称；两篇论文处理同一个具体任务、研究问题或问题形式化，因此它们的答案可以直接比较。不要因为都属于 "attention"、"video generation" 或 "LLM evaluation" 这类宽泛方向就使用它。当两篇论文从不同角度攻同一问题（即原 `complementary_to` 情景）时，也用这个类型。
+- **`similar_method_to`** —— 对称；两篇论文共享有辨识度的机制、形式化、训练策略或算法设计。不要因为都"使用 transformer"、"使用 diffusion" 或 "使用 RL" 就使用它。
+- **`builds_on`** —— 有方向；当前论文直接依赖、改造或扩展另一篇论文的具体方法、形式化、数据集、结果或系统。包含"improves on"情景 —— 当前论文宣称在质量/效率/适用范围上优于前作时也写 `builds_on`。不要用于模糊的 inspiration。
 - **`challenges`** —— 有方向；当前论文削弱、质疑或给出反证，挑战另一篇论文的结果、假设或 framing。
-- **`surveys`** —— 有方向；当前论文是 survey、benchmark、taxonomy 或 position work，概述另一篇论文或其研究线。
+
+注：`compares_against` / `improves_on` / `surveys` / `complementary_to` 已被移除。
+比较 baseline 归入 `cites`；"improves on" 是 `builds_on` 的子集；
+survey 关系由 `papers.contribution_type` 包含 `survey` 派生。
 
 所有 paper-to-paper semantic edges 都必须带 `--confidence high|medium|low`。对称类型由 `tools/research_wiki.py add-edge` 自动规范 endpoint 顺序并写入 `symmetric: true`。
 该工具会拒绝缺少 confidence/evidence 的新写入，也会拒绝 legacy paper-paper edge 类型。

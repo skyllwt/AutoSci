@@ -17,7 +17,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 - `--focus <node_id>` (optional): Center canvas on a specific node (e.g., `methods/my-method`)
 - `--depth N` (optional): BFS depth for focused canvas (default: 2)
 - `--types <list>` (optional): Filter nodes to these page types, comma-separated (e.g., `papers,concepts`)
-- `--edge-types <list>` (optional): Filter edges to these semantic types, comma-separated (e.g., `builds_on,surveys`)
+- `--edge-types <list>` (optional): Filter edges to these semantic types, comma-separated (e.g., `builds_on,challenges`)
 - `--all` (optional, default if no flags): Generate all visualization artifacts
 
 ## Outputs
@@ -70,25 +70,45 @@ Creates `.obsidian/app.json` only if it does not already exist.
 
 ### Step 2: Generate Canvas views (--canvas or --all)
 
-Full knowledge map:
+#### Step 2a — Full knowledge map
 
 ```bash
 python3 tools/visualize.py generate-canvas wiki/
 ```
 
-Focused canvas (centered on a specific node):
+Layout: force-directed (no fixed center). Nodes are initially clustered by
+entity type, then settled via a spring–electron simulation.
+
+#### Step 2b — Focused canvas
+
+**Resolve the focus node before generating:**
+
+1. If the user passed `--focus <node_id>` explicitly, use it as-is. Skip the
+   rest of this resolution.
+2. Otherwise, enumerate foundation pages: `ls wiki/foundations/*.md` (excluding
+   `.gitkeep`).
+   - **0 files**: skip Step 2b entirely. No focused canvas is generated; only
+     the full knowledge map from Step 2a is produced.
+   - **1 file**: auto-select that foundation as `--focus` (e.g.
+     `foundations/<slug>`). Print the choice to the console; do **not** prompt.
+   - **2+ files**: ask the user via `AskUserQuestion` to pick one. List each
+     foundation slug as an option (label = `foundations/<slug>`, description =
+     the page's frontmatter `title`). Use the picked slug as `--focus`.
+
+Then generate:
 
 ```bash
 python3 tools/visualize.py generate-canvas wiki/ --focus <node_id> --depth <N>
 ```
 
+Layout: radial concentric rings. The focus node sits at the canvas center;
+nodes at BFS distance `d` from the focus occupy ring `d`. Within each ring,
+nodes are sorted by entity type so same-type nodes cluster on the circle.
+
 **`--focus` BFS logic**: starting from the target node, run breadth-first search over
 `edges.jsonl` + `citations.jsonl`, collecting all nodes and edges within `--depth` hops.
 Render only that neighbourhood subgraph. If `node_id` is not found, abort and list the
 5 closest slug matches.
-
-**Canvas layout**: group nodes by `page_type` into columns; sort within each column by
-`importance` descending (1–5, default 3). Track bounding boxes to avoid overlaps.
 
 Canvas node schema:
 
@@ -97,13 +117,19 @@ Canvas node schema:
   "id": "<slug>",
   "type": "file",
   "file": "<relative-path-to-md>",
+  "label": "<frontmatter title>",
   "x": <int>,
   "y": <int>,
-  "width": 200,
-  "height": 60,
+  "width": <int, base size × importance scale for papers>,
+  "height": <int, base size × importance scale for papers>,
   "color": "<obsidian-color-id>"
 }
 ```
+
+The `label` field overrides the displayed name; older Obsidian versions that
+do not honour it fall back to the filename (slug). The width/height base is
+per entity type; for papers the size is multiplied by an importance scale
+(1→0.7×, 2→0.85×, 3→1.0×, 4→1.2×, 5→1.5×, default 3 when missing).
 
 Canvas edge schema:
 
@@ -119,15 +145,42 @@ Canvas edge schema:
 If `--types` is set, drop nodes not in the list and drop edges whose source or target was dropped.
 If `--edge-types` is set, drop edges not in the list.
 
-### Step 3: SPA Graph view (replaces the retired generate-html step)
+### Step 3: SPA Graph view (auto-started in background)
 
 The previous standalone-HTML explorer was retired. For interactive web
-exploration, run the SPA backend:
+exploration, the SPA backend (`tools/serve.py`) is started automatically
+by this skill — the user does **not** need to run `python tools/serve.py`
+manually.
 
-```bash
-python3 tools/serve.py
-# Then open http://127.0.0.1:8765/#/graph
-```
+**Auto-start logic:**
+
+1. Probe port 8765 to check whether the server is already running:
+
+   ```bash
+   python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.3); sys.exit(0 if s.connect_ex(('127.0.0.1',8765))==0 else 1)"
+   ```
+
+   Exit code `0` = port in use (server already up — skip start). Exit code
+   `1` = port free (need to start).
+
+2. If the port is free, start the server in the background via the **`Bash`
+   tool with `run_in_background: true`** (not foreground — foreground would
+   block the skill indefinitely):
+
+   ```bash
+   python3 tools/serve.py
+   ```
+
+   Do not spawn an `Agent` subagent for this — agents are not designed for
+   long-running services, and the server may die when the agent returns. The
+   background `Bash` process is owned by the Claude Code session and lives
+   for the session's lifetime.
+
+3. Print the SPA URL to the user:
+
+   ```
+   SPA Graph view: http://127.0.0.1:8765/#/graph
+   ```
 
 The SPA Graph view (`app/modules/graph.js`) is a real ES module with
 the same Cytoscape + force layout + filters + BFS search as the old
@@ -176,10 +229,9 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 
 | Category    | Types                                                                | Hex       |
 | ----------- | -------------------------------------------------------------------- | --------- |
-| Similarity  | `same_problem_as`, `similar_method_to`, `complementary_to`           | `#ADB5BD` |
+| Similarity  | `same_problem_as`, `similar_method_to`                               | `#ADB5BD` |
 | Lineage     | `builds_on`, `extends_concept`, `derived_from`, `inspired_by`        | `#4C9BE8` |
-| Comparison  | `compares_against`, `improves_on`, `challenges`, `critiques_concept` | `#E76F51` |
-| Survey      | `surveys`                                                            | `#2A9D8F` |
+| Comparison  | `challenges`, `critiques_concept`                                    | `#E76F51` |
 | Concept use | `introduces_concept`, `uses_concept`                                 | `#F4A261` |
 | Evidence    | `supports`, `contradicts`, `tested_by`, `invalidates`                | `#9B5DE5` |
 | Gap         | `addresses_gap`                                                      | `#F9C74F` |

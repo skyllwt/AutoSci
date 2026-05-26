@@ -60,7 +60,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 - `paper → concept`: `introduces_concept` / `uses_concept` / `extends_concept` / `critiques_concept` with `confidence`
 - `paper → foundation`: `derived_from` (foundation is terminal; no reverse link)
-- `paper → paper`: `same_problem_as` / `similar_method_to` / `complementary_to` / `builds_on` / `compares_against` / `improves_on` / `challenges` / `surveys` with `confidence`
+- `paper → paper`: `same_problem_as` / `similar_method_to` / `builds_on` / `challenges` with `confidence`
 - bibliographic `paper → paper`: `cites` in `graph/citations.jsonl`
 
 `tools/research_wiki.py add-edge` rejects missing confidence/evidence for
@@ -163,6 +163,8 @@ Follow `references/dedup-policy.md`. In short:
 3. Prefer merging into the top result. Create a new page only when no acceptable candidate exists and the paper's importance justifies it. The `## Method` body section on the paper page is **always** filled (it is this paper's own method narrative); a separate `wiki/methods/{slug}.md` is only created when the technique is namable, reusable, and likely to be referenced by other papers.
 4. For each entity you write or edit, write the reverse link in the same turn. The obligation matrix lives in `references/cross-references.md`.
 5. Create a `wiki/people/{slug}.md` only for papers with importance ≥ 4. Otherwise append the paper's `[[paper-slug]]` to existing author pages' `## Recent work` only. People entities use `research_areas` (list_str) and a `type.kind` enum (`researcher` / `team` / `organization`); only assign `type.kind = team` or `organization` when the byline itself names the team or organization (do not infer it from a researcher's affiliation).
+6. When creating a `wiki/concepts/{slug}.md` and the concept clearly belongs under an existing topic (e.g. all "self-improving coding agents" subtopics), set `parent_topic: <topic-slug>` (bare slug, NOT `[[wikilink]]` — `parent_topic` is `link`-typed, not `list_link`). The reverse `## Concepts` body section on the topic page must be appended in the same turn.
+7. When creating or editing a `wiki/methods/{slug}.md`, populate `realizes_concepts: [[c1], [c2], ...]` for any concept this method instantiates (typically the concept(s) introduced by the same paper). The reverse `## Realized by` body section on each concept page must be appended in the same turn.
 
 ### Step 5: Paper-to-paper edges and `cited_by`
 
@@ -181,8 +183,8 @@ Skip this whole step in INIT MODE — the parent `/init` handles it at fan-in.
 ### Step 6: Topics and index
 
 1. Match the paper's tags against existing `wiki/topics/*.md`. For each match:
-   - importance ≥ 4 → append to the topic's `## Seminal works`
-   - importance < 4 → append under `## SOTA tracker` or `## Recent work` by year
+   - importance ≥ 4 → append to the topic's `## Seminal works` AND append `[[paper-slug]]` to the topic's `key_papers` frontmatter list
+   - importance < 4 → append under `## SOTA tracker` or `## Recent work` by year (no frontmatter update)
    - if the paper directly addresses a listed open problem (under `## Open problems` / `### Known gaps` / `### Methodological gaps`), annotate that line on the topic page
 2. Do not create new topic pages from `/ingest` — topic creation belongs to `/init` and `/edit`.
 3. Append new or edited page entries to `wiki/index.md` under their category headings. Format: each entity kind is a top-level YAML key (matching `runtime/schema/entities.yaml`), with `- slug: <slug>` entries beneath.

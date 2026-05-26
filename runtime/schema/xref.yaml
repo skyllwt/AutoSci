@@ -59,4 +59,20 @@ rules:
   - forward: { kind: methods,     frontmatter_field: child_methods,  target: methods }
     reverse: { kind: methods,     frontmatter_field: parent_methods, action: append_slug }
 
+  # experiments.evaluates_methods → methods ## Evaluated by
+  - forward: { kind: experiments, frontmatter_field: evaluates_methods, target: methods }
+    reverse: { kind: methods,     body_section: "Evaluated by",        action: append_slug }
+
+  # methods.realizes_concepts → concepts ## Realized by
+  - forward: { kind: methods,     frontmatter_field: realizes_concepts, target: concepts }
+    reverse: { kind: concepts,    body_section: "Realized by",          action: append_slug }
+
+  # topics.key_papers → papers ## Related
+  - forward: { kind: topics,      frontmatter_field: key_papers,        target: papers }
+    reverse: { kind: papers,      body_section: Related,                action: append_slug }
+
+  # concepts.parent_topic → topics ## Concepts
+  - forward: { kind: concepts,    frontmatter_field: parent_topic,      target: topics }
+    reverse: { kind: topics,      body_section: "Concepts",             action: append_slug }
+
 terminal_targets: [foundations]

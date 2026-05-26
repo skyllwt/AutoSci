@@ -59,6 +59,7 @@ export function viewIndex(mount) {
 
   mount.innerHTML = `
     <div class="breadcrumb"><strong>Reader</strong></div>
+    ${renderTagWordCloud()}
     <h2>Entity types</h2>
     <p class="muted">
       Click a card to browse, type a slug into the
@@ -66,6 +67,70 @@ export function viewIndex(mount) {
     </p>
     <div class="examples">${exHtml}</div>
     <div class="entity-grid">${cards}</div>
+  `;
+}
+
+// --- viewIndex: tag word cloud ---------------------------------------------
+//
+// Renders a true word-cloud of the most frequent tags across all entities.
+// Font size scales with frequency (0.75–2.4rem). Color and rotation are
+// derived from a stable string hash so the cloud looks lively but is the
+// same every render. Hover settles each word to horizontal.
+
+const CLOUD_PALETTE = [
+  "#4A90D9", "#EC4899", "#84CC16", "#2ECC71", "#E74C3C",
+  "#F39C12", "#1ABC9C", "#A855F7", "#3B82F6", "#FB923C",
+];
+
+function tagHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function renderTagWordCloud() {
+  const counter = new Map();
+  for (const arr of Object.values(state.entitiesByType)) {
+    for (const e of arr) {
+      for (const t of (e.tags || [])) {
+        counter.set(t, (counter.get(t) || 0) + 1);
+      }
+    }
+  }
+  if (counter.size === 0) return "";
+
+  const top = [...counter.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40);
+  const max = top[0][1];
+  const min = top[top.length - 1][1];
+  const range = Math.max(1, max - min);
+
+  // Shuffle deterministically by hash so high-frequency words aren't clumped
+  // at the start of the flex row.
+  const shuffled = top.slice().sort((a, b) => tagHash(a[0]) - tagHash(b[0]));
+
+  const items = shuffled.map(([t, n]) => {
+    const ratio = (n - min) / range;       // 0..1
+    const sizeRem = (0.75 + ratio * 1.65).toFixed(2); // 0.75–2.40 rem
+    const h = tagHash(t);
+    const color = CLOUD_PALETTE[h % CLOUD_PALETTE.length];
+    const rotation = ((h % 31) - 15);      // -15..+15 deg
+    const title = `${t} — ${n} mention${n === 1 ? "" : "s"}`;
+    return `
+      <a class="cloud-word" href="#/tag/${encodeURIComponent(t)}"
+         style="font-size:${sizeRem}rem; color:${color}; --rot:${rotation}deg;"
+         title="${esc(title)}">${esc(t)}</a>
+    `;
+  }).join("");
+
+  return `
+    <section class="word-cloud-section">
+      <h2 class="cloud-heading">Top tags
+        <span class="muted small">(${counter.size} distinct · showing top ${top.length})</span>
+      </h2>
+      <div class="word-cloud">${items}</div>
+    </section>
   `;
 }
 

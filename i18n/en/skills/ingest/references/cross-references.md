@@ -61,14 +61,14 @@ paper-to-paper edge and rely on topic/concept links plus citations instead.
 
 Semantic edge-type selection:
 
-- **`same_problem_as`** — symmetric; both papers attack the same concrete task, research question, or problem formulation, so their proposed answers are directly comparable. Do not use this for broad areas like "attention", "video generation", or "LLM evaluation".
+- **`same_problem_as`** — symmetric; both papers attack the same concrete task, research question, or problem formulation, so their proposed answers are directly comparable. Do not use this for broad areas like "attention", "video generation", or "LLM evaluation". Also use this when one of the papers is "complementary" in the sense of attacking the same problem from a different angle.
 - **`similar_method_to`** — symmetric; both papers share a distinctive mechanism, formulation, training strategy, or algorithmic design. Do not use this for generic families like "uses transformers", "uses diffusion", or "uses RL".
-- **`complementary_to`** — symmetric; the approaches or components can be combined in a technically specific way, and the paper text or method details give evidence for that compatibility. Do not use this merely because both could belong to the same future system.
-- **`builds_on`** — directional; this paper directly depends on, adapts, or extends the other paper's specific method, formulation, dataset, result, or system. Do not use this for vague inspiration.
-- **`compares_against`** — directional; this paper uses the other paper as an explicit baseline, comparator, or ablation reference.
-- **`improves_on`** — directional; this paper explicitly claims better quality, efficiency, robustness, simplicity, or scope than the other paper in a comparable setting.
+- **`builds_on`** — directional; this paper directly depends on, adapts, or extends the other paper's specific method, formulation, dataset, result, or system. Includes the "improves on" case — write `builds_on` when this paper claims improved quality / efficiency / scope over the prior work. Do not use this for vague inspiration.
 - **`challenges`** — directional; this paper disputes, weakens, or presents counter-evidence against the other paper's result, assumption, or framing.
-- **`surveys`** — directional; this paper is a survey, benchmark, taxonomy, or position work that summarizes the other paper or its line of work.
+
+Note: `compares_against` / `improves_on` / `surveys` / `complementary_to` have been removed.
+Comparison baselines belong in `cites`; "improves on" is a subset of `builds_on`;
+survey relationships are derived from `papers.contribution_type` containing `survey`.
 
 All paper-to-paper semantic edges must include `--confidence high|medium|low`.
 For symmetric types, `tools/research_wiki.py add-edge` canonicalizes the

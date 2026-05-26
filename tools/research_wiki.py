@@ -428,6 +428,269 @@ def add_citation(wiki_root: str, from_id: str, to_id: str,
     print(json.dumps(result2))
 
 
+def _build_arxiv_index(wiki_root: Path) -> dict[str, str]:
+    """Map arXiv ID (and S2 ID) → paper slug, for citation resolution.
+
+    Reads each wiki/papers/*.md frontmatter once. Both 'arxiv' and 's2_id'
+    fields are indexed so references arriving with either identifier match.
+    """
+    index: dict[str, str] = {}
+    papers_dir = wiki_root / "papers"
+    if not papers_dir.is_dir():
+        return index
+    for md in papers_dir.glob("*.md"):
+        slug = md.stem
+        fm = _parse_frontmatter(md)
+        for key in ("arxiv", "s2_id"):
+            v = fm.get(key)
+            if isinstance(v, str) and v.strip():
+                index[v.strip()] = slug
+    return index
+
+
+def add_citations_batch(wiki_root: str, citer_id: str) -> None:
+    """Read a JSON array of S2 reference objects from stdin and append all
+    matching `cites` rows to graph/citations.jsonl in one pass.
+
+    Input: a JSON array (as emitted by `tools/fetch_s2.py references <arxiv>`)
+    of paper objects, each with optional `externalIds.ArXiv` and `paperId`.
+
+    Output: a single JSON status line with counts (received, matched, added,
+    skipped_existing, unmatched).
+    """
+    if _node_kind(citer_id) != "papers":
+        print(json.dumps({"status": "error",
+                          "message": f"--citer must be papers/<slug>, got {citer_id}"}))
+        sys.exit(1)
+
+    root = Path(wiki_root)
+    citations_path = root / DERIVED_DIR / "citations.jsonl"
+    citations_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        refs = json.load(sys.stdin)
+    except json.JSONDecodeError as exc:
+        print(json.dumps({"status": "error",
+                          "message": f"stdin is not valid JSON: {exc}"}))
+        sys.exit(1)
+    if not isinstance(refs, list):
+        print(json.dumps({"status": "error",
+                          "message": "stdin must be a JSON array of reference objects"}))
+        sys.exit(1)
+
+    arxiv_index = _build_arxiv_index(root)
+
+    existing: set[tuple[str, str]] = set()
+    if citations_path.exists():
+        for line in citations_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                c = json.loads(line)
+                existing.add((c.get("from", ""), c.get("to", "")))
+            except json.JSONDecodeError:
+                continue
+
+    today = _today()
+    matched = 0
+    added = 0
+    skipped_existing = 0
+    unmatched_samples: list[str] = []
+    new_rows: list[str] = []
+
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        ext_ids = ref.get("externalIds") or {}
+        arxiv = ext_ids.get("ArXiv") or ext_ids.get("arxiv")
+        s2id = ref.get("paperId")
+        target_slug = None
+        if arxiv and arxiv in arxiv_index:
+            target_slug = arxiv_index[arxiv]
+        elif s2id and s2id in arxiv_index:
+            target_slug = arxiv_index[s2id]
+        if not target_slug:
+            if len(unmatched_samples) < 5:
+                title = (ref.get("title") or "")[:80]
+                unmatched_samples.append(title or "(no title)")
+            continue
+        matched += 1
+        to_id = f"papers/{target_slug}"
+        if to_id == citer_id:
+            continue  # don't cite yourself
+        key = (citer_id, to_id)
+        if key in existing:
+            skipped_existing += 1
+            continue
+        existing.add(key)
+        row = {
+            "from": citer_id,
+            "to": to_id,
+            "type": "cites",
+            "source": "semantic_scholar",
+            "date": today,
+        }
+        new_rows.append(json.dumps(row, ensure_ascii=False))
+        added += 1
+
+    if new_rows:
+        with open(citations_path, "a", encoding="utf-8") as f:
+            f.write("\n".join(new_rows) + "\n")
+
+    print(json.dumps({
+        "status": "ok",
+        "citer": citer_id,
+        "received": len(refs),
+        "matched": matched,
+        "added": added,
+        "skipped_existing": skipped_existing,
+        "unmatched": len(refs) - matched,
+        "unmatched_samples": unmatched_samples,
+    }, ensure_ascii=False))
+
+
+def _clean_link_slug(s) -> str | None:
+    """Normalize a frontmatter link value to a bare slug.
+
+    Wiki convention writes `key_papers: [[slug]]`, which the lightweight parser
+    returns as one-element list `["[slug]"]` (or `[[slug]]` for `parent_topic:
+    [[slug]]` parsed as scalar). Strip leading/trailing `[` and `]`, plus
+    optional surrounding quotes."""
+    if not isinstance(s, str):
+        return None
+    v = s.strip()
+    while v.startswith("[") and v.endswith("]"):
+        v = v[1:-1].strip()
+    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+        v = v[1:-1]
+    return v.strip() or None
+
+
+def _resolve_target_kind(target_spec, target_slug: str, root: Path) -> str | None:
+    """Given a field's `to` spec (str or list of kinds) and a slug, find which
+    entity directory actually contains <slug>.md. Returns None if missing."""
+    candidates = [target_spec] if isinstance(target_spec, str) else list(target_spec or [])
+    for kind in candidates:
+        spec = ENTITIES.get(kind)
+        if not spec:
+            continue
+        entity_dir_name = spec["dir"].rstrip("/").split("/")[-1]
+        if (root / entity_dir_name / f"{target_slug}.md").is_file():
+            return kind
+    # Fall back to first candidate even if file is missing (for orphan edges
+    # that point at a not-yet-created entity — still useful for visualization).
+    return candidates[0] if candidates else None
+
+
+def project_frontmatter_edges(wiki_root: str | Path) -> list[dict]:
+    """Walk all entity .md files and project link/list_link/list_object
+    frontmatter fields into synthetic graph edges.
+
+    Each projected edge carries:
+      from:   "<kind>/<slug>"
+      to:     "<target_kind>/<target_slug>"
+      type:   "fm_<field>"     (fm_ prefix avoids collision with edges.yaml)
+      source: "frontmatter"
+      field:  "<kind>.<field>"
+
+    Skipped:
+      - foundations (terminal entities)
+      - `papers.cited_by` (already a derived cache of cites)
+      - empty or missing field values
+
+    Pattern follows rebuild_index(): glob entity dirs, parse_frontmatter
+    each file. No I/O beyond reads. Idempotent.
+    """
+    edges: list[dict] = []
+    root = Path(wiki_root)
+
+    for kind in ENTITY_DIRS:
+        spec = ENTITIES.get(kind)
+        if not spec or spec.get("terminal"):
+            continue
+        entity_dir_name = spec["dir"].rstrip("/").split("/")[-1]
+        entity_dir = root / entity_dir_name
+        if not entity_dir.is_dir():
+            continue
+
+        link_fields: list[tuple[str, dict]] = []
+        for fname, fspec in spec.get("fields", {}).items():
+            ftype = fspec.get("type")
+            if ftype not in ("link", "list_link", "list_object"):
+                continue
+            if kind == "papers" and fname == "cited_by":
+                continue  # cited_by is the derived reverse cache of cites
+            link_fields.append((fname, fspec))
+
+        if not link_fields:
+            continue
+
+        for md_path in sorted(entity_dir.glob("*.md")):
+            slug = md_path.stem
+            try:
+                fm = _parse_frontmatter(md_path)
+            except Exception:
+                continue
+
+            for fname, fspec in link_fields:
+                target_spec = fspec.get("to")
+                ftype = fspec["type"]
+                raw_val = fm.get(fname)
+
+                if ftype == "link":
+                    if not raw_val or not isinstance(raw_val, str):
+                        continue
+                    targets = [raw_val]
+                else:
+                    if not raw_val:
+                        continue
+                    if not isinstance(raw_val, list):
+                        continue
+                    targets = raw_val
+
+                for target in targets:
+                    # list_link → str slug; list_object → dict with 'slug'
+                    if isinstance(target, dict):
+                        target_slug = _clean_link_slug(target.get("slug"))
+                    else:
+                        target_slug = _clean_link_slug(target)
+                    if not target_slug:
+                        continue
+
+                    target_kind = _resolve_target_kind(target_spec, target_slug, root)
+                    if not target_kind:
+                        continue
+
+                    edges.append({
+                        "from": f"{kind}/{slug}",
+                        "to":   f"{target_kind}/{target_slug}",
+                        # fm_<kind>_<field> disambiguates fields that share a
+                        # name across entities (e.g. concepts.key_papers vs
+                        # topics.key_papers). Always derived from `kind` so
+                        # adding a new entity that uses the same field name
+                        # never collides with existing data.
+                        "type": f"fm_{kind}_{fname}",
+                        "source": "frontmatter",
+                        "field": f"{kind}.{fname}",
+                    })
+
+    return edges
+
+
+def rebuild_projected_edges(wiki_root: str) -> None:
+    """Write projected frontmatter edges to graph/projected_edges.jsonl
+    (overwrite). Useful for canvas / Obsidian generators that read on-disk
+    artifacts; serve.py reads them dynamically and does not need this file."""
+    root = Path(wiki_root)
+    out_path = root / DERIVED_DIR / "projected_edges.jsonl"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    edges = project_frontmatter_edges(root)
+    lines = [json.dumps(e, ensure_ascii=False) for e in edges]
+    out_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    print(json.dumps({"status": "ok", "path": str(out_path), "count": len(edges)}))
+
+
 def load_edges(wiki_root: str) -> list[dict]:
     """Load all edges from edges.jsonl."""
     edges_path = Path(wiki_root) / DERIVED_DIR / "edges.jsonl"
@@ -2349,6 +2612,15 @@ def main():
     p.add_argument("--source", default="semantic_scholar",
                    choices=sorted(CITATION_SOURCES))
 
+    # add-citations-batch
+    p = sub.add_parser("add-citations-batch",
+                       help="Batch append cites rows from stdin (JSON array of "
+                            "S2 reference objects); matches by arxiv/s2_id and "
+                            "skips duplicates")
+    p.add_argument("wiki_root")
+    p.add_argument("--citer", dest="citer_id", required=True,
+                   help="papers/<slug> of the citing paper")
+
     # rebuild-context-brief
     p = sub.add_parser("rebuild-context-brief", help="Regenerate context_brief.md")
     p.add_argument("wiki_root")
@@ -2356,6 +2628,13 @@ def main():
 
     # rebuild-open-questions
     p = sub.add_parser("rebuild-open-questions", help="Regenerate open_questions.md")
+    p.add_argument("wiki_root")
+
+    # rebuild-projected-edges
+    p = sub.add_parser("rebuild-projected-edges",
+                       help="Project frontmatter link/list_link/list_object "
+                            "fields into graph/projected_edges.jsonl "
+                            "(idempotent, overwrite)")
     p.add_argument("wiki_root")
 
     # stats
@@ -2500,10 +2779,14 @@ def main():
                  args.symmetric)
     elif args.command == "add-citation":
         add_citation(args.wiki_root, args.from_id, args.to_id, args.source)
+    elif args.command == "add-citations-batch":
+        add_citations_batch(args.wiki_root, args.citer_id)
     elif args.command == "rebuild-context-brief":
         rebuild_context_brief(args.wiki_root, args.max_chars)
     elif args.command == "rebuild-open-questions":
         rebuild_open_questions(args.wiki_root)
+    elif args.command == "rebuild-projected-edges":
+        rebuild_projected_edges(args.wiki_root)
     elif args.command == "stats":
         get_stats(args.wiki_root, as_json=args.json)
     elif args.command == "maturity":
