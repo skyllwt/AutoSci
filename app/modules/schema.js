@@ -114,7 +114,7 @@ export const EDGE_TYPE_WORKFLOW = Object.freeze({
   uses_concept: "ingest",
   extends_concept: "ingest",
   critiques_concept: "ingest",
-  cites: "ingest",
+  cites: "citation",
   // evidence — supports/contradicts now travel between ideas, methods, and papers
   // (the legacy standalone claim entity was retired in the schema refactor).
   supports: "evidence",

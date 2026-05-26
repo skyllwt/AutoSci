@@ -378,7 +378,7 @@ function initCy(graph) {
     ...EDGE_WORKFLOW_COLORS,
     ...(currentSchema?.edge_workflow_colors || {}),
   };
-  const edgeColorFor = (et) => wfColors[workflowFor(et)] || "#999";
+  const edgeColorFor = (et) => wfColors[edgeWorkflowFor(et)] || "#999";
 
   const style = [
     ...ENTITY_DIRS.map((et) => ({
@@ -454,6 +454,7 @@ function initCy(graph) {
     { selector: ".faded", style: { opacity: 0.08 } },
     { selector: "edge.highlighted", style: { opacity: 0.95, width: 2.5 } },
     { selector: "edge.faded", style: { opacity: 0.04 } },
+    { selector: "edge.filtered-out", style: { display: "none" } },
     // P2.5: hide-low-confidence toggle
     { selector: "edge.hide-low", style: { display: "none" } },
   ];
@@ -616,7 +617,7 @@ function buildFilters(graph) {
     details.appendChild(summary);
 
     for (const et of presentTypes.slice().sort()) {
-      const wf = workflowFor(et);
+      const wf = edgeWorkflowFor(et);
       const c = counts.get(et) || 0;
       const isFm = et.startsWith("fm_");
       const label = document.createElement("label");
@@ -649,9 +650,7 @@ function buildFilters(graph) {
     cb.addEventListener("change", () => {
       if (!currentCy) return;
       const t = cb.dataset.edge;
-      currentCy.edges("." + cssSafe(t)).style(
-        "display", cb.checked ? "element" : "none"
-      );
+      setEdgeTypeVisible(t, cb.checked);
       // Reflect group state if all children agree
       syncGroupCheckbox(cb.dataset.group);
     });
@@ -666,9 +665,7 @@ function buildFilters(graph) {
         .forEach((child) => {
           child.checked = cb.checked;
           const t = child.dataset.edge;
-          currentCy.edges("." + cssSafe(t)).style(
-            "display", cb.checked ? "element" : "none"
-          );
+          setEdgeTypeVisible(t, cb.checked);
         });
     });
   });
@@ -757,7 +754,7 @@ function applyPreset(presetKey, btn) {
     const t = cb.dataset.edge;
     const show = visibleTypes.has(t);
     cb.checked = show;
-    currentCy.edges("." + cssSafe(t)).style("display", show ? "element" : "none");
+    setEdgeTypeVisible(t, show);
   });
   // Refresh group checkboxes
   xDiv.querySelectorAll("input[data-group]:not([data-edge])").forEach((cb) => {
@@ -770,12 +767,25 @@ function resetAllEdges() {
   const xDiv = document.getElementById("graph-edge-filters");
   xDiv.querySelectorAll("input[data-edge]").forEach((cb) => {
     cb.checked = true;
-    currentCy.edges("." + cssSafe(cb.dataset.edge)).style("display", "element");
+    setEdgeTypeVisible(cb.dataset.edge, true);
   });
   xDiv.querySelectorAll("input[data-group]:not([data-edge])").forEach((cb) => {
     cb.checked = true; cb.indeterminate = false;
   });
   document.querySelectorAll(".preset-btn").forEach((b) => b.classList.remove("active"));
+}
+
+function edgeWorkflowFor(edgeType) {
+  return currentSchema?.edge_types?.[edgeType]?.workflow || workflowFor(edgeType);
+}
+
+function setEdgeTypeVisible(edgeType, visible) {
+  if (!currentCy || !edgeType) return;
+  const edges = currentCy.edges("." + cssSafe(edgeType));
+  // Remove old inline display bypasses from earlier filter operations so
+  // stylesheet classes such as .hide-low can still take effect.
+  edges.removeStyle("display");
+  edges.toggleClass("filtered-out", !visible);
 }
 
 // P2.5: hide-low-confidence toggle handler
