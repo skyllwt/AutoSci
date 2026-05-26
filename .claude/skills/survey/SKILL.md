@@ -39,7 +39,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 - `wiki/methods/*.md` — Mechanism, Procedure, source_papers (when ideas reference methods)
 - `wiki/index.md` — content catalog, filtered by importance
 - `wiki/graph/context_brief.md` — global context
-- `wiki/graph/edges.jsonl` — inter-paper semantic relationships (same_problem_as, similar_method_to, complementary_to, builds_on, compares_against, improves_on, challenges, surveys)
+- `wiki/graph/edges.jsonl` — inter-paper semantic relationships (same_problem_as, similar_method_to, builds_on, challenges)
 - `.claude/skills/shared-references/academic-writing.md` — Related Work writing rules
 - `.claude/skills/shared-references/citation-verification.md` — citation discipline
 
@@ -62,7 +62,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
    - If idea slugs: read each idea's `origin_gaps` (concepts/topics) and walk to `concepts.key_papers` and topic seminal works to collect related papers; also read methods linked from the idea's `## Approach sketch` and pull their `source_papers`
    - If PAPER_PLAN path: read the Related Work section's groupings and citations
 2. **Read wiki/graph/context_brief.md** for global context
-3. **Read wiki/graph/edges.jsonl**: extract inter-paper semantic relationships (same_problem_as, similar_method_to, complementary_to, builds_on, compares_against, improves_on, challenges, surveys)
+3. **Read wiki/graph/edges.jsonl**: extract inter-paper semantic relationships (same_problem_as, similar_method_to, builds_on, challenges)
 4. **Build candidate paper list**:
    - Sort by importance descending from index.md
    - Rank by tags and domain match
@@ -80,7 +80,7 @@ For each paper in the candidate list:
 Record for each paper:
 - core contribution (one sentence)
 - method category (which research direction it belongs to)
-- relationship to this work (same problem / similar method / complementary / builds on / compares against / improves on / challenges / surveys)
+- relationship to this work (same problem / similar method / builds on / challenges)
 - limitations (extracted from Limitations or My take)
 
 ### Step 3: Thematic Grouping

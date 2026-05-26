@@ -10,6 +10,44 @@
     "Summary":      { "hex": "#1ABC9C", "rgb": 1763716 },
     "foundations":  { "hex": "#95A5A6", "rgb": 9807270 }
   },
+  "edge_workflow_colors": {
+    "ingest":      "#5B8BD9",
+    "evidence":    "#59C189",
+    "experiment":  "#E6A23C",
+    "idea":        "#F5A623",
+    "citation":    "#7B8AB8",
+    "provenance":  "#999999",
+    "frontmatter": "#B8B8C8"
+  },
+  "edge_category_groups": {
+    "Citations": ["cites"],
+    "Paper relations": [
+      "same_problem_as", "similar_method_to",
+      "builds_on", "challenges"
+    ],
+    "Paper ↔ Concept": [
+      "introduces_concept", "uses_concept",
+      "extends_concept", "critiques_concept",
+      "fm_concepts_key_papers", "fm_concepts_related_concepts",
+      "fm_concepts_linked_ideas", "fm_concepts_parent_topic"
+    ],
+    "Method genealogy": [
+      "fm_methods_source_papers", "fm_methods_parent_methods",
+      "fm_methods_child_methods", "fm_methods_realizes_concepts"
+    ],
+    "Topics & People": [
+      "fm_topics_key_papers", "fm_topics_key_people",
+      "fm_topics_related_topics", "fm_topics_linked_ideas",
+      "fm_Summary_key_topics"
+    ],
+    "Workflow (ideas / experiments)": [
+      "fm_experiments_linked_idea", "fm_experiments_evaluates_methods",
+      "fm_ideas_origin_gaps", "fm_ideas_linked_experiments",
+      "supports", "contradicts", "tested_by",
+      "invalidates", "addresses_gap",
+      "derived_from", "inspired_by"
+    ]
+  },
   "edge_type_arrows": true,
   "canvas_layout": "force-directed",
   "web_library": "cytoscape"

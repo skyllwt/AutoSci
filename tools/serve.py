@@ -93,15 +93,30 @@ ROOT = Path(__file__).resolve().parent.parent
 APP_ROOT = ROOT / "app"
 WIKI_ROOT = ROOT / "wiki"
 GRAPH_DIR = WIKI_ROOT / "graph"
+CHECKPOINTS_DIR = ROOT / ".checkpoints"
 
 sys.path.insert(0, str(ROOT))
-from runtime.loader import ENTITY_DIRS  # noqa: E402
+from runtime.loader import ENTITY_DIRS, EDGE_TYPE_SPECS  # noqa: E402
+from tools import research_wiki as _research_wiki  # noqa: E402  for graph projection
+
+try:
+    import json as _json_for_config
+    _VISUALIZE_CFG = _json_for_config.loads(
+        (ROOT / "config" / "visualize.json").read_text(encoding="utf-8")
+    )
+except (OSError, ValueError):
+    _VISUALIZE_CFG = {}
 
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$", re.DOTALL)
 ENTITY_PATH_RE = re.compile(
     r"^/api/entities/([^/]+)(?:/([^/]+)(?:/(raw))?)?/?$"
 )
+# /api/checkpoints/discover               -> list
+# /api/checkpoints/discover/<name>        -> read one
+# `name` must match the discover-* prefix; further validated against the
+# filesystem so we never read anything outside .checkpoints/.
+CHECKPOINT_NAME_RE = re.compile(r"^discover-[A-Za-z0-9._-]+\.json$")
 LOG_ENTRY_RE = re.compile(
     r"^##\s*\[(\d{4}-\d{2}-\d{2})\]\s+([^|]+?)\s*\|\s*(.*)$"
 )
@@ -149,6 +164,26 @@ def _run_visualize(*args: str) -> str:
     if result.returncode != 0:
         raise RuntimeError(
             f"visualize.py {' '.join(args)} failed "
+            f"(exit {result.returncode}):\n{result.stderr}"
+        )
+    return result.stdout
+
+
+def _run_lint(*args: str) -> str:
+    """Run tools/lint.py and return its stdout. lint.py exits non-zero when
+    issues are found, so callers should always pass `--json` and parse the
+    result instead of relying on exit code."""
+    cmd = [_python_bin(), str(ROOT / "tools" / "lint.py"), *args]
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, env=env, encoding="utf-8"
+    )
+    # Don't treat non-zero exit as error — lint signals "issues found" that way.
+    # The JSON output is what callers actually care about. We surface stderr
+    # only if there's no parseable stdout.
+    if not result.stdout.strip() and result.stderr.strip():
+        raise RuntimeError(
+            f"lint.py {' '.join(args)} produced no output "
             f"(exit {result.returncode}):\n{result.stderr}"
         )
     return result.stdout
@@ -263,6 +298,21 @@ class WikiHandler(SimpleHTTPRequestHandler):
             return
         super().do_GET()
 
+    def end_headers(self) -> None:
+        # Force browsers to revalidate every static request (SPA modules,
+        # CSS, HTML). ES modules are normally aggressively cached by URL,
+        # which silently breaks the page after a frontend edit if some
+        # modules are fresh and some are stale. `/api/*` responses set
+        # their own no-store via _send_json / _send_raw, and the SSE
+        # handler sets no-cache,no-store explicitly — those paths reach
+        # this method with the header already present, so adding it once
+        # more is harmless (or already handled).
+        # The check here only fires on the static-file path (super().do_GET()).
+        path = urlparse(self.path).path
+        if not path.startswith("/api/"):
+            self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
     # --- Phase 4 write methods ----------------------------------------------
 
     def do_POST(self) -> None:
@@ -286,6 +336,10 @@ class WikiHandler(SimpleHTTPRequestHandler):
         if path.startswith("/api/regenerate/"):
             kind = path[len("/api/regenerate/"):]
             self._handle_regenerate(kind)
+            return
+        if path == "/api/lint/fix":
+            dry_run = bool(body.get("dry_run", False))
+            self._handle_lint(fix=True, dry_run=dry_run)
             return
         if path.startswith("/api/intent/"):
             skill = path[len("/api/intent/"):]
@@ -351,6 +405,16 @@ class WikiHandler(SimpleHTTPRequestHandler):
                 )
             except Exception as exc:
                 self._send_json({"error": str(exc)}, status=500)
+            return
+        if path == "/api/lint":
+            self._handle_lint(fix=False)
+            return
+        if path == "/api/checkpoints/discover":
+            self._handle_checkpoints_list()
+            return
+        if path.startswith("/api/checkpoints/discover/"):
+            name = path[len("/api/checkpoints/discover/"):]
+            self._handle_checkpoint_read(name)
             return
         if path == "/api/graph":
             self._handle_graph()
@@ -438,8 +502,53 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     def _handle_graph(self) -> None:
         edges = self._read_jsonl(GRAPH_DIR / "edges.jsonl")
+        for e in edges:
+            # Stash whatever "source" might already mean per-row (rare on
+            # edges.jsonl today, but reserved for future) so we can label
+            # provenance buckets unambiguously.
+            if "source" in e:
+                e.setdefault("source_attr", e["source"])
+            e["source"] = "edges.jsonl"
         citations = self._read_jsonl(GRAPH_DIR / "citations.jsonl")
-        self._send_json({"edges": edges, "citations": citations})
+        for c in citations:
+            # citations.jsonl rows carry source: semantic_scholar|parsed_bib|manual
+            # which is the *citation provenance*, not the payload bucket. Move it
+            # aside so the unified `source` field cleanly labels the bucket.
+            if "source" in c:
+                c["cite_source"] = c.pop("source")
+            c["source"] = "citations.jsonl"
+            c.setdefault("type", "cites")
+        try:
+            projected = _research_wiki.project_frontmatter_edges(WIKI_ROOT)
+        except Exception as exc:  # noqa: BLE001 — projection must never fail the graph endpoint
+            print(f"WARN: frontmatter projection failed: {exc}", file=sys.stderr)
+            projected = []
+        self._send_json({
+            "edges": edges + projected,
+            "citations": citations,
+            "schema": self._emit_minimal_schema(),
+        })
+
+    @staticmethod
+    def _emit_minimal_schema() -> dict:
+        """Edge metadata the frontend needs to render arrows / groups without
+        hardcoding a parallel copy of runtime/schema/edges.yaml."""
+        edge_types = {
+            et: {"direction": spec.get("direction"),
+                 "workflow":  spec.get("workflow")}
+            for et, spec in EDGE_TYPE_SPECS.items()
+        }
+        # `cites` is excluded from EDGE_TYPE_SPECS per loader convention; add it.
+        edge_types["cites"] = {"direction": "directed", "workflow": "citation"}
+        return {
+            "edge_types": edge_types,
+            "edge_workflow_colors": _VISUALIZE_CFG.get("edge_workflow_colors", {}),
+            "edge_category_groups": _VISUALIZE_CFG.get("edge_category_groups", {}),
+            "entity_colors": {
+                k: v.get("hex") for k, v in
+                _VISUALIZE_CFG.get("entity_colors", {}).items()
+            },
+        }
 
     @staticmethod
     def _read_jsonl(path: Path) -> list:
@@ -743,12 +852,42 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     @staticmethod
     def _intent_discover(body: dict) -> dict:
+        # /discover has four seed modes (see .claude/skills/discover/SKILL.md).
+        # Priority when multiple fields are present: anchor > topic > venue/year
+        # > from-wiki. `--limit` is universal and tacks on at the end.
         anchor = (body.get("anchor") or "").strip()
+        topic = (body.get("topic") or "").strip()
+        venue = (body.get("venue") or "").strip()
+        year = (body.get("year") or "").strip()
+        limit = (body.get("limit") or "").strip()
+
+        def _limit_suffix() -> str:
+            if not limit:
+                return ""
+            try:
+                int(limit)
+            except ValueError:
+                return ""
+            return f" --limit {limit}"
+
         if anchor:
-            return {"command": f"/discover --anchor {anchor}"}
+            return {"command": f"/discover --anchor {anchor}{_limit_suffix()}"}
+        if topic:
+            # Quote the topic so multi-word phrases survive shell tokenisation.
+            return {"command": f'/discover --topic "{topic}"{_limit_suffix()}'}
+        if venue and year:
+            return {"command": f"/discover --venue {venue} --year {year}{_limit_suffix()}"}
+        if venue or year:
+            return {
+                "command": "/discover --venue <slug> --year <int>",
+                "message": "Venue mode needs both --venue and --year.",
+            }
+        # Nothing supplied → derive from current wiki state.
         return {
-            "command": "/discover --anchor <arxiv-id-or-paper-slug>",
-            "message": "Pass an arXiv ID (e.g. 1706.03762) or a paper slug.",
+            "command": f"/discover --from-wiki{_limit_suffix()}",
+            "message": ("from-wiki mode mines your current papers/concepts/"
+                        "open-questions to suggest what to read next — good "
+                        "default when you don't have a specific anchor."),
         }
 
     @staticmethod
@@ -760,6 +899,95 @@ class WikiHandler(SimpleHTTPRequestHandler):
             "command": "/exp-design --linked-idea <idea-slug>",
             "message": "Run from an idea page or pass --linked-idea explicitly.",
         }
+
+    # --- /api/lint and /api/lint/fix ----------------------------------------
+    #
+    # `tools/lint.py` is the deterministic core of `/check`. It already
+    # supports `--json` and `--fix` (with `--dry-run` for preview). Exposing
+    # it here lets the SPA show lint results inline without going through
+    # the intent → copy → paste → Claude Code round trip.
+
+    def _handle_lint(self, fix: bool, dry_run: bool = False) -> None:
+        args = ["--wiki-dir", str(WIKI_ROOT), "--json"]
+        if fix:
+            args.append("--fix")
+            if dry_run:
+                args.append("--dry-run")
+        try:
+            stdout = _run_lint(*args)
+        except RuntimeError as exc:
+            self._send_json({"error": str(exc)}, status=500)
+            return
+        # lint.py emits JSON; we forward it raw. Audit only when a real fix
+        # (non-dry-run) was applied, mirroring the regenerate write-endpoints.
+        if fix and not dry_run:
+            _audit_log("POST lint --fix")
+        self._send_raw(stdout, content_type="application/json; charset=utf-8")
+
+    # --- /api/checkpoints/discover ------------------------------------------
+    #
+    # `/discover` writes `.checkpoints/discover-{seed}-{date}.json`. The SPA
+    # cannot re-run `/discover` (LLM-bound), but it CAN browse already-written
+    # checkpoints so the user can pick which candidates to ingest. List +
+    # read are both safe read-only operations on a local-only directory.
+
+    CHECKPOINT_MAX_BYTES = 2 * 1024 * 1024  # 2 MB cap on individual reads
+
+    def _handle_checkpoints_list(self) -> None:
+        if not CHECKPOINTS_DIR.is_dir():
+            self._send_json({"checkpoints": []})
+            return
+        items = []
+        for p in CHECKPOINTS_DIR.glob("discover-*.json"):
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            items.append({
+                "name": p.name,
+                "size": st.st_size,
+                "mtime": st.st_mtime,
+            })
+        items.sort(key=lambda x: x["mtime"], reverse=True)
+        self._send_json({"checkpoints": items})
+
+    def _handle_checkpoint_read(self, name: str) -> None:
+        if not CHECKPOINT_NAME_RE.match(name):
+            self._send_json(
+                {"error": f"invalid checkpoint name: {name!r} "
+                          "(must match discover-*.json)"},
+                status=400,
+            )
+            return
+        # Resolve and confirm the path stays inside CHECKPOINTS_DIR — defends
+        # against any future regex weakness.
+        path = (CHECKPOINTS_DIR / name).resolve()
+        try:
+            path.relative_to(CHECKPOINTS_DIR.resolve())
+        except ValueError:
+            self._send_json({"error": "path traversal rejected"}, status=400)
+            return
+        if not path.is_file():
+            self._send_json({"error": f"checkpoint not found: {name}"}, status=404)
+            return
+        try:
+            size = path.stat().st_size
+        except OSError as exc:
+            self._send_json({"error": str(exc)}, status=500)
+            return
+        if size > self.CHECKPOINT_MAX_BYTES:
+            self._send_json(
+                {"error": f"checkpoint too large ({size} bytes; cap "
+                          f"{self.CHECKPOINT_MAX_BYTES})"},
+                status=413,
+            )
+            return
+        try:
+            data = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            self._send_json({"error": str(exc)}, status=500)
+            return
+        self._send_raw(data, content_type="application/json; charset=utf-8")
 
     # --- /api/log ------------------------------------------------------------
 

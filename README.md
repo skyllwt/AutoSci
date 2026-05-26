@@ -360,7 +360,7 @@ A real `/daily-arxiv` run: ranked recommendations with scores, rationales, wiki 
 
 Semantic relationships are stored in `graph/edges.jsonl`; bibliographic paper citations are stored separately in `graph/citations.jsonl`.
 
-Paper-paper semantic edges include `same_problem_as`, `similar_method_to`, `complementary_to`, `builds_on`, `compares_against`, `improves_on`, `challenges`, and `surveys`. Paper-concept edges use `introduces_concept`, `uses_concept`, `extends_concept`, and `critiques_concept`. Workflow edges (`supports`, `contradicts`, `tested_by`, `invalidates`, `addresses_gap`, `inspired_by`, `derived_from`) span experiments, ideas, methods, and concepts.
+Paper-paper semantic edges are `same_problem_as`, `similar_method_to`, `builds_on`, and `challenges`. Paper-concept edges use `introduces_concept`, `uses_concept`, `extends_concept`, and `critiques_concept`. Workflow edges (`supports`, `contradicts`, `tested_by`, `invalidates`, `addresses_gap`, `inspired_by`, `derived_from`) span experiments, ideas, methods, and concepts.
 
 All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian for visual graph exploration.
 

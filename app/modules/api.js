@@ -135,3 +135,25 @@ export function postRegenerate(kind) {
 export function postIntent(skill, body = {}) {
   return sendJSON(`/api/intent/${encodeURIComponent(skill)}`, "POST", body);
 }
+
+// --- Phase 6: deterministic skill operations exposed in-browser -------------
+//
+// /check has a fully deterministic core (tools/lint.py) — no LLM needed.
+// /discover writes ranked candidate JSONs to .checkpoints/, which we can
+// browse without re-running anything. Both bypass the intent-modal flow.
+
+export function getLint() {
+  return fetchJSON("/api/lint");
+}
+
+export function postLintFix({ dryRun = false } = {}) {
+  return sendJSON("/api/lint/fix", "POST", { dry_run: dryRun });
+}
+
+export function listDiscoverCheckpoints() {
+  return fetchJSON("/api/checkpoints/discover");
+}
+
+export function getDiscoverCheckpoint(name) {
+  return fetchJSON(`/api/checkpoints/discover/${encodeURIComponent(name)}`);
+}

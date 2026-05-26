@@ -47,6 +47,7 @@ concepts:
     date_updated:     { type: date }
     related_concepts: { type: list_link, to: concepts, default: [] }
     linked_ideas:     { type: list_link, to: ideas, default: [] }
+    parent_topic:     { type: link, to: topics }
 
 topics:
   dir: wiki/topics/
@@ -56,6 +57,7 @@ topics:
     key_venues:     { type: list_str, default: [] }
     related_topics: { type: list_link, to: topics, default: [] }
     key_people:     { type: list_link, to: people, default: [] }
+    key_papers:     { type: list_link, to: papers, default: [] }
     linked_ideas:   { type: list_link, to: ideas, default: [] }
 
 people:
@@ -101,31 +103,33 @@ ideas:
 methods:
   dir: wiki/methods/
   fields:
-    name:           { type: str, required: true }
-    slug:           { type: str, required: true }
+    name:              { type: str, required: true }
+    slug:              { type: str, required: true }
     type:
       type: enum
       values: [architecture, training, inference, evaluation, data, benchmark,
                system, optimization, prompting, protocol, other]
       required: true
       default: other
-    tags:           { type: list_str, required: true, default: [] }
-    source_papers:  { type: list_link, to: papers, default: [] }
-    parent_methods: { type: list_link, to: methods, default: [] }
-    child_methods:  { type: list_link, to: methods, default: [] }
-    code_repo:      { type: str }
-    date_updated:   { type: date }
+    tags:              { type: list_str, required: true, default: [] }
+    source_papers:     { type: list_link, to: papers, default: [] }
+    parent_methods:    { type: list_link, to: methods, default: [] }
+    child_methods:     { type: list_link, to: methods, default: [] }
+    realizes_concepts: { type: list_link, to: concepts, default: [] }
+    code_repo:         { type: str }
+    date_updated:      { type: date }
 
 experiments:
   dir: wiki/experiments/
   fields:
-    title:           { type: str, required: true }
-    slug:            { type: str, required: true }
-    status:          { type: enum, values: [planned, running, completed, abandoned],
-                       required: true, default: planned }
-    linked_idea:     { type: link, to: ideas, required: true }
-    hypothesis:      { type: str, required: true }
-    tags:            { type: list_str, required: true, default: [] }
+    title:             { type: str, required: true }
+    slug:              { type: str, required: true }
+    status:            { type: enum, values: [planned, running, completed, abandoned],
+                         required: true, default: planned }
+    linked_idea:       { type: link, to: ideas, required: true }
+    evaluates_methods: { type: list_link, to: methods, default: [] }
+    hypothesis:        { type: str, required: true }
+    tags:              { type: list_str, required: true, default: [] }
     setup:
       type: object
       fields:

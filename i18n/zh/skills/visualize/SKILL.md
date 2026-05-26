@@ -16,7 +16,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 - `--focus <node_id>`（可选）：把 Canvas 聚焦到某个具体节点（例如 `methods/my-method`）
 - `--depth N`（可选）：聚焦 Canvas 的 BFS 深度（默认：2）
 - `--types <list>`（可选）：把节点过滤到这些 page type，逗号分隔（例如 `papers,concepts`）
-- `--edge-types <list>`（可选）：把边过滤到这些语义类型，逗号分隔（例如 `builds_on,surveys`）
+- `--edge-types <list>`（可选）：把边过滤到这些语义类型，逗号分隔（例如 `builds_on,challenges`）
 - `--all`（可选，没传任何 flag 时即默认）：生成全部可视化产物
 
 ## Outputs
@@ -65,21 +65,33 @@ python3 tools/visualize.py generate-obsidian-config wiki/
 
 ### Step 2: 生成 Canvas 视图（`--canvas` 或 `--all`）
 
-完整知识地图：
+#### Step 2a —— 完整知识地图
 
 ```bash
 python3 tools/visualize.py generate-canvas wiki/
 ```
 
-聚焦 Canvas（聚焦到某个具体节点）：
+布局：力导（无固定中心）。节点先按 entity type 聚类初始化位置，然后用 spring–electron 模拟稳定下来。
+
+#### Step 2b —— 聚焦 Canvas
+
+**生成前先决定 focus 节点：**
+
+1. 若用户显式传了 `--focus <node_id>`，直接使用，跳过下面步骤。
+2. 否则枚举 foundation 页：`ls wiki/foundations/*.md`（排除 `.gitkeep`）。
+   - **0 个**：跳过 Step 2b，不生成聚焦 Canvas，只输出 Step 2a 的完整知识地图。
+   - **1 个**：自动用该 foundation 作为 `--focus`（即 `foundations/<slug>`），打印选择，**不弹问**。
+   - **2 个及以上**：用 `AskUserQuestion` 让用户挑一个。每个 foundation 列为一个选项（label = `foundations/<slug>`，description = 该页 frontmatter 的 `title`）。把用户选的 slug 作为 `--focus`。
+
+然后生成：
 
 ```bash
 python3 tools/visualize.py generate-canvas wiki/ --focus <node_id> --depth <N>
 ```
 
-**`--focus` BFS 逻辑**：从目标节点开始，在 `edges.jsonl` + `citations.jsonl` 上做广度优先搜索，收集 `--depth` 跳之内的全部节点和边。只渲染该邻域子图。若 `node_id` 找不到，中止并列出 5 个最相近的 slug 候选。
+布局：径向同心圆。focus 节点位于画布中心；距离 focus BFS 距离 `d` 的节点落在第 `d` 环。每环内按 entity type 排序，同类节点在圆上聚团。
 
-**Canvas 布局**：按 `page_type` 把节点分到不同列；列内按 `importance` 倒序排序（1–5，默认 3）。跟踪边界框避免重叠。
+**`--focus` BFS 逻辑**：从目标节点开始，在 `edges.jsonl` + `citations.jsonl` 上做广度优先搜索，收集 `--depth` 跳之内的全部节点和边。只渲染该邻域子图。若 `node_id` 找不到，中止并列出 5 个最相近的 slug 候选。
 
 Canvas 节点 schema：
 
@@ -88,13 +100,16 @@ Canvas 节点 schema：
   "id": "<slug>",
   "type": "file",
   "file": "<relative-path-to-md>",
+  "label": "<frontmatter title>",
   "x": <int>,
   "y": <int>,
-  "width": 200,
-  "height": 60,
+  "width": <int，papers 按 importance 缩放>,
+  "height": <int，papers 按 importance 缩放>,
   "color": "<obsidian-color-id>"
 }
 ```
+
+`label` 字段覆盖显示名；旧版 Obsidian 不支持时会 fallback 到文件名（slug）。width/height 基础尺寸按 entity type 决定；papers 按 importance 缩放（1→0.7×、2→0.85×、3→1.0×、4→1.2×、5→1.5×，缺失时默认 3）。
 
 Canvas 边 schema：
 
@@ -110,14 +125,33 @@ Canvas 边 schema：
 若设置了 `--types`，丢弃不在列表里的节点，并丢弃 source 或 target 已被丢弃的边。
 若设置了 `--edge-types`，丢弃不在列表里的边。
 
-### Step 3: SPA Graph 视图（取代已停产的 generate-html 步）
+### Step 3: SPA Graph 视图（后台自动启动）
 
-之前的独立 HTML 探索器已停产。如需交互式网页探索，启动 SPA 后端：
+之前的独立 HTML 探索器已停产。如需交互式网页探索，本 skill **自动**在后台启动 SPA 后端（`tools/serve.py`）—— 用户**不需要**手动跑 `python tools/serve.py`。
 
-```bash
-python3 tools/serve.py
-# 然后打开 http://127.0.0.1:8765/#/graph
-```
+**自动启动逻辑：**
+
+1. 探测 8765 端口，看服务是否已经在跑：
+
+   ```bash
+   python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.3); sys.exit(0 if s.connect_ex(('127.0.0.1',8765))==0 else 1)"
+   ```
+
+   退出码 `0` = 端口被占（服务已起 —— 跳过启动）。退出码 `1` = 端口空闲（需要启动）。
+
+2. 若端口空闲，用 **`Bash` tool 的 `run_in_background: true`** 后台启动（不要前台，前台会无限阻塞 skill）：
+
+   ```bash
+   python3 tools/serve.py
+   ```
+
+   不要用 `Agent` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `Bash` 进程归 Claude Code 会话所有，活到会话结束。
+
+3. 把 URL 打印给用户：
+
+   ```
+   SPA Graph view: http://127.0.0.1:8765/#/graph
+   ```
 
 SPA Graph 视图（`app/modules/graph.js`）是真正的 ES module，包含与原单文件生成器一样的 Cytoscape + 力导向布局 + 过滤器 + BFS 搜索，并集成了双击跳转到 SPA Reader 视图的能力。`/visualize` 不再重新生成 `wiki/graph-view.html`。
 
@@ -163,10 +197,9 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 
 | 类别        | 类型                                                                  | Hex       |
 | ----------- | --------------------------------------------------------------------- | --------- |
-| 相似        | `same_problem_as`、`similar_method_to`、`complementary_to`            | `#ADB5BD` |
+| 相似        | `same_problem_as`、`similar_method_to`                                | `#ADB5BD` |
 | 谱系        | `builds_on`、`extends_concept`、`derived_from`、`inspired_by`         | `#4C9BE8` |
-| 比较        | `compares_against`、`improves_on`、`challenges`、`critiques_concept`  | `#E76F51` |
-| 综述        | `surveys`                                                             | `#2A9D8F` |
+| 比较        | `challenges`、`critiques_concept`                                     | `#E76F51` |
 | 概念使用    | `introduces_concept`、`uses_concept`                                  | `#F4A261` |
 | 证据        | `supports`、`contradicts`、`tested_by`、`invalidates`                 | `#9B5DE5` |
 | Gap         | `addresses_gap`                                                       | `#F9C74F` |

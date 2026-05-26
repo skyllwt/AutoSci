@@ -39,6 +39,13 @@ fields:
   methods.source_papers:    { writers: [ingest, init, edit] }
   methods.parent_methods:   { writers: [ingest, edit] }
   methods.child_methods:    { writers: [ingest, edit] }
+  methods.realizes_concepts: { writers: [ingest, edit] }
+
+  # Topic curation — what papers / concepts anchor this research area.
+  topics.key_papers:        { writers: [ingest, init, edit] }
+
+  # Concept taxonomy — which topic this concept belongs to.
+  concepts.parent_topic:    { writers: [ingest, init, edit] }
 
   # Idea lifecycle and judgement scores.
   ideas.status:             { writers: [ideate, exp-eval, exp-pilot-eval, refine] }
@@ -55,6 +62,7 @@ fields:
   experiments.date_completed: { writers: [exp-run] }
   experiments.run_log:      { writers: [exp-run, exp-status] }
   experiments.remote:       { writers: [exp-run, exp-status] }
+  experiments.evaluates_methods: { writers: [exp-design, edit] }
 
 edges:
 
@@ -62,14 +70,12 @@ edges:
   cites:                    [ingest]
 
   # Paper-paper semantic — only /ingest produces these judgments.
+  # 4 redundant types (improves_on / compares_against / surveys /
+  # complementary_to) were removed; see runtime/schema/edges.yaml header.
   same_problem_as:          [ingest]
   similar_method_to:        [ingest]
-  complementary_to:         [ingest]
   builds_on:                [ingest]
-  compares_against:         [ingest]
-  improves_on:              [ingest]
   challenges:               [ingest]
-  surveys:                  [ingest]
 
   # Paper-concept semantic — only /ingest produces these.
   introduces_concept:       [ingest]

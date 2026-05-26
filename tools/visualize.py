@@ -63,6 +63,10 @@ CANVAS_NODE_SIZES = {
 
 DEFAULT_CANVAS_SIZE = (300, 200)
 
+# Size scale factor per importance level (1..5). Only papers carry importance in
+# the schema today; other types default to 3 (baseline 1.0x).
+IMPORTANCE_SCALE = {1: 0.7, 2: 0.85, 3: 1.0, 4: 1.2, 5: 1.5}
+
 # ---------------------------------------------------------------------------
 # Helpers — JSONL loading (mirrors research_wiki.py patterns)
 # ---------------------------------------------------------------------------
@@ -326,6 +330,78 @@ def _force_layout(nodes: list[dict], edges: list[dict],
     return nodes
 
 
+def _radial_layout(nodes: list[dict], edges: list[dict],
+                   focus_node: str,
+                   width: int = 3000, height: int = 3000) -> list[dict]:
+    """Concentric-ring layout centered on focus_node.
+
+    Ring d holds nodes at BFS distance d from focus_node. Within a ring, nodes
+    are sorted by (entity_type, id) so same-type nodes cluster on the circle.
+    Ring radius grows with d and is bumped up if too many nodes would overlap.
+    """
+    if not nodes:
+        return nodes
+
+    node_ids = {nd["id"] for nd in nodes}
+    if focus_node not in node_ids:
+        # Fall back: place all nodes in a single outer ring around the canvas center.
+        focus_node = nodes[0]["id"]
+
+    # BFS distances from focus_node
+    adj: dict[str, list[str]] = defaultdict(list)
+    for e in edges:
+        a, b = e["from"], e["to"]
+        if a in node_ids and b in node_ids:
+            adj[a].append(b)
+            adj[b].append(a)
+
+    distance: dict[str, int] = {focus_node: 0}
+    frontier = [focus_node]
+    while frontier:
+        next_frontier: list[str] = []
+        for nid in frontier:
+            for nb in adj.get(nid, []):
+                if nb not in distance:
+                    distance[nb] = distance[nid] + 1
+                    next_frontier.append(nb)
+        frontier = next_frontier
+
+    max_known = max(distance.values()) if distance else 0
+    rings: dict[int, list[dict]] = defaultdict(list)
+    for nd in nodes:
+        d = distance.get(nd["id"], max_known + 1)
+        rings[d].append(nd)
+
+    cx, cy = width / 2, height / 2
+
+    base_radius = 700
+    for ring_idx in sorted(rings.keys()):
+        ring_nodes = sorted(rings[ring_idx], key=lambda n: (_node_kind(n["id"]), n["id"]))
+        if ring_idx == 0:
+            # Center the focus node by its center, not top-left
+            for nd in ring_nodes:
+                nd["x"] = int(cx - nd["width"] / 2)
+                nd["y"] = int(cy - nd["height"] / 2)
+            continue
+
+        count = len(ring_nodes)
+        if count == 0:
+            continue
+        max_w = max(nd["width"] for nd in ring_nodes)
+        spacing = max_w * 1.3
+        min_radius = (count * spacing) / (2 * math.pi)
+        radius = max(base_radius * ring_idx, min_radius)
+
+        for i, nd in enumerate(ring_nodes):
+            angle = 2 * math.pi * i / count
+            nx = cx + radius * math.cos(angle)
+            ny = cy + radius * math.sin(angle)
+            nd["x"] = int(nx - nd["width"] / 2)
+            nd["y"] = int(ny - nd["height"] / 2)
+
+    return nodes
+
+
 def _canvas_edge_side(from_node: dict, to_node: dict) -> tuple[str, str]:
     """Determine fromSide/toSide based on relative positions."""
     fx, fy = from_node.get("x", 0), from_node.get("y", 0)
@@ -447,13 +523,21 @@ def cmd_generate_canvas(wiki_root: str, focus: str | None = None,
     node_map: dict[str, dict] = {}
     for nid in sorted(node_ids):
         kind = _node_kind(nid)
-        w, h = CANVAS_NODE_SIZES.get(kind, DEFAULT_CANVAS_SIZE)
+        base_w, base_h = CANVAS_NODE_SIZES.get(kind, DEFAULT_CANVAS_SIZE)
         fm = metadata.get(nid, {})
         title = fm.get("title", fm.get("name", nid.split("/", 1)[-1] if "/" in nid else nid))
+        importance = fm.get("importance", 3)
+        try:
+            importance = max(1, min(5, int(importance)))
+        except (TypeError, ValueError):
+            importance = 3
+        scale = IMPORTANCE_SCALE[importance]
+        w, h = int(base_w * scale), int(base_h * scale)
         node_map[nid] = {
             "id": nid,
             "type": "file",
             "file": f"{nid}.md",
+            "label": title,
             "x": 0,
             "y": 0,
             "width": w,
@@ -467,9 +551,14 @@ def cmd_generate_canvas(wiki_root: str, focus: str | None = None,
         if e["from"] in node_map and e["to"] in node_map:
             layout_edges.append(e)
 
-    # Run force-directed layout
+    # Layout: radial (concentric rings) when focused, force-directed otherwise.
+    # Radial gives focus mode a clear center-out structure that force-directed
+    # can't guarantee.
     nodes_list = list(node_map.values())
-    _force_layout(nodes_list, layout_edges, focus_node=focus)
+    if focus:
+        _radial_layout(nodes_list, layout_edges, focus_node=focus)
+    else:
+        _force_layout(nodes_list, layout_edges, focus_node=focus)
 
     # Build Canvas edges with labels
     canvas_edges = []
