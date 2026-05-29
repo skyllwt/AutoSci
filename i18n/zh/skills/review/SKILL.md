@@ -1,6 +1,6 @@
 ---
 description: 通用跨模型审查：Review LLM 对任意研究制品进行独立评审，输出结构化评分、wiki 实体映射与改进建议
-argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
+argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness] [--write-review [--manuscript <slug>]]
 ---
 
 # /review
@@ -38,7 +38,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - Wiki Entity Mapping（哪些 ideas/methods 需要加强，哪些 gaps 被发现）
   - Verdict：`ready` / `needs-work` / `major-revision` / `rethink`
 - 若 `--difficulty >= hard`：额外包含多轮对话记录和最终修正后的评分
-- 该 skill **不直接修改 wiki**，但会输出建议的 wiki 更新列表
+- 该 skill **默认不修改 wiki**，但会输出建议的 wiki 更新列表。加 `--write-review` 时会额外持久化一个 review 实体（见下方 `--write-review` 小节）。
 
 ## Wiki Interaction
 
@@ -53,8 +53,8 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 - `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则
 
 ### Writes
-- **无**。Review 是只读查询操作。
-  - 审查结果输出到终端，由用户或调用方（如 /refine）决定是否应用。
+- **默认无**。Review 是只读查询操作；结果输出到终端，由用户或调用方（如 /refine）决定是否应用。
+- 加 `--write-review` 时：写入 `wiki/reviews/{slug}.md`（`feedback_type: feedback`），并通过 `lint --fix` 把反向链写入所链接 manuscript 的 `## Reviews` 小节。
 
 ### Graph edges created
 - **无**。
@@ -241,6 +241,30 @@ mcp__llm-review__chat:
 2. [MAJOR] {action item}
 3. [MINOR] {action item}
 ```
+
+## --write-review（主动研究记忆）
+
+默认 `/review` 不写 wiki。加 `--write-review` 时,额外把结构化反馈持久化为一个
+review 实体(终端报告不变):
+
+1. 确定所链接的 manuscript:若 artifact 是 manuscript slug 或 `paper/` 路径,解析/
+   推断 `linked_manuscript` slug;若给了 `--manuscript <slug>` 用它;否则询问用户。
+   `linked_manuscript` 是**必需**的。
+2. 用 `runtime/templates/reviews.md.tmpl` 创建 `wiki/reviews/{manuscript}-{date}.md`:
+   ```yaml
+   title: {简短标签}
+   slug: {manuscript}-{date}
+   feedback_type: feedback
+   resolution_status: open
+   linked_manuscript: {manuscript-slug}
+   ```
+3. 把审查输出映射进正文:总体判断 → `## Summary`;weaknesses / questions →
+   `## Concerns`;actionable items → `## Action items`;缺失内容 → `## Evidence gaps`。
+4. 运行 `python3 tools/lint.py --wiki-dir wiki --fix` 把反向链写入 manuscript 的
+   `## Reviews` 小节;用 `research_wiki.py log` 追加日志。
+
+此处**不改** manuscript 的 `status`——若反馈促成实际修改,由 `/refine`(或用户)
+把 manuscript 从 `drafting` 推到 `revised`。
 
 ## Constraints
 

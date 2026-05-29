@@ -31,6 +31,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
   - `paper/tables/` — standalone table files (optional)
   - `paper/math_commands.tex` — shared math symbol definitions
   - `paper/references.bib` — verified BibTeX entries
+- `wiki/manuscripts/{slug}.md` — manuscript record updated (body `## Current draft`)
 - `wiki/log.md` — appended log entry
 
 ## Wiki Interaction
@@ -51,6 +52,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 
 ### Writes
 - `paper/` directory (all files)
+- `wiki/manuscripts/{slug}.md` — manuscript record (body `## Current draft`)
 - `wiki/log.md` — appended operation log
 
 ### Graph edges created
@@ -251,6 +253,17 @@ Make final adjustments based on Review LLM feedback.
    - all files referenced by `\includegraphics{figures/X}` exist
    - all `\cite{key}` keys have a corresponding entry in references.bib
    - all `\ref{label}` have a corresponding `\label{label}`
+
+   **Update the manuscript record** (active research memory) — `paper/` is the file
+   artifact; `wiki/manuscripts/{slug}.md` is its trackable record:
+   - Resolve the manuscript by the PAPER_PLAN slug. If it does not exist (plan was
+     skipped), create it from `runtime/templates/manuscripts.md.tmpl` with `status: drafting`.
+   - Update the body `## Current draft` with the draft location and compiled artifact,
+     e.g. `draft: paper/main.tex` and `compiled: paper/main.pdf` (once `/paper-compile` ran).
+   - Keep `draft_dir` / `compiled_pdf` in the body only — do NOT promote them to required
+     frontmatter (deferred fields). Do not change `status` here.
+   - Run `python3 tools/lint.py --wiki-dir wiki --fix` after the write.
+
 3. Append log:
    ```bash
    python3 tools/research_wiki.py log wiki/ \

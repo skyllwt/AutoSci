@@ -1,6 +1,6 @@
 ---
 description: Parse review comments → atomize concerns (Rvx-Cy) → map to wiki ideas/methods → check evidence → Review LLM stress-test → generate rebuttal
-argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
+argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich] [--final-decision <decision-file>]
 ---
 
 # /rebuttal
@@ -28,6 +28,8 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 - **wiki/outputs/rebuttal-{slug}.md** — rich-text rebuttal (with [[wikilinks]], evidence tracing, analysis tables)
 - **wiki/outputs/rebuttal-{slug}.txt** — formal rebuttal (plain text, suitable for pasting into submission system)
+- **wiki/reviews/{slug}-rebuttal-{round}.md** — rebuttal-type review record (`Rvx-Cy` concerns + responses)
+- with `--final-decision`: **wiki/reviews/{slug}-final-decision.md** (`feedback_type: final_decision`) + manuscript pushed to `final_version`
 - **wiki/ideas/*.md** / **wiki/methods/*.md** — if a concern exposes an evidence gap, append a suggestion to the relevant section (`## Risks` / `## Lessons learned` for ideas; `## Limitations` for methods)
 - **wiki/log.md** — append log entry
 
@@ -47,6 +49,8 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — rich-text version
 - `wiki/outputs/rebuttal-{slug}.txt` — formal plain-text version
+- `wiki/reviews/{slug}-rebuttal-{round}.md` — rebuttal-type review (`feedback_type: rebuttal`); `wiki/reviews/{slug}-final-decision.md` with `--final-decision`
+- `wiki/manuscripts/{slug}.md` — `status` (→ `submitted` before a rebuttal; → `final_version` on `--final-decision`)
 - `wiki/ideas/*.md` / `wiki/methods/*.md` — append reviewer-identified gaps to `## Risks` / `## Lessons learned` (ideas) or `## Limitations` (methods); do not silently flip an idea's status — only flag concerns
 - `wiki/log.md` — append log entry
 
@@ -297,6 +301,47 @@ Additional Experiments (if applicable):
   python3 tools/research_wiki.py log wiki/ \
     "rebuttal | {N} concerns addressed | {M} evidence gaps | stress-test avg: {score}/5"
   ```
+
+## Review record + --final-decision (active research memory)
+
+`/rebuttal` additionally persists its work as review entities. This is **additive** —
+the existing `wiki/outputs/rebuttal-{slug}.md` / `.txt` artifacts are unchanged and
+remain the response deliverables. `{slug}` is the manuscript/paper slug (same as `--paper-slug`).
+
+### Rebuttal round (default)
+1. A rebuttal presupposes a submitted manuscript. If `wiki/manuscripts/{slug}.md` is
+   still `drafting` / `revised`, transition it first (the lifecycle requires `submitted`
+   before `final_version`):
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to submitted --reason "under review at {venue}"
+   ```
+2. Create `wiki/reviews/{slug}-rebuttal-{round}.md` from `runtime/templates/reviews.md.tmpl`:
+   ```yaml
+   title: {slug} rebuttal round {N}
+   slug: {slug}-rebuttal-{round}
+   feedback_type: rebuttal
+   resolution_status: open
+   linked_manuscript: {slug}
+   ```
+3. Store the atomic `Rvx-Cy` concerns in the review body `## Concerns`; record the author
+   responses + stress-test outcomes in `## Response / Resolution`, and reference the
+   response artifact path (`wiki/outputs/rebuttal-{slug}.md` / `.txt`) there.
+4. Run `python3 tools/lint.py --wiki-dir wiki --fix` to write the reverse link into the
+   manuscript `## Reviews`. Do NOT move the manuscript to `final_version` here — that is
+   decided by a `final_decision` review.
+
+### --final-decision <decision-file>
+Parsing the venue decision / meta-review:
+1. Create `wiki/reviews/{slug}-final-decision.md` with `feedback_type: final_decision`,
+   `linked_manuscript: {slug}`; record accept / reject / revise / withdraw, the meta-review,
+   and any camera-ready requirements in the body.
+2. If the user confirms (or the process is clearly closed), push the manuscript from
+   `submitted` to `final_version`:
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to final_version --reason "{decision}"
+   ```
+   and record the post-decision changes in the manuscript `## Final version notes`.
+3. Run `python3 tools/lint.py --wiki-dir wiki --fix`; append a `research_wiki.py log` line.
 
 ## Constraints
 

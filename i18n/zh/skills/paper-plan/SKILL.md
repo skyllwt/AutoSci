@@ -26,6 +26,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 ## Outputs
 
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — 完整论文计划（PAPER_PLAN.md）
+- `wiki/manuscripts/{slug}.md` — manuscript 草稿记录（status: `drafting`），创建或更新
 - `wiki/graph/edges.jsonl` — 新增 derived_from 边（plan → source ideas/papers）
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/log.md` — 追加日志
@@ -48,6 +49,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 
 ### Writes
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — 论文计划文件
+- `wiki/manuscripts/{slug}.md` — manuscript 草稿记录（status: `drafting`）
 - `wiki/graph/edges.jsonl` — derived_from 边
 - `wiki/graph/context_brief.md` — 重建
 - `wiki/log.md` — 追加操作日志
@@ -291,6 +293,17 @@ mcp__llm-review__chat:
    - Figure/Table Plan（Step 5）
    - Citation Plan + coverage report（Step 6）
    - Review LLM Review Summary（Step 7 关键反馈和修改记录）
+
+   **随后创建/更新 manuscript 草稿记录**（主动研究记忆）——把这项工作登记为一篇
+   可追踪的 manuscript,让它的生命周期(`drafting → revised → submitted →
+   final_version`)留在 wiki 里,而不只停在 `paper/`:
+   - 若 `wiki/manuscripts/{slug}.md` 不存在,用 `runtime/templates/manuscripts.md.tmpl`
+     创建,frontmatter 填 `title`、`slug`、`status: drafting`、`tags`。
+   - 在正文 `## Evidence map` 写入证据映射(Step 2)里的目标 ideas / experiments /
+     methods / papers;在 `## Working notes` 记下 plan 路径。
+   - 把延后字段(`linked_ideas` / `target_venue` / `draft_dir`)留在正文,不进 frontmatter。
+     此处 manuscript 保持 `drafting`,由 `/refine` 推进到 `revised`。
+   - wiki 写入后运行 `python3 tools/lint.py --wiki-dir wiki --fix`(或 `/check --fix`)。
 
 3. **添加 graph edges**：
    ```bash

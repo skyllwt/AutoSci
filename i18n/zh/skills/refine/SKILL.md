@@ -14,6 +14,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 
 - `artifact`：要改进的制品，以下之一：
   - wiki 页面的 slug（从 ideas/experiments/methods/outputs/ 中查找）
+  - manuscript 的 slug（`wiki/manuscripts/{slug}.md`）—— 启用下方的 manuscript 修订循环
   - 文件路径（如 `wiki/outputs/paper-draft-v1.md`）
 - `--max-rounds N`（可选，默认 4）：最大迭代轮次
 - `--target-score N`（可选，默认 8）：目标 review 评分（1-10），达到后停止
@@ -46,6 +47,8 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 - `wiki/experiments/{slug}.md` — 若 artifact 是 experiment plan
 - `wiki/methods/{slug}.md` — 若 review 指出 method 缺口（如 source_papers 缺失、Procedure 偏弱）
 - `wiki/outputs/*.md` — 若 artifact 是 paper draft 或 output
+- `wiki/manuscripts/{slug}.md` — 若 artifact 是 manuscript：`## Version history` + `status`（drafting → revised）
+- `wiki/reviews/{slug}-{date}.md` — 可选的每轮反馈记录（`feedback_type: feedback`）
 - `wiki/graph/edges.jsonl` — 若修复过程中发现新关系
 - `wiki/graph/context_brief.md` — 每轮结束后重建（若 wiki 有变更）
 - `wiki/graph/open_questions.md` — 每轮结束后重建（若 wiki 有变更）
@@ -192,6 +195,28 @@ python3 tools/research_wiki.py rebuild-open-questions wiki/
 python3 tools/research_wiki.py log wiki/ \
   "refine | {artifact-slug} | {N} rounds | score {initial}→{final} | verdict: {verdict}"
 ```
+
+## Manuscript 修订循环（主动研究记忆）
+
+当 artifact 是 manuscript slug 时,`/refine` 是 manuscript 在 `drafting` 与 `revised`
+之间反复演化的主入口:
+
+1. 读 `wiki/manuscripts/{slug}.md`,从其 `## Current draft` 小节取当前草稿路径并对其修订。
+2. 每轮 review 可持久化一个 `wiki/reviews/{slug}-{date}.md` 记录,`feedback_type: feedback`、
+   `linked_manuscript: {slug}`(形态同 `/review --write-review`)。跑 `lint --fix` 把反向链
+   写入 manuscript 的 `## Reviews`。
+3. 应用修复后,在 manuscript 的 `## Version history` 追加一行(版本、日期、触发的 review
+   slug、修改摘要)。
+4. 至少处理过一轮反馈后,推进状态:
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to revised --reason "addressed {review-slug}"
+   ```
+   并标记已处理的 review:
+   `python3 tools/research_wiki.py set-meta wiki/reviews/{review-slug}.md resolution_status addressed`。
+5. wiki 写入后运行 `python3 tools/lint.py --wiki-dir wiki --fix`。
+
+`revised` 之后的状态推进(submitted / final_version)归 `/paper-*` 和 `/rebuttal`,
+不归 `/refine`。
 
 ## Constraints
 

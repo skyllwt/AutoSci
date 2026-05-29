@@ -1,6 +1,6 @@
 ---
 description: General-purpose cross-model review — Review LLM independently reviews any research artifact, outputs structured scores, wiki entity mapping, and improvement suggestions
-argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
+argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness] [--write-review [--manuscript <slug>]]
 ---
 
 # /review
@@ -38,7 +38,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - Wiki Entity Mapping (which ideas/methods need strengthening, which gaps were found)
   - Verdict: `ready` / `needs-work` / `major-revision` / `rethink`
 - If `--difficulty >= hard`: additionally includes multi-round dialogue history and final revised score
-- This skill **does not directly modify the wiki**, but outputs a list of suggested wiki updates
+- This skill **does not modify the wiki by default**, but outputs a list of suggested wiki updates. With `--write-review` it additionally persists a review entity (see the `--write-review` section below).
 
 ## Wiki Interaction
 
@@ -53,8 +53,8 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 - `.claude/skills/shared-references/cross-model-review.md` — reviewer independence principle
 
 ### Writes
-- **None**. Review is a read-only query operation.
-  - Review results are output to terminal; the user or caller (e.g. /refine) decides whether to apply them.
+- **None by default**. Review is a read-only query operation; results are output to terminal and the user or caller (e.g. /refine) decides whether to apply them.
+- With `--write-review`: writes `wiki/reviews/{slug}.md` (`feedback_type: feedback`) and, via `lint --fix`, the reverse link into the linked manuscript's `## Reviews` section.
 
 ### Graph edges created
 - **None**.
@@ -241,6 +241,31 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 2. [MAJOR] {action item}
 3. [MINOR] {action item}
 ```
+
+## --write-review (active research memory)
+
+By default `/review` writes nothing to the wiki. With `--write-review`, additionally
+persist the structured feedback as a review entity (the terminal report is unchanged):
+
+1. Determine the linked manuscript: if the artifact is a manuscript slug or a `paper/`
+   path, resolve/infer the `linked_manuscript` slug; if `--manuscript <slug>` is given,
+   use it; otherwise ask the user. A `linked_manuscript` is **required**.
+2. Create `wiki/reviews/{manuscript}-{date}.md` from `runtime/templates/reviews.md.tmpl`:
+   ```yaml
+   title: {short label}
+   slug: {manuscript}-{date}
+   feedback_type: feedback
+   resolution_status: open
+   linked_manuscript: {manuscript-slug}
+   ```
+3. Map the review output into the body: overall judgment → `## Summary`; weaknesses /
+   questions → `## Concerns`; actionable items → `## Action items`; missing content →
+   `## Evidence gaps`.
+4. Run `python3 tools/lint.py --wiki-dir wiki --fix` to write the reverse link into the
+   manuscript's `## Reviews` section; append a `research_wiki.py log` line.
+
+Do NOT change the manuscript `status` here — if the feedback drives edits, `/refine`
+(or the user) moves the manuscript `drafting → revised`.
 
 ## Constraints
 

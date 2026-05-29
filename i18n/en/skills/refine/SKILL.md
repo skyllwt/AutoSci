@@ -15,6 +15,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 
 - `artifact`: the artifact to improve, one of:
   - slug of a wiki page (searched in ideas/experiments/methods/outputs/)
+  - slug of a manuscript (`wiki/manuscripts/{slug}.md`) — enables the manuscript refinement loop (see below)
   - file path (e.g. `wiki/outputs/paper-draft-v1.md`)
 - `--max-rounds N` (optional, default 4): maximum iteration rounds
 - `--target-score N` (optional, default 8): target review score (1-10); stop when reached
@@ -47,6 +48,8 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 - `wiki/experiments/{slug}.md` — if artifact is an experiment plan
 - `wiki/methods/{slug}.md` — if review flags a method gap (e.g. missing source_papers, weak Procedure)
 - `wiki/outputs/*.md` — if artifact is a paper draft or output
+- `wiki/manuscripts/{slug}.md` — if artifact is a manuscript: `## Version history` + `status` (drafting → revised)
+- `wiki/reviews/{slug}-{date}.md` — optional per-round feedback record (`feedback_type: feedback`)
 - `wiki/graph/edges.jsonl` — if new relationships are discovered during fixes
 - `wiki/graph/context_brief.md` — rebuild after each round if wiki changes were made
 - `wiki/graph/open_questions.md` — rebuild after each round if wiki changes were made
@@ -193,6 +196,30 @@ Append log:
 python3 tools/research_wiki.py log wiki/ \
   "refine | {artifact-slug} | {N} rounds | score {initial}→{final} | verdict: {verdict}"
 ```
+
+## Manuscript refinement loop (active research memory)
+
+When the artifact is a manuscript slug, `/refine` is the main entry for evolving a
+manuscript between `drafting` and `revised`:
+
+1. Read `wiki/manuscripts/{slug}.md`; take the current draft path from its
+   `## Current draft` section and refine that draft.
+2. Each review round MAY persist a `wiki/reviews/{slug}-{date}.md` record with
+   `feedback_type: feedback`, `linked_manuscript: {slug}` (same shape as
+   `/review --write-review`). Run `lint --fix` to wire the reverse link into the
+   manuscript's `## Reviews`.
+3. After applying fixes, append a row to the manuscript `## Version history`
+   (version, date, triggering review slug, change summary).
+4. Once at least one feedback round has been handled, advance the status:
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to revised --reason "addressed {review-slug}"
+   ```
+   and mark the resolved review:
+   `python3 tools/research_wiki.py set-meta wiki/reviews/{review-slug}.md resolution_status addressed`.
+5. Run `python3 tools/lint.py --wiki-dir wiki --fix` after the wiki writes.
+
+Status promotion beyond `revised` (submitted / final_version) is owned by `/paper-*`
+and `/rebuttal`, not `/refine`.
 
 ## Constraints
 

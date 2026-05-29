@@ -1,6 +1,6 @@
 ---
 description: 解析审稿意见 → 原子化 concerns (Rvx-Cy) → 映射到 wiki ideas/methods → 检查 evidence → Review LLM stress-test → 生成 rebuttal
-argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
+argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich] [--final-decision <decision-file>]
 ---
 
 # /rebuttal
@@ -27,6 +27,8 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 - **wiki/outputs/rebuttal-{slug}.md** — 富文本版 rebuttal（含 [[wikilinks]]、evidence 追溯、分析表格）
 - **wiki/outputs/rebuttal-{slug}.txt** — 正式版 rebuttal（plain text，适合 submission system 粘贴）
+- **wiki/reviews/{slug}-rebuttal-{round}.md** — rebuttal 类型 review 记录（`Rvx-Cy` concerns + responses）
+- 加 `--final-decision` 时：**wiki/reviews/{slug}-final-decision.md**（`feedback_type: final_decision`）+ manuscript 推到 `final_version`
 - **wiki/ideas/*.md** / **wiki/methods/*.md** — 若 concern 暴露 evidence gap，在对应章节追加建议（idea 写入 `## Risks` / `## Lessons learned`；method 写入 `## Limitations`）
 - **wiki/log.md** — 追加日志
 
@@ -46,6 +48,8 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — 富文本版
 - `wiki/outputs/rebuttal-{slug}.txt` — formal 纯文本版
+- `wiki/reviews/{slug}-rebuttal-{round}.md` — rebuttal 类型 review（`feedback_type: rebuttal`）；加 `--final-decision` 时另写 `wiki/reviews/{slug}-final-decision.md`
+- `wiki/manuscripts/{slug}.md` — `status`（rebuttal 前 → `submitted`；`--final-decision` 时 → `final_version`）
 - `wiki/ideas/*.md` / `wiki/methods/*.md` — 在 idea 的 `## Risks` / `## Lessons learned` 或 method 的 `## Limitations` 追加 reviewer 发现的 gap；不得静默翻转 idea 的 status，只能标注 concern
 - `wiki/log.md` — 追加日志
 
@@ -296,6 +300,45 @@ Additional Experiments (if applicable):
   python3 tools/research_wiki.py log wiki/ \
     "rebuttal | {N} concerns addressed | {M} evidence gaps | stress-test avg: {score}/5"
   ```
+
+## Review 记录 + --final-decision（主动研究记忆）
+
+`/rebuttal` 额外把工作持久化为 review 实体。这是**追加**的——原有
+`wiki/outputs/rebuttal-{slug}.md` / `.txt` 制品不变,仍是 response 交付物。
+`{slug}` 是 manuscript/paper slug(同 `--paper-slug`)。
+
+### Rebuttal 轮次(默认)
+1. rebuttal 以"已投稿"为前提。若 `wiki/manuscripts/{slug}.md` 还是 `drafting` /
+   `revised`,先推进(生命周期要求 `final_version` 之前必须 `submitted`):
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to submitted --reason "under review at {venue}"
+   ```
+2. 用 `runtime/templates/reviews.md.tmpl` 创建 `wiki/reviews/{slug}-rebuttal-{round}.md`:
+   ```yaml
+   title: {slug} rebuttal round {N}
+   slug: {slug}-rebuttal-{round}
+   feedback_type: rebuttal
+   resolution_status: open
+   linked_manuscript: {slug}
+   ```
+3. 把原子化的 `Rvx-Cy` concerns 存进 review 正文 `## Concerns`;把作者回应 +
+   stress-test 结果记入 `## Response / Resolution`,并在那里引用 response 制品路径
+   (`wiki/outputs/rebuttal-{slug}.md` / `.txt`)。
+4. 运行 `python3 tools/lint.py --wiki-dir wiki --fix` 把反向链写入 manuscript 的
+   `## Reviews`。此处**不**把 manuscript 改为 `final_version`——那由 `final_decision`
+   类型 review 决定。
+
+### --final-decision <decision-file>
+解析 venue decision / meta-review:
+1. 创建 `wiki/reviews/{slug}-final-decision.md`,`feedback_type: final_decision`、
+   `linked_manuscript: {slug}`;在正文记录 accept / reject / revise / withdraw、
+   meta-review,以及 camera-ready 要求。
+2. 若用户确认(或流程明确结束),把 manuscript 从 `submitted` 推到 `final_version`:
+   ```bash
+   python3 tools/research_wiki.py transition wiki/manuscripts/{slug}.md --to final_version --reason "{decision}"
+   ```
+   并把 decision 后的修改记入 manuscript 的 `## Final version notes`。
+3. 运行 `python3 tools/lint.py --wiki-dir wiki --fix`;用 `research_wiki.py log` 追加日志。
 
 ## Constraints
 

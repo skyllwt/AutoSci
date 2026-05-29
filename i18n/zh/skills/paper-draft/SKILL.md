@@ -31,6 +31,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
   - `paper/tables/` — 独立 table 文件（可选）
   - `paper/math_commands.tex` — 共享数学符号定义
   - `paper/references.bib` — 验证的 BibTeX 条目
+- `wiki/manuscripts/{slug}.md` — manuscript 记录更新（正文 `## Current draft`）
 - `wiki/log.md` — 追加日志
 
 ## Wiki Interaction
@@ -51,6 +52,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 
 ### Writes
 - `paper/` 目录（所有文件）
+- `wiki/manuscripts/{slug}.md` — manuscript 记录（正文 `## Current draft`）
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
@@ -251,6 +253,17 @@ mcp__llm-review__chat:
    - 所有 `\includegraphics{figures/X}` 的文件存在
    - 所有 `\cite{key}` 在 references.bib 中有对应条目
    - 所有 `\ref{label}` 有对应 `\label{label}`
+
+   **更新 manuscript 记录**（主动研究记忆）—— `paper/` 是文件制品,
+   `wiki/manuscripts/{slug}.md` 是它在研究记忆中的可追踪实体:
+   - 用 PAPER_PLAN 的 slug 解析 manuscript;若不存在(跳过了 plan),用
+     `runtime/templates/manuscripts.md.tmpl` 创建,`status: drafting`。
+   - 在正文 `## Current draft` 写入当前草稿位置与编译产物,例如
+     `draft: paper/main.tex`、`compiled: paper/main.pdf`(在 `/paper-compile` 跑过后)。
+   - `draft_dir` / `compiled_pdf` 只写正文,不提升为必需 frontmatter(延后字段);
+     此处不改 `status`。
+   - 写入后运行 `python3 tools/lint.py --wiki-dir wiki --fix`。
+
 3. 追加日志：
    ```bash
    python3 tools/research_wiki.py log wiki/ \

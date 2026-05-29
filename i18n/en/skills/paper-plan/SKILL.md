@@ -26,6 +26,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 ## Outputs
 
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — complete paper plan (PAPER_PLAN.md)
+- `wiki/manuscripts/{slug}.md` — manuscript draft record (status: `drafting`), created or updated
 - `wiki/graph/edges.jsonl` — new derived_from edges (plan → source ideas/papers)
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/log.md` — appended log entry
@@ -48,6 +49,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 
 ### Writes
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — paper plan file
+- `wiki/manuscripts/{slug}.md` — manuscript draft record (status: `drafting`)
 - `wiki/graph/edges.jsonl` — derived_from edges
 - `wiki/graph/context_brief.md` — rebuilt
 - `wiki/log.md` — appended operation log
@@ -291,6 +293,18 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    - Figure/Table Plan (Step 5)
    - Citation Plan + coverage report (Step 6)
    - Review LLM Review Summary (Step 7 key feedback and revision record)
+
+   **Then create/update the manuscript draft record** (active research memory) —
+   register the work as a tracked manuscript so its lifecycle (`drafting → revised →
+   submitted → final_version`) lives in the wiki, not just in `paper/`:
+   - If `wiki/manuscripts/{slug}.md` does not exist, create it from
+     `runtime/templates/manuscripts.md.tmpl` with frontmatter `title`, `slug`,
+     `status: drafting`, `tags`.
+   - Fill the body `## Evidence map` with the target ideas / experiments / methods /
+     papers from the Evidence Map (Step 2); note the plan path under `## Working notes`.
+   - Keep deferred fields (`linked_ideas` / `target_venue` / `draft_dir`) in the body,
+     not in frontmatter. The manuscript stays `drafting` — `/refine` advances it to `revised`.
+   - After the wiki writes, run `python3 tools/lint.py --wiki-dir wiki --fix` (or `/check --fix`).
 
 3. **Add graph edges**:
    ```bash
