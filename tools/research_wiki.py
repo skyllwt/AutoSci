@@ -48,6 +48,11 @@ Commands:
     checkpoint-clear <wiki_root> <task_id>
     checkpoint-set-meta <wiki_root> <task_id> <key> <value>
     checkpoint-get-meta <wiki_root> <task_id> [<key>]
+
+    # SciEvolve shared spine
+    scievolve-init <wiki_root>
+    scievolve-record-signal <wiki_root> --source user|task|open --dimension memory|workflow|orchestration --target ... --kind ... --summary ...
+    scievolve-report <wiki_root> [--dimension memory|workflow|orchestration] [--target ...] [--propose] [--json]
 """
 
 from __future__ import annotations
@@ -86,6 +91,26 @@ from runtime.loader import (  # noqa: E402
     validate_edge_attributes,
     validate_lifecycle_transition,
 )
+try:
+    from scievolve import (  # noqa: E402
+        SCIEVOLVE_CONFIDENCE_VALUES,
+        SCIEVOLVE_DIMENSION_VALUES,
+        SCIEVOLVE_SEVERITY_VALUES,
+        SCIEVOLVE_SOURCE_VALUES,
+        scievolve_init,
+        scievolve_record_signal,
+        scievolve_report,
+    )
+except ImportError:  # pragma: no cover - supports `python -m tools.research_wiki`
+    from tools.scievolve import (  # noqa: E402
+        SCIEVOLVE_CONFIDENCE_VALUES,
+        SCIEVOLVE_DIMENSION_VALUES,
+        SCIEVOLVE_SEVERITY_VALUES,
+        SCIEVOLVE_SOURCE_VALUES,
+        scievolve_init,
+        scievolve_record_signal,
+        scievolve_report,
+    )
 
 DERIVED_DIR = "graph"
 
@@ -2770,6 +2795,44 @@ def main():
     p.add_argument("key", nargs="?", default="",
                    help="If given, print the raw value; otherwise print the whole metadata dict as JSON")
 
+    # SciEvolve shared spine
+    p = sub.add_parser("scievolve-init",
+                       help="Initialize the proposal-first SciEvolve store")
+    p.add_argument("wiki_root")
+
+    p = sub.add_parser("scievolve-record-signal",
+                       help="Record a user/task/open-environment signal for SciEvolve")
+    p.add_argument("wiki_root")
+    p.add_argument("--source", required=True,
+                   choices=SCIEVOLVE_SOURCE_VALUES)
+    p.add_argument("--dimension", required=True,
+                   choices=SCIEVOLVE_DIMENSION_VALUES)
+    p.add_argument("--target", default="",
+                   help="Entity slug, skill name, DAG/template name, or other target")
+    p.add_argument("--kind", required=True,
+                   help="Signal kind, e.g. correction, failure, warning, success, cost")
+    p.add_argument("--summary", required=True,
+                   help="Short human-readable signal summary")
+    p.add_argument("--evidence-path", default="",
+                   help="Optional path to supporting evidence")
+    p.add_argument("--evidence-text", default="",
+                   help="Optional short evidence text")
+    p.add_argument("--confidence", default="medium",
+                   choices=SCIEVOLVE_CONFIDENCE_VALUES)
+    p.add_argument("--severity", default="info",
+                   choices=SCIEVOLVE_SEVERITY_VALUES)
+
+    p = sub.add_parser("scievolve-report",
+                       help="Generate a dry-run SciEvolve summary and optional proposals")
+    p.add_argument("wiki_root")
+    p.add_argument("--dimension", default="",
+                   help="Optional filter: memory, workflow, or orchestration")
+    p.add_argument("--target", default="")
+    p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--propose", action="store_true",
+                   help="Write proposal artifacts for matching signal groups")
+    p.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -2855,6 +2918,30 @@ def main():
         checkpoint_set_meta(args.wiki_root, args.task_id, args.key, args.value)
     elif args.command == "checkpoint-get-meta":
         checkpoint_get_meta(args.wiki_root, args.task_id, args.key)
+    elif args.command == "scievolve-init":
+        scievolve_init(args.wiki_root)
+    elif args.command == "scievolve-record-signal":
+        scievolve_record_signal(
+            args.wiki_root,
+            args.source,
+            args.dimension,
+            args.target,
+            args.kind,
+            args.summary,
+            args.evidence_path,
+            args.evidence_text,
+            args.confidence,
+            args.severity,
+        )
+    elif args.command == "scievolve-report":
+        scievolve_report(
+            args.wiki_root,
+            args.dimension,
+            args.target,
+            args.limit,
+            args.propose,
+            args.json,
+        )
     else:
         parser.print_help()
         sys.exit(1)

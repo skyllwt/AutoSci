@@ -11,7 +11,7 @@ edit YAML, restart the tool.
 runtime/
 ├── __init__.py     marks runtime/ as a Python package
 ├── loader.py       schema access API (imported by tools/lint.py + research_wiki.py)
-├── schema/         data-shape contract (4 YAMLs)
+├── schema/         data-shape contract (entity, edge, xref, convention, evolution YAMLs)
 ├── policy/         access control (writers.yaml)
 └── templates/      per-entity body skeletons used by /init and /ingest
 ```
@@ -61,6 +61,11 @@ Every change below is **YAML-only, zero Python change**.  Edit, save, done.
 
 - **Change slug rule, log grammar, ownership zones** — edit the corresponding
   top-level key.
+
+### SciEvolve (`schema/scievolve.yaml`)
+
+- **Evolution signal/proposal contract** — update this when changing the
+  proposal-first `scievolve-*` command storage or field shape.
 
 ## When Python changes ARE needed
 

@@ -1,0 +1,62 @@
+# scievolve.yaml - Proposal-first evolution contract.
+#
+# SciEvolve converts feedback signals from user, task, and open environments
+# into inspectable proposals for three dimensions:
+#   memory        -> /dream
+#   workflow      -> /forge
+#   orchestration -> /morph
+#
+# This file documents the on-disk contract used by
+# `tools/research_wiki.py scievolve-*`. It is intentionally append-friendly
+# JSONL so reviewers and agents can inspect the evolution loop directly.
+
+storage:
+  root: wiki/outputs/evolution/
+  signals: wiki/outputs/evolution/signals.jsonl
+  proposal_index: wiki/outputs/evolution/proposals.jsonl
+  proposal_artifacts: wiki/outputs/evolution/proposals/
+  reports: wiki/outputs/evolution/reports/
+
+signal:
+  required_fields:
+    id: stable signal id
+    timestamp: UTC ISO-8601 timestamp
+    source: user | task | open
+    dimension: memory | workflow | orchestration
+    skill: /dream | /forge | /morph
+    target: entity slug, skill name, DAG/template name, or blank
+    kind: correction | failure | warning | success | cost | review | experiment | external-update | other
+    summary: short human-readable signal summary
+    confidence: low | medium | high
+    severity: info | low | medium | high | critical
+    status: recorded
+  optional_fields:
+    evidence_path: path to supporting artifact
+    evidence_text: short supporting quote or note
+
+proposal:
+  required_fields:
+    id: deterministic proposal id for a signal group
+    created_at: UTC ISO-8601 timestamp
+    dimension: memory | workflow | orchestration
+    skill: /dream | /forge | /morph
+    target: target inherited from the signal group
+    triggering_signals: list of signal ids
+    proposed_action: proposal-first update description
+    rationale: why the signals justify review
+    risk: risk / apply caution
+    status: proposed | approved | applied | rejected | superseded
+    output_path: Markdown artifact path
+    json_path: JSON artifact path
+
+safety:
+  default_mode: proposal-first
+  no_silent_mutation:
+    - wiki entity pages
+    - skills
+    - runtime schemas
+    - DAG templates
+  apply_requires:
+    - explicit user approval
+    - auditable artifact
+    - visible diff or changed-path report
