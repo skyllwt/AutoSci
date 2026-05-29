@@ -5,8 +5,8 @@ argument-hint: "[domain] [--add '概念名']"
 
 # /prefill
 
-> 将领域基础知识（奠基性方法、common practice、标准架构）作为**终端**页面沉淀到 `wiki/foundations/`。
-> Foundations 设计上**单向**：其他页面可以链接到 foundation，foundation 不写反向链接。
+> 将领域基础知识（奠基性方法、common practice、标准架构）作为稳定背景页面沉淀到 `wiki/foundations/`。
+> Foundations 不再是终端节点：`grounded_in` 某 foundation 的 concept/method,以及 `contributes_to_foundation` 的 paper,都会反向写入该 foundation 的 `## Grounds concepts` / `## Grounds methods` / `## Contributed by papers` 正文区。foundation 也可带 `parent_topics`。页面保持精简 —— `/prefill` 只 seed 背景,这些反向区由 `/ingest` 和 `lint --fix` 填。
 
 ## Trigger
 
@@ -135,7 +135,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 
 ## Constraints
 
-- **foundations 是终端节点**：foundation 页面禁止写 `key_papers`、`related_concepts` 或任何外向引用字段。其他页面可链入。
+- **foundation 不是 hub**：`/prefill` 只 seed 背景。唯一的外向字段是 `parent_topics`（foundation 明显归属某 topic 时设置）。不要臆造 `key_papers` / `related_concepts` 这类非 schema 字段。foundation 不再是终端节点 —— `## Grounds concepts` / `## Grounds methods` / `## Contributed by papers` 反向区已在模板里,由 `/ingest` + `lint --fix` 填,而非 `/prefill`。
 - **从不覆盖**已存在的 `wiki/foundations/{slug}.md`（幂等）。
 - **来源区分**：Wikipedia 内容与 LLM 内容必须在页面正文中视觉上区分。
 - **catalog 是建议性的**：seed YAML 由人工维护、不完整，用户可无需改代码自行扩展。

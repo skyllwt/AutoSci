@@ -1,6 +1,6 @@
 # /ingest 交叉引用
 
-在任何 wiki 页面上写链接时，打开此参考。每一条正向链接都有反向义务（指向 foundation 的除外）。下表是合同。
+在任何 wiki 页面上写链接时，打开此参考。每一条正向链接都有反向义务。下表是合同。
 
 ## 正向 → 反向义务
 
@@ -13,18 +13,24 @@
 | `concepts/K` 写 `key_papers: [[paper-P]]` | `papers/P` 的 `## Related` 追加 `K` |
 | `methods/M` 写 `source_papers: [[paper-P]]` | `papers/P` 的 `## Related` 追加 `M` |
 | `methods/M` 写 `parent_methods: [[method-N]]` | `methods/N` 的 `child_methods` 追加 `M`（反之亦然） |
-| 任意页面写 `[[foundation-X]]` | **不写反向链接** —— foundation 是终端节点 |
+| `<entity>/E` 写 `parent_topics: [topic-T]` | `topics/T` 把 `E` 追加到对应的 `key_papers` / `key_concepts` / `key_methods` / `key_foundations` / `key_people` 列表 |
+| `concepts/K` 写 `grounded_in: [foundation-X]` | `foundations/X` 的 `## Grounds concepts` 追加 `[[K]]` |
+| `methods/M` 写 `grounded_in: [foundation-X]` | `foundations/X` 的 `## Grounds methods` 追加 `[[M]]` |
+| `papers/P` 发出 `proposes_method`/`applies_method`/`extends_method` → `methods/M`（edge） | `methods/M` 的 `## Proposed by` / `## Applied by` / `## Extended by` 追加 `[[P]]` |
+| `papers/P` 发出 `contributes_to_foundation` → `foundations/X`（edge） | `foundations/X` 的 `## Contributed by papers` 追加 `[[P]]` |
+| `concepts/A` 发出 `shares_*` / `contrasts_with_concept` → `concepts/B`（对称 edge） | 仅图谱层；无 body 反向（endpoint 已规范化） |
 
 写了正向却没写反向，是 `/check` 报 `missing-field` 的最常见来源。把两边放在同一 turn 内做，整类错误就被消灭。
 
-## Foundation 是终端节点
+## Foundation 不再是终端节点
 
-`/ingest` 不得修改 foundation 页面。没有 `key_papers` 字段，也没有任何形式的反向引用。一篇论文链到 foundation，只留下两处痕迹：
+`/ingest` 永远不**新建** foundation —— foundation 由 `/prefill` seed。但 foundation **不再**是终端节点：链入它的关系现在会把反向写进 foundation 正文：
 
-- 论文页面 `## Related` 中的 `[[foundation-slug]]`
-- `wiki/graph/edges.jsonl` 中一条 `paper → foundation`、type 为 `derived_from` 的 edge
+- `concepts.grounded_in` → foundation 的 `## Grounds concepts`
+- `methods.grounded_in` → foundation 的 `## Grounds methods`
+- 来自论文的 `contributes_to_foundation` edge → foundation 的 `## Contributed by papers`
 
-foundation 仅由 `/prefill` 创建。`/ingest` 永远不新建 foundation —— 即便某个 concept 候选看起来像是 foundational 却没有匹配。这种情况下，走普通 concept 路径（必要时新建 concept 页面），让用户日后需要时自行 seed foundation。
+在同一 turn 内追加反向,或跑 `lint --fix` 回填。论文建立在教科书背景之上时,走 `contributes_to_foundation`(一条带 `--confidence`/`--evidence` 的、有证据的 edge),而不是普通链接。若某个 concept 候选看起来像 foundational 却没有匹配,仍走普通 concept 路径(必要时新建 concept 页面),让用户日后用 `/prefill` seed foundation。
 
 ## paper-to-concept 语义 edge
 
@@ -39,6 +45,27 @@ edge 类型选择：
 
 在 `introduces_concept` 与 `uses_concept` 之间不确定时，选 `uses_concept`。在 `uses_concept` 与 `extends_concept` 之间不确定时，也选 `uses_concept`。不要再写 `paper → concept` 的 `supports` 或普通 `extends`。
 该工具会拒绝缺少 confidence/evidence 的新写入，也会拒绝 legacy paper-to-concept edge 类型。
+
+## paper-to-method 语义 edge
+
+paper 与 method 的关系是提出、应用或扩展。每条 `paper → method` edge 都要带 `--confidence high|medium|low` 与 `--evidence`：
+
+- **`proposes_method`** —— 论文把该方法作为贡献提出（它是该方法的 source paper）。
+- **`applies_method`** —— 论文基本原样使用一个已有方法。
+- **`extends_method`** —— 论文修改、泛化或在已有方法之上扩展。
+
+反向落在 method 页的 `## Proposed by` / `## Applied by` / `## Extended by` 区（同一 turn 内追加,或由 `lint --fix` 补）。`methods.source_papers` 仍是"提出或复用该方法的论文"的稳定 frontmatter 索引。
+
+## concept-to-concept 语义 edge
+
+仅当原文明确表达两个 concept 之间的关系时,加一条**对称** edge（带 `--confidence`、`--evidence`）：
+
+- **`shares_mechanism_with`** —— 两个 concept 依赖同一底层机制。
+- **`shares_assumption_with`** —— 它们建立在相同假设之上。
+- **`related_problem_formulation`** —— 它们以不同方式形式化同一问题。
+- **`contrasts_with_concept`** —— 它们是明确对立 / 互斥的 framing。
+
+对称 edge 由 `add-edge` 规范化（endpoint 排序、`symmetric: true`）—— 没有单独的 body 反向。松散、无类型的关联用 `related_concepts`（frontmatter）；这些 typed edge 留给论文确实陈述的关系。
 
 ## paper-to-paper edge
 
@@ -75,7 +102,7 @@ survey 关系由 `papers.contribution_type` 包含 `survey` 派生。
 1. 决定建立此链接。
 2. 在源页面写正向条目。
 3. 在目标页面写反向条目。
-4. 若该链接对应一条 semantic graph edge（paper↔concept、paper↔paper、paper→foundation），通过 `tools/research_wiki.py add-edge` 写出。
+4. 若该链接对应一条 semantic graph edge（paper↔concept、paper→method、paper→foundation contribution、concept↔concept、paper↔paper），通过 `tools/research_wiki.py add-edge` 写出。
 5. 若一条 paper reference 能解析到已有 paper 页面，通过 `tools/research_wiki.py add-citation` 写出 bibliographic 记录。
 
 这种做法让 `/check` 下一轮不会报半吊子链接。也让回滚变简单：若某篇论文 ingest 被中止，直接撤销该论文的编辑就能把两侧同时撤销。

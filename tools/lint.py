@@ -331,22 +331,37 @@ def check_link_field_targets(wiki_dir: Path, pages: dict[str, Path]) -> list[Lin
 
 
 def _extract_list_field_slugs(content: str, field: str) -> list[str]:
-    """Pull bare slugs from a flow-style YAML list `field: [a, "b", 'c']`.
+    """Pull bare slugs from a YAML list field, flow-style OR block-style.
 
-    Anchored to start-of-line (MULTILINE) so it only matches a top-level
-    frontmatter/body field, not an incidental occurrence inside prose. Splits
-    on `,` (slugs are hyphen-separated, never contain whitespace, so comma is
-    the unambiguous separator) and strips surrounding quotes — without quote
-    stripping, `key_papers: ["paper-a"]` would yield `'"paper-a"'` and silently
-    miss every wikilink check.
+    Flow:   ``field: [a, "b", 'c']``
+    Block:  ``field:`` then indented ``- a`` / ``- b`` lines.
+
+    Both are anchored to start-of-line (MULTILINE) so only a top-level
+    frontmatter/body field matches, not an incidental occurrence inside prose.
+    Surrounding quotes are stripped — without it, ``key_papers: ["paper-a"]``
+    would yield ``'"paper-a"'`` and silently miss every wikilink check. The two
+    patterns are mutually exclusive for any single occurrence (flow needs ``[``
+    on the same line; block needs an empty value followed by ``- `` items), so
+    no slug is double-counted.
     """
     out: list[str] = []
-    pat = re.compile(rf"^{re.escape(field)}:\s*\[(.*?)\]", re.MULTILINE)
-    for match in pat.finditer(content):
+    # Flow-style: field: [a, b]
+    flow = re.compile(rf"^{re.escape(field)}:\s*\[(.*?)\]", re.MULTILINE)
+    for match in flow.finditer(content):
         for raw in match.group(1).split(","):
             slug = raw.strip().strip('"').strip("'").strip()
             if slug:
                 out.append(slug)
+    # Block-style: field:\n  - a\n  - b
+    block = re.compile(rf"^{re.escape(field)}:[ \t]*$\n((?:[ \t]*-[ \t]*\S.*\n?)+)",
+                       re.MULTILINE)
+    for match in block.finditer(content):
+        for line in match.group(1).splitlines():
+            item = line.strip()
+            if item.startswith("-"):
+                slug = item[1:].strip().strip('"').strip("'").strip()
+                if slug:
+                    out.append(slug)
     return out
 
 

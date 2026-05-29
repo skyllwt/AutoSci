@@ -5,7 +5,7 @@ description: Scan the full wiki to detect health issues and produce a tiered fix
 # /check
 
 > Scans the full wiki to detect structural, link, field, and graph health issues, and generates a tiered fix-recommendation report.
-> Covers every entity type declared in `runtime/schema/entities.yaml` (papers, concepts, topics, people, ideas, experiments, methods, Summary, foundations), plus graph edge / citation consistency. Highlights include: idea novelty-score plausibility, idea failure-reason completeness, experiment `linked_idea` validity.
+> Covers every entity type declared in `runtime/schema/entities.yaml` (papers, concepts, topics, people, ideas, experiments, methods, foundations, manuscripts, reviews), plus graph edge / citation consistency. Highlights include: idea novelty-score plausibility, idea failure-reason completeness, experiment `linked_idea` validity.
 
 ## Inputs
 
@@ -29,9 +29,10 @@ description: Scan the full wiki to detect health issues and produce a tiered fix
 - `wiki/people/*.md` — people page fields and links
 - `wiki/ideas/*.md` — idea status, novelty_score, failure_reason, origin_gaps, target_venue
 - `wiki/experiments/*.md` — experiment status, linked_idea, outcome
-- `wiki/methods/*.md` — method type, source_papers, parent/child chains
-- `wiki/Summary/*.md` — survey page fields
-- `wiki/foundations/*.md` — foundations (terminal — incoming-link checks only)
+- `wiki/methods/*.md` — method type, source_papers, parent/child chains, grounded_in, parent_topics
+- `wiki/foundations/*.md` — foundation fields + grounding/contribution reverse sections (no longer terminal)
+- `wiki/manuscripts/*.md` — manuscript status, slug, tags, `## Reviews` reverse
+- `wiki/reviews/*.md` — feedback_type, resolution_status, linked_manuscript
 - `wiki/graph/edges.jsonl` — semantic graph edge consistency check
 - `wiki/graph/citations.jsonl` — bibliographic citation consistency check
 - `wiki/index.md` — cross-check page completeness
@@ -75,13 +76,14 @@ The automated tool checks:
 3. **Missing required fields** (per entity declared in `runtime/schema/entities.yaml`). Authoritative source: `runtime.loader.REQUIRED_FIELDS`. Current set:
    - papers: title, slug, tags, importance
    - concepts: title, tags, maturity, key_papers
-   - topics: title, tags
+   - topics: title, slug, tags, topic_kind
    - people: name
    - methods: name, slug, type, tags
-   - Summary: title, scope, key_topics
    - ideas: title, slug, status, origin, tags, priority
    - experiments: title, slug, status, linked_idea, hypothesis, tags
    - foundations: title, slug, domain, status
+   - manuscripts: title, slug, status, tags
+   - reviews: title, slug, feedback_type, resolution_status, linked_manuscript
 
 ### Step 3: Field Value Validation (automated coverage)
 
@@ -94,6 +96,10 @@ The automated tool checks:
    - experiments.outcome ∈ {succeeded, failed, inconclusive}
    - methods.type ∈ {architecture, training, inference, evaluation, data, benchmark, system, optimization, prompting, protocol, other}
    - foundations.status ∈ {mainstream, historical}
+   - topics.topic_kind ∈ {domain, subfield, problem, bridge, project_area}
+   - manuscripts.status ∈ {drafting, revised, submitted, final_version}
+   - reviews.feedback_type ∈ {feedback, rebuttal, final_decision}
+   - reviews.resolution_status ∈ {open, addressed, superseded}
 2. **Idea novelty_score** (when present) ∈ [1, 5] (integer)
 3. **Idea failure_reason**: must be non-empty when status=failed (anti-repetition memory)
 4. **Experiment linked_idea**: the referenced idea page must exist

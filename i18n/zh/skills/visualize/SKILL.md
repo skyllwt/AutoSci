@@ -190,8 +190,9 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 | `ideas`       | `#A8DADC` | `"5"`             |
 | `experiments` | `#9B5DE5` | `"6"`             |
 | `methods`     | `#84CC16` | `"3"`             |
-| `Summary`     | `#90BE6D` | `"4"`             |
 | `foundations` | `#B5B5B5` | `"6"`             |
+| `manuscripts` | `#9B59B6` | `"6"`             |
+| `reviews`     | `#16A085` | `"2"`             |
 
 ### 边颜色（HTML 模式，按语义类别）
 

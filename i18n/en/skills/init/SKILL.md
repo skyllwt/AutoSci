@@ -21,7 +21,7 @@ Use these local references on demand:
 
 ## Outputs
 
-- `wiki/` scaffold and provisional pages (Summary, topics, ideas, concepts)
+- `wiki/` scaffold and provisional pages (topics, ideas, concepts)
 - `raw/tmp/` and `raw/discovered/` prepared sources
 - Final paper pages via parallel `/ingest` subagents
 - `.checkpoints/init-*.json` manifests for resume and replay
@@ -130,7 +130,7 @@ Then run:
 
 ### Step 4: Create scaffold pages before paper ingest
 
-Create one `wiki/Summary/{area}.md`, the needed `wiki/topics/{slug}.md`, and provisional `ideas/`, `concepts/`, and (optionally) `methods/` from notes/web when warranted.
+Create the needed `wiki/topics/{slug}.md` (each with required `title`, `slug`, and `topic_kind`), and provisional `ideas/`, `concepts/`, and (optionally) `methods/` from notes/web when warranted. There is no `Summary` entity — area-level synthesis / landscape goes into the topic body's `## Overview` and `## Synthesis notes` sections.
 
 Rules:
 
@@ -141,7 +141,7 @@ Rules:
 Provisional note: seeded from raw/notes or raw/web during /init; pending validation from ingested papers.
 ```
 
-- `topics/`: create when a direction is explicit or repeated
+- `topics/`: create when a direction is explicit or repeated; set required `title` / `slug` / `topic_kind` (default `subfield`), and capture area overview / synthesis in the topic's `## Overview` / `## Synthesis notes` body (the former `Summary` role)
 - `ideas/`: create when the user states or strongly implies a research direction or hypothesis
 - `concepts/`: create only when the mechanism recurs across notes/web, or appears once in notes/web and once in the final paper set
 - `methods/`: do not create from `/init` unless the user explicitly names a reusable, citable method in notes/web; ingest is responsible for promoting paper methods into reusable method entities

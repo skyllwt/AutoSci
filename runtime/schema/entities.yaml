@@ -55,6 +55,7 @@ topics:
   dir: wiki/topics/
   fields:
     title:          { type: str, required: true }
+    slug:           { type: str, required: true }
     tags:           { type: list_str, required: true, default: [] }
     topic_kind:
       type: enum

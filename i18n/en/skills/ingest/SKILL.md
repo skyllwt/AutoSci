@@ -48,6 +48,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 - `wiki/methods/{slug}.md` — CREATE (new, only when the method is named, reusable, and citable across papers) or EDIT (append `source_papers`)
 - `wiki/people/{slug}.md` — CREATE (importance ≥ 4 only) or EDIT (append into `## Recent work`)
 - `wiki/topics/{slug}.md` — EDIT only (no CREATE from `/ingest`)
+- `wiki/foundations/{slug}.md` — EDIT only (append grounding / contribution reverse sections; foundations are no longer terminal)
 - `wiki/graph/edges.jsonl` — APPEND via tool
 - `wiki/graph/citations.jsonl` — APPEND via tool
 - `wiki/graph/context_brief.md` — REBUILD (skipped in INIT MODE)
@@ -59,7 +60,9 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 ### Graph edges created
 
 - `paper → concept`: `introduces_concept` / `uses_concept` / `extends_concept` / `critiques_concept` with `confidence`
-- `paper → foundation`: `derived_from` (foundation is terminal; no reverse link)
+- `paper → method`: `proposes_method` / `applies_method` / `extends_method` with `confidence` (reverse → method `## Proposed by` / `## Applied by` / `## Extended by`)
+- `paper → foundation`: `contributes_to_foundation` with `confidence` (reverse → foundation `## Contributed by papers`; foundations are no longer terminal)
+- `concept ↔ concept`: `shares_mechanism_with` / `shares_assumption_with` / `related_problem_formulation` / `contrasts_with_concept` (symmetric, with `confidence`) — only when the source text makes the relation explicit
 - `paper → paper`: `same_problem_as` / `similar_method_to` / `builds_on` / `challenges` with `confidence`
 - bibliographic `paper → paper`: `cites` in `graph/citations.jsonl`
 
@@ -163,8 +166,10 @@ Follow `references/dedup-policy.md`. In short:
 3. Prefer merging into the top result. Create a new page only when no acceptable candidate exists and the paper's importance justifies it. The `## Method` body section on the paper page is **always** filled (it is this paper's own method narrative); a separate `wiki/methods/{slug}.md` is only created when the technique is namable, reusable, and likely to be referenced by other papers.
 4. For each entity you write or edit, write the reverse link in the same turn. The obligation matrix lives in `references/cross-references.md`.
 5. Create a `wiki/people/{slug}.md` only for papers with importance ≥ 4. Otherwise append the paper's `[[paper-slug]]` to existing author pages' `## Recent work` only. People entities use `research_areas` (list_str) and a `type.kind` enum (`researcher` / `team` / `organization`); only assign `type.kind = team` or `organization` when the byline itself names the team or organization (do not infer it from a researcher's affiliation).
-6. When creating a `wiki/concepts/{slug}.md` and the concept clearly belongs under an existing topic (e.g. all "self-improving coding agents" subtopics), set `parent_topic: <topic-slug>` (bare slug, NOT `[[wikilink]]` — `parent_topic` is `link`-typed, not `list_link`). The reverse `## Concepts` body section on the topic page must be appended in the same turn.
-7. When creating or editing a `wiki/methods/{slug}.md`, populate `realizes_concepts: [[c1], [c2], ...]` for any concept this method instantiates (typically the concept(s) introduced by the same paper). The reverse `## Realized by` body section on each concept page must be appended in the same turn.
+6. When creating a `wiki/concepts/{slug}.md` and the concept clearly belongs under one or more existing topics (e.g. all "self-improving coding agents" subtopics), set `parent_topics: [topic-a, topic-b]` (bare slugs — `parent_topics` is `list_link`-typed). The reverse is each topic's `key_concepts` frontmatter list — append the concept slug there in the same turn (or run `lint --fix`). Also set `grounded_in: [foundation-slug, ...]` for any foundation this concept rests on (reverse → foundation `## Grounds concepts`).
+7. When creating or editing a `wiki/methods/{slug}.md`, populate `realizes_concepts: [[c1], [c2], ...]` for any concept this method instantiates (typically the concept(s) introduced by the same paper); the reverse `## Realized by` body section on each concept page is appended in the same turn. Also set `grounded_in: [foundation-slug, ...]` (reverse → foundation `## Grounds methods`) and `parent_topics` when the method clearly sits under a topic.
+8. Record the paper's relation to each method it discusses as a typed edge via `add-edge` (with `--confidence` and `--evidence`): `proposes_method` (this paper introduces the method), `applies_method` (uses an existing method), or `extends_method` (modifies/builds on one). The reverse `## Proposed by` / `## Applied by` / `## Extended by` section on the method page is appended in the same turn (or by `lint --fix`).
+9. When the source text explicitly relates two concepts, add a **symmetric** concept↔concept edge via `add-edge` (with `--confidence` and `--evidence`): `shares_mechanism_with`, `shares_assumption_with`, `related_problem_formulation`, or `contrasts_with_concept`. Do not invent relations the paper does not state.
 
 ### Step 5: Paper-to-paper edges and `cited_by`
 
@@ -245,7 +250,7 @@ Append the markdown output to the report under a heading like "Related papers yo
 - `raw/papers/`, `raw/notes/`, `raw/web/` are user-owned and read-only. Direct local `/ingest` may add prepared sidecars under `raw/tmp/`; direct arXiv ingests may write fetched source artifacts under `raw/discovered/`. INIT MODE treats all of `raw/` as read-only.
 - `wiki/graph/` is tool-owned. Edit only through `tools/research_wiki.py`.
 - Slugs always come from `tools/research_wiki.py slug`. Never hand-craft.
-- Every forward link writes its reverse link in the same turn — the wiki's bidirectional-link invariant. The only exception is links to `wiki/foundations/`, which are terminal.
+- Every forward link writes its reverse link in the same turn — the wiki's bidirectional-link invariant. Foundations are no longer terminal: `grounded_in` / `contributes_to_foundation` links reverse into the foundation's `## Grounds concepts` / `## Grounds methods` / `## Contributed by papers` body section (append in the same turn, or run `lint --fix` to backfill).
 - In INIT MODE, do not write reverse links into pages that already exist (created by a sibling worktree or scaffold). Record the relationship via `tools/research_wiki.py add-edge` only; the parent `/init` backfills reverse links during fan-in.
 - Source priority: `.tex` > `.pdf` > vision API fallback. Never ingest from a PDF when a usable `.tex` is available.
 - Ingest is conservative about new entities:

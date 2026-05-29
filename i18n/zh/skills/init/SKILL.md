@@ -21,7 +21,7 @@ argument-hint: "[topic] [--no-introduction]"
 
 ## Outputs
 
-- `wiki/` 骨架与 provisional 页面（Summary、topics、ideas、concepts）
+- `wiki/` 骨架与 provisional 页面（topics、ideas、concepts）
 - `raw/tmp/` 与 `raw/discovered/` 预处理来源
 - 并行 `/ingest` 产出的最终论文页面
 - `.checkpoints/init-*.json` 清单，用于恢复与重放
@@ -130,7 +130,7 @@ export PYTHON_BIN
 
 ### Step 4: 在论文 ingest 前建立 scaffold 页面
 
-创建一篇 `wiki/Summary/{area}.md`、若干 `wiki/topics/{slug}.md`，以及来自 notes/web 的 provisional `ideas/`、`concepts/`，必要时还包括 `methods/`。
+创建若干 `wiki/topics/{slug}.md`（每个都带必填 `title`、`slug`、`topic_kind`），以及来自 notes/web 的 provisional `ideas/`、`concepts/`，必要时还包括 `methods/`。没有 `Summary` 实体 —— 领域级 synthesis / 全景写进 topic 正文的 `## Overview` 与 `## Synthesis notes`。
 
 规则：
 
@@ -141,7 +141,7 @@ export PYTHON_BIN
 Provisional note: seeded from raw/notes or raw/web during /init; pending validation from ingested papers.
 ```
 
-- `topics/`：方向被明确提到或反复出现时创建
+- `topics/`：方向被明确提到或反复出现时创建；设置必填 `title` / `slug` / `topic_kind`（默认 `subfield`），并把领域 overview / synthesis 写进 topic 的 `## Overview` / `## Synthesis notes` 正文（原 `Summary` 的角色）
 - `ideas/`：用户明确提出或强烈暗示研究方向 / 假设时创建
 - `concepts/`：技术机制在 notes/web 中反复出现，或在 notes/web 与最终论文集中各出现至少一次时创建
 - `methods/`：除非用户在 notes/web 中显式命名了一项可复用、可被引用的 method，否则 `/init` 不创建 `methods/`；把论文中的 method 推升为可复用 method 实体是 ingest 的职责

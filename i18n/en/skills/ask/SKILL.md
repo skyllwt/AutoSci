@@ -35,11 +35,10 @@ argument-hint: <question>
 - `wiki/papers/*.md` — paper pages relevant to the question
 - `wiki/concepts/*.md` — concept pages relevant to the question
 - `wiki/methods/*.md` — method pages relevant to the question
-- `wiki/topics/*.md` — topic pages relevant to the question
+- `wiki/topics/*.md` — topic pages relevant to the question (incl. `## Overview` / `## Synthesis notes` / `## Open problems` for domain-wide landscape)
 - `wiki/people/*.md` — if the question involves specific researchers
 - `wiki/ideas/*.md` — if the question involves research ideas or failed ideas
 - `wiki/experiments/*.md` — if the question involves experiment results
-- `wiki/Summary/*.md` — if the question involves domain-wide landscape
 
 ### Writes (crystallize mode only)
 - `wiki/outputs/{query-slug}.md` — CREATE (query result page)

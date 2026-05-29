@@ -1,6 +1,6 @@
 # /ingest Cross-References
 
-Open this reference when you are writing a link on any wiki page. Every forward link has a reverse obligation (except to foundations). The table below is the contract.
+Open this reference when you are writing a link on any wiki page. Every forward link has a reverse obligation. The table below is the contract.
 
 ## Forward → reverse obligation
 
@@ -13,18 +13,24 @@ Mirrors the matrix in the root `CLAUDE.md` ("Cross-Reference Rules"), trimmed to
 | `concepts/K` writes `key_papers: [[paper-P]]` | `papers/P` appends `K` to `## Related` |
 | `methods/M` writes `source_papers: [[paper-P]]` | `papers/P` appends `M` to `## Related` |
 | `methods/M` writes `parent_methods: [[method-N]]` | `methods/N` appends `M` to `child_methods` (and vice versa) |
-| any page writes `[[foundation-X]]` | **no reverse link** — foundations are terminal |
+| `<entity>/E` writes `parent_topics: [topic-T]` | `topics/T` appends `E` to its matching `key_papers` / `key_concepts` / `key_methods` / `key_foundations` / `key_people` list |
+| `concepts/K` writes `grounded_in: [foundation-X]` | `foundations/X` appends `[[K]]` to `## Grounds concepts` |
+| `methods/M` writes `grounded_in: [foundation-X]` | `foundations/X` appends `[[M]]` to `## Grounds methods` |
+| `papers/P` emits `proposes_method`/`applies_method`/`extends_method` → `methods/M` (edge) | `methods/M` appends `[[P]]` to `## Proposed by` / `## Applied by` / `## Extended by` |
+| `papers/P` emits `contributes_to_foundation` → `foundations/X` (edge) | `foundations/X` appends `[[P]]` to `## Contributed by papers` |
+| `concepts/A` emits `shares_*` / `contrasts_with_concept` → `concepts/B` (symmetric edge) | graph-only; no body reverse (canonicalized endpoints) |
 
 Writing a forward link without its reverse is the most common way `/check` surfaces `missing-field` errors. Doing both together eliminates the class entirely.
 
-## Foundations are terminal
+## Foundations (no longer terminal)
 
-Never modify a foundation page from `/ingest`. No `key_papers` field, no back-reference of any kind. A paper linking to a foundation leaves a trace only in two places:
+`/ingest` never *creates* a foundation — foundations are seeded by `/prefill`. But foundations are **not** terminal anymore: links into them carry reverses written into the foundation's body:
 
-- the paper page's `## Related` contains `[[foundation-slug]]`
-- `wiki/graph/edges.jsonl` contains the `paper → foundation` edge with type `derived_from`
+- `concepts.grounded_in` → foundation `## Grounds concepts`
+- `methods.grounded_in` → foundation `## Grounds methods`
+- a `contributes_to_foundation` edge from a paper → foundation `## Contributed by papers`
 
-Foundations are created only by `/prefill`. `/ingest` never creates foundations, even when a concept candidate looks foundational and has no match. In that case, route the candidate through the ordinary concept path (possibly creating a new concept page), and let the user seed a foundation later if they want to.
+Append the reverse in the same turn, or run `lint --fix` to backfill it. A paper that builds on textbook background routes through `contributes_to_foundation` (an evidence-bearing edge with `--confidence`/`--evidence`), not a generic link. If a concept candidate looks foundational and has no match, still route it through the ordinary concept path (possibly a new concept page) and let the user seed a foundation later via `/prefill`.
 
 ## Paper-to-concept semantic edges
 
@@ -44,6 +50,27 @@ choose `uses_concept`. Do not emit `paper → concept` edges of type `supports` 
 plain `extends`.
 The tool rejects missing confidence/evidence and legacy paper-to-concept edge
 types on new writes.
+
+## Paper-to-method semantic edges
+
+Papers relate to methods by proposing, applying, or extending them. Each `paper → method` edge needs `--confidence high|medium|low` and `--evidence`:
+
+- **`proposes_method`** — the paper introduces the method as a contribution (it is the method's source paper).
+- **`applies_method`** — the paper uses an existing method largely as-is.
+- **`extends_method`** — the paper modifies, generalizes, or builds on an existing method.
+
+The reverse lands in the method page's `## Proposed by` / `## Applied by` / `## Extended by` section (append in the same turn, or via `lint --fix`). `methods.source_papers` stays the stable frontmatter index of papers that introduced or reuse the method.
+
+## Concept-to-concept semantic edges
+
+Only when the source text explicitly relates two concepts, add a **symmetric** edge (`--confidence`, `--evidence`):
+
+- **`shares_mechanism_with`** — the concepts rely on the same underlying mechanism.
+- **`shares_assumption_with`** — they rest on the same assumption(s).
+- **`related_problem_formulation`** — they formalize the same problem differently.
+- **`contrasts_with_concept`** — they are explicitly opposed / mutually exclusive framings.
+
+`add-edge` canonicalizes symmetric endpoints (sorted, `symmetric: true`) — there is no separate body reverse. Use `related_concepts` (frontmatter) for loose, untyped association; reserve these typed edges for relations the paper actually states.
 
 ## Paper-to-paper edges
 
@@ -88,7 +115,7 @@ For every link `/ingest` writes, the reverse should land in the same turn. In pr
 1. Decide on the link.
 2. Write the forward entry on the originating page.
 3. Write the reverse entry on the target page.
-4. If the link also corresponds to a semantic graph edge (paper↔concept, paper↔paper, paper→foundation), emit it via `tools/research_wiki.py add-edge`.
+4. If the link also corresponds to a semantic graph edge (paper↔concept, paper→method, paper→foundation contribution, concept↔concept, paper↔paper), emit it via `tools/research_wiki.py add-edge`.
 5. If a paper reference resolves to an existing paper page, emit the bibliographic row via `tools/research_wiki.py add-citation`.
 
 This pattern keeps `/check` from flagging half-written links in its next run. It also makes rollbacks straightforward: if a paper ingest is aborted, you can undo both sides together by reverting the paper's edits.

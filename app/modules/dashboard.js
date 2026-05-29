@@ -123,6 +123,18 @@ function renderHeadline() {
   let edgeCount = 0;
   for (const arr of state.backlinkIndex.values()) edgeCount += arr.length;
 
+  // Manuscript lifecycle breakdown (first-phase active-research metric).
+  const manuscripts = state.entitiesByType.manuscripts || [];
+  const MS_STATUSES = ["drafting", "revised", "submitted", "final_version"];
+  const msByStatus = MS_STATUSES
+    .map((s) => ({ s, n: manuscripts.filter((m) => (m.status || "drafting") === s).length }))
+    .filter((x) => x.n > 0);
+  const msBreakdown = manuscripts.length
+    ? `<div class="headline-substatus muted small">Manuscripts by status: ${
+        msByStatus.map((x) => `${esc(x.s)} ${x.n}`).join(" · ") || "—"
+      }</div>`
+    : "";
+
   const cells = [
     { label: "Papers", value: counts.papers || 0, color: "#4A90D9" },
     { label: "Concepts", value: counts.concepts || 0, color: "#EC4899" },
@@ -144,6 +156,7 @@ function renderHeadline() {
           </div>
         `).join("")}
       </div>
+      ${msBreakdown}
     </section>
   `;
 }

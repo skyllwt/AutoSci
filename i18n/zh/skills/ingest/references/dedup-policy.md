@@ -32,7 +32,7 @@ method 没有 `find-similar-method` 工具。直接扫 `wiki/methods/*.md`：阅
 
 concept 读取 top 结果的 `score`：
 
-- **top 结果是 foundation 且 score ≥ 0.40** —— 走 foundation link 路径。候选是教科书级背景知识，不是新机制。在 `edges.jsonl` 写一条 `derived_from` edge，在 paper 的 `## Related` 里写 `[[foundation-slug]]`。不得修改 foundation 页面（foundation 是终端节点，见 `references/cross-references.md`）。foundation link 不计入每篇论文的新建上限。
+- **top 结果是 foundation 且 score ≥ 0.40** —— 走 foundation link 路径。候选是教科书级背景知识，不是新机制。在 `edges.jsonl` 写一条 `contributes_to_foundation` edge（带 `--confidence`/`--evidence`）；其反向落在 foundation 的 `## Contributed by papers` 区（同一 turn 内追加，或跑 `lint --fix`）。foundation 不再是终端节点 —— 见 `references/cross-references.md`。foundation link 不计入每篇论文的新建上限。
 - **score ≥ 0.80** —— 合并。候选与 top 是同一概念。把本论文追加到已有页面的 `key_papers`，补 graph edge，写反向链接。concept 默认用 `uses_concept`；只有论文实质修改、泛化或特化该 concept 时才用 `extends_concept`；只有明确批评时才用 `critiques_concept`。不要新建文件。
 - **score 0.40–0.80** —— 阅读 top 的 `## Definition` 再决定。默认合并。只有当你能指出具体的技术差异时才新建：不同机制、不同形式化。若候选是已有 concept 的有意义子类，合并并在 `## Variants` 追加一条 bullet，而不是拆分。
 - **score < 0.40 或结果为空** —— 无已有匹配。允许新建，但要遵守下面的每篇上限。

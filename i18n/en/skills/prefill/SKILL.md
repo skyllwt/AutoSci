@@ -5,8 +5,8 @@ argument-hint: "[domain] [--add 'concept name']"
 
 # /prefill
 
-> Sediments foundational background (seminal methods, common practice, standard architectures) into `wiki/foundations/` as **terminal** pages.
-> Foundations are single-direction by design: other pages link to them, foundations write no reverse links.
+> Sediments foundational background (seminal methods, common practice, standard architectures) into `wiki/foundations/` as stable background pages.
+> Foundations are no longer terminal: concepts/methods that are `grounded_in` a foundation, and papers that `contributes_to_foundation`, reverse into the foundation's `## Grounds concepts` / `## Grounds methods` / `## Contributed by papers` body sections. A foundation may also carry `parent_topics`. Keep the page lean — `/prefill` seeds background; those reverse sections are filled by `/ingest` and `lint --fix`.
 
 ## Trigger
 
@@ -135,7 +135,7 @@ Remind the user that subsequent `/ingest` runs will dedup against these foundati
 
 ## Constraints
 
-- **foundations are terminal**: never write `key_papers`, `related_concepts`, or any outbound reference field on a foundation page. Other pages may link in.
+- **foundations are not hubs**: `/prefill` only seeds background. The sole outbound field is `parent_topics` (set it when the foundation clearly sits under a topic). Do not invent non-schema fields like `key_papers` / `related_concepts`. Foundations are no longer terminal — `## Grounds concepts` / `## Grounds methods` / `## Contributed by papers` reverse sections exist in the template and are filled by `/ingest` + `lint --fix`, not by `/prefill`.
 - **never overwrite** an existing `wiki/foundations/{slug}.md` (idempotent re-runs).
 - **distinguish sources**: Wikipedia-derived content vs. LLM-derived content must be visually distinct in the page body.
 - **catalog is advisory**: the YAML seed list is hand-curated and incomplete. Users may extend it without code changes.

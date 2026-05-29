@@ -222,8 +222,9 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 | `ideas`       | `#A8DADC` | `"5"`             |
 | `experiments` | `#9B5DE5` | `"6"`             |
 | `methods`     | `#84CC16` | `"3"`             |
-| `Summary`     | `#90BE6D` | `"4"`             |
 | `foundations` | `#B5B5B5` | `"6"`             |
+| `manuscripts` | `#9B59B6` | `"6"`             |
+| `reviews`     | `#16A085` | `"2"`             |
 
 ### Edge colors (HTML mode, by semantic category)
 
