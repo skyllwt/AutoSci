@@ -301,5 +301,102 @@ Adjusts retrieval memory cache parameters.
             self.assertIn(proposal["id"], applications)
 
 
+    def test_dream_yolo_consolidation_merges_and_archives(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            wiki = Path(tmp) / "wiki"
+            self.seed_wiki(wiki)
+
+            response_path = Path(tmp) / "yolo_response.json"
+            response_path.write_text(
+                json.dumps({
+                    "proposals": [
+                        {
+                            "operation": "consolidation",
+                            "target": "concepts/neural-cache",
+                            "title": "Merge duplicate neural cache memories",
+                            "proposed_action": (
+                                "Merge neural-cache-memory body into neural-cache "
+                                "and archive the source."
+                            ),
+                            "rationale": "Duplicate concepts should be merged.",
+                            "confidence": "high",
+                            "related_entities": ["concepts/neural-cache-memory"],
+                            "candidate_ids": [],
+                            "evidence": [],
+                        }
+                    ]
+                }),
+                encoding="utf-8",
+            )
+
+            result = self.run_tool(
+                "dream",
+                str(wiki),
+                "--agent-response",
+                str(response_path),
+                "--yolo",
+                "--json",
+            )
+            data = json.loads(result.stdout)
+
+            self.assertEqual(data["proposal_count"], 1)
+            self.assertEqual(data["safe_application_count"], 1)
+
+            target = (wiki / "concepts" / "neural-cache.md").read_text(encoding="utf-8")
+            self.assertIn("Consolidated Content from", target)
+            self.assertIn("<!-- /dream merge:", target)
+            self.assertIn("Another note about reusable memory cache behavior", target)
+
+            archive = wiki / "archive" / "concepts" / "neural-cache-memory.md"
+            self.assertTrue(archive.exists())
+            self.assertFalse((wiki / "concepts" / "neural-cache-memory.md").exists())
+
+    def test_dream_yolo_forgetting_archives_page(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            wiki = Path(tmp) / "wiki"
+            self.seed_wiki(wiki)
+
+            response_path = Path(tmp) / "yolo_forget.json"
+            response_path.write_text(
+                json.dumps({
+                    "proposals": [
+                        {
+                            "operation": "forgetting",
+                            "target": "concepts/neural-cache-memory",
+                            "title": "Archive obsolete neural cache memory",
+                            "proposed_action": "Archive this page as it is superseded.",
+                            "rationale": "The main neural-cache page covers this.",
+                            "confidence": "high",
+                            "related_entities": [],
+                            "candidate_ids": [],
+                            "evidence": [],
+                        }
+                    ]
+                }),
+                encoding="utf-8",
+            )
+
+            result = self.run_tool(
+                "dream",
+                str(wiki),
+                "--agent-response",
+                str(response_path),
+                "--yolo",
+                "--json",
+            )
+            data = json.loads(result.stdout)
+
+            self.assertEqual(data["proposal_count"], 1)
+            self.assertEqual(data["safe_application_count"], 1)
+
+            archive = wiki / "archive" / "concepts" / "neural-cache-memory.md"
+            self.assertTrue(archive.exists())
+            self.assertFalse((wiki / "concepts" / "neural-cache-memory.md").exists())
+
+            archived_content = archive.read_text(encoding="utf-8")
+            self.assertIn("maturity: deprecated", archived_content)
+            self.assertIn("SciEvolve Memory Evolution Note", archived_content)
+
+
 if __name__ == "__main__":
     unittest.main()

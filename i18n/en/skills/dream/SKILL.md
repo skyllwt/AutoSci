@@ -1,6 +1,6 @@
 ---
 description: Run AutoSci's agent-first SciEvolve dream pass: reflect over SciMem and write proposal-first self-evolution artifacts for forgetting, consolidation, and association
-argument-hint: "[wiki-root] [--propose-only]"
+argument-hint: "[wiki-root] [--propose-only] [--yolo]"
 ---
 
 # /dream
@@ -32,6 +32,11 @@ Open `docs/scievolve.md` only when you need reviewer-facing command examples.
 - `--propose-only` (optional): write validated proposal artifacts but do not
   auto-apply mutations. Without it, the default closed-loop behavior is to
   propose and then auto-apply medium/high-confidence validated proposals.
+- `--yolo` (optional): high-confidence proposals may perform irreversible
+  page-level mutations. `consolidation` merges the body of related pages into
+  the target and archives the sources. `forgetting` archives the target page
+  directly. Only `high` confidence proposals are eligible for yolo. This flag
+  is explicit opt-in and produces reviewer-visible diffs.
 - Existing wiki pages, graph edges, projected frontmatter edges, citations, and
   SciEvolve memory signals.
 
@@ -210,6 +215,9 @@ Report:
   It mutates both `scievolve_*` metadata and standard frontmatter fields
   (`tags`, `related_concepts`, `maturity`, etc.), and appends a visible
   `SciEvolve Memory Evolution Note` to the page body.
+- `--yolo` enables page-level mutations: `consolidation` merges related page
+  bodies into the target and archives the sources; `forgetting` archives the
+  target page. Both require `high` confidence.
 - Low-confidence proposals remain review-only and are never auto-applied.
 - Do not turn `/dream` into `/check`. Broken links, malformed graph rows,
   missing required fields, and xref asymmetry remain `/check` concerns.
@@ -217,3 +225,28 @@ Report:
   when evidence is cited and the proposal is clearly marked for review.
 - Preserve provenance. Every proposal should make it easy for a reviewer to see
   why the agent made the memory-organization judgment.
+
+## Reflection & Signal Recording
+
+After the dream run completes, reflect on whether the run revealed systemic memory issues worth recording. Record at most 1 signal if warranted.
+
+```bash
+python3 tools/scievolve_record.py \\
+  --wiki-root wiki \\
+  --source task \\
+  --dimension memory \\
+  --target /dream \\
+  --kind {review|warning|success} \\
+  --summary "<concise summary>" \\
+  --severity {info|low|medium|high|critical} \\
+  --confidence {low|medium|high}
+```
+
+Record a signal when:
+- High agent-proposal rejection rate (>2x accepted) → `kind=review`, summary rejection ratio
+- All proposals skipped safe apply despite validated evidence → `kind=warning`
+- The user corrected a dream proposal before or during apply → `source=user, kind=correction`
+- Run completed smoothly with meaningful mutations applied → `kind=success` (use sparingly)
+
+If nothing notable happened, skip signal recording.
+

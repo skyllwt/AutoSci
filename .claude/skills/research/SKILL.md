@@ -550,3 +550,25 @@ Update pipeline-progress: status: completed
 - `Glob` — find experiments, ideas, methods
 - `Skill` — call sub-skills (core capability)
 - `AskUserQuestion` — user interaction at Gates and auto-recovery detection
+
+## Reflection & Signal Recording
+
+After the pipeline completes (or at the end of each stage when running stage-by-stage), record a summary signal for the orchestration dimension.
+
+```bash
+python3 tools/scievolve_record.py \\
+  --wiki-root wiki \\
+  --source task \\
+  --dimension orchestration \\
+  --target /research \\
+  --kind review \\
+  --summary "Stage N completed: X ideas proposed, Y experiments run, Z new papers ingested" \\
+  --severity info \\
+  --confidence high
+```
+
+Also record signals when:
+- A stage failed or required auto-recovery → `kind=failure, severity=medium|high`
+- The user redirected the pipeline direction at a Gate → `source=user, kind=correction`
+- External environment changed during the run (new SOTA paper, venue deadline shift) → `source=open, kind=external-update`
+

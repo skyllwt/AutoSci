@@ -59,6 +59,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -1689,6 +1690,7 @@ def get_maturity(wiki_root: str, as_json: bool = False) -> dict:
 # ---------------------------------------------------------------------------
 
 DREAM_OPERATIONS = ("forgetting", "consolidation", "association")
+FORGE_OPERATIONS = ("patch-prompt", "add-check", "adjust-handoff", "add-recovery")
 DREAM_ASSOCIATION_KINDS = {
     "papers",
     "concepts",
@@ -2538,7 +2540,9 @@ def _dream_append_evolution_note(
     return {"path": str(path), "changed": True, "note_length": len(note)}
 
 
-def _dream_safe_apply_plan(root: Path, item: dict, proposal: dict) -> tuple[dict | None, str]:
+def _dream_safe_apply_plan(
+    root: Path, item: dict, proposal: dict, *, yolo: bool = False
+) -> tuple[dict | None, str]:
     operation = str(item.get("proposal_kind", ""))
     confidence = str(item.get("confidence", ""))
     target = str(item.get("target", ""))
@@ -2593,7 +2597,7 @@ def _dream_safe_apply_plan(root: Path, item: dict, proposal: dict) -> tuple[dict
         for entity in related:
             _dream_link_frontmatter_append(fm, append_fields, entity)
 
-    return {
+    plan: dict[str, object] = {
         "proposal_id": proposal.get("id", ""),
         "operation": operation,
         "target": target,
@@ -2607,7 +2611,85 @@ def _dream_safe_apply_plan(root: Path, item: dict, proposal: dict) -> tuple[dict
             "title": str(item.get("title", "")),
             "rationale": str(item.get("rationale", "")),
         },
-    }, ""
+    }
+
+    # Yolo mode: high-confidence proposals may mutate page bodies and archive pages
+    if yolo and confidence == "high":
+        if operation == "forgetting":
+            archive = root / "archive" / target_path.relative_to(root)
+            plan["yolo_action"] = "archive"
+            plan["archive_path"] = archive
+        elif operation == "consolidation":
+            merge_sources = []
+            for entity in related:
+                source_path = _dream_entity_path(root, entity)
+                if source_path and source_path.exists():
+                    archive = root / "archive" / source_path.relative_to(root)
+                    merge_sources.append({
+                        "source_entity": entity,
+                        "source_path": source_path,
+                        "archive_path": archive,
+                    })
+            if merge_sources:
+                plan["yolo_action"] = "merge-and-archive"
+                plan["merge_sources"] = merge_sources
+
+    return plan, ""
+
+
+def _dream_archive_page(source: Path, archive: Path) -> dict:
+    """Move a page to the archive directory."""
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    source.rename(archive)
+    return {
+        "path": str(source),
+        "archive_path": str(archive),
+        "changed": True,
+        "action": "archived",
+    }
+
+
+def _dream_merge_page_body(
+    target: Path,
+    source: Path,
+    proposal_id: str,
+    source_entity: str,
+) -> dict:
+    """Append source page body into target page under a consolidated section."""
+    source_content = source.read_text(encoding="utf-8")
+    match = FRONTMATTER_RE.match(source_content)
+    source_body = source_content[match.end():] if match else source_content
+
+    target_content = target.read_text(encoding="utf-8")
+    marker = f"<!-- /dream merge: {proposal_id} {source_entity} -->"
+    if marker in target_content:
+        return {"path": str(target), "changed": False, "reason": "already merged"}
+
+    section = [
+        "",
+        f"### Consolidated Content from `{source_entity}`",
+        "",
+        marker,
+        "",
+        source_body.strip(),
+        "",
+    ]
+
+    new_content = target_content.rstrip("\n") + "\n" + "\n".join(section)
+    tmp = target.with_suffix(".tmp")
+    try:
+        tmp.write_text(new_content, encoding="utf-8")
+        tmp.replace(target)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+    return {
+        "path": str(target),
+        "changed": True,
+        "action": "merged",
+        "source": str(source),
+    }
 
 
 def _dream_apply_safe(
@@ -2615,6 +2697,8 @@ def _dream_apply_safe(
     run_dir: Path,
     accepted: list[dict],
     proposals: list[dict],
+    *,
+    yolo: bool = False,
 ) -> tuple[list[dict], list[dict], Path, Path]:
     applied: list[dict] = []
     skipped: list[dict] = []
@@ -2622,38 +2706,70 @@ def _dream_apply_safe(
         if proposal.get("status") == "applied":
             skipped.append({"proposal_id": proposal.get("id", ""), "reason": "already applied"})
             continue
-        plan, reason = _dream_safe_apply_plan(root, item, proposal)
+        plan, reason = _dream_safe_apply_plan(root, item, proposal, yolo=yolo)
         if plan is None:
             skipped.append({"proposal_id": proposal.get("id", ""), "reason": reason})
             continue
         try:
             changed_paths: list[dict] = []
 
-            # Frontmatter mutations (scievolve_* + standard fields)
-            fm_change = _dream_update_frontmatter_memory(
-                plan["target_path"],
-                set_fields=plan["set_fields"],
-                append_fields=plan["append_fields"],
-            )
-            changed_paths.append(fm_change)
-
-            # Body evolution note (visible self-evolution evidence)
-            if plan.get("body_note"):
-                body_change = _dream_append_evolution_note(
+            # Yolo actions run first (merge body, archive pages)
+            yolo_action = plan.get("yolo_action")
+            if yolo_action == "archive":
+                archive_change = _dream_archive_page(
                     plan["target_path"],
-                    **plan["body_note"],
+                    plan["archive_path"],
                 )
-                changed_paths.append(body_change)
+                changed_paths.append(archive_change)
+            elif yolo_action == "merge-and-archive":
+                for source_info in plan.get("merge_sources", []):
+                    merge_change = _dream_merge_page_body(
+                        plan["target_path"],
+                        source_info["source_path"],
+                        plan["proposal_id"],
+                        source_info["source_entity"],
+                    )
+                    changed_paths.append(merge_change)
+                    archive_change = _dream_archive_page(
+                        source_info["source_path"],
+                        source_info["archive_path"],
+                    )
+                    changed_paths.append(archive_change)
 
-            validation = {
-                "frontmatter_parseable": bool(_parse_frontmatter(plan["target_path"])),
-            }
+            # Frontmatter mutations (scievolve_* + standard fields)
+            # For yolo forgetting the file has moved; update the archived copy
+            if yolo_action == "archive":
+                fm_target = plan.get("archive_path", plan["target_path"])
+            else:
+                fm_target = plan["target_path"]
+            if isinstance(fm_target, Path) and fm_target.exists():
+                fm_change = _dream_update_frontmatter_memory(
+                    fm_target,
+                    set_fields=plan["set_fields"],
+                    append_fields=plan["append_fields"],
+                )
+                changed_paths.append(fm_change)
+
+                # Body evolution note on the archived/merged target
+                if plan.get("body_note"):
+                    body_change = _dream_append_evolution_note(
+                        fm_target,
+                        **plan["body_note"],
+                    )
+                    changed_paths.append(body_change)
+
+                validation = {
+                    "frontmatter_parseable": bool(_parse_frontmatter(fm_target)),
+                }
+            else:
+                validation = {"frontmatter_parseable": False}
+
             application = scievolve_record_application(root, {
                 "proposal_id": proposal.get("id", ""),
                 "skill": "/dream",
                 "operation": plan["operation"],
                 "target": plan["target"],
-                "mode": "auto-apply",
+                "mode": "yolo" if yolo_action else "auto-apply",
                 "changed_paths": changed_paths,
                 "validation": validation,
             })
@@ -2661,7 +2777,11 @@ def _dream_apply_safe(
                 root,
                 proposal,
                 "applied",
-                note="Applied by /dream auto-apply as reversible memory metadata and body note.",
+                note=(
+                    "Applied by /dream yolo-apply as archived/merged memory."
+                    if yolo_action else
+                    "Applied by /dream auto-apply as reversible memory metadata and body note."
+                ),
                 application=application,
             )
             applied.append({
@@ -2810,6 +2930,7 @@ def dream(
     propose: bool = True,
     apply_safe: bool = True,
     propose_only: bool = False,
+    yolo: bool = False,
     as_json: bool = False,
     timeout: int = 90,
     temperature: float = 0.2,
@@ -2876,6 +2997,7 @@ def dream(
             run_dir,
             accepted,
             proposals,
+            yolo=yolo,
         )
         applied_by_id = {
             item["proposal_id"]: item["proposal"]
@@ -2934,6 +3056,579 @@ def dream(
         print(f"Candidate cues: {result['candidate_count']}")
         print(f"Proposals written: {result['proposal_count']}")
         print(f"Safe applications: {result['safe_application_count']}")
+
+
+#!/usr/bin/env python3
+"""Forge implementation to be inserted into research_wiki.py."""
+
+# ---------------------------------------------------------------------------
+# SciEvolve /forge: agent-first workflow evolution
+# ---------------------------------------------------------------------------
+
+
+def _forge_run_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+
+def _forge_build_context(
+    wiki_root: str,
+    target_skill: str,
+    max_signals: int,
+) -> dict:
+    root = Path(wiki_root)
+    signals, malformed = load_scievolve_signals(root)
+    workflow_signals = [s for s in signals if s.get("dimension") == "workflow"]
+    if target_skill:
+        workflow_signals = [
+            s for s in workflow_signals
+            if str(s.get("target", "")).lower() == target_skill.lower()
+        ]
+    if max_signals > 0:
+        workflow_signals = workflow_signals[-max_signals:]
+
+    # Group signals by target skill
+    by_target: dict[str, list[dict]] = {}
+    for s in workflow_signals:
+        t = str(s.get("target", "")).strip() or "general"
+        by_target.setdefault(t, []).append(s)
+
+    # Load skill content for each targeted skill
+    skill_contents: dict[str, str] = {}
+    skill_paths: dict[str, Path] = {}
+    for skill_name in by_target:
+        # Try i18n first, then .claude
+        for base in (root.parent / "i18n" / "en" / "skills", root.parent / ".claude" / "skills"):
+            skill_md = base / skill_name / "SKILL.md"
+            if skill_md.exists():
+                skill_paths[skill_name] = skill_md
+                skill_contents[skill_name] = skill_md.read_text(encoding="utf-8")
+                break
+
+    # Compute signal density per skill
+    signal_density = {
+        name: len(group) for name, group in by_target.items()
+    }
+
+    return {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "mode": "agent-first-forge",
+        "wiki_root": str(root),
+        "target_skill": target_skill,
+        "stats": {
+            "workflow_signals": len(workflow_signals),
+            "malformed_signal_rows": malformed,
+            "targeted_skills": len(by_target),
+            "signal_density": signal_density,
+        },
+        "signals": workflow_signals,
+        "skill_groups": [
+            {
+                "skill_name": name,
+                "signal_count": len(group),
+                "signals": group,
+                "skill_path": str(skill_paths.get(name, "")),
+                "skill_preview": _forge_skill_preview(skill_contents.get(name, "")),
+            }
+            for name, group in sorted(by_target.items())
+        ],
+    }
+
+
+def _forge_skill_preview(content: str, max_lines: int = 60) -> str:
+    lines = content.splitlines()
+    if len(lines) <= max_lines:
+        return content
+    # Keep frontmatter + first chunk + ellipsis + last chunk
+    header_end = 0
+    in_fm = False
+    for i, line in enumerate(lines):
+        if line.strip() == "---":
+            if not in_fm:
+                in_fm = True
+            else:
+                header_end = i + 1
+                break
+    front = "\n".join(lines[:header_end + 20]) if header_end else "\n".join(lines[:30])
+    tail = "\n".join(lines[-20:])
+    return f"{front}\n\n... ({len(lines) - max_lines} lines omitted) ...\n\n{tail}"
+
+
+def _forge_context_markdown(context: dict) -> str:
+    lines = [
+        "# Forge Context",
+        "",
+        "Deterministic context for workflow evolution. Not the forge decision.",
+        "",
+        "## Stats",
+        "",
+    ]
+    for key, value in context.get("stats", {}).items():
+        lines.append(f"- {key}: {value}")
+    lines.extend(["", "## Workflow Signals", ""])
+    for signal in context.get("signals", []):
+        lines.append(
+            "- {id} [{kind}] target={target}: {summary}".format(
+                id=signal.get("id", ""),
+                kind=signal.get("kind", ""),
+                target=signal.get("target", ""),
+                summary=signal.get("summary", ""),
+            )
+        )
+    lines.extend(["", "## Skill Groups", ""])
+    for group in context.get("skill_groups", []):
+        name = group.get("skill_name", "")
+        count = group.get("signal_count", 0)
+        path = group.get("skill_path", "")
+        lines.append(f"- {name}: {count} signal(s)  path: `{path}`")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _forge_agent_prompt(context: dict) -> str:
+    skill_groups = context.get("skill_groups", [])
+    skill_blocks = []
+    for group in skill_groups:
+        name = group.get("skill_name", "")
+        preview = group.get("skill_preview", "")
+        signals = group.get("signals", [])
+        signal_lines = "\n".join(
+            f"  - {s.get('id', '')} [{s.get('kind', '')}]: {s.get('summary', '')}"
+            for s in signals
+        )
+        skill_blocks.append(
+            f"### Skill: {name}\n\n"
+            f"Signals:\n{signal_lines}\n\n"
+            f"Content preview:\n```markdown\n{preview}\n```\n"
+        )
+    skills_text = "\n\n".join(skill_blocks) if skill_blocks else "_No targeted skill content loaded._"
+
+    return (
+        "# /forge Agent Prompt\n\n"
+        "You are AutoSci's /forge agent. Your job is workflow self-evolution: "
+        "propose concrete, evidence-backed patches to skills and protocols.\n\n"
+        "Use the supplied context to propose workflow-evolution operations:\n"
+        "- patch-prompt: rewrite or clarify a specific prompt/step in a skill\n"
+        "- add-check: add a validation, precondition, or guard step\n"
+        "- adjust-handoff: change how this skill hands off to or receives from another skill\n"
+        "- add-recovery: add a recovery protocol for a known failure mode\n\n"
+        "Rules:\n"
+        "- Every proposal must cite a specific skill file path and, where possible, a line range or prompt text.\n"
+        "- Proposals must be grounded in the provided signals. Do not invent failure modes.\n"
+        "- Do not change a skill's core purpose — only improve clarity, robustness, or inter-skill coordination.\n"
+        "- Do not repackage lint or structural repairs as workflow evolution (those are /check concerns).\n"
+        "- Prefer additive changes (append checks, add recovery) over destructive rewrites.\n"
+        "- A few high-signal proposals beat a broad mechanical list.\n\n"
+        "Return strict JSON only with this shape:\n\n"
+        "{\n"
+        '  "proposals": [\n'
+        "    {\n"
+        '      "operation": "patch-prompt|add-check|adjust-handoff|add-recovery",\n'
+        '      "target": "skill-name",\n'
+        '      "title": "short title",\n'
+        '      "proposed_action": "concrete proposal-first action with file path and line reference",\n'
+        '      "rationale": "why the signals justify this patch and how it improves execution",\n'
+        '      "confidence": "low|medium|high",\n'
+        '      "skill_path": "relative/path/to/SKILL.md",\n'
+        '      "line_hint": "optional: quoted text or line range to locate the patch",\n'
+        '      "evidence": [\n'
+        '        {"source": "signal-id", "summary": "supporting note"}\n'
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}\n\n"
+        "Context:\n\n"
+        f"{skills_text}"
+    )
+
+
+def _forge_allowed_refs(context: dict) -> set[str]:
+    refs: set[str] = set()
+    for group in context.get("skill_groups", []):
+        refs.add(group.get("skill_name", ""))
+        refs.add(str(group.get("skill_path", "")))
+    refs.update(str(s.get("id", "")) for s in context.get("signals", []))
+    refs.discard("")
+    return refs
+
+
+def _forge_normalize_agent_response(
+    payload: dict,
+    context: dict,
+    agent_trace: dict,
+) -> tuple[list[dict], list[dict]]:
+    allowed = _forge_allowed_refs(context)
+    signal_ids = {str(s.get("id", "")) for s in context.get("signals", [])}
+    raw_proposals = payload.get("proposals")
+    if not isinstance(raw_proposals, list):
+        raise ValueError("forge agent response must contain a proposals list")
+
+    accepted: list[dict] = []
+    rejected: list[dict] = []
+    seen: set[tuple[str, str, str]] = set()
+    for index, raw in enumerate(raw_proposals):
+        if not isinstance(raw, dict):
+            rejected.append({"index": index, "reason": "proposal is not an object"})
+            continue
+        operation = str(raw.get("operation") or raw.get("proposal_kind") or "").strip().lower()
+        if operation not in FORGE_OPERATIONS:
+            rejected.append({"index": index, "reason": f"invalid operation: {operation}"})
+            continue
+        target = str(raw.get("target") or "").strip()
+        skill_path = str(raw.get("skill_path") or "").strip()
+        if not target:
+            rejected.append({"index": index, "reason": "missing target skill"})
+            continue
+        if target not in allowed:
+            rejected.append({"index": index, "reason": f"unknown target skill: {target}"})
+            continue
+        action = str(raw.get("proposed_action") or raw.get("action") or "").strip()
+        rationale = str(raw.get("rationale") or "").strip()
+        if not action or not rationale:
+            rejected.append({"index": index, "reason": "missing proposed_action or rationale"})
+            continue
+        confidence = str(raw.get("confidence") or "medium").strip().lower()
+        if confidence not in SCIEVOLVE_CONFIDENCE_VALUES:
+            confidence = "medium"
+        title = str(raw.get("title") or operation.title()).strip()
+        dedup_key = (operation, target, action)
+        if dedup_key in seen:
+            rejected.append({"index": index, "reason": "duplicate proposal"})
+            continue
+        seen.add(dedup_key)
+        evidence = []
+        for item in raw.get("evidence") or []:
+            if isinstance(item, dict):
+                source = str(item.get("source") or item.get("id") or item.get("signal_id") or "")
+                evidence.append({"source": source, "summary": str(item.get("summary") or ""), "path": skill_path})
+            elif str(item).strip():
+                evidence.append({"source": str(item).strip(), "summary": "", "path": skill_path})
+        accepted.append({
+            "dimension": "workflow",
+            "target": target,
+            "proposal_kind": operation,
+            "title": title,
+            "confidence": confidence,
+            "related_entities": [],
+            "triggering_signals": sorted(
+                str(item.get("source", "")) for item in evidence
+                if str(item.get("source", "")) in signal_ids
+            ),
+            "proposed_action": action,
+            "rationale": rationale,
+            "risk": (
+                "Agent-generated /forge proposal. Workflow changes affect execution semantics; "
+                "review before applying. Safe auto-apply is limited to additive/append-only changes."
+            ),
+            "evidence": evidence,
+            "agent_trace": agent_trace,
+        })
+    return accepted, rejected
+
+
+def _forge_apply_safe(
+    wiki_root: Path,
+    run_dir: Path,
+    accepted: list[dict],
+    proposals: list[dict],
+) -> tuple[list[dict], list[dict], Path | None, Path | None]:
+    """Apply safe workflow mutations: additive frontmatter metadata + append-only notes only.
+
+    Unlike /dream, /forge does NOT rewrite skill prompts or workflow steps automatically.
+    Safe apply is limited to:
+    - scievolve_forge_notes frontmatter (append-only list)
+    - scievolve_last_forge frontmatter (set)
+    - Append-only ## SciEvolve Workflow Evolution Note section in skill body
+    """
+    applied: list[dict] = []
+    skipped: list[dict] = []
+    changed_paths: list[str] = []
+    for item, proposal in zip(accepted, proposals):
+        target = item.get("target", "")
+        if not target:
+            skipped.append({"proposal_id": proposal.get("id", ""), "reason": "missing target"})
+            continue
+        # Locate skill file
+        skill_file: Path | None = None
+        for base in (wiki_root.parent / "i18n" / "en" / "skills", wiki_root.parent / ".claude" / "skills"):
+            candidate = base / target / "SKILL.md"
+            if candidate.exists():
+                skill_file = candidate
+                break
+        if skill_file is None:
+            skipped.append({"proposal_id": proposal.get("id", ""), "reason": f"skill file not found: {target}"})
+            continue
+
+        content = skill_file.read_text(encoding="utf-8")
+        match = FRONTMATTER_RE.match(content)
+        if not match:
+            skipped.append({"proposal_id": proposal.get("id", ""), "reason": "no frontmatter in skill file"})
+            continue
+
+        fm = _parse_yaml_block(match.group(1))
+        body = content[match.end():]
+
+        # Build the note text
+        note_lines = [
+            f"## SciEvolve Workflow Evolution Note",
+            "",
+            f"- Proposal: `{proposal.get('id', '')}`",
+            f"- Operation: {item.get('proposal_kind', '')}",
+            f"- Confidence: {item.get('confidence', '')}",
+            f"- Action: {item.get('proposed_action', '')}",
+            f"- Rationale: {item.get('rationale', '')}",
+            "",
+        ]
+        note_text = "\n".join(note_lines)
+
+        # Append note to body if not already present
+        if note_text.strip() not in body:
+            if not body.endswith("\n"):
+                body += "\n"
+            body += "\n" + note_text + "\n"
+        else:
+            skipped.append({"proposal_id": proposal.get("id", ""), "reason": "note already present"})
+            continue
+
+        # Update frontmatter
+        fm["scievolve_last_forge"] = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        notes = _dream_as_list(fm.get("scievolve_forge_notes"))
+        note_entry = f"[{proposal.get('id', '')}] {item.get('proposal_kind', '')}: {item.get('title', '')}"
+        if note_entry not in notes:
+            notes.append(note_entry)
+        fm["scievolve_forge_notes"] = notes
+
+        # Rebuild file
+        new_yaml = _serialize_frontmatter(fm)
+        new_content = f"---\n{new_yaml}---\n{body}"
+        skill_file.write_text(new_content, encoding="utf-8")
+        changed_paths.append(str(skill_file))
+
+        _ts = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+        _digest_input = {"proposal": proposal.get("id", ""), "target": target}
+        _digest = hashlib.sha1(json.dumps(_digest_input, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:8]
+        application = {
+            "id": f"app-forge-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{_digest}",
+            "timestamp": _ts,
+            "proposal_id": proposal.get("id", ""),
+            "target": target,
+            "changed_paths": [{"path": str(skill_file), "note": "append-only workflow evolution note + frontmatter metadata"}],
+        }
+        scievolve_record_application(wiki_root, application)
+        applied.append({"proposal_id": proposal.get("id", ""), "proposal": proposal, "application": application})
+
+    apply_report = {
+        "run_type": "forge_safe_apply",
+        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+        "applied_count": len(applied),
+        "skipped_count": len(skipped),
+        "applied": [a["application"] for a in applied],
+        "skipped": skipped,
+        "changed_paths": changed_paths,
+    }
+    json_path = run_dir / "forge_apply_report.json"
+    md_path = run_dir / "forge_apply_report.md"
+    json_path.write_text(json.dumps(apply_report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    md_lines = [
+        "# Forge Safe Apply Report",
+        "",
+        f"- Applied: {len(applied)}",
+        f"- Skipped: {len(skipped)}",
+        "",
+        "## Changed Paths",
+        "",
+    ]
+    for cp in changed_paths:
+        md_lines.append(f"- `{cp}`")
+    md_lines.extend(["", "## Skipped", ""])
+    for sk in skipped:
+        md_lines.append(f"- {sk['proposal_id']}: {sk['reason']}")
+    md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
+    return applied, skipped, json_path, md_path
+
+
+def _forge_report_markdown(
+    context: dict,
+    *,
+    run_dir: Path,
+    context_path: Path,
+    prompt_path: Path,
+    response_path: Path | None,
+    proposals: list[dict],
+    rejected: list[dict],
+    proposed: bool,
+    applied: list[dict],
+    apply_skipped: list[dict],
+) -> str:
+    lines = [
+        "# Forge Report",
+        "",
+        f"- Run: {run_dir.name}",
+        f"- Target skill: {context.get('target_skill') or '(all)'}",
+        f"- Workflow signals: {context['stats']['workflow_signals']}",
+        f"- Targeted skills: {context['stats']['targeted_skills']}",
+        "",
+        "## Signal Density",
+        "",
+    ]
+    for name, count in sorted((context["stats"].get("signal_density") or {}).items()):
+        lines.append(f"- {name}: {count}")
+    lines.extend(["", "## Proposals", ""])
+    if proposals:
+        for p in proposals:
+            state = "created" if p.get("created") else "existing"
+            lines.append(f"- {p['id']} ({state}, {p['status']}): `{p['output_path']}`")
+    else:
+        lines.append("_No proposals._")
+    lines.extend(["", "## Rejected Agent Items", ""])
+    if rejected:
+        for r in rejected:
+            lines.append(f"- index {r.get('index', '?')}: {r.get('reason', '')}")
+    else:
+        lines.append("_None._")
+    if applied or apply_skipped:
+        lines.extend(["", "## Safe Applications", ""])
+        lines.append(f"- Applied: {len(applied)}")
+        lines.append(f"- Skipped: {len(apply_skipped)}")
+    lines.extend(["", "## Artifacts", ""])
+    lines.append(f"- Context: `{context_path}`")
+    lines.append(f"- Prompt: `{prompt_path}`")
+    if response_path:
+        lines.append(f"- Response: `{response_path}`")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def forge(
+    wiki_root: str,
+    *,
+    target_skill: str = "",
+    max_signals: int = 20,
+    agent_response: str = "",
+    use_llm: bool = False,
+    propose: bool = True,
+    auto_apply: bool = False,
+    as_json: bool = False,
+    timeout: int = 90,
+    temperature: float = 0.2,
+) -> None:
+    root = Path(wiki_root)
+    run_id = _forge_run_id()
+    run_dir = root / "outputs" / "evolution" / "forge" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    context = _forge_build_context(wiki_root, target_skill, max_signals)
+    context_path = run_dir / "forge_context.json"
+    context_md_path = run_dir / "forge_context.md"
+    prompt_path = run_dir / "forge_agent_prompt.md"
+    response_path: Path | None = None
+    context_path.write_text(json.dumps(context, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    context_md_path.write_text(_forge_context_markdown(context), encoding="utf-8")
+    prompt = _forge_agent_prompt(context)
+    prompt_path.write_text(prompt, encoding="utf-8")
+
+    payload: dict | None = None
+    agent_trace = {
+        "provider": "supplied-policy-response",
+        "model": "external-policy-runtime",
+        "policy_runtime": "caller-supplied",
+        "prompt_path": str(prompt_path.relative_to(root)),
+    }
+    if agent_response:
+        source = Path(agent_response)
+        payload = _dream_extract_json_object(source.read_text(encoding="utf-8"))
+        response_path = run_dir / "forge_agent_response.json"
+        response_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        agent_trace["response_path"] = str(response_path.relative_to(root))
+    elif use_llm:
+        payload, llm_trace = _dream_call_openai_compatible(
+            prompt,
+            timeout=timeout,
+            temperature=temperature,
+        )
+        response_path = run_dir / "forge_agent_response.json"
+        response_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        agent_trace.update(llm_trace)
+        agent_trace["response_path"] = str(response_path.relative_to(root))
+
+    accepted: list[dict] = []
+    rejected: list[dict] = []
+    proposals: list[dict] = []
+    if payload is not None:
+        accepted, rejected = _forge_normalize_agent_response(payload, context, agent_trace)
+        if propose:
+            for item in accepted:
+                proposals.append(scievolve_write_proposal(root, **item))
+
+    applied: list[dict] = []
+    apply_skipped: list[dict] = []
+    apply_report_json: Path | None = None
+    apply_report_md: Path | None = None
+    if auto_apply and proposals:
+        applied, apply_skipped, apply_report_json, apply_report_md = _forge_apply_safe(
+            root,
+            run_dir,
+            accepted,
+            proposals,
+        )
+        applied_by_id = {
+            item["proposal_id"]: item["proposal"]
+            for item in applied
+            if item.get("proposal")
+        }
+        proposals = [
+            applied_by_id.get(proposal.get("id"), proposal)
+            for proposal in proposals
+        ]
+
+    report_path = run_dir / "forge_report.md"
+    report_path.write_text(
+        _forge_report_markdown(
+            context,
+            run_dir=run_dir,
+            context_path=context_path,
+            prompt_path=prompt_path,
+            response_path=response_path,
+            proposals=proposals if propose else accepted,
+            rejected=rejected,
+            proposed=propose,
+            applied=applied,
+            apply_skipped=apply_skipped,
+        ),
+        encoding="utf-8",
+    )
+
+    result = {
+        "status": "ok",
+        "mode": "agent-first-forge",
+        "run_dir": str(run_dir),
+        "context_path": str(context_path),
+        "context_markdown_path": str(context_md_path),
+        "prompt_path": str(prompt_path),
+        "response_path": str(response_path) if response_path else "",
+        "report_path": str(report_path),
+        "signal_count": len(context.get("signals", [])),
+        "accepted_agent_proposals": len(accepted),
+        "rejected_agent_items": len(rejected),
+        "proposal_count": len(proposals),
+        "proposals": proposals,
+        "safe_application_count": len(applied),
+        "safe_applications": applied,
+        "safe_application_skips": apply_skipped,
+        "apply_report_path": str(apply_report_json) if apply_report_json else "",
+        "apply_report_markdown_path": str(apply_report_md) if apply_report_md else "",
+    }
+    if as_json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        print(f"/forge report: {report_path}")
+        print(f"Agent prompt: {prompt_path}")
+        if response_path:
+            print(f"Agent response: {response_path}")
+        print(f"Workflow signals: {result['signal_count']}")
+        print(f"Proposals written: {result['proposal_count']}")
+        if auto_apply:
+            print(f"Safe applications: {result['safe_application_count']}")
+
 
 
 # ---------------------------------------------------------------------------
@@ -4174,6 +4869,25 @@ def main():
                    help="Write proposal artifacts but do not auto-apply mutations")
     p.add_argument("--apply-safe", action="store_true",
                    help="Legacy alias; auto-apply is now the default when agent-response is provided")
+    p.add_argument("--yolo", action="store_true",
+                   help="High-confidence proposals may merge page bodies or archive pages")
+    p.add_argument("--timeout", type=int, default=90)
+    p.add_argument("--temperature", type=float, default=0.2)
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser("forge",
+                       help="Prepare and finalize agent-first /forge workflow evolution")
+    p.add_argument("wiki_root")
+    p.add_argument("--target-skill", default="",
+                   help="Focus on a specific skill; default all workflow-signaled skills")
+    p.add_argument("--max-signals", type=int, default=20,
+                   help="Maximum recent workflow signals to include")
+    p.add_argument("--agent-response", default="",
+                   help="Path to strict JSON returned by the /forge agent")
+    p.add_argument("--use-llm", action="store_true",
+                   help="Call an OpenAI-compatible LLM using LLM_* environment variables")
+    p.add_argument("--auto-apply", action="store_true",
+                   help="Auto-apply additive safe workflow mutations (default is propose-only)")
     p.add_argument("--timeout", type=int, default=90)
     p.add_argument("--temperature", type=float, default=0.2)
     p.add_argument("--json", action="store_true")
@@ -4298,6 +5012,20 @@ def main():
             propose=True,
             apply_safe=not args.propose_only,
             propose_only=args.propose_only,
+            yolo=args.yolo,
+            as_json=args.json,
+            timeout=args.timeout,
+            temperature=args.temperature,
+        )
+    elif args.command == "forge":
+        forge(
+            args.wiki_root,
+            target_skill=args.target_skill,
+            max_signals=args.max_signals,
+            agent_response=args.agent_response,
+            use_llm=args.use_llm,
+            propose=True,
+            auto_apply=args.auto_apply,
             as_json=args.json,
             timeout=args.timeout,
             temperature=args.temperature,

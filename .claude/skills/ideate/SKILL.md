@@ -554,3 +554,29 @@ Args: "{idea-slug}"
 
 ### Shared References
 - `.claude/skills/shared-references/cross-model-review.md` — Phase 2 Review LLM independence principle
+
+## Reflection & Signal Recording
+
+After completing the main workflow, reflect on this execution. Was there user feedback, a failure, an unexpected result, or an environmental change worth recording for system evolution? Record at most 2 signals if warranted.
+
+```bash
+python3 tools/scievolve_record.py \\
+  --wiki-root wiki \\
+  --source {user|task|open} \\
+  --dimension {memory|workflow|orchestration} \\
+  --target <this-skill-name> \\
+  --kind {correction|failure|warning|success|cost|review|experiment|external-update} \\
+  --summary "<concise one-line summary>" \\
+  --severity {info|low|medium|high|critical} \\
+  --confidence {low|medium|high}
+```
+
+Record a signal when:
+- The user corrected or redirected the skill's output → `source=user, kind=correction`
+- The skill encountered an error, timeout, or unexpected tool behavior → `source=task, kind=failure`
+- The skill discovered new external information that changes the research landscape → `source=open, kind=external-update`
+- The skill's execution revealed a gap in workflow or skill design → `source=task, dimension=workflow, kind=review`
+- The skill completed successfully and produced valuable new knowledge → `source=task, kind=success` (use sparingly; prefer corrections and failures)
+
+If nothing notable happened, skip signal recording. Do not generate noise.
+

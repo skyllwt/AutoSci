@@ -35,6 +35,9 @@ signal:
   optional_fields:
     evidence_path: path to supporting artifact
     evidence_text: short supporting quote or note
+  injection_paths:
+    skill_explicit: skills call tools/scievolve_record.py at end of execution
+    manual_cli: human calls tools/research_wiki.py scievolve-record-signal
 
 proposal:
   required_fields:
@@ -81,6 +84,33 @@ dream:
       consume applied memory guidance
     - page bodies are not rewritten; only append-only audit notes are allowed
     - graph edges, skills, schemas, and templates remain untouched
+  signal_collection:
+    - after run, record task signal if high rejection rate or user correction
+    - propose-only runs benefit most: signals capture unapplied findings
+
+forge:
+  mode: agent-first
+  default_behavior: propose-only
+  artifacts:
+    context_json: wiki/outputs/evolution/forge/<run>/forge_context.json
+    context_markdown: wiki/outputs/evolution/forge/<run>/forge_context.md
+    agent_prompt: wiki/outputs/evolution/forge/<run>/forge_agent_prompt.md
+    agent_response: wiki/outputs/evolution/forge/<run>/forge_agent_response.json
+    report: wiki/outputs/evolution/forge/<run>/forge_report.md
+    apply_report_json: wiki/outputs/evolution/forge/<run>/forge_apply_report.json
+    apply_report_markdown: wiki/outputs/evolution/forge/<run>/forge_apply_report.md
+  contract:
+    - deterministic tooling prepares skill content + workflow signal clusters
+    - a pluggable policy runtime proposes patch-prompt, add-check,
+      adjust-handoff, or add-recovery proposals
+    - validation requires cited skill file paths and line hints
+    - default is propose-only; --auto-apply enables additive safe mutations
+    - safe auto-apply is limited to frontmatter metadata and append-only notes
+    - prompt text, workflow steps, handoffs, and recovery protocols are never
+      auto-applied; they require human review
+    - proposals target skills in i18n/en/skills/ and .claude/skills/
+  signal_collection:
+    - after run, record task signal if high rejection rate or skill backlog
 
 safety:
   default_mode: auto-apply
@@ -111,6 +141,18 @@ safety:
       - post-apply parse validation
       - downstream context rebuild
     opt_out: --propose-only
+  yolo:
+    allowed_command: dream --yolo
+    allowed_changes:
+      - page body merge (consolidation appends related page body into target)
+      - page archive (consolidation archives related pages; forgetting archives target)
+    requires:
+      - validated agent proposal
+      - high confidence only
+      - explicit --yolo flag
+      - auditable application event
+      - post-apply parse validation
+      - downstream context rebuild
   manual_apply_requires:
     - auditable artifact
     - visible diff or changed-path report

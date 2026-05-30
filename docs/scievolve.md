@@ -137,3 +137,108 @@ metadata such as `scievolve_memory_weight`,
 `applications.jsonl`, marks the proposal `applied`, and rebuilds
 `wiki/graph/context_brief.md` so `/ideate`, `/research`, `/ask`, and other
 context-consuming skills can see the evolved memory state.
+
+## Signal Sources
+
+Signals enter the evolution loop through three paths:
+
+1. **Skill-explicit** (primary): After executing a skill, the LLM policy runtime
+   reflects on the execution and calls `tools/scievolve_record.py` if there is
+   feedback worth recording. This is the LLM-first path: the executing agent
+   decides what, if anything, to record. No fixed automatic hooks.
+
+   ```bash
+   python3 tools/scievolve_record.py \
+     --wiki-root wiki \
+     --source {user|task|open} \
+     --dimension {memory|workflow|orchestration} \
+     --target <skill-or-entity> \
+     --kind <kind> \
+     --summary "<one-line summary>"
+   ```
+
+2. **Manual CLI**: Humans or CI scripts can record signals directly:
+
+   ```bash
+   python3 tools/research_wiki.py scievolve-record-signal wiki \
+     --source user --dimension memory --target concepts/example \
+     --kind correction --summary "User feedback"
+   ```
+
+3. **Cross-skill cascade**: A skill may record signals about another skill's
+   behavior (e.g. `/dream` recording a signal about high agent-proposal rejection
+   rates, which `/forge` may later consume).
+
+The `source` field distinguishes:
+- `user` — human corrections, preferences, or redirections
+- `task` — execution outcomes, failures, or unexpected tool behavior
+- `open` — external changes such as new papers, venue shifts, or SOTA updates
+
+The `dimension` field routes signals to the correct stage skill:
+- `memory` -> `/dream`
+- `workflow` -> `/forge`
+- `orchestration` -> `/morph`
+
+## `/forge` Agent Loop
+
+Stage 2 adds an agent-first **workflow** evolution path. It consumes
+`dimension=workflow` signals and proposes concrete patches to skills and
+protocols.
+
+```text
+/forge wiki
+```
+
+Focus on a specific skill:
+
+```text
+/forge wiki --target-skill discover
+```
+
+`/forge` follows the same agent-first, proposal-first pattern as `/dream`, but
+operates on skills instead of memory entities. The default mode is **propose-only**.
+Workflow changes affect execution semantics, so automatic application is opt-in:
+
+```text
+/forge wiki --auto-apply
+```
+
+When `--auto-apply` is used, safe mutations are limited to:
+- `scievolve_forge_notes` frontmatter (append-only list)
+- `scievolve_last_forge` frontmatter (timestamp)
+- Append-only `## SciEvolve Workflow Evolution Note` section in the skill body
+
+Prompt text, workflow steps, handoffs, and recovery protocols are **never**
+auto-applied; they always require human review.
+
+For an artifact-only demo:
+
+```bash
+python3 tools/research_wiki.py forge wiki --json
+```
+
+After writing `forge_agent_response.json`, finalize:
+
+```bash
+python3 tools/research_wiki.py forge wiki \
+  --agent-response path/to/forge_agent_response.json \
+  --json
+```
+
+With safe auto-apply:
+
+```bash
+python3 tools/research_wiki.py forge wiki \
+  --agent-response path/to/forge_agent_response.json \
+  --auto-apply \
+  --json
+```
+
+Each run writes:
+
+- `wiki/outputs/evolution/forge/<run>/forge_context.json`
+- `wiki/outputs/evolution/forge/<run>/forge_context.md`
+- `wiki/outputs/evolution/forge/<run>/forge_agent_prompt.md`
+- `wiki/outputs/evolution/forge/<run>/forge_agent_response.json` when an agent response exists
+- `wiki/outputs/evolution/forge/<run>/forge_report.md`
+- `wiki/outputs/evolution/forge/<run>/forge_apply_report.*` when safe applications are attempted
