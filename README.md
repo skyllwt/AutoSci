@@ -1,30 +1,111 @@
 <div align="center">
 
-<img src="assets/logo.png" width="180" alt="ΩmegaWiki Logo">
+<img src="assets/autosci-logo.png" width="160" alt="AutoSci Logo">
 
-# ΩmegaWiki
+# AutoSci
 
-### Karpathy's LLM-Wiki Vision, Fully Realized
-
-**Your AI Research Platform — From Papers to Publications, Powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code)**
-
-*From paper ingestion to publication — your research knowledge compounds, never decays.*
+**Read, think, experiment, write, evolve — the AI research agent with memory that compounds across every project.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
-[![Skills](https://img.shields.io/badge/Skills-24-purple.svg)](#skills)
 [![Claude Code](https://img.shields.io/badge/Powered_by-Claude_Code-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
-[![Bilingual](https://img.shields.io/badge/i18n-EN_|_中文-orange.svg)](#bilingual-support)
+[![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
-[English](#what-is-ωmegawiki) | [中文](#中文)
 
 </div>
 
 ---
 
+## ⚠️ Status & Update
+
+> **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
+
+---
+
+## 📌 Poster & Demo
+
+<!--
+  POSTER & VIDEO PLACEHOLDER
+  Drop your files into assets/ and uncomment the blocks below:
+    - Conference poster image  -> assets/poster.png   (or .jpg/.pdf)
+    - Demo video               -> a YouTube/Bilibili link, or assets/demo.mp4 / assets/demo.gif
+  GitHub READMEs cannot embed/play local .mp4 inline; for video, prefer either:
+    (a) a clickable thumbnail linking to the hosted video, or
+    (b) a short looping assets/demo.gif.
+-->
+
+<div align="center">
+  <a href="assets/poster.png"><img src="assets/poster.png" width="760" alt="AutoSci conference poster"></a>
+  <br/><sub><em>AutoSci poster — click to view full size.</em></sub>
+</div>
+
+<!-- DEMO VIDEO (uncomment and replace links/thumbnail once available)
+<div align="center">
+  <a href="https://your-video-url">
+    <img src="assets/demo-thumbnail.png" width="640" alt="Watch the AutoSci demo">
+  </a>
+  <br/><sub><em>▶ Watch the AutoSci walkthrough.</em></sub>
+</div>
+-->
+
+<div align="center">
+  <a href="https://www.bilibili.com/video/BV19gVg6pEk6/">
+    <img src="assets/demo-thumbnail.jpg" width="640" alt="▶ Watch AutoSci on Bilibili">
+  </a>
+  <br/><sub><em>▶ Watch the AutoSci demo on Bilibili</em></sub>
+</div>
+
+---
+
+## 🆕 What's New
+
+### 🛠️ 2026-05-19 · Experiment Overhaul
+
+A possible usage process：`/ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `/exp-design <idea-slug>`-> For each experimental block,recommended flow: `/exp-run <slug> [--env local|remote]` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.->`/exp-eval <experiment-slug>`
+
+✨ : New Skills
+`/exp-pilot-run` — Pilot experiment execution: write code, deploy, monitor, collect raw results.
+`/exp-pilot-eval` — Pilot result evaluation: read results, apply lenient verdict logic
+These two skills are built into Phase5 of `/ideate`
+🛠️ : Modified Skills
+`/ideate`
+5 structured generation paths (A-E) for both Claude and Review LLM.
+Phase restructuring: Filter & Validation merged into Phase 3, Write Wiki moved to Phase 4.
+Phase 5: Finish pilot design and workflow invocation
+Your ideas will follow a clearer path, and a more reasonable screening mechanism will be established through pilot experiments.
+`/exp-design`
+A brand-new experimental design process:method candidate generation + 5 experiment block types + iterative ablation loop
+`/exp-run`
+Add the code decision gate, code optimization and config check
+
+### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
+
+Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
+
+<p align="center">
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output" width="720" />
+</p>
+
+### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
+
+Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for your research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
+
+### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
+
+Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
+
+### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
+
+Your research graph now has two ways to explore:
+
+- **Web UI** — run `python3 tools/serve.py`, open `http://localhost:8765/#/graph`. Click any node to highlight its neighborhood via BFS, filter by entity type or edge category, double-click to open the full page in the Reader.
+- **Obsidian** — run `/visualize --obsidian` to generate a color-coded graph config, or `/visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
+
+---
+
 ## Team
 
-ΩmegaWiki is built by [DAIR Lab](https://cuibinpku.github.io/) at Peking University — a fully agentic platform that automates the complete research pipeline, from knowledge ingestion to paper submission.
+AutoSci is built by [DAIR Lab](https://cuibinpku.github.io/) at Peking University.
 
 <div align="center">
 <table>
@@ -110,90 +191,45 @@
       <sub>Undergraduate · 2024</sub>
     </td>
   </tr>
+  <tr>
+    <td align="center" width="165">
+      <img src="assets/ChenyangDi_circle.png" width="90" alt="Chenyang Di"/>
+      <br/><br/>
+      <b>Chenyang Di</b>
+      <br/>
+      <sub>PKU</sub>
+      <br/>
+      <sub>Undergraduate · 2023</sub>
+    </td>
+  </tr>
 </table>
+<sub>...and more contributors who have shaped AutoSci along the way.</sub>
 </div>
 
 ---
 
-## 🆕 What's New
+## What is AutoSci?
 
-### 🛠️ 2026-05-19 · Experiment Overhaul
-
-A possible usage process：`/ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `/exp-design <idea-slug>`-> For each experimental block,recommended flow: `/exp-run <slug> [--env local|remote]` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.->`/exp-eval <experiment-slug>`
-
-✨ : New Skills
-`/exp-pilot-run` — Pilot experiment execution: write code, deploy, monitor, collect raw results.
-`/exp-pilot-eval` — Pilot result evaluation: read results, apply lenient verdict logic
-These two skills are built into Phase5 of `/ideate`
-🛠️ : Modified Skills
-`/ideate`
-5 structured generation paths (A-E) for both Claude and Review LLM.
-Phase restructuring: Filter & Validation merged into Phase 3, Write Wiki moved to Phase 4.
-Phase 5: Finish pilot design and workflow invocation
-Your ideas will follow a clearer path, and a more reasonable screening mechanism will be established through pilot experiments.
-`/exp-design`
-A brand-new experimental design process:method candidate generation + 5 experiment block types + iterative ablation loop 
-`/exp-run`
-Add the code decision gate, code optimization and config check
-
-### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
-
-Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
-
-<p align="center">
-  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output — 1400×900 HTML poster rendered to PNG, showing an auto-rasterized TikZ chain diagram, a KaTeX-rendered booktabs table with consistent positive/negative number styling, and side-by-side experimental figures inside one section" width="720" />
-  <br/>
-  <sub><em>Title, author, venue, and prose are placeholder nonsense to avoid exposing real research; tables and figures preserve the pipeline demo.</em></sub>
-</p>
-
-### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
-
-Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for *your* research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
-
-### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
-
-Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
-
-### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
-
-Your research graph now has two ways to explore:
-
-- **Web UI** — run `python3 tools/serve.py`, open `http://localhost:8765/#/graph`. Click any node to highlight its neighborhood via BFS, filter by entity type or edge category, double-click to open the full page in the Reader.
-- **Obsidian** — run `/visualize --obsidian` to generate a color-coded graph config, or `/visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
-
-### 🔬 2026-05-06 · Methods — Reusable Techniques are Now First-Class
-
-Architectures, training recipes, evaluation protocols, and other reusable techniques now live in `wiki/methods/` as proper wiki entities — with their own pages, source-paper links, and parent/child method chains.
-
----
-
-## What is ΩmegaWiki?
-
-Andrej Karpathy proposed LLM-Wiki: an LLM that **builds and maintains a persistent, structured wiki** from your sources — not a throwaway RAG answer, but compounding knowledge that grows smarter with every paper you feed it.
-
-**ΩmegaWiki takes that idea and runs the full distance.** It's not just a wiki builder — it's a complete research lifecycle platform: from paper ingestion → knowledge graph → gap detection → idea generation → experiment design → paper writing → peer review response. All driven by 24 Claude Code skills, all centered on one wiki as the single source of truth.
-
-Drop your `.tex` / `.pdf` files in a folder. Run one command. Get a fully cross-referenced knowledge base — and then use it to **generate novel research ideas, design experiments, write papers, and respond to reviewers**.
-
-## Why Wiki-Centric, Not RAG?
-
-| | RAG | ΩmegaWiki |
-|---|---|---|
-| **Knowledge persistence** | Rediscovered on every query | Compiled once, maintained forever |
-| **Structure** | Flat chunk store | 9 typed entities with relationships |
-| **Cross-references** | None — chunks are isolated | Bidirectional wikilinks + typed graph |
-| **Knowledge gaps** | Invisible | Explicitly tracked, drive research |
-| **Failed experiments** | Lost | First-class anti-repetition memory |
-| **Output** | Chat answers | Papers, surveys, experiment plans, rebuttals |
-| **Compounding** | No — same cost every query | Yes — each paper enriches the whole graph |
-
-## Architecture
+Scientific research has traditionally been **human-intensive**: researchers coordinate literature, ideas, experiments, manuscripts, and review responses across long project cycles. **AutoSci** is a memory-centric agentic system that automates the full research lifecycle — from paper ingestion to rebuttal — while maintaining structured persistent memory across projects and improving its own procedures over time.
 
 <div align="center">
-<img src="assets/architecture.png" width="700" alt="ΩmegaWiki Architecture">
+<img src="assets/fig-overview.png" width="820" alt="AutoSci system overview">
 </div>
 
-Every skill reads from and writes back to the wiki. Knowledge compounds — each new paper enriches the whole graph. Failed experiments aren't discarded; they become anti-repetition memory that prevents re-exploring dead ends.
+---
+
+## 🔬 Works Produced with AutoSci
+
+The following papers were generated end-to-end using AutoSci — from literature ingestion and idea generation to experiment execution and manuscript writing.
+
+| Paper | Domain | PDF |
+|-------|--------|-----|
+| Agent-driven iterative optimization of Triton GPU kernels | GPU kernel optimization | [📄 PDF](assets/papers/gpu-kernel-optimization.pdf) |
+| PTM-aware degrader target nomination via calibrated ternary-complex scoring | Biomedical drug discovery | [📄 PDF](assets/papers/protac-target-nomination.pdf) |
+
+**Have you used AutoSci in your own research?** We'd love to feature your work here — open a PR or drop us a message!
+
+---
 
 ## Quick Start
 
@@ -201,8 +237,8 @@ Every skill reads from and writes back to the wiki. Knowledge compounds — each
 
 ```bash
 # 1. Clone
-git clone https://github.com/skyllwt/OmegaWiki.git
-cd OmegaWiki
+git clone https://github.com/skyllwt/AutoSci.git
+cd AutoSci
 
 # 2. Install Claude Code
 npm install -g @anthropic-ai/claude-code
@@ -212,14 +248,12 @@ claude login
 chmod +x setup.sh && ./setup.sh        # Linux / macOS
 # Windows (PowerShell):
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# setup creates .venv for OmegaWiki
-# the script does not keep your shell activated, but /init will use .venv automatically
+# setup creates a .venv for AutoSci; /init will use it automatically
 
 # 4. Put your own papers in raw/papers/ (.tex or .pdf)
-#    Optional: add intent notes to raw/notes/ and saved pages to raw/web/
-#    /init and direct local /ingest will manage generated inputs under raw/discovered/ and raw/tmp/
+#    Optional: intent notes in raw/notes/, saved pages in raw/web/
 
-# 5. Build your wiki
+# 5. Build your research memory and start a project
 claude
 # Then type: /init [your-research-topic]
 ```
@@ -257,187 +291,23 @@ and are best run from WSL2 or Linux/macOS.
 
 | Key | Required? | How to get | What it enables |
 |-----|-----------|-----------|-----------------|
-| `ANTHROPIC_API_KEY` | **Yes** | `claude login` (automatic) | Powers all Claude Code skills |
+| `ANTHROPIC_API_KEY` | **Yes** (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers all Claude Code skills |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
 | `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
 
-> **Cross-model review**: ΩmegaWiki uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in Claude-only mode.
+> **Don't have an Anthropic API key?** AutoSci runs on Claude Code, which supports any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for setup snippets.
 
-### Daily arXiv Recommendations
-
-`/daily-arxiv` runs a one-off fresh-paper recommendation pass even before
-automation is configured. To schedule the same pipeline in GitHub Actions, copy
-`config/daily-arxiv.yml.example` to `config/daily-arxiv.yml`, then run
-`/daily-arxiv setup`. The config stores non-secret preferences such as mode,
-categories, caps, and schedule; SMTP/API credentials stay in `.env` or GitHub
-Actions secrets. In CI inform mode, recommendations can use Claude Code auth
-(`ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`) or the OpenAI-compatible
-`LLM_*` review model; auto-ingest still requires Claude Code.
-
-> See [`docs/daily-arxiv-deployment.md`](docs/daily-arxiv-deployment.md) for
-> the GitHub Actions setup checklist and symptom-keyed troubleshooting.
-
-<details>
-<summary><b>Sample digest</b></summary>
-
-<div align="center">
-<img src="assets/daily-arxiv-demo.png" width="720" alt="Sample /daily-arxiv digest">
-</div>
-
-A real `/daily-arxiv` run: ranked recommendations with scores, rationales, wiki connections, and an auto-ingest section.
-
-</details>
-
-## Skills
-
-26 slash commands spanning the full research lifecycle:
-
-### Phase 0: Setup
-
-| Command | What it does |
-|---------|-------------|
-| `/setup` | First-time configuration (API keys, language, dependencies) |
-| `/reset <scope>` | Destructive cleanup: `wiki \| raw \| log \| checkpoints \| all` |
-
-### Phase 1: Knowledge Foundation
-
-| Command | What it does |
-|---------|-------------|
-| `/prefill <domain>` | Optionally seed `foundations/` with background knowledge |
-| `/init [topic]` | Bootstrap a full wiki from user raw sources plus optional discovery |
-| `/ingest <source>` | Parse a paper → wiki pages + cross-references |
-| `/discover` | Recommend ranked next-read papers from anchors, a topic, the current wiki, or a venue/year |
-| `/edit <request>` | Add/remove sources or update wiki content |
-| `/ask <question>` | Query the wiki, crystallize answers back |
-| `/check` | Health scan: broken links, missing cross-refs, consistency |
-
-### Phase 2: Research Pipeline
-
-| Command | What it does |
-|---------|-------------|
-| `/daily-arxiv` | Run/manage a daily arXiv recommendation feed (+ optional GitHub Actions scheduler) |
-| `/ideate [research-direction-or-topic]` | Multi-phase idea generation from cross-topic connections |
-| `/exp-pilot-run <idea-slug>` | Pilot experiment execution: write code, deploy, monitor, collect raw results. |
-| `/exp-pilot-eval <idea-slug>` | Pilot result evaluation: read results, apply lenient verdict logic|
-| `/novelty <idea>` | Multi-source novelty verification (web + S2 + wiki + review LLM) |
-| `/review <artifact>` | Cross-model adversarial review for any research artifact |
-| `/exp-design <idea>` | Idea-driven experiment + ablation design |
-| `/exp-run <experiment>` | Implement + deploy + monitor (local or remote GPU) |
-| `/exp-status` | Dashboard for running experiments; auto-collect results |
-| `/exp-eval <experiment>` | Verdict gate → auto-update the linked idea + graph |
-| `/refine <artifact>` | Multi-round: produce → review → fix → re-review |
-
-### Phase 3: Writing & Submission
-
-| Command | What it does |
-|---------|-------------|
-| `/survey` | Generate Related Work from wiki knowledge |
-| `/paper-plan <ideas>` | Outline from validated-idea graph + evidence matrix |
-| `/paper-draft <plan>` | Draft LaTeX + figures, section by section |
-| `/paper-compile <dir>` | Compile → PDF, auto-fix, verify page/anonymity |
-| `/research <direction>` | End-to-end orchestrator with human gates |
-| `/rebuttal <reviews>` | Parse reviewer comments → draft point-by-point responses |
-
-## Wiki Structure
-
-### 9 Entity Types
-
-| Type | Directory | Purpose |
-|------|-----------|---------|
-| **Paper** | `papers/` | Structured summary: problem/key idea/method/experiment+results/limitations + tldr/contribution_type/datasets |
-| **Concept** | `concepts/` | Cross-paper technical concept with variants, comparisons, definition, linked ideas |
-| **Topic** | `topics/` | Research direction map with SOTA tracker, key benchmarks, and open problems (split into known + methodological gaps) |
-| **Person** | `people/` | Researcher profile with research areas, recent work, and a researcher/team/organization type |
-| **Idea** | `ideas/` | Research idea with lifecycle, novelty argument & score, target venue |
-| **Experiment** | `experiments/` | Full record: hypothesis → setup → results → updates to the linked idea |
-| **Method** | `methods/` | Reusable, citable technique entity (cross-paper); links to source papers and parent/child methods |
-| **Summary** | `Summary/` | Domain-wide survey across topics |
-| **Foundation** | `foundations/` | Background knowledge (terminal: receives inward links, writes none) |
-
-### Knowledge Graph
-
-Semantic relationships are stored in `graph/edges.jsonl`; bibliographic paper citations are stored separately in `graph/citations.jsonl`.
-
-Paper-paper semantic edges are `same_problem_as`, `similar_method_to`, `builds_on`, and `challenges`. Paper-concept edges use `introduces_concept`, `uses_concept`, `extends_concept`, and `critiques_concept`. Workflow edges (`supports`, `contradicts`, `tested_by`, `invalidates`, `addresses_gap`, `inspired_by`, `derived_from`) span experiments, ideas, methods, and concepts.
-
-All pages use **Obsidian `[[wikilink]]` format** — open `wiki/` in Obsidian for visual graph exploration.
-
-## Automation
-
-**GitHub Actions** runs the `/daily-arxiv` recommendation pipeline at UTC 00:17 daily (08:17 Beijing time):
-
-1. Add SMTP secrets to repo **Settings → Secrets** when e-mail delivery is enabled: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `DAILY_ARXIV_EMAIL_TO`
-2. Optional inform-mode LLM recommendation: add `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, or `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` for any OpenAI-compatible provider
-3. `.github/workflows/daily-arxiv.yml` fetches arXiv, deduplicates against the wiki, builds a recommendation context, uploads artifacts, and sends the digest by SMTP
-
-`auto-ingest` mode is explicit and requires Claude Code in CI, because plain API LLMs cannot invoke slash skills such as `/ingest`. Use manual dispatch with `send_email=false` for a dry run without SMTP secrets.
-
-## Project Structure
-
-```
-OmegaWiki/
-├── CLAUDE.md                    # Runtime schema & rules
-├── wiki/                        # Knowledge base (LLM-maintained)
-│   ├── papers/                  #   Structured paper summaries
-│   ├── concepts/                #   Cross-paper technical concepts
-│   ├── topics/                  #   Research direction maps
-│   ├── people/                  #   Researcher profiles
-│   ├── ideas/                   #   Research ideas (with lifecycle)
-│   ├── experiments/             #   Experiment records
-│   ├── methods/                 #   Reusable cross-paper method entities
-│   ├── Summary/                 #   Domain-wide surveys
-│   ├── foundations/             #   Background knowledge (terminal pages)
-│   ├── outputs/                 #   Generated artifacts
-│   ├── graph/                   #   Auto-generated: edges, context, gaps
-│   ├── index.md                 #   Content catalog
-│   └── log.md                   #   Chronological log
-├── raw/                         # Source materials
-│   ├── papers/                  #   User-owned .tex / .pdf files
-│   ├── discovered/              #   external papers from /init and explicit /daily-arxiv auto-ingest
-│   ├── tmp/                     #   generated prepared local sidecars for /init and direct local /ingest
-│   ├── notes/                   #   User-owned .md notes
-│   └── web/                     #   User-owned HTML / Markdown
-├── tools/                       # Deterministic Python helpers
-│   ├── research_wiki.py         #   Wiki engine (20 CLI commands)
-│   ├── init_discovery.py        #   /init prepare + plan + fetch helper
-│   ├── discover.py              #   /discover candidate gathering, dedup, ranking
-│   ├── lint.py                  #   Structural validation (10 checks)
-│   ├── reset_wiki.py            #   Scoped destructive cleanup helper
-│   ├── fetch_arxiv.py           #   arXiv RSS fetcher
-│   ├── fetch_s2.py              #   Semantic Scholar API
-│   ├── fetch_deepxiv.py         #   DeepXiv semantic search
-│   ├── fetch_wikipedia.py       #   Wikipedia fetcher (used by /prefill)
-│   └── remote.py                #   SSH ops for remote experiments
-├── .claude/skills/              # 24 Claude Code skill definitions
-├── i18n/                        # Bilingual: en/ (canonical) + zh/
-├── config/                      # Configuration templates
-├── mcp-servers/                 # Cross-model review server
-└── .github/workflows/           # Daily arXiv cron
-```
-
-
-## Bilingual Support
-
-ΩmegaWiki ships in English and Chinese:
-
-```bash
-./setup.sh --lang en   # English (default)
-./setup.sh --lang zh   # 中文
-```
+> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in Claude-only mode.
 
 ---
 
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## LLM API Configuration / 大模型 API 配置
 
-ΩmegaWiki runs on **Claude Code**, which speaks the **Anthropic API** protocol. You can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables.
+AutoSci runs on **Claude Code**, which speaks the **Anthropic API** protocol. You can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables.
 
-ΩmegaWiki 基于 **Claude Code**,Claude Code 使用 **Anthropic API** 协议通信。你既可以直接使用 Claude,也可以通过覆盖几个环境变量,把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。
+AutoSci 基于 **Claude Code**,Claude Code 使用 **Anthropic API** 协议通信。你既可以直接使用 Claude,也可以通过覆盖几个环境变量,把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。
 
 ### Option A — Native Claude / 原生 Claude
 
@@ -447,9 +317,12 @@ claude login   # OAuth, no manual config / OAuth 登录,无需手动配置
 
 ### Option B — Third-party Anthropic-compatible API / 第三方 Anthropic 兼容 API
 
-Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the project's `.claude/settings.json`), and replace the `<...>` placeholder with your own API key. Model names and extra options are taken from each provider's official Claude Code docs — if anything stops working (e.g. a model is renamed), check the provider's website.
+Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the project's `.claude/settings.json`), and replace the `<...>` placeholder with your own API key. Model names and extra options follow each provider's official Claude Code docs.
 
-从下方任选一个供应商,把对应配置粘贴到 `~/.claude/settings.json`(或项目的 `.claude/settings.json`),并把 `<...>` 占位符替换为你自己的 API key。模型名与额外选项均来自各供应商官方 Claude Code 文档;若出现问题(例如模型改名),请查询对应官网。
+从下方任选一个供应商,把对应配置粘贴到 `~/.claude/settings.json`(或项目的 `.claude/settings.json`),并把 `<...>` 占位符替换为你自己的 API key。模型名与额外选项均来自各供应商官方 Claude Code 文档。
+
+<details>
+<summary><b>MiMo / DeepSeek / Kimi / GLM 配置示例</b></summary>
 
 #### MiMo (小米)
 
@@ -515,155 +388,90 @@ Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the 
 > Z.AI applies a default server-side model mapping, so no explicit `ANTHROPIC_MODEL` is needed.
 > Z.AI 默认在服务端做模型映射,无需显式设置 `ANTHROPIC_MODEL`。
 
-**Skip the Claude Code onboarding** / **跳过 Claude Code 初始引导**
+</details>
 
-When using a third-party key (instead of `claude login`), Claude Code's first-run onboarding won't complete automatically. Create or edit `.claude.json` and mark it done:
-
-使用第三方 key 时不会走 `claude login`,Claude Code 首次启动的引导不会自动完成。创建或编辑 `.claude.json`,手动标记引导已完成:
-
-- macOS / Linux: `~/.claude.json`
-- Windows: `<user-home>\.claude.json`
-
-```json
-{
-  "hasCompletedOnboarding": true
-}
-```
-
-Then run `claude` as usual. / 保存后正常运行 `claude` 即可。
+**Skip the Claude Code onboarding** / **跳过 Claude Code 初始引导**: when using a third-party key, create or edit `.claude.json` (`~/.claude.json` on macOS/Linux) and add `{ "hasCompletedOnboarding": true }`.
 
 ---
 
+## Skills
+
+AutoSci ships with 30+ slash commands spanning the full research lifecycle.
+
+<details>
+<summary><b>View all skills</b></summary>
+
+### Phase 0: Setup
+| Command | What it does |
+|---------|-------------|
+| `/setup` | Interactive API key configuration — checks `.env` state and walks through Semantic Scholar, DeepXiv, and Review LLM setup |
+| `/reset` | Destructive cleanup — reset wiki state to a clean scaffold by scope (`wiki / raw / log / checkpoints / all`) |
+
+### Phase 1: Knowledge Base
+| Command | What it does |
+|---------|-------------|
+| `/prefill` | Seed `wiki/foundations/` with domain background so subsequent `/ingest` doesn't create duplicate concept pages for textbook material |
+| `/init` | Bootstrap the wiki from your source files, with optional discovery, then ingest the final paper set in parallel |
+| `/ingest` | Ingest a paper (local path or arXiv URL) — creates pages and builds all cross-references and graph edges |
+| `/discover` | Build a ranked shortlist of candidate papers (anchor-driven, topic-driven, venue-filtered, or from wiki state) without ingesting |
+| `/edit` | Add or remove raw sources, or update wiki content, per user request |
+| `/ask` | Ask the wiki a question — retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki |
+| `/check` | Scan the full wiki to detect health issues and produce a tiered fix-recommendation report |
+
+### Phase 2: Ideation & Experiments
+| Command | What it does |
+|---------|-------------|
+| `/daily-arxiv` | Run or schedule the daily arXiv recommendation feed; delivers a ranked digest by email with optional auto-ingest for high-confidence picks |
+| `/ideate` | Multi-phase research idea generation: landscape scan → dual-model brainstorm → filter & validation → write to wiki → pilot |
+| `/exp-pilot-run` | Pilot experiment execution — write code, deploy, monitor, collect raw results (called by `/ideate` Phase 5) |
+| `/exp-pilot-eval` | Pilot result evaluation — read results, apply success criteria, update idea page (called by `/ideate` Phase 5) |
+| `/novelty` | Multi-source novelty verification via WebSearch + Semantic Scholar + wiki + Review LLM; outputs novelty score and recommendations |
+| `/review` | Cross-model review of any research artifact — outputs structured scores, wiki entity mapping, and improvement suggestions |
+| `/exp-design` | Idea-driven experiment design with iterative ablation — method candidates → benchmark selection → sensitivity analysis → main experiment |
+| `/exp-run` | Full experiment execution pipeline — prepare code → deploy → monitor → collect results |
+| `/exp-status` | View the status of all running experiments; optionally auto-collect completed runs and advance the pipeline |
+| `/exp-eval` | Experiment verdict gate — Review LLM independently judges results and auto-updates the linked idea's status and graph edges |
+| `/refine` | Multi-round iterative improvement — repeatedly calls `/review`, parses feedback, applies fixes, and updates wiki until target score |
+
+### Phase 3: Writing & Dissemination
+| Command | What it does |
+|---------|-------------|
+| `/survey` | Generate a Related Work section from wiki knowledge — thematic grouping → narrative structure → LaTeX output |
+| `/paper-plan` | Compile a paper outline from the idea graph — evidence map → narrative structure → section + figure + citation plan |
+| `/paper-draft` | Draft a LaTeX paper from `PAPER_PLAN` — write each section from wiki sources, generate figures/tables, verify BibTeX |
+| `/paper-compile` | LaTeX compile → PDF — latexmk compile + auto-fix + page count / anonymity / font checks + submission checklist |
+| `/research` | End-to-end research orchestrator — idea discovery → experiment design → execution → verdict → paper writing with human gates |
+| `/rebuttal` | Parse review comments → atomize concerns → map to wiki → stress-test with Review LLM → generate rebuttal |
+| `/poster` | Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures |
+
+### Utilities
+| Command | What it does |
+|---------|-------------|
+| `/visualize` | Generate Obsidian graph configs and Canvas knowledge maps; the interactive web graph is served by `tools/serve.py` |
+
+</details>
+
+---
+
+## Contributing
+
+We welcome contributions and feedback — especially while we're in active iteration. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Community / 交流群
 
-<img src="assets/wechat_group_3_new.jpg" width="240" alt="WeChat Group QR Code">
+<img src="assets/wechat_group_3_new.png" width="240" alt="WeChat Group QR Code">
 
-Scan to join the ΩmegaWiki WeChat group / 扫码加入微信交流群
+Scan to join the AutoSci WeChat group / 扫码加入微信交流群
 
 ## Acknowledgments
 
-- **Andrej Karpathy** — for the LLM-Wiki concept that inspired this project
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** — the AI agent runtime that powers ΩmegaWiki
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=skyllwt/OmegaWiki&type=Date)](https://star-history.com/#skyllwt/OmegaWiki&Date)
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** — the AI agent runtime that powers AutoSci
+- The `/poster` pipeline is adapted from [PaperX](https://github.com/yutao1024/PaperX)
 
 ## License
 
 [MIT](LICENSE) — use it, fork it, build on it.
 
----
-
-## 中文
-
-### ΩmegaWiki 是什么？
-
-Andrej Karpathy 提出了 LLM-Wiki 概念：让 LLM **构建并维护一个持久的、结构化的 wiki**，而不是一次性的 RAG 回答。知识持续积累，每一篇新论文都让整个知识图谱更强。
-
-**ΩmegaWiki 将这个理念完整实现。** 它不仅是 wiki 构建器，更是完整的研究全流程平台：从论文摄入 → 知识图谱 → 缺口检测 → 想法生成 → 实验设计 → 论文写作 → 同行评审回复。24 个 Claude Code Skills 驱动，一个 wiki 作为唯一的知识中枢。
-
-### 为什么选择 Wiki 而不是 RAG？
-
-| | RAG | ΩmegaWiki |
-|---|---|---|
-| **知识持久性** | 每次查询都重新发现 | 编译一次，持续维护 |
-| **结构** | 扁平的 chunk 存储 | 9 种实体类型 + 关系图 |
-| **交叉引用** | 无 — chunk 彼此孤立 | 双向 wikilink + 类型化边 |
-| **知识缺口** | 不可见 | 显式追踪，驱动研究方向 |
-| **失败实验** | 丢失 | 一等公民，防止重复探索 |
-| **输出** | 聊天回答 | 论文、综述、实验方案、审稿回复 |
-| **复利效应** | 无 — 每次查询成本相同 | 有 — 每篇论文丰富整个图谱 |
-
-### 快速开始
-
-**前置条件：** Python 3.9+, Node.js 18+
-
-```bash
-git clone https://github.com/skyllwt/OmegaWiki.git && cd OmegaWiki
-
-# 安装 Claude Code
-npm install -g @anthropic-ai/claude-code
-claude login
-
-# 一键配置
-chmod +x setup.sh && ./setup.sh --lang zh        # Linux / macOS
-# Windows (PowerShell):
-#   powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Lang zh
-# setup 会为 OmegaWiki 创建 .venv
-# 脚本不会把你当前 shell 永久激活，但 /init 会自动使用 .venv
-
-# 把你自己的论文放入 raw/papers/（.tex 或 .pdf）
-# 可选：把意图笔记放入 raw/notes/，网页存档放入 raw/web/
-# /init 与直接本地 /ingest 会自动管理 raw/discovered/ 与 raw/tmp/ 下的生成内容
-# 启动 Claude Code
-claude
-# 输入：/init [你的研究方向]
-```
-
-> **Windows 用户**：本地 pipeline 已原生支持。`/exp-run --env remote` 远程 GPU 实验依赖 `ssh`/`rsync`/`screen`，建议在 WSL2 或 Linux/macOS 下运行。
-
-### API Key 说明
-
-| Key | 必须？ | 获取方式 | 用途 |
-|-----|--------|---------|------|
-| `ANTHROPIC_API_KEY` | **是** | `claude login` | 驱动所有 Skill |
-| `CLAUDE_CODE_OAUTH_TOKEN` | 可选 | `claude setup-token` | Pro/Max 用户的 GitHub Actions Claude Code auth |
-| `SEMANTIC_SCHOLAR_API_KEY` | 可选 | [semanticscholar.org](https://www.semanticscholar.org/product/api)（免费） | 引用图谱、论文搜索 |
-| `DEEPXIV_TOKEN` | 可选 | `setup.sh` 自动注册 | 语义搜索、热门趋势 |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 任意 OpenAI 兼容 API | 跨模型评审；`/daily-arxiv` inform 推荐 |
-
-### 自动化
-
-GitHub Actions 每天 UTC 00:17（北京时间 08:17）运行 `/daily-arxiv` 推荐 pipeline：拉取 arXiv、按 wiki 去重、构建 recommendation context、上传 artifacts，并可通过 SMTP 发送 digest 邮件。
-
-启用邮件时，在 repo **Settings → Secrets** 添加：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`DAILY_ARXIV_EMAIL_TO`。
-
-CI inform mode 可使用 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 启动 Claude Code，也可使用 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 接入任意 OpenAI-compatible provider。`auto-ingest` 是显式模式，并且需要 Claude Code，因为普通 API LLM 不能调用 `/ingest` 这类 slash skill。手动触发时可设置 `send_email=false`，用于无 SMTP secrets 的 dry run。
-
-<details>
-<summary><b>Digest 示例 / Sample digest</b></summary>
-
-<div align="center">
-<img src="assets/daily-arxiv-demo.png" width="720" alt="/daily-arxiv digest 示例">
-</div>
-
-一次真实的 `/daily-arxiv` 运行结果：带分数、理由、wiki 关联以及 auto-ingest 区块的推荐 digest。
-
-</details>
-
-### 26 个 Skill 命令
-
-| 命令 | 功能 |
-|------|------|
-| `/setup` | 首次配置（API key、语言、依赖） |
-| `/reset` | 按范围销毁性清理：`wiki \| raw \| log \| checkpoints \| all` |
-| `/prefill` | 可选地预填 `foundations/` 背景知识 |
-| `/init` | 基于用户 raw 素材并按需做外部发现来搭建 wiki |
-| `/ingest` | 消化论文，创建页面 + 交叉引用 |
-| `/discover` | 从 anchor、topic、当前 wiki 或 venue/year 推荐排序后的下一批待读论文 |
-| `/edit` | 增删 raw 或更新 wiki |
-| `/ask` | 对 wiki 提问 |
-| `/check` | wiki 健康检查 |
-| `/daily-arxiv` | 运行/管理每日 arXiv 推荐 feed（可选 CI 定时） |
-| `/ideate` | 跨方向构思研究 idea |
-| `/exp-pilot-run`  | 预实验部署运行 |
-| `/exp-pilot-eval` | 预实验结果评估 |
-| `/novelty` | 多源新颖性验证 |
-| `/review` | 跨模型评审 |
-| `/exp-design` | idea 驱动的实验设计 |
-| `/exp-run` | 部署 + 监控实验 |
-| `/exp-status` | 实验状态看板 |
-| `/exp-eval` | 裁决 → 自动更新关联 idea |
-| `/refine` | 多轮迭代改进 |
-| `/survey` | 生成 Related Work |
-| `/paper-plan` | idea 图谱 + 实验证据 → 论文提纲 |
-| `/paper-draft` | 提纲 + wiki → LaTeX 草稿 |
-| `/paper-compile` | 编译 → PDF，自动修复 |
-| `/research` | 端到端研究编排器 |
-| `/rebuttal` | 解析评审意见 → 逐条回复 |
-
----
 
 <div align="center">
 
