@@ -194,6 +194,20 @@ Skip this whole step in INIT MODE — the parent `/init` handles it at fan-in.
 2. Do not create new topic pages from `/ingest` — topic creation belongs to `/init` and `/edit`.
 3. Append new or edited page entries to `wiki/index.md` under their category headings. Format: each entity kind is a top-level YAML key (matching `runtime/schema/entities.yaml`), with `- slug: <slug>` entries beneath.
 
+### Step 6.5: Trust Guard (required before write)
+
+Before logging, run Trust Guard on every page this ingest created or updated:
+
+```bash
+"$PYTHON_BIN" tools/trust_guard.py check wiki/ "wiki/<kind>/<slug>.md" --repo-root .
+```
+
+- `PASS` (exit 0): continue to Step 7.
+- `WARN` (exit 0): continue, but note the warning in the log line.
+- `BLOCK` (exit 2): **stop**. The page has been copied to `raw/tmp/quarantine/` and its `.verdict.json` lists the failed checks. Fix the page, re-run this check until it is no longer BLOCK, then continue.
+
+When no Review LLM is configured (`.env` `LLM_*`), the content check is skipped automatically and only the deterministic form check runs — this graceful degradation is expected.
+
 ### Step 7: Log and rebuild
 
 ```bash

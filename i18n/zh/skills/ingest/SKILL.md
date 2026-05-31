@@ -194,6 +194,20 @@ INIT MODE 下整步跳过 —— 由上层 `/init` 在 fan-in 时统一处理。
 2. `/ingest` 不得新建 topic 页面 —— topic 创建属于 `/init` 与 `/edit`。
 3. 在 `wiki/index.md` 对应分类下追加新增或编辑过的条目。格式:每个 entity kind 是顶层 YAML 键(对应 `runtime/schema/entities.yaml`),其下挂 `- slug: <slug>`。
 
+### Step 6.5: Trust Guard（写入前强制）
+
+在追加 log 之前，对本次 ingest 新建/更新的每个页面跑 Trust Guard：
+
+```bash
+"$PYTHON_BIN" tools/trust_guard.py check wiki/ "wiki/<kind>/<slug>.md" --repo-root .
+```
+
+- `PASS`（退出码 0）：继续 Step 7。
+- `WARN`（退出码 0）：继续，但在 log 行里注明 warning。
+- `BLOCK`（退出码 2）：**停止**。该页面已被复制到 `raw/tmp/quarantine/`，其 `.verdict.json` 列出失败的检查。修复页面后重跑本检查，直到非 BLOCK 再继续。
+
+未配置 Review LLM（`.env` 的 `LLM_*`）时，content-check 自动跳过，仅做确定性 form-check —— 此为预期降级行为。
+
 ### Step 7: 日志与 rebuild
 
 ```bash
