@@ -86,6 +86,7 @@ from runtime.loader import (  # noqa: E402
     validate_edge_attributes,
     validate_lifecycle_transition,
 )
+import pipeline_progress  # noqa: E402  (tools/ sibling module)
 
 DERIVED_DIR = "graph"
 
@@ -2736,6 +2737,11 @@ def main():
     p.add_argument("stream", help="one of: trust_events|pipeline_events|jobs|consolidation_events")
     p.add_argument("record_json", help="a JSON object string")
 
+    # validate-pipeline
+    p = sub.add_parser("validate-pipeline",
+                       help="Validate wiki/outputs/pipeline-progress.md against pipeline.yaml")
+    p.add_argument("wiki_root")
+
     # transition
     p = sub.add_parser("transition", help="Transition entity lifecycle status")
     p.add_argument("path")
@@ -2890,6 +2896,12 @@ def main():
             print(f"record_json is not valid JSON: {exc}", file=sys.stderr)
             sys.exit(1)
         append_event(args.wiki_root, args.stream, record)
+    elif args.command == "validate-pipeline":
+        issues = pipeline_progress.validate(args.wiki_root)
+        for severity, message in issues:
+            print(f"{severity}: {message}")
+        if any(sev == "BLOCK" for sev, _ in issues):
+            sys.exit(1)
     else:
         parser.print_help()
         sys.exit(1)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -128,6 +129,46 @@ class LintHookTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         cats = {i.category for i in lint.lint(d)}
         self.assertIn("pipeline", cats)
+
+
+class ValidatePipelineCliTests(unittest.TestCase):
+    def _run(self, wiki: Path) -> int:
+        return subprocess.run(
+            [sys.executable, str(TOOLS / "research_wiki.py"), "validate-pipeline", str(wiki)],
+            capture_output=True, text=True,
+        ).returncode
+
+    def test_cli_clean_exits_0(self) -> None:
+        d = _wiki(_GOOD)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        self.assertEqual(self._run(d), 0)
+
+    def test_cli_absent_file_exits_0(self) -> None:
+        d = _wiki(None)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        self.assertEqual(self._run(d), 0)
+
+    def test_cli_block_exits_nonzero(self) -> None:
+        text = _GOOD.replace('idea_slug: ""', "idea_slug: ghost")
+        d = _wiki(text)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        self.assertNotEqual(self._run(d), 0)
+
+    def test_cli_warn_only_exits_0(self) -> None:
+        # status running + all non-skippable stages completed -> a WARN, no BLOCK
+        text = _GOOD.replace("current_stage: stage1", "current_stage: stage5")
+        for label in ("- Stage 1: pending", "- Gate 1: pending", "- Stage 2: pending",
+                      "- Stage 3a (Deploy): pending", "- Stage 3b (Await): pending",
+                      "- Stage 3c (Collect): pending", "- Stage 4: pending", "- Gate 2: pending"):
+            text = text.replace(label, label.replace("pending", "completed"))
+        d = _wiki(text)
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        result = subprocess.run(
+            [sys.executable, str(TOOLS / "research_wiki.py"), "validate-pipeline", str(d)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("WARN", result.stdout)
 
 
 if __name__ == "__main__":
