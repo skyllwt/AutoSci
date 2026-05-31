@@ -1,0 +1,64 @@
+# Pipeline state contract for wiki/outputs/pipeline-progress.md (SciFlow Harness-State).
+# Canonical schema for the /research progress snapshot. Loaded by runtime/loader.py;
+# validated by tools/pipeline_progress.py (via loader.validate_pipeline), surfaced in
+# tools/lint.py and `research_wiki.py validate-pipeline`.
+
+file: wiki/outputs/pipeline-progress.md
+
+frontmatter:
+  required: [slug, direction, status, current_stage, started, mode]
+  fields:
+    slug:               { type: str }
+    direction:          { type: str }
+    status:             { type: enum, values: [running, completed, failed, paused], default: running }
+    current_stage:      { type: enum, values: [stage0, stage1, stage2, stage3, stage4, stage5] }
+    started:            { type: date }
+    mode:               { type: enum, values: [auto, interactive] }
+    skip_paper:         { type: bool, default: false }
+    venue:              { type: str }
+    idea_slug:          { type: link, to: ideas }
+    experiment_slugs:   { type: list_link, to: experiments }
+    stage3a_deployed:   { type: list_str }
+    linked_idea_slugs:  { type: list_link, to: ideas }
+    iteration_count:    { type: int, default: 0 }
+    monitoring_cron_id: { type: str }
+
+stage_log:
+  section: "## Stage Log"
+  line_states: [pending, running, completed, skipped, failed]
+  lines:
+    - { key: stage0,  label: "Stage 0 (Bootstrap)", skippable: true }
+    - { key: stage1,  label: "Stage 1" }
+    - { key: gate1,   label: "Gate 1" }
+    - { key: stage2,  label: "Stage 2" }
+    - { key: stage3a, label: "Stage 3a (Deploy)" }
+    - { key: stage3b, label: "Stage 3b (Await)" }
+    - { key: stage3c, label: "Stage 3c (Collect)" }
+    - { key: stage4,  label: "Stage 4" }
+    - { key: gate2,   label: "Gate 2" }
+    - { key: stage5,  label: "Stage 5", skippable: true }
+
+current_stage_map:
+  stage0: [stage0]
+  stage1: [stage1, gate1]
+  stage2: [stage2]
+  stage3: [stage3a, stage3b, stage3c]
+  stage4: [stage4, gate2]
+  stage5: [stage5]
+
+start_from_aliases:
+  stage1: stage1
+  stage2: stage2
+  stage3: stage3
+  stage3-collect: stage3
+  stage3-check: stage3
+  stage4: stage4
+  stage5: stage5
+
+paper_stage:
+  stage0: Literature
+  stage1: Ideation
+  stage2: Experiment
+  stage3: Experiment
+  stage4: Experiment
+  stage5: Writing

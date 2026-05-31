@@ -3,7 +3,7 @@
 Hand-written, fully data-driven loader.  Reads runtime/schema/*.yaml at import
 time and exposes:
 
-  - raw YAML:        ENTITIES, EDGES, XREF, CONVENTIONS, WRITERS
+  - raw YAML:        ENTITIES, EDGES, XREF, CONVENTIONS, WRITERS, PIPELINE
   - derived dicts:   ENTITY_DIRS, REQUIRED_FIELDS, VALID_VALUES, FIELD_DEFAULTS,
                      EDGE_TYPE_SPECS
   - derived sets:    PAPER_PAPER_EDGE_TYPES, PAPER_CONCEPT_EDGE_TYPES,
@@ -16,6 +16,9 @@ time and exposes:
                      edge_requires_confidence, edge_expected_endpoint,
                      edge_endpoint_matches, edge_is_legacy_for_endpoint,
                      edge_legacy_replacement_message
+  - pipeline:        PIPELINE + pipeline_required_fields, pipeline_field_enums,
+                     pipeline_stage_log_lines, pipeline_stage_log_states,
+                     pipeline_current_stage_map
 
 All derivations are dict comprehensions over ENTITIES / EDGES — adding a new
 entity or edge to YAML automatically propagates without any code change here.
@@ -39,6 +42,7 @@ EDGES       = _load(_SCHEMA / 'edges.yaml')
 XREF        = _load(_SCHEMA / 'xref.yaml')
 CONVENTIONS = _load(_SCHEMA / 'conventions.yaml')
 WRITERS     = _load(_POLICY / 'writers.yaml')
+PIPELINE    = _load(_SCHEMA / 'pipeline.yaml')
 
 # ── Static / wildcard constants ─────────────────────────────────────────────
 
@@ -235,3 +239,29 @@ def validate_lifecycle_transition(kind: str, from_state: str, to_state: str) -> 
         return (f"{kind}: illegal transition {from_state!r} → {to_state!r}; "
                 f"legal from {from_state!r}: {legal}")
     return None
+
+
+# ── Pipeline-progress schema accessors ──────────────────────────────────────
+
+def pipeline_required_fields() -> list[str]:
+    return list(PIPELINE['frontmatter']['required'])
+
+
+def pipeline_field_enums() -> dict[str, set[str]]:
+    out = {}
+    for fname, fspec in PIPELINE['frontmatter']['fields'].items():
+        if fspec.get('type') == 'enum':
+            out[fname] = {str(v) for v in fspec['values']}
+    return out
+
+
+def pipeline_stage_log_lines() -> list[dict]:
+    return [dict(line) for line in PIPELINE['stage_log']['lines']]
+
+
+def pipeline_stage_log_states() -> set[str]:
+    return set(PIPELINE['stage_log']['line_states'])
+
+
+def pipeline_current_stage_map() -> dict[str, list[str]]:
+    return {k: list(v) for k, v in PIPELINE['current_stage_map'].items()}
