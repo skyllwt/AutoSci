@@ -226,6 +226,7 @@ The following papers were generated end-to-end using AutoSci — from literature
 |-------|--------|-----|
 | Agent-driven iterative optimization of Triton GPU kernels | GPU kernel optimization | [📄 PDF](assets/papers/gpu-kernel-optimization.pdf) |
 | PTM-aware degrader target nomination via calibrated ternary-complex scoring | Biomedical drug discovery | [📄 PDF](assets/papers/protac-target-nomination.pdf) |
+| Forced Honesty Dissociates Polite Speech from Motivated Cognition in LLM Attitude Ratings | LLMs as cognitive models | [📄 PDF](assets/papers/llm-positivity-bias-cognitive-models.pdf) |
 
 **Have you used AutoSci in your own research?** We'd love to feature your work here — open a PR or drop us a message!
 
