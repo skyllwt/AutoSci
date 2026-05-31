@@ -37,7 +37,7 @@ class Decision:
 
 
 def is_baseline(exp: ExpState) -> bool:
-    return "baseline" in (exp.tags or []) or "baseline" in exp.slug
+    return "baseline" in (exp.tags or []) or exp.slug.endswith("-baseline") or exp.slug == "baseline"
 
 
 def _clean_slug(value) -> str:
@@ -84,9 +84,13 @@ def plan_next(frontmatter: dict, stage_log: dict, exp_states: list, idea_status)
         return Decision("resume", "stage2", "/research --start-from stage2")
 
     if stage in ("stage3", "stage3-await"):
-        if not deployed:
+        stage3a = fm.get("stage3a_deployed")
+        # All Stage-3a deploys failed: the deploy step ran but recorded an empty list.
+        if isinstance(stage3a, list) and len(stage3a) == 0:
             return Decision("terminate", "all_deploys_failed",
                             "No experiments deployed (all deploys failed) — check GPU/SSH config.")
+        if not deployed:
+            return Decision("resume", "stage3", "/research --start-from stage3")
         if any(is_baseline(e) and e.outcome == "failed" for e in exp_states):
             return Decision("terminate", "baseline_collect_failed",
                             "Baseline experiment failed — baseline cannot be reproduced.")
@@ -106,7 +110,8 @@ def plan_next(frontmatter: dict, stage_log: dict, exp_states: list, idea_status)
         if not exp_states:
             return Decision("manual_gate", "no_experiment_results",
                             "Stage 4 reached but no experiment results available — check stage 3 outputs.")
-        all_neg = all(e.outcome in ("failed", "inconclusive", None) for e in exp_states)
+        supporting = [e for e in exp_states if not is_baseline(e)]
+        all_neg = all(e.outcome in ("failed", "inconclusive", None) for e in supporting)
         insufficient = (idea_status in ("proposed", "in_progress", "tested") and all_neg) or idea_status == "failed"
         if insufficient and iters < 2:
             return Decision("iterate", "verdict_insufficient",

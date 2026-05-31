@@ -50,6 +50,9 @@ class IsBaselineTests(unittest.TestCase):
     def test_non_baseline(self) -> None:
         self.assertFalse(rp.is_baseline(_exp("exp-foo-ablation", tags=["ablation"])))
 
+    def test_baseline_substring_not_overmatched(self) -> None:
+        self.assertFalse(rp.is_baseline(_exp("exp-baseline-free-method")))
+
 
 class PlanNextTests(unittest.TestCase):
     def test_completed_is_done(self) -> None:
@@ -147,6 +150,17 @@ class PlanNextTests(unittest.TestCase):
     def test_stage4_no_exps_manual_gate(self) -> None:
         d = rp.plan_next(_fm(current_stage="stage4"), _log(stage4="completed"), [], "tested")
         self.assertEqual((d.action, d.reason), ("manual_gate", "no_experiment_results"))
+
+    def test_all_deploys_failed_with_planned_slugs(self) -> None:
+        d = rp.plan_next(_fm(current_stage="stage3-await", stage3a_deployed=[], experiment_slugs=["e1", "e2"]),
+                         _log(stage1="completed", gate1="completed", stage2="completed"), [], "in_progress")
+        self.assertEqual((d.action, d.reason), ("terminate", "all_deploys_failed"))
+
+    def test_stage4_baseline_ok_but_supporting_failed_iterates(self) -> None:
+        exps = [_exp("exp-foo-baseline", status="completed", outcome="succeeded"),
+                _exp("exp-foo-val", status="completed", outcome="failed")]
+        d = rp.plan_next(_fm(current_stage="stage4", iteration_count=0), _log(stage4="completed"), exps, "tested")
+        self.assertEqual((d.action, d.reason), ("iterate", "verdict_insufficient"))
 
 
 _PROGRESS = """---
