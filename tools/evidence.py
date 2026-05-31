@@ -161,3 +161,59 @@ def verify_claims(wiki_dir: Path, manuscript_slug: str) -> list[ClaimVerdict]:
                                     classify_risk(kind, status), verdict,
                                     covering, structured, reason))
     return results
+
+
+def _overall(results: list[ClaimVerdict]) -> str:
+    worst = PASS
+    for r in results:
+        if _RANK[r.verdict] > _RANK[worst]:
+            worst = r.verdict
+    return worst
+
+
+def _exit_code(results: list[ClaimVerdict], strict: bool) -> int:
+    if any(r.verdict == BLOCK for r in results):
+        return 1
+    if strict and any(r.verdict == WARN for r in results):
+        return 1
+    return 0
+
+
+def _print_report(manuscript_slug: str, results: list[ClaimVerdict]) -> None:
+    overall = _overall(results)
+    print(f"verify-claims: manuscripts/{manuscript_slug} -> {EMOJI[overall]} {overall}")
+    if not results:
+        print("  (no idea/experiment/method claims resolved from Evidence map or graph)")
+        return
+    for r in sorted(results, key=lambda x: (-_RANK[x.verdict], x.node_id)):
+        print(f"  {EMOJI[r.verdict]} {r.verdict:5} {r.node_id} "
+              f"[{r.kind}/{r.status or '?'}, {r.risk}] — {r.reason}")
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="evidence.py")
+    sub = ap.add_subparsers(dest="command", required=True)
+    vc = sub.add_parser("verify-claims",
+                        help="Check claim/evidence coverage for a manuscript")
+    vc.add_argument("manuscript_slug")
+    vc.add_argument("--wiki-dir", default="wiki")
+    vc.add_argument("--json", action="store_true")
+    vc.add_argument("--strict", action="store_true")
+    args = ap.parse_args(argv)
+
+    if args.command == "verify-claims":
+        results = verify_claims(Path(args.wiki_dir), args.manuscript_slug)
+        if args.json:
+            print(json.dumps({
+                "manuscript": f"manuscripts/{args.manuscript_slug}",
+                "overall": _overall(results),
+                "claims": [r.to_dict() for r in results],
+            }, ensure_ascii=False, indent=2))
+        else:
+            _print_report(args.manuscript_slug, results)
+        return _exit_code(results, args.strict)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

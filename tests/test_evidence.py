@@ -104,5 +104,52 @@ class TestVerdict(unittest.TestCase):
         self.assertFalse(structured)
 
 
+class TestEndToEnd(unittest.TestCase):
+    def _run(self, d, *args):
+        return subprocess.run(
+            [sys.executable, str(TOOLS / "evidence.py"), "verify-claims", "m1",
+             "--wiki-dir", str(d), *args],
+            capture_output=True, text=True)
+
+    def test_uncovered_high_risk_blocks_nonzero(self):
+        d = _wiki(with_edge=False)
+        r = self._run(d)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("BLOCK", r.stdout)
+
+    def test_structured_covered_passes_zero(self):
+        d = _wiki(with_edge=True, structured=True)
+        r = self._run(d)
+        self.assertEqual(r.returncode, 0)
+
+    def test_strict_warn_nonzero(self):
+        d = _wiki(with_edge=True, structured=False)
+        r = self._run(d, "--strict")
+        self.assertEqual(r.returncode, 1)
+
+    def test_warn_zero_without_strict(self):
+        d = _wiki(with_edge=True, structured=False)
+        r = self._run(d)
+        self.assertEqual(r.returncode, 0)
+
+    def test_json_output(self):
+        d = _wiki(with_edge=True, structured=True)
+        r = self._run(d, "--json")
+        data = json.loads(r.stdout)
+        self.assertEqual(data["overall"], "PASS")
+        self.assertEqual(len(data["claims"]), 2)
+
+    def test_no_claims_reports_empty_and_exit_zero(self):
+        d = _wiki(with_edge=False)
+        (d / "manuscripts" / "empty.md").write_text(
+            "---\nslug: empty\ntitle: E\nstatus: drafting\ntags: []\n---\n# empty\n"
+            "## Evidence map\n(no claims yet)\n## Version history\n", encoding="utf-8")
+        r = subprocess.run(
+            [sys.executable, str(TOOLS / "evidence.py"), "verify-claims", "empty",
+             "--wiki-dir", str(d)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("no idea/experiment/method claims", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
