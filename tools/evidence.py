@@ -109,3 +109,55 @@ def resolve_claims(wiki_dir: Path, manuscript_slug: str) -> list[str]:
         if kind in CLAIM_KINDS and (wiki_dir / f"{nid}.md").exists():
             claims.add(nid)
     return sorted(claims)
+
+
+def classify_risk(kind: str, status: str) -> str:
+    if kind == "ideas" and status in HIGH_RISK_IDEA:
+        return "high"
+    if kind == "experiments" and status in HIGH_RISK_EXPERIMENT:
+        return "high"
+    return "low"
+
+
+def _coverage(edges: list[dict], node_id: str) -> tuple[int, bool]:
+    """Count supports/tested_by edges incident to node_id; structured if any
+    covering edge carries a non-empty metric_value or source_path."""
+    count, structured = 0, False
+    for e in edges:
+        if e.get("type") not in COVERAGE_EDGES:
+            continue
+        if node_id not in (e.get("from"), e.get("to")):
+            continue
+        count += 1
+        if e.get("metric_value") or e.get("source_path"):
+            structured = True
+    return count, structured
+
+
+def verdict_for_claim(kind: str, status: str, covering: int,
+                      structured: bool) -> tuple[str, str]:
+    """Return (verdict, reason) for one claim. See design spec section 3.4(c)."""
+    if classify_risk(kind, status) == "high":
+        if covering == 0:
+            return BLOCK, "high-risk claim has no supports/tested_by evidence edge"
+        if not structured:
+            return WARN, "covered but no structured attribute (metric_value/source_path)"
+        return PASS, "covered with structured evidence"
+    if covering == 0:
+        return INFO, "low-risk claim, no evidence edge (informational)"
+    return PASS, "low-risk claim, covered"
+
+
+def verify_claims(wiki_dir: Path, manuscript_slug: str) -> list[ClaimVerdict]:
+    wiki_dir = Path(wiki_dir)
+    edges = research_wiki.load_edges(str(wiki_dir))
+    results: list[ClaimVerdict] = []
+    for nid in resolve_claims(wiki_dir, manuscript_slug):
+        kind = nid.split("/", 1)[0]
+        status = str(_read_frontmatter(wiki_dir / f"{nid}.md").get("status", ""))
+        covering, structured = _coverage(edges, nid)
+        verdict, reason = verdict_for_claim(kind, status, covering, structured)
+        results.append(ClaimVerdict(nid, kind, status,
+                                    classify_risk(kind, status), verdict,
+                                    covering, structured, reason))
+    return results

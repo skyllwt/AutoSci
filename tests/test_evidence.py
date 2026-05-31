@@ -70,5 +70,39 @@ class TestResolveClaims(unittest.TestCase):
         self.assertIn("experiments/e1", claims)
 
 
+class TestVerdict(unittest.TestCase):
+    def test_high_risk_uncovered_blocks(self):
+        self.assertEqual(ev.verdict_for_claim("ideas", "validated", 0, False)[0], ev.BLOCK)
+
+    def test_high_risk_covered_no_attr_warns(self):
+        self.assertEqual(ev.verdict_for_claim("ideas", "validated", 1, False)[0], ev.WARN)
+
+    def test_high_risk_covered_structured_passes(self):
+        self.assertEqual(ev.verdict_for_claim("ideas", "validated", 1, True)[0], ev.PASS)
+
+    def test_low_risk_uncovered_info(self):
+        self.assertEqual(ev.verdict_for_claim("ideas", "proposed", 0, False)[0], ev.INFO)
+
+    def test_experiment_completed_is_high_risk(self):
+        self.assertEqual(ev.classify_risk("experiments", "completed"), "high")
+
+    def test_method_is_low_risk(self):
+        self.assertEqual(ev.classify_risk("methods", ""), "low")
+
+    def test_coverage_counts_and_structured(self):
+        d = _wiki(with_edge=True, structured=True)
+        edges = rw.load_edges(str(d))
+        count, structured = ev._coverage(edges, "ideas/i-val")
+        self.assertEqual(count, 1)
+        self.assertTrue(structured)
+
+    def test_contradicts_does_not_count_as_coverage(self):
+        edges = [{"type": "contradicts", "from": "ideas/i-val", "to": "experiments/e1",
+                  "metric_value": "0.5"}]
+        count, structured = ev._coverage(edges, "ideas/i-val")
+        self.assertEqual(count, 0)
+        self.assertFalse(structured)
+
+
 if __name__ == "__main__":
     unittest.main()
