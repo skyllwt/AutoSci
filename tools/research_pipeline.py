@@ -17,6 +17,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import pipeline_progress  # noqa: E402  (tools/ sibling; reuses parse_progress + validate)
+import lint  # noqa: E402  (tools/ sibling; deterministic form-check at the gate)
+import wiki_events  # noqa: E402  (tools/ sibling; sanctioned event writer)
 
 
 @dataclass
@@ -240,6 +242,98 @@ def status(wiki_dir, as_json: bool = False) -> str:
     return "\n".join(lines)
 
 
+# ── Stage handoff verification gate (S1.2) ──────────────────────────────────
+
+_GATE_RANK = {"PASS": 0, "WARN": 1, "BLOCK": 2}
+
+
+@dataclass
+class GateCheck:
+    name: str
+    status: str   # PASS | WARN | BLOCK
+    message: str
+
+
+@dataclass
+class GateVerdict:
+    decision: str
+    from_stage: str
+    to_stage: str
+    overridden: bool
+    checks: list[GateCheck] = field(default_factory=list)
+
+    def to_event(self) -> dict:
+        return {
+            "kind": "gate",
+            "from": self.from_stage,
+            "to": self.to_stage,
+            "decision": self.decision,
+            "overridden": self.overridden,
+            "checks": [{"name": c.name, "status": c.status, "message": c.message} for c in self.checks],
+        }
+
+
+def _gate_overall(checks: list[GateCheck]) -> str:
+    worst = "PASS"
+    for c in checks:
+        if _GATE_RANK[c.status] > _GATE_RANK[worst]:
+            worst = c.status
+    return worst
+
+
+def gate_handoff(wiki_dir, from_stage: str, to_stage: str, *, manuscript=None, override: bool = False) -> GateVerdict:
+    """Verify a stage handoff. Generic checks (pipeline-validate + lint form) run
+    every time; evidence (→stage5) and manuscript (→rebuttal) gates are handoff-
+    specific. `override` only softens the evidence gate. No event I/O (caller emits)."""
+    checks = []
+    overridden = False
+
+    # Generic: pipeline-progress validation
+    for severity, message in pipeline_progress.validate(wiki_dir):
+        checks.append(GateCheck("pipeline:validate", severity, message))
+
+    # Generic: deterministic form-check (lint)
+    issues = lint.lint(Path(wiki_dir))
+    reds = [i for i in issues if i.level == "🔴"]
+    yellows = [i for i in issues if i.level == "🟡"]
+    if reds:
+        checks.append(GateCheck("form:lint", "BLOCK", f"{len(reds)} structural lint error(s)"))
+    elif yellows:
+        checks.append(GateCheck("form:lint", "WARN", f"{len(yellows)} lint warning(s)"))
+    else:
+        checks.append(GateCheck("form:lint", "PASS", "no lint errors"))
+
+    # Evidence gate (Experiment -> Writing)
+    if to_stage == "stage5":
+        g = gather(wiki_dir)
+        exp_states = g[2] if g else []  # gather() resolves stage3a_deployed -> experiment_slugs
+        succeeded = [e for e in exp_states if e.outcome == "succeeded"]
+        if succeeded:
+            checks.append(GateCheck("evidence:experiment", "PASS", f"{len(succeeded)} succeeded experiment(s)"))
+        elif override:
+            overridden = True
+            checks.append(GateCheck("evidence:experiment", "WARN", "no succeeded experiment; overridden"))
+        else:
+            checks.append(GateCheck("evidence:experiment", "BLOCK",
+                                    "no succeeded experiment — paper writing blocked (use --override to proceed)"))
+
+    # Manuscript gate (Writing -> Rebuttal)
+    if to_stage == "rebuttal":
+        if manuscript:
+            ms = _read_frontmatter(Path(wiki_dir) / "manuscripts" / f"{_clean_slug(manuscript)}.md")
+            st = ms.get("status")
+            if st in ("submitted", "final_version"):
+                checks.append(GateCheck("manuscript:status", "PASS", f"manuscript status={st}"))
+            else:
+                checks.append(GateCheck("manuscript:status", "BLOCK", f"manuscript not submitted (status={st})"))
+        else:
+            checks.append(GateCheck("manuscript:status", "WARN",
+                                    "no --manuscript specified; cannot verify manuscript status"))
+
+    return GateVerdict(decision=_gate_overall(checks), from_stage=from_stage,
+                       to_stage=to_stage, overridden=overridden, checks=checks)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="research_pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -248,6 +342,13 @@ def main(argv=None) -> int:
         p.add_argument("wiki_root")
         if name in ("status", "resume-plan"):
             p.add_argument("--json", action="store_true")
+    pg = sub.add_parser("gate")
+    pg.add_argument("wiki_root")
+    pg.add_argument("--from", dest="from_stage", required=True)
+    pg.add_argument("--to", dest="to_stage", required=True)
+    pg.add_argument("--manuscript", default=None)
+    pg.add_argument("--override", action="store_true")
+    pg.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     if args.command == "status":
@@ -265,6 +366,18 @@ def main(argv=None) -> int:
         for severity, message in issues:
             print(f"{severity}: {message}")
         return 1 if any(sev == "BLOCK" for sev, _ in issues) else 0
+    if args.command == "gate":
+        verdict = gate_handoff(args.wiki_root, args.from_stage, args.to_stage,
+                               manuscript=args.manuscript, override=args.override)
+        wiki_events.append_event(args.wiki_root, "pipeline_events", verdict.to_event())
+        if args.json:
+            print(json.dumps(verdict.to_event(), ensure_ascii=False, indent=2))
+        else:
+            tag = " (overridden)" if verdict.overridden else ""
+            print(f"[{verdict.decision}] {args.from_stage} -> {args.to_stage}{tag}")
+            for c in verdict.checks:
+                print(f"  [{c.status}] {c.name}: {c.message}")
+        return 1 if verdict.decision == "BLOCK" else 0
     return 1
 
 

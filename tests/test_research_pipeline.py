@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
@@ -286,6 +287,137 @@ class CliTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         r = self._run("validate", str(d))
         self.assertEqual(r.returncode, 1)
+
+
+class GateTests(unittest.TestCase):
+    def _no_generic(self):
+        # patch out the generic checks (real lint flags 🔴 on minimal pages; real validate
+        # flags dangling refs) so each test isolates the gate-specific logic
+        return (mock.patch.object(rp.lint, "lint", return_value=[]),
+                mock.patch.object(rp.pipeline_progress, "validate", return_value=[]))
+
+    def test_gate_evidence_pass(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "succeeded"},
+                        "e-val": {"status": "completed", "outcome": "succeeded"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage4", "stage5")
+        self.assertEqual(v.decision, "PASS")
+
+    def test_gate_evidence_block(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "failed"},
+                        "e-val": {"status": "completed", "outcome": "inconclusive"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage4", "stage5")
+        self.assertEqual(v.decision, "BLOCK")
+        self.assertTrue(any(c.name == "evidence:experiment" and c.status == "BLOCK" for c in v.checks))
+
+    def test_gate_evidence_override(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "failed"},
+                        "e-val": {"status": "completed", "outcome": "failed"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage4", "stage5", override=True)
+        self.assertEqual(v.decision, "WARN")
+        self.assertTrue(v.overridden)
+
+    def test_gate_lint_red_blocks(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "succeeded"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        red = rp.lint.LintIssue("🔴", "demo", "papers/x.md", "missing field")
+        with mock.patch.object(rp.lint, "lint", return_value=[red]), \
+             mock.patch.object(rp.pipeline_progress, "validate", return_value=[]):
+            v = rp.gate_handoff(d, "stage4", "stage5")
+        self.assertEqual(v.decision, "BLOCK")
+        self.assertTrue(any(c.name == "form:lint" and c.status == "BLOCK" for c in v.checks))
+
+    def test_gate_validate_block(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "succeeded"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        with mock.patch.object(rp.lint, "lint", return_value=[]), \
+             mock.patch.object(rp.pipeline_progress, "validate", return_value=[("BLOCK", "dangling idea")]):
+            v = rp.gate_handoff(d, "stage4", "stage5")
+        self.assertEqual(v.decision, "BLOCK")
+        self.assertTrue(any(c.name == "pipeline:validate" for c in v.checks))
+
+    def test_gate_manuscript_pass(self) -> None:
+        d = _wiki()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (d / "manuscripts").mkdir(parents=True, exist_ok=True)
+        (d / "manuscripts" / "m1.md").write_text("---\nslug: m1\nstatus: submitted\n---\n# m1\n", encoding="utf-8")
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage5", "rebuttal", manuscript="m1")
+        self.assertEqual(v.decision, "PASS")
+
+    def test_gate_manuscript_block(self) -> None:
+        d = _wiki()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        (d / "manuscripts").mkdir(parents=True, exist_ok=True)
+        (d / "manuscripts" / "m1.md").write_text("---\nslug: m1\nstatus: drafting\n---\n# m1\n", encoding="utf-8")
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage5", "rebuttal", manuscript="m1")
+        self.assertEqual(v.decision, "BLOCK")
+
+    def test_gate_manuscript_no_arg_warns(self) -> None:
+        d = _wiki()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage5", "rebuttal")
+        self.assertEqual(v.decision, "WARN")
+        self.assertTrue(any(c.name == "manuscript:status" and c.status == "WARN" for c in v.checks))
+
+    def test_gate_override_does_not_bypass_lint_block(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "failed"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        red = rp.lint.LintIssue("🔴", "demo", "papers/x.md", "missing field")
+        with mock.patch.object(rp.lint, "lint", return_value=[red]), \
+             mock.patch.object(rp.pipeline_progress, "validate", return_value=[]):
+            v = rp.gate_handoff(d, "stage4", "stage5", override=True)
+        self.assertEqual(v.decision, "BLOCK")  # --override softens evidence only, NOT lint
+
+    def test_gate_generic_only_for_other_handoff(self) -> None:
+        d = _wiki()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        m1, m2 = self._no_generic()
+        with m1, m2:
+            v = rp.gate_handoff(d, "stage2", "stage3")
+        names = {c.name for c in v.checks}
+        self.assertNotIn("evidence:experiment", names)
+        self.assertNotIn("manuscript:status", names)
+        self.assertEqual(v.decision, "PASS")
+
+
+class GateCliTests(unittest.TestCase):
+    def test_cli_gate_blocks_and_writes_event(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "failed"},
+                        "e-val": {"status": "completed", "outcome": "failed"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        r = subprocess.run([sys.executable, str(TOOLS / "research_pipeline.py"), "gate",
+                            str(d), "--from", "stage4", "--to", "stage5"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1)  # no succeeded experiment (and/or lint) -> BLOCK
+        events = d / "graph" / "pipeline_events.jsonl"
+        self.assertTrue(events.exists())
+        rows = [json.loads(line) for line in events.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertTrue(any(row.get("kind") == "gate" for row in rows))
+
+    def test_cli_gate_json(self) -> None:
+        d = _wiki(exps={"e-baseline": {"status": "completed", "outcome": "failed"},
+                        "e-val": {"status": "completed", "outcome": "failed"}})
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        r = subprocess.run([sys.executable, str(TOOLS / "research_pipeline.py"), "gate",
+                            str(d), "--from", "stage4", "--to", "stage5", "--json"],
+                           capture_output=True, text=True)
+        payload = json.loads(r.stdout)
+        self.assertEqual(payload["kind"], "gate")
+        self.assertEqual(payload["to"], "stage5")
 
 
 if __name__ == "__main__":
