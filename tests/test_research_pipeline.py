@@ -470,7 +470,7 @@ class FeedbackTests(unittest.TestCase):
         self.assertEqual(v.category, "unknown")  # explicit "" != reason-derived category
 
     def test_classify_all_ideas_failed(self) -> None:
-        self.assertEqual(rp.classify_signal("all_ideas_failed"), "experiment_failed")
+        self.assertEqual(rp.classify_signal("all_ideas_failed"), "terminal_failure")
 
 
 class FeedbackCliTests(unittest.TestCase):
@@ -509,6 +509,23 @@ class FeedbackCliTests(unittest.TestCase):
         r = self._run(str(d))
         self.assertEqual(r.returncode, 2)
         self.assertIn("--category or --reason", r.stderr)
+
+
+class TestTerminalFailureRouting(unittest.TestCase):
+    def test_terminal_failure_routes_to_stop(self):
+        self.assertEqual(rp.route_feedback("terminal_failure"), "stop")
+
+    def test_max_iterations_classifies_terminal(self):
+        self.assertEqual(rp.classify_signal("max_iterations_reached"), "terminal_failure")
+        self.assertEqual(rp.route_feedback(rp.classify_signal("max_iterations_reached")), "stop")
+
+    def test_all_ideas_failed_classifies_terminal(self):
+        self.assertEqual(rp.classify_signal("all_ideas_failed"), "terminal_failure")
+        self.assertEqual(rp.route_feedback(rp.classify_signal("all_ideas_failed")), "stop")
+
+    def test_baseline_failed_still_reruns(self):
+        self.assertEqual(rp.classify_signal("baseline_collect_failed"), "experiment_failed")
+        self.assertEqual(rp.route_feedback("experiment_failed"), "rerun")
 
 
 if __name__ == "__main__":

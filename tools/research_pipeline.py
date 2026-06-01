@@ -342,6 +342,7 @@ FEEDBACK_ROUTES = {
     "experiment_failed": "rerun",
     "review_concern": "refine",
     "compile_failed": "refine",
+    "terminal_failure": "stop",
 }
 
 # Map S1.1 plan_next reasons + S1.2 gate check names (+ free-form codes) -> category.
@@ -354,8 +355,8 @@ SIGNAL_CATEGORY = {
     "no_experiment_results": "evidence_gap",
     "baseline_collect_failed": "experiment_failed",
     "all_deploys_failed": "experiment_failed",
-    "all_ideas_failed": "experiment_failed",
-    "max_iterations_reached": "experiment_failed",
+    "all_ideas_failed": "terminal_failure",
+    "max_iterations_reached": "terminal_failure",
     "experiment_failed": "experiment_failed",
     "manuscript:status": "compile_failed",
     "compile_failed": "compile_failed",
