@@ -73,6 +73,11 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 2. **Auto-recovery detection** (when `--start-from` is not specified):
    - If `wiki/outputs/pipeline-progress.md` exists and `status == running`:
      - Read direction, current_stage, started, slug
+
+**State self-check (S1.1):** after reading `pipeline-progress.md`, run
+`python3 tools/research_pipeline.py status wiki/ --json` to get the structured state and `Decision.action`,
+and use it to pre-fill the continue/restart choice before asking the user.
+
      - Use AskUserQuestion to prompt the user:
        ```
        Unfinished pipeline detected:
@@ -92,6 +97,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    - If `wiki/outputs/pipeline-progress.md` exists:
      - Read progress file, restore idea_slug, experiment_slugs, stage3a_deployed, linked_idea_slugs, monitoring_cron_id
      - Jump to specified stage
+
+**Validate before recovery (S1.1):** before trusting the progress file for `--start-from`, run
+`python3 tools/research_pipeline.py validate wiki/`; exit code 1 (BLOCK, inconsistent state) → report the error and abort recovery, asking the user to fix the progress file first.
+
    - If progress file does not exist: report error and exit; prompt user to run the full pipeline first
    - **`--start-from stage3-check`**: equivalent to calling `/exp-status --pipeline {slug}`; display status then exit
    - **`--start-from stage3-collect`**: skip Stage 3a+3b; go directly to Stage 3c (collect already-deployed experiments)
@@ -220,6 +229,8 @@ Args: "{direction}" --auto
 - Update pipeline-progress: Gate 1 → passed, record idea_slug
 - Update selected idea status: proposed → in_progress
 
+**Resume advisory (S1.1):** after saving, run `python3 tools/research_pipeline.py resume-plan wiki/` (advisory consistency check).
+
 ### Stage 2: Experiment Design
 
 Call `/exp-design`:
@@ -317,6 +328,9 @@ Args: "{experiment_slug} --collect"
 
 **Decision after each collect**:
 - If outcome == failed and this is the baseline experiment → **terminate pipeline**, report baseline cannot be reproduced
+
+**Feedback routing (S1.4, advisory):** run `python3 tools/research_pipeline.py feedback wiki/ --reason baseline_collect_failed` and put the returned action (rerun) in the termination report for the user to decide (the tool does not act on its own).
+
 - If outcome == failed and this is a validation experiment → record failure, continue collecting remaining experiments, proceed to Stage 4 evaluation
 - If outcome == inconclusive → record and continue
 
@@ -336,6 +350,10 @@ Args: "{experiment_slug} --collect"
 
 - Proceed to Stage 4
 
+**Handoff gate (S1.2):** before entering Stage 4, run
+`python3 tools/research_pipeline.py gate wiki/ --from stage3 --to stage4` (form gate: validate + lint);
+BLOCK (exit 1) → abort and report the structural problem.
+
 ### Stage 4: Verdict & Iteration
 
 Call `/exp-eval` for each completed experiment:
@@ -352,6 +370,9 @@ Args: "{experiment_slug}" --auto
    - **Insufficient** (idea remains `proposed`or`in_progress`or`tested` and all linked experiments are `failed`/`inconclusive`, or idea is `failed`) → enter iteration
 
 **Iteration path** (when insufficient, up to 1 retry):
+
+**Feedback routing (S1.4, advisory):** run `python3 tools/research_pipeline.py feedback wiki/ --reason verdict_insufficient` (→ evidence_gap / manual_gate); use the advice to decide whether to iterate or hand off to a manual gate.
+
 1. Analyze the cause of failure
 2. Call `/refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
    ```
@@ -382,6 +403,12 @@ Args: "{experiment_slug}" --auto
 
 **Save progress**:
 - Update pipeline-progress: Gate 2 → passed
+
+**Evidence gate (S1.2):** before entering Stage 5, run
+`python3 tools/research_pipeline.py gate wiki/ --from stage4 --to stage5` (requires ≥1 experiment with `outcome==succeeded`).
+BLOCK → block paper writing; add `--override` only when the user has explicitly confirmed paper-ready (logged).
+
+**Resume advisory (S1.1):** after the gate passes, run `python3 tools/research_pipeline.py resume-plan wiki/` to confirm a consistent state and get the next-step advisory.
 
 ### Stage 5: Paper Writing
 
@@ -486,6 +513,8 @@ python3 tools/research_wiki.py log wiki/ \
 
 Update pipeline-progress: status: completed
 
+**Memory consolidation (S2.1):** at the end of the run, execute `python3 tools/consolidate_memory.py propose wiki/`, show the candidate-patch summary (validated/failed ideas + completed experiments → long-term-memory sections) to the user; **after the user approves**, run `python3 tools/consolidate_memory.py apply wiki/ raw/tmp/consolidation/consolidation-proposal.json` (through Trust Guard; BLOCK → quarantine). If not approved, skip — the candidate file is kept for next time.
+
 ## Constraints
 
 - **Orchestrator does not directly modify wiki entities or embed sub-skill logic**: all wiki modifications are delegated to sub-skills; the pipeline only coordinates by calling them via the Skill tool
@@ -515,6 +544,9 @@ Update pipeline-progress: status: completed
 - **RESEARCH_BRIEF.md malformed**: fall back to plain-text direction; ignore structured fields
 - **Wiki empty (no papers/concepts)**: auto-trigger Stage 0 Bootstrap (search + auto-ingest 5 papers)
 - **Idea evidence still insufficient after iteration**: annotate report with "idea evidence insufficient after max iterations"; let user decide whether to continue
+
+**Feedback routing (S1.4, advisory):** by failure type, run `python3 tools/research_pipeline.py feedback wiki/ --reason <code>` for advice: max iterations reached → `--reason max_iterations_reached` (→ stop); Stage 5 compile failure → `--reason compile_failed` (→ refine). Branch on the returned action (stop / refine / manual_gate) — advisory, not auto-executed.
+
 - **User selects view status (auto-recovery detection [3])**: call `/exp-status --pipeline {slug}` then exit without starting a new pipeline
 
 ## Dependencies
