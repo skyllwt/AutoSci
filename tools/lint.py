@@ -462,7 +462,7 @@ def check_xref_asymmetry(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIss
     required reverse update on the target.  Adding a new xref rule requires
     only a YAML edit.
 
-    Foundations are exempt (declared in xref.yaml::terminal_targets).
+    Targets in xref.yaml::terminal_targets are exempt (currently none — foundations are no longer terminal).
     """
     issues = []
     rules = XREF.get('rules', [])

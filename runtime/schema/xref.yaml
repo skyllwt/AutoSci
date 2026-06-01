@@ -17,7 +17,7 @@
 #   record                           record template (only for append_record);
 #                                    {from} expands to the source slug
 #
-# Foundations are terminal: any link to foundations writes no reverse.
+# Targets listed in `terminal_targets` (below) write no reverse. Foundations are NOT terminal.
 
 rules:
 

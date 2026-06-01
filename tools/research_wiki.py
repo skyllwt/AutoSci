@@ -618,7 +618,7 @@ def project_frontmatter_edges(wiki_root: str | Path) -> list[dict]:
       field:  "<kind>.<field>"
 
     Skipped:
-      - foundations (terminal entities)
+      - any entity marked `terminal: true` (currently none)
       - `papers.cited_by` (already a derived cache of cites)
       - empty or missing field values
 
@@ -1171,7 +1171,8 @@ def find_similar_concept(wiki_root: str, candidate_title: str,
     matches.extend(_scan_entity_dir_for_similar(
         root / "concepts", "concept", candidate_names))
 
-    # Sort: foundations with high score first (they're terminal — prefer them),
+    # Sort: foundations with high score first (prefer linking background/textbook
+    # material to an existing foundation over creating a new concept),
     # then by score descending.
     def sort_key(m: dict) -> tuple:
         is_found = 0 if m["entity_type"] == "foundation" else 1

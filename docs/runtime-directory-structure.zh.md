@@ -15,7 +15,7 @@ wiki/
 ├── experiments/       ← 实验记录（wiki 页面）
 ├── methods/           ← 跨论文可复用的方法实体
 ├── Summary/           ← 领域全景综述
-├── foundations/       ← 领域基础知识（终端：只接受入链，不写出链）
+├── foundations/       ← 领域基础知识（非终端：接受入链反向，并可有 parent_topics 出链）
 ├── outputs/           ← 生成物（Related Work、论文草稿）
 └── graph/             ← 自动生成（勿手动编辑）
     ├── edges.jsonl

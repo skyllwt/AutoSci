@@ -19,7 +19,7 @@ export const VALID_TYPES = new Set(ENTITY_DIRS);
 
 // Priority order for resolving ambiguous wikilinks `[[slug]]` that match
 // multiple entity types. Papers/concepts/topics rank highest because those
-// are the most-referenced surfaces; foundations is terminal.
+// are the most-referenced surfaces.
 export const TYPE_PRECEDENCE = Object.freeze([
   "papers", "concepts", "topics", "methods", "people",
   "ideas", "experiments", "foundations", "manuscripts", "reviews",

@@ -15,7 +15,7 @@ wiki/
 ├── experiments/       ← experiment records (wiki pages)
 ├── methods/           ← cross-paper reusable method entities
 ├── Summary/           ← domain-wide surveys
-├── foundations/       ← background knowledge (terminal: receives inward links, writes none)
+├── foundations/       ← background knowledge (not terminal: receives reverse links; may write parent_topics)
 ├── outputs/           ← generated artifacts (Related Work, paper drafts)
 └── graph/             ← auto-generated (do not edit)
     ├── edges.jsonl
