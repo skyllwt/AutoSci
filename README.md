@@ -9,6 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
 [![Claude Code](https://img.shields.io/badge/Powered_by-Claude_Code-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
+[![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
 [![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
 
@@ -19,6 +20,16 @@
 ## ⚠️ Status & Update
 
 > **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
+
+---
+
+## 📄 Paper
+
+> ### [AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle](https://arxiv.org/abs/2605.31468)
+>
+> [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468) &nbsp;·&nbsp; [📄 **Read on arXiv →**](https://arxiv.org/abs/2605.31468)
+
+If you find AutoSci useful in your research, please [cite our paper](#citation).
 
 ---
 
@@ -226,6 +237,7 @@ The following papers were generated end-to-end using AutoSci — from literature
 |-------|--------|-----|
 | Agent-driven iterative optimization of Triton GPU kernels | GPU kernel optimization | [📄 PDF](assets/papers/gpu-kernel-optimization.pdf) |
 | PTM-aware degrader target nomination via calibrated ternary-complex scoring | Biomedical drug discovery | [📄 PDF](assets/papers/protac-target-nomination.pdf) |
+| Forced Honesty Dissociates Polite Speech from Motivated Cognition in LLM Attitude Ratings | LLMs as cognitive models | [📄 PDF](assets/papers/llm-positivity-bias-cognitive-models.pdf) |
 
 **Have you used AutoSci in your own research?** We'd love to feature your work here — open a PR or drop us a message!
 
@@ -462,6 +474,22 @@ We welcome contributions and feedback — especially while we're in active itera
 <img src="assets/wechat_group_3_new.png" width="240" alt="WeChat Group QR Code">
 
 Scan to join the AutoSci WeChat group / 扫码加入微信交流群
+
+## Citation
+
+If you find AutoSci useful in your research, please cite our paper:
+
+```bibtex
+@misc{qian2026autosci,
+      title={AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle}, 
+      author={Weitong Qian and Beicheng Xu and Zhongao Xie and Bowen Fan and Guozheng Tang and Jiale Chen and Xinzhe Wu and Mingtian Yang and Chenyang Di and Jiajun Li and Lingching Tung and Peichao Lai and Yifei Xia and Ziyi Guo and Yanwei Xu and Yanzhao Qin and Shaoduo Gan and Xupeng Miao and Bin Cui},
+      year={2026},
+      eprint={2605.31468},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2605.31468}, 
+}
+```
 
 ## Acknowledgments
 
