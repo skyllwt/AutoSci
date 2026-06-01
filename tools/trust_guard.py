@@ -137,6 +137,55 @@ def _quarantine(repo_root: Path, artifact_path: Path, text: str, verdict: TrustV
     return md_path
 
 
+def _edge_form_checks(wiki_dir: Path, from_id: str, to_id: str, edge_type: str,
+                      evidence: str, confidence: str, attrs: dict) -> list[TrustCheck]:
+    """Deterministic edge form-check, reusing research_wiki validators.
+    errors -> BLOCK, dangling node refs -> WARN, clean -> PASS."""
+    if edge_type not in research_wiki.VALID_EDGE_TYPES:
+        return [TrustCheck("form:edge-type", BLOCK, f"unknown edge type '{edge_type}'")]
+    checks: list[TrustCheck] = []
+    allowed = set(research_wiki.EDGES.get(edge_type, {}).get("attributes", {}))
+    unknown = sorted(k for k in (attrs or {}) if k not in allowed)
+    if unknown:
+        checks.append(TrustCheck("form:edge-attr", BLOCK,
+                                 f"unknown attribute(s) {unknown} for edge '{edge_type}'"))
+    for msg in research_wiki._semantic_edge_errors(edge_type, from_id, to_id, confidence, evidence):
+        checks.append(TrustCheck("form:edge-semantic", BLOCK, msg))
+    for msg in research_wiki._validate_node_refs(Path(wiki_dir), from_id, to_id):
+        checks.append(TrustCheck("form:node-ref", WARN, msg))
+    if not checks:
+        checks.append(TrustCheck("form:pass", PASS, "no deterministic edge form issues"))
+    return checks
+
+
+def _quarantine_edge(repo_root: Path, edge: dict, verdict: TrustVerdict) -> Path:
+    """Write a BLOCKed edge record (+ verdict) to raw/tmp/quarantine/ (edges have no .md)."""
+    qdir = Path(repo_root) / "raw" / "tmp" / "quarantine"
+    qdir.mkdir(parents=True, exist_ok=True)
+    stem = f"edge__{edge['from']}__{edge['type']}__{edge['to']}".replace("/", "_")
+    path = qdir / f"{stem}.json"
+    path.write_text(json.dumps({"edge": edge, "verdict": verdict.to_event()},
+                               ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def check_edge(wiki_dir, from_id: str, to_id: str, edge_type: str, *,
+               evidence: str = "", confidence: str = "", attrs: dict | None = None,
+               repo_root: Path | None = None, emit_event: bool = True) -> TrustVerdict:
+    """Form-only trust gate for a single graph edge (no content/LLM check)."""
+    wiki_dir = Path(wiki_dir)
+    attrs = attrs or {}
+    artifact = f"edge:{from_id}--{edge_type}-->{to_id}"
+    checks = _edge_form_checks(wiki_dir, from_id, to_id, edge_type, evidence, confidence, attrs)
+    verdict = TrustVerdict(artifact=artifact, status=overall_status(checks), checks=checks)
+    if verdict.status == BLOCK:
+        edge = {"from": from_id, "to": to_id, "type": edge_type, **attrs}
+        _quarantine_edge(repo_root or Path("."), edge, verdict)
+    if emit_event:
+        research_wiki.append_event(str(wiki_dir), "trust_events", verdict.to_event())
+    return verdict
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="trust_guard")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -146,6 +195,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-content", action="store_true", help="skip the Review-LLM content check")
     p.add_argument("--repo-root", default=".", help="repo root for quarantine path (default: .)")
     p.add_argument("--json", action="store_true", help="print the verdict as JSON")
+
+    pe = sub.add_parser("check-edge", help="Trust-guard a single graph edge (form-only)")
+    pe.add_argument("wiki_root")
+    pe.add_argument("--from", dest="from_id", required=True)
+    pe.add_argument("--to", dest="to_id", required=True)
+    pe.add_argument("--type", dest="edge_type", required=True)
+    pe.add_argument("--evidence", default="")
+    pe.add_argument("--confidence", default="")
+    pe.add_argument("--attr", action="append", default=[], metavar="KEY=VALUE")
+    pe.add_argument("--repo-root", default=".")
+    pe.add_argument("--json", action="store_true")
+
     args = parser.parse_args(argv)
 
     if args.command == "check":
@@ -159,6 +220,26 @@ def main(argv: list[str] | None = None) -> int:
             for c in verdict.checks:
                 print(f"  [{c.status}] {c.name}: {c.message}")
         return 2 if verdict.status == BLOCK else 0
+
+    if args.command == "check-edge":
+        attrs: dict = {}
+        for kv in args.attr:
+            if "=" not in kv:
+                print(json.dumps({"status": "error", "message": f"--attr must be KEY=VALUE, got {kv!r}"}))
+                return 2
+            k, v = kv.split("=", 1)
+            attrs[k.strip()] = v.strip()
+        verdict = check_edge(Path(args.wiki_root), args.from_id, args.to_id, args.edge_type,
+                             evidence=args.evidence, confidence=args.confidence, attrs=attrs,
+                             repo_root=Path(args.repo_root))
+        if args.json:
+            print(json.dumps(verdict.to_event(), ensure_ascii=False, indent=2))
+        else:
+            print(f"{verdict.status}  {verdict.artifact}")
+            for c in verdict.checks:
+                print(f"  [{c.status}] {c.name}: {c.message}")
+        return 2 if verdict.status == BLOCK else 0
+
     return 1
 
 
