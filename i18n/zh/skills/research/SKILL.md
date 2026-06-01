@@ -73,6 +73,11 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 2. **自动恢复检测**（无 `--start-from` 时）：
    - 若 `wiki/outputs/pipeline-progress.md` 存在 且 `status == running`：
      - 读取 direction、current_stage、started、slug
+
+**状态自检(S1.1)**:读到 `pipeline-progress.md` 后,先运行
+`python3 tools/research_pipeline.py status wiki/ --json` 取结构化状态与 `Decision.action`,
+用它预填「继续/重启」选项,再向用户确认。
+
      - 使用 AskUserQuestion 提示用户选择：
        ```
        检测到未完成的 pipeline:
@@ -92,6 +97,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    - 若 `wiki/outputs/pipeline-progress.md` 存在：
      - 读取进度文件，恢复 idea_slug、experiment_slugs、stage3a_deployed、linked_idea_slugs、monitoring_cron_id
      - 跳转到指定 stage
+
+**恢复前校验(S1.1)**:`--start-from` 恢复前运行 `python3 tools/research_pipeline.py validate wiki/`;
+退出码 1(BLOCK,状态不一致)→ 报错并中止恢复,提示用户先修复进度文件。
+
    - 若进度文件不存在：报错退出，提示先运行完整流水线
    - **`--start-from stage3-check`**：等同于调用 `/exp-status --pipeline {slug}`，展示状态后退出
    - **`--start-from stage3-collect`**：跳过 Stage 3a+3b，直接进入 Stage 3c（收集已部署实验）
@@ -220,6 +229,8 @@ Args: "{direction}" --auto
 - 更新 pipeline-progress：Gate 1 → passed，记录 idea_slug
 - 更新选中 idea 的 status: proposed → in_progress
 
+**续跑建议(S1.1)**:存档后运行 `python3 tools/research_pipeline.py resume-plan wiki/`(advisory 一致性确认)。
+
 ### Stage 2: Experiment Design
 
 调用 `/exp-design`：
@@ -336,6 +347,10 @@ Args: "{experiment_slug} --collect"
 
 - 继续进入 Stage 4
 
+**交接门(S1.2)**:进入 Stage 4 前运行
+`python3 tools/research_pipeline.py gate wiki/ --from stage3 --to stage4`(form 门:validate + lint);
+BLOCK(退出 1)→ 中止并报告结构问题。
+
 ### Stage 4: Verdict & Iteration
 
 对每个 completed experiment 调用 `/exp-eval`：
@@ -382,6 +397,13 @@ Args: "{experiment_slug}" --auto
 
 **保存进度**：
 - 更新 pipeline-progress：Gate 2 → passed
+
+**证据门(S1.2)**:进入 Stage 5 前运行
+`python3 tools/research_pipeline.py gate wiki/ --from stage4 --to stage5`(需 ≥1 `outcome==succeeded` 实验)。
+BLOCK → 拦截 paper writing;仅当用户已显式确认 paper-ready 时加 `--override`(留痕放行)。
+
+**续跑建议(S1.1)**:门通过后运行 `python3 tools/research_pipeline.py resume-plan wiki/`,
+确认状态一致并取下一步建议(advisory)。
 
 ### Stage 5: Paper Writing
 
