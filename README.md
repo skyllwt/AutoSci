@@ -502,6 +502,18 @@ If you find AutoSci useful in your research, please cite our paper:
 
 [MIT](LICENSE) — use it, fork it, build on it.
 
+## Star History
+
+<div align="center">
+<a href="https://star-history.com/#skyllwt/AutoSci&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" />
+    <img alt="AutoSci Star History Chart" src="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" width="600" />
+  </picture>
+</a>
+</div>
+
 
 <div align="center">
 
