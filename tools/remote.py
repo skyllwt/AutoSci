@@ -466,13 +466,16 @@ def cmd_sync_code(cfg: dict, args: argparse.Namespace) -> None:
     transport = build_ssh_transport(cfg)
     cmd = ["rsync", "-avz", "--delete", "-e", transport]
 
-    # Include directories for recursion, then specific file patterns
+    # rsync evaluates filters top-to-bottom, first match wins. Excludes for
+    # directories like .venv/ must precede the include rules — otherwise
+    # --include=*/ (and --include=*.py) match first, rsync descends into them
+    # and --delete clobbers remote files that live there. See issue #65.
+    for pat in excludes:
+        cmd += [f"--exclude={pat}"]
+    # Recurse into remaining directories, then keep only wanted file patterns
     cmd += ["--include=*/"]
     for pat in includes:
         cmd += [f"--include={pat}"]
-    # Exclude everything else
-    for pat in excludes:
-        cmd += [f"--exclude={pat}"]
     cmd += ["--exclude=*"]
 
     if args.dry_run:
