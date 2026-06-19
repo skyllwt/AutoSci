@@ -37,18 +37,20 @@ and other skills can distinguish SPA-originated edits):
   POST  /api/intent/{skill}           body context for command synthesis
                                        skill ∈ {ingest, ask, edit, check,
                                                 ideate, discover, exp-design}
-                                       -> {skill, command, doc_url, message}
+                                       -> {skill, command, codex_prompt,
+                                           doc_url, codex_doc_url, message}
 
 Skill-intent boundary
 ---------------------
-The SPA cannot run /skill X — slash-commands need a Claude Code LLM
+The SPA cannot run /skill X — slash-commands need an LLM agent
 session. Naive UX would silently call a different code path and produce
 results that diverge from /skill X's actual behavior. So every UI button
 that wants a skill posts to /api/intent/{skill}; the backend assembles
 the right "/skill ..." command (filling in slug/arxiv-id/etc. from page
-context) and returns it. The SPA opens a copy-to-clipboard modal with the
-command. The user pastes it into Claude Code. The boundary is explicit
-in the API surface itself — no silent skill faking.
+context) and returns it. The response also includes a Codex prompt when the
+repo-scoped adapter is present. The SPA opens a copy-to-clipboard modal with
+both options. The boundary is explicit in the API surface itself — no silent
+skill faking.
 
 Live reload (SSE)
 -----------------
@@ -58,7 +60,7 @@ to all connected /api/events clients. The SPA's EventSource listener
 refetches data and re-renders the current view. A 2.5s grace window
 after each SPA-initiated write suppresses redundant re-renders triggered
 by the SPA's own write — state.lastWriteAt is consulted before
-re-rendering. External edits (Obsidian, Claude Code editing wiki/* during
+re-rendering. External edits (Obsidian, Codex/Claude editing wiki/* during
 a running ingest, manual research_wiki.py invocations) all reflect in the
 SPA within ~1.5 seconds with no manual refresh.
 
@@ -768,13 +770,18 @@ class WikiHandler(SimpleHTTPRequestHandler):
     # --- /api/intent/{skill} POST -------------------------------------------
     #
     # These return ready-to-paste `/skill ...` command strings. They do NOT
-    # execute the skill (the SPA has no LLM session). The frontend shows
-    # the command in a copy-to-clipboard modal; user pastes into Claude Code.
+    # execute the skill (the SPA has no LLM session). Codex-compatible prompts
+    # are returned separately so the legacy Claude Code copy path remains
+    # backward-compatible.
 
     INTENT_DEFAULT_MESSAGE = (
         "Run this in Claude Code. The SPA cannot orchestrate /skill — "
-        "skills require an LLM session."
+        "skills require an LLM session. Codex users can copy the Codex prompt below."
     )
+
+    @staticmethod
+    def _codex_prompt(skill: str, slash_command: str) -> str:
+        return f"Use ${skill} to run AutoSci {slash_command}."
 
     def _handle_intent(self, skill: str, body: dict) -> None:
         builders = {
@@ -796,7 +803,15 @@ class WikiHandler(SimpleHTTPRequestHandler):
             return
         out = b(body)
         out.setdefault("skill", skill)
+        slash_command = out.get("slash_command") or out.get("command")
+        if not slash_command:
+            slash_command = out.get("claude_command")
+        if isinstance(slash_command, str) and slash_command.startswith("/"):
+            out["command"] = slash_command
+            out["claude_command"] = slash_command
+            out["codex_prompt"] = self._codex_prompt(skill, slash_command)
         out.setdefault("doc_url", f".claude/skills/{skill}/SKILL.md")
+        out.setdefault("codex_doc_url", f".agents/skills/{skill}/SKILL.md")
         out.setdefault("message", self.INTENT_DEFAULT_MESSAGE)
         self._send_json(out)
 
@@ -809,7 +824,7 @@ class WikiHandler(SimpleHTTPRequestHandler):
             "command": "/ingest <local-path-or-arXiv-URL>",
             "message": ("Replace <local-path-or-arXiv-URL> with a "
                         ".pdf path, .tex path, or arXiv link, then run in "
-                        "Claude Code."),
+                        "Claude Code or copy the Codex prompt."),
         }
 
     @staticmethod
@@ -905,7 +920,7 @@ class WikiHandler(SimpleHTTPRequestHandler):
     # `tools/lint.py` is the deterministic core of `/check`. It already
     # supports `--json` and `--fix` (with `--dry-run` for preview). Exposing
     # it here lets the SPA show lint results inline without going through
-    # the intent → copy → paste → Claude Code round trip.
+    # the intent → copy → paste → agent round trip.
 
     def _handle_lint(self, fix: bool, dry_run: bool = False) -> None:
         args = ["--wiki-dir", str(WIKI_ROOT), "--json"]

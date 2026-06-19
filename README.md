@@ -272,6 +272,42 @@ claude
 # Then type: /init [your-research-topic]
 ```
 
+### Codex usage
+
+AutoSci also includes a repo-scoped Codex adapter while keeping Claude Code's
+`/skill` workflow unchanged. The original `.claude/skills` files remain the
+source of truth; `.agents/skills` contains generated Codex wrappers.
+
+1. Run the normal setup first:
+
+   ```bash
+   chmod +x setup.sh && ./setup.sh
+   ```
+
+   If Claude Code is not installed and you only want to use Codex, choose to
+   continue when setup asks. Setup still activates `.claude/skills` and syncs
+   the Codex wrappers.
+
+2. Restart or open Codex in this repository so it loads `AGENTS.md`,
+   `.codex/config.toml`, and `.agents/skills`.
+
+3. Invoke the same workflows as Codex skills:
+
+   ```text
+   $setup
+   $init your-research-topic
+   $ingest raw/papers/example.pdf
+   $ideate
+   $research
+   ```
+
+4. If you use the local web UI, intent buttons still show Claude Code commands
+   such as `/ingest` and `/discover`. The copy modal also includes a Codex
+   prompt for the same action.
+
+After changing language with `setup.sh --lang ...` or updating upstream skills,
+run `python tools/sync_codex_skills.py` to regenerate `.agents/skills`.
+
 <details>
 <summary><b>Manual setup (Linux / macOS)</b></summary>
 

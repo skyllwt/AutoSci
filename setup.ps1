@@ -80,10 +80,11 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
 } else {
     Write-Warn2 "Claude Code not found."
     Write-Host ""
-    Write-Host "  Claude Code is required to use OmegaWiki skills."
+    Write-Host "  Claude Code is required for the upstream /slash-command workflow."
     Write-Host "  Install with:"
     Write-Host "    npm install -g @anthropic-ai/claude-code"
     Write-Host ""
+    Write-Host "  Codex users can continue setup and use the generated .agents/skills wrappers."
     $reply = Read-Host "  Continue setup without Claude Code? [y/N]"
     if ($reply -notmatch '^[Yy]$') {
         Write-Host "  Install Claude Code first, then re-run setup.ps1"
@@ -162,6 +163,14 @@ try {
     }
     Set-Content -Path ".claude\.current-lang" -Value $Lang -NoNewline
     Write-Ok "Language files activated ($Lang)"
+
+    # -- Step 3c: Sync Codex skill wrappers -------------------------------
+    $codexSync = "tools\sync_codex_skills.py"
+    if (Test-Path $codexSync) {
+        & $VenvPython $codexSync | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Codex skill wrapper sync failed" }
+        Write-Ok "Codex skill wrappers synced"
+    }
 
     # -- Step 4: Verify installation ---------------------------------------
     Write-Host ""
@@ -257,6 +266,10 @@ Write-Host "       /setup"
 Write-Host ""
 Write-Host "  5. Then initialize your wiki:"
 Write-Host "       /init [your-research-topic]"
+Write-Host ""
+Write-Host "  Codex compatibility:"
+Write-Host "       Restart/open Codex in this repo so it loads AGENTS.md and .agents/skills."
+Write-Host "       Then use the same workflows as `$setup, `$init, `$ingest, etc."
 Write-Host ""
 Write-Host "  For more, see README.md"
 Write-Host ""

@@ -95,10 +95,11 @@ if command -v claude &>/dev/null; then
 else
     warn "Claude Code not found."
     echo ""
-    echo "  Claude Code is required to use ΩmegaWiki skills."
+    echo "  Claude Code is required for the upstream /slash-command workflow."
     echo "  Install with:"
     echo "    npm install -g @anthropic-ai/claude-code"
     echo ""
+    echo "  Codex users can continue setup and use the generated .agents/skills wrappers."
     read -p "  Continue setup without Claude Code? [y/N] " -n 1 -r
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -170,6 +171,12 @@ mkdir -p ".claude/skills/shared-references"
 cp "$I18N_DIR/shared-references"/*.md ".claude/skills/shared-references/"
 echo "$LANG_CODE" > .claude/.current-lang
 ok "Language files activated ($LANG_CODE)"
+
+# ── Step 3c: Sync Codex skill wrappers ─────────────────────────────────
+if [ -f "tools/sync_codex_skills.py" ]; then
+    "$VENV_PYTHON" tools/sync_codex_skills.py >/dev/null
+    ok "Codex skill wrappers synced"
+fi
 
 # ── Step 4: Verify installation ─────────────────────────────────────────
 
@@ -261,6 +268,10 @@ echo "     DeepXiv, and Review LLM — skip any you don't have yet."
 echo ""
 echo "  5. Then initialize your wiki:"
 echo "     /init [your-research-topic]"
+echo ""
+echo "  Codex compatibility:"
+echo "     Restart/open Codex in this repo so it loads AGENTS.md and .agents/skills."
+echo "     Then use the same workflows as \$setup, \$init, \$ingest, etc."
 echo ""
 echo "  For more, see README.md"
 echo ""

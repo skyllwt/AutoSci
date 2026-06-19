@@ -1,0 +1,10 @@
+# AutoSci project-level Codex configuration.
+# This complements `.mcp.json`, which is kept for Claude Code compatibility.
+
+[mcp_servers.llm-review]
+command = ".venv/bin/python"
+args = ["mcp-servers/llm-review/server.py"]
+cwd = "."
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+enabled = true

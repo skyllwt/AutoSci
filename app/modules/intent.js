@@ -6,8 +6,8 @@
 // form panel collects parameters first; on submit those values are merged
 // into contextBody and the same modal opens with the parameters substituted
 // in. The SPA still cannot run /skill — this is purely a "build me the
-// right command, with my parameters" helper that the user pastes into
-// Claude Code.
+// right command or Codex prompt, with my parameters" helper that the user
+// pastes into an agent session.
 
 import { postIntent } from "./api.js";
 import { showToast, escHtml } from "./ui.js";
@@ -26,9 +26,12 @@ function ensurePopover() {
       <h4 id="intent-title"></h4>
       <p id="intent-message" class="muted small"></p>
       <pre id="intent-cmd"></pre>
+      <pre id="intent-codex" hidden></pre>
       <p id="intent-doc" class="muted small"></p>
+      <p id="intent-compat" class="muted small"></p>
       <div class="edit-actions">
         <button type="button" id="intent-copy">Copy command</button>
+        <button type="button" id="intent-copy-codex" hidden>Copy Codex prompt</button>
         <button type="button" id="intent-close" class="ghost">Close</button>
       </div>
       <p id="intent-status" class="muted small" hidden></p>
@@ -38,25 +41,27 @@ function ensurePopover() {
 
   const closeBtn = popover.querySelector("#intent-close");
   const copyBtn = popover.querySelector("#intent-copy");
+  const copyCodexBtn = popover.querySelector("#intent-copy-codex");
   const statusEl = popover.querySelector("#intent-status");
   const cmdEl = popover.querySelector("#intent-cmd");
+  const codexEl = popover.querySelector("#intent-codex");
 
   closeBtn.addEventListener("click", () => { popover.hidden = true; });
   popover.addEventListener("click", (ev) => {
     if (ev.target === popover) popover.hidden = true;
   });
 
-  copyBtn.addEventListener("click", async () => {
-    const text = cmdEl.textContent;
+  async function copyTextFrom(el, successText) {
+    const text = el.textContent;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         statusEl.hidden = false;
-        statusEl.textContent = "✓ Copied — paste into Claude Code.";
+        statusEl.textContent = successText;
       } else {
         // Fallback: select the <pre> content so user can Ctrl+C
         const range = document.createRange();
-        range.selectNodeContents(cmdEl);
+        range.selectNodeContents(el);
         const sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
@@ -68,6 +73,13 @@ function ensurePopover() {
       statusEl.hidden = false;
       statusEl.textContent = `clipboard error: ${err.message}`;
     }
+  }
+
+  copyBtn.addEventListener("click", () => {
+    copyTextFrom(cmdEl, "✓ Copied — paste into Claude Code.");
+  });
+  copyCodexBtn.addEventListener("click", () => {
+    copyTextFrom(codexEl, "✓ Copied — paste into Codex.");
   });
 
   // ESC key dismisses
@@ -84,13 +96,29 @@ function showIntentModal(payload) {
     `Run <code>/${escHtml(payload.skill)}</code> in Claude Code`;
   pop.querySelector("#intent-message").textContent = payload.message || "";
   pop.querySelector("#intent-cmd").textContent = payload.command || "";
+  const codexEl = pop.querySelector("#intent-codex");
+  const copyCodexBtn = pop.querySelector("#intent-copy-codex");
+  if (payload.codex_prompt) {
+    codexEl.textContent = payload.codex_prompt;
+    codexEl.hidden = false;
+    copyCodexBtn.hidden = false;
+  } else {
+    codexEl.textContent = "";
+    codexEl.hidden = true;
+    copyCodexBtn.hidden = true;
+  }
   const docEl = pop.querySelector("#intent-doc");
   if (payload.doc_url) {
-    docEl.innerHTML = `Skill spec: <code>${escHtml(payload.doc_url)}</code>`;
+    const codex = payload.codex_doc_url
+      ? ` · Codex adapter: <code>${escHtml(payload.codex_doc_url)}</code>`
+      : "";
+    docEl.innerHTML = `Skill spec: <code>${escHtml(payload.doc_url)}</code>${codex}`;
     docEl.style.display = "";
   } else {
     docEl.style.display = "none";
   }
+  const compatEl = pop.querySelector("#intent-compat");
+  compatEl.style.display = "none";
   pop.querySelector("#intent-status").hidden = true;
   pop.hidden = false;
   // Focus the copy button so Enter works as the primary action
