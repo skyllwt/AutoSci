@@ -408,8 +408,8 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 ```yaml
 # Pilot Spec for: {idea-slug}
 pilot_spec:
-  hypothesis: "<可测试命题>"
-  approach_sketch: "<方法描述>"
+  hypothesis: "<1-2 句可测试命题>"
+  approach_sketch: "<3-5 句方法描述>"
   implementation:
     repo: "<基础代码 repo URL 或 'from-scratch'>"
     entry_point: "<主脚本>"
