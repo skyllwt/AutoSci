@@ -115,7 +115,7 @@ Append a short "next step" hint:
 To ingest a candidate: /ingest https://arxiv.org/abs/<arxiv-id>
 ```
 
-Do not ingest anything yourself. The user picks.
+**Do not ingest anything yourself. The user picks.**
 
 ### Step 4: Log
 

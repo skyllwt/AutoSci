@@ -409,8 +409,8 @@ Before writing pilot code, generate a structured Pilot Spec block per idea selec
 # Pilot Spec for: {idea-slug}
 pilot_spec:
   # --- Core context (from idea Phase 2) ---
-  hypothesis: "<testable proposition>"
-  approach_sketch: "<proposed method description>"
+  hypothesis: "<1-2 sentence testable proposition>"
+  approach_sketch: "<3-5 sentence proposed method description>"
 
   # --- What to implement ---
   implementation:
