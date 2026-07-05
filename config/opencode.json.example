@@ -1,9 +1,10 @@
 {
   "mcp": {
     "llm-review": {
-      "command": "python3",
-      "args": ["mcp-servers/llm-review/server.py"],
-      "cwd": "${workspaceFolder}"
+      "type": "local",
+      "command": ["python3", "mcp-servers/llm-review/server.py"],
+      "cwd": "${workspaceFolder}",
+      "enabled": true
     }
   }
 }

@@ -177,6 +177,11 @@ try {
             Copy-Item $_.FullName (Join-Path $sharedDest $_.Name) -Force
         }
     }
+    # Avoid naming collision with OpenCode's built-in init command
+    $initSkill = Join-Path ".opencode\skills\init" "SKILL.md"
+    if (Test-Path $initSkill) {
+        (Get-Content $initSkill -Raw) -replace '(?m)^name: init$', 'name: autosci-init' | Set-Content $initSkill -NoNewline
+    }
 
     Set-Content -Path ".claude\.current-lang" -Value $Lang -NoNewline
     if (-not (Test-Path ".agents")) { New-Item -ItemType Directory -Path ".agents" -Force | Out-Null }
@@ -282,6 +287,7 @@ Write-Host ""
 Write-Host "  5. Then initialize your wiki:"
 Write-Host "       Claude Code: /init [your-research-topic]"
 Write-Host "       Codex:       `$init [your-research-topic]"
+Write-Host "       OpenCode:    run the autosci-init skill [your-research-topic]"
 Write-Host ""
 Write-Host "  For more, see README.md"
 Write-Host ""

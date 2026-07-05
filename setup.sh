@@ -187,6 +187,10 @@ for agent_skills_dir in ".claude/skills" ".agents/skills"; do
     mkdir -p "$agent_skills_dir/shared-references"
     cp "$I18N_DIR/shared-references"/*.md "$agent_skills_dir/shared-references/"
 done
+# Avoid naming collision with OpenCode's built-in init command
+sed -i 's/^name: init$/name: autosci-init/' .opencode/skills/init/SKILL.md
+mkdir -p .opencode
+echo "$LANG_CODE" > .opencode/.current-lang
 echo "$LANG_CODE" > .claude/.current-lang
 mkdir -p .agents
 echo "$LANG_CODE" > .agents/.current-lang
@@ -289,7 +293,7 @@ echo ""
 echo "  5. Then initialize your wiki:"
 echo "     Claude Code: /init [your-research-topic]"
 echo "     Codex:       \$init [your-research-topic]"
-echo "     OpenCode:    run the init skill [your-research-topic]"
+echo "     OpenCode:    run the autosci-init skill [your-research-topic]"
 echo ""
 echo "  For more, see README.md"
 echo ""

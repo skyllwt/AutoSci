@@ -53,3 +53,22 @@ Wikilink: `[[slug]]`。slug 全小写、连字符分隔、无空格。
 - 把用户自有的 `raw/`、`wiki/`、`.env` 和生成的实验输出丢失或被误改视为高严重度问题。
 - workflow instruction 改动时, 检查 `.claude/skills`、`.agents/skills` 与 `i18n/<lang>/skills` 是否同步。
 - 优先把确定性逻辑放在 `tools/`, 不要在 skill prompt 中复制实现逻辑。
+
+## OpenCode 快速入门
+
+1. 运行 `./setup.sh --lang zh` 从 `i18n/zh/` 生成 `.opencode/skills/` 和本 `AGENTS.md`。
+2. 如需 MCP server 权限, 复制 `config/opencode.json.example` 到项目根目录并重命名为 `opencode.json`。
+3. Skills 按名称调用(如 "run the autosci-init skill")或通过 OpenCode skill loader 调用。注意: 为避免与 OpenCode 内建的 `init` 命令冲突, 仓库中的 `init` skill 在 OpenCode 中重命名为 `autosci-init`。
+4. `wiki/log.md`、`wiki/graph/edges.jsonl`、`wiki/graph/citations.jsonl` 和 `wiki/index.md` 使用 `merge=union`(见 `.gitattributes`) — 可安全支持多个代理并发追加。
+
+## 已知局限
+
+`.opencode/skills/`、`.claude/skills/` 和 `.agents/skills/` 下的 skill 文件均由共同的 `i18n/<lang>/skills` 源生成，而该源最初是为 Claude Code 编写的。因此 skill 文件中包含 Claude Code 专属构件, 非 Claude 代理需自行转换:
+
+- **硬编码路径**: 形如 `.claude/skills/shared-references/...` 的引用 — 在其他代理中使用时, 分别解析为 `.opencode/skills/shared-references/...`(OpenCode) 或 `.agents/skills/...`(Codex)。
+- **调用语法**: skill 内部以 `/skill-name`(Claude 风格) 和 `Skill: name`(Claude 工具) 引用其他 skill。OpenCode 代理应将其视为要直接调用的 skill 名称; Codex 代理应转换为 `$skill-name`。
+- **命名冲突**: `init` skill 在 OpenCode 中注册为 `autosci-init`, 以避免与 OpenCode 内建的 `init` 命令冲突。当 skill 文本中出现 `/init` 时, 应调用 `autosci-init` skill。
+- **Claude Code Native 工具**: 标记为 `### Claude Code Native` 的小节列出了 Claude 专属工具(`WebSearch`、`Agent`、`AskUserQuestion`)。非 Claude 代理必须映射到自身的等效工具(网页搜索、子代理调用、用户提示)。
+- **MCP 命名**: `mcp__llm-review__chat` 是 Claude Code 的 MCP 前缀约定。其他代理使用不同的 MCP 调用模式 — 请参考你的代理的 MCP 文档。
+
+编写或修改 skill 时, 请优先使用代理中立语言(使用相对路径, 描述意图而非工具名称), 并保持 `i18n/en/` 和 `i18n/zh/` 中对应的代理小节同步。

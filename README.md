@@ -269,13 +269,10 @@ chmod +x setup.sh && ./setup.sh        # Linux / macOS
 # 4. Put your own papers in raw/papers/ (.tex or .pdf)
 #    Optional: intent notes in raw/notes/, saved pages in raw/web/
 
-# 5. Build your research memory and start a project
-claude
-# Then type: /init [your-research-topic]
-
-# Or in Codex:
-codex
-# Then invoke: $init [your-research-topic]
+# 5. Launch your agent and start building
+#   Claude Code:   claude   →  /init [your-research-topic]
+#   Codex:         codex    →  $init [your-research-topic]
+#   OpenCode:      opencode →  "run the autosci-init skill [your-research-topic]"
 ```
 
 <details>
@@ -427,6 +424,7 @@ AutoSci ships with 30+ agent skills spanning the full research lifecycle.
 
 - Claude Code: invoke skills as slash commands, for example `/init`.
 - Codex: invoke skills with `$skill-name` or from `/skills`, for example `$init`.
+- OpenCode: invoke skills by name (e.g. "run the autosci-init skill") or via the skill loader.
 
 <details>
 <summary><b>View all skills</b></summary>

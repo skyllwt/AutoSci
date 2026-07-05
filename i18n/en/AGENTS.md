@@ -94,3 +94,22 @@ When a tool exits with code 126 and prints "SANDBOX GATE":
 - Treat loss or mutation of user-owned `raw/`, `wiki/`, `.env`, and generated experiment outputs as high severity.
 - Check that changes keep `.claude/skills`, `.agents/skills`, and `i18n/<lang>/skills` synchronized when workflow instructions move.
 - Prefer deterministic tool changes in `tools/` over duplicating logic inside skill prompts.
+
+## OpenCode Quick Start
+
+1. Run `./setup.sh --lang en` to generate `.opencode/skills/` and this `AGENTS.md` from `i18n/en/`.
+2. Copy `config/opencode.json.example` to the project root as `opencode.json` if you need MCP server permissions for the `llm-review` server.
+3. Skills are invoked by name (e.g. "run the autosci-init skill") or via the OpenCode skill loader. Note: the `init` repo skill is renamed to `autosci-init` to avoid collision with OpenCode's built-in `init` command.
+4. `wiki/log.md`, `wiki/graph/edges.jsonl`, `wiki/graph/citations.jsonl`, and `wiki/index.md` use `merge=union` (see `.gitattributes`) — safe for concurrent agents to append.
+
+## Known Limitations
+
+Skill files under `.opencode/skills/`, `.claude/skills/`, and `.agents/skills/` are generated from a common `i18n/<lang>/skills` source that was originally written for Claude Code. As a result, skill files contain Claude-Code-specific artifacts that require translation by non-Claude agents:
+
+- **Hardcoded paths**: References like `.claude/skills/shared-references/...` — resolve as `.opencode/skills/shared-references/...` (Codex: `.agents/skills/...`) when used in other agents.
+- **Invocation syntax**: Skills internally reference other skills as `/skill-name` (Claude style) and `Skill: name` (Claude tool). OpenCode agents should treat these as skill names to invoke directly. Codex agents should translate to `$skill-name`.
+- **Naming collision**: The `init` skill is registered as `autosci-init` in OpenCode to avoid conflict with OpenCode's built-in `init` command. When `/init` appears in skill text, invoke the `autosci-init` skill.
+- **Claude Code Native tools**: Sections labeled `### Claude Code Native` list tools (`WebSearch`, `Agent`, `AskUserQuestion`) that are Claude-exclusive. Non-Claude agents must map these to their own equivalents (web search tools, subagent invocations, user prompts).
+- **MCP naming**: `mcp__llm-review__chat` is the Claude Code MCP prefix convention. Other agents use different MCP invocation patterns — check your agent's MCP documentation.
+
+When writing or modifying skills, prefer agent-neutral language (use relative paths, describe intents rather than tool names) and keep equivalent agent sections in sync across `i18n/en/` and `i18n/zh/`.
