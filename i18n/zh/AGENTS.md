@@ -61,7 +61,7 @@ Wikilink: `[[slug]]`。slug 全小写、连字符分隔、无空格。
 3. Skills 按名称调用(如 "run the autosci-init skill")或通过 OpenCode skill loader 调用。注意: 为避免与 OpenCode 内建的 `init` 命令冲突, 仓库中的 `init` skill 在 OpenCode 中重命名为 `autosci-init`。
 4. `wiki/log.md`、`wiki/graph/edges.jsonl`、`wiki/graph/citations.jsonl` 和 `wiki/index.md` 使用 `merge=union`(见 `.gitattributes`) — 可安全支持多个代理并发追加。
 
-## 已知局限
+## 跨代理说明 (OpenCode & Codex)
 
 `.opencode/skills/`、`.claude/skills/` 和 `.agents/skills/` 下的 skill 文件均由共同的 `i18n/<lang>/skills` 源生成，而该源最初是为 Claude Code 编写的。因此 skill 文件中包含 Claude Code 专属构件, 非 Claude 代理需自行转换:
 

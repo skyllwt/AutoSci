@@ -50,7 +50,7 @@ If you do notice a slug collision during a direct (non-INIT) ingest — i.e. the
 - It does not merge worktrees or run `dedup-edges`, `rebuild-index`, or `lint.py --fix`. Those are fan-in operations owned by `/init`.
 
 In INIT MODE, `/ingest` **must** commit its work inside the worktree before exiting, but only when the ingest completed successfully:
-- stage every file you created or modified under `wiki/`
+- stage with `git add -f wiki/` — the `-f` flag is required because new wiki pages match `.gitignore` patterns (`wiki/papers/*`, `wiki/concepts/*`, etc.) and a plain `git add` would skip them
 - before committing, run `git branch --show-current` and verify the branch name is the worktree branch (contains `init-`), not the base branch. If you are on the base branch, stop and report instead of committing
 - run `git commit -m "ingest: <paper-title>"` (or a similarly descriptive message)
 - do not push; the parent `/init` will merge the branch during fan-in

@@ -176,7 +176,7 @@ cp "$I18N_DIR/CLAUDE.md" CLAUDE.md
 if [ -f "$I18N_DIR/AGENTS.md" ]; then
     cp "$I18N_DIR/AGENTS.md" AGENTS.md
 fi
-for agent_skills_dir in ".claude/skills" ".agents/skills"; do
+for agent_skills_dir in ".claude/skills" ".agents/skills" ".opencode/skills"; do
     mkdir -p "$agent_skills_dir"
     for skill_dir in "$I18N_DIR/skills"/*; do
         [ -d "$skill_dir" ] || continue

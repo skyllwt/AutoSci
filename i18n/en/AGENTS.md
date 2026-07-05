@@ -102,7 +102,7 @@ When a tool exits with code 126 and prints "SANDBOX GATE":
 3. Skills are invoked by name (e.g. "run the autosci-init skill") or via the OpenCode skill loader. Note: the `init` repo skill is renamed to `autosci-init` to avoid collision with OpenCode's built-in `init` command.
 4. `wiki/log.md`, `wiki/graph/edges.jsonl`, `wiki/graph/citations.jsonl`, and `wiki/index.md` use `merge=union` (see `.gitattributes`) — safe for concurrent agents to append.
 
-## Known Limitations
+## Cross-Agent Notes (OpenCode & Codex)
 
 Skill files under `.opencode/skills/`, `.claude/skills/`, and `.agents/skills/` are generated from a common `i18n/<lang>/skills` source that was originally written for Claude Code. As a result, skill files contain Claude-Code-specific artifacts that require translation by non-Claude agents:
 
