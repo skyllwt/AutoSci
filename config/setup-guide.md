@@ -1,6 +1,7 @@
-# ΩmegaWiki — Configuration Guide
+# AutoSci — Configuration Guide
 
-> This file is read by the `/setup` skill to guide users through API key configuration.
+> This file is read by the setup skill (`/setup` in Claude Code, `$setup` in Codex)
+> to guide users through API key configuration.
 > It describes each optional key: what it does, which skills use it, how to get it,
 > and what happens when it is not set.
 
@@ -10,9 +11,9 @@
 
 All API keys live in the project-root `.env` file (created by `setup.sh` from `.env.example`).
 Python tools load this file automatically on startup via `tools/_env.py` — no manual `export` needed.
-Claude Code itself does not read `.env`; only the Python tools do.
+The coding-agent runtime itself does not read `.env`; only the Python tools and MCP helpers do.
 
-The `/setup` skill checks which keys are currently set, explains each one, and writes values
+The setup skill checks which keys are currently set, explains each one, and writes values
 directly into `.env` using the Edit tool.
 
 ---
@@ -96,9 +97,9 @@ approach above instead of `from deepxiv_sdk.cli import auto_register_token`.
 | Required? | No (optional) |
 | Free? | Depends on provider |
 
-**What it does**: Connects ΩmegaWiki to a second LLM (independent of Claude) for
+**What it does**: Connects AutoSci to a second LLM (independent of the primary coding agent) for
 adversarial cross-model review. The reviewer independently critiques research artifacts
-without seeing Claude's prior analysis, improving review quality.
+without seeing the primary agent's prior analysis, improving review quality.
 
 **Which skills use it**:
 - `/review` — general-purpose cross-model review
@@ -110,10 +111,10 @@ without seeing Claude's prior analysis, improving review quality.
 - `/paper-draft` — review each section
 - `/rebuttal` — stress-test rebuttal responses
 - `/refine` — review in multi-round improve cycle
-- `/daily-arxiv` — inform-mode recommendation in CI when Claude Code is unavailable
+- `/daily-arxiv` — inform-mode recommendation in CI when the coding-agent runtime is unavailable
 
 **Without these keys**: Skills skip the cross-model review step and proceed with
-Claude-only analysis or deterministic fallback. Everything still works, but you
+single-agent analysis or deterministic fallback. Everything still works, but you
 lose the independent second-opinion. The `/review` skill will note that
 cross-model review is unavailable.
 
@@ -132,12 +133,12 @@ cross-model review is unavailable.
 1. Choose a provider and get an API key from them
 2. Note the base URL and model name from the table above
 3. Set all three variables in `.env`
-4. Restart Claude Code (the MCP server re-reads `.env` on startup)
+4. Restart your coding agent (the MCP server re-reads `.env` on startup)
 
 **Optional**: `LLM_FALLBACK_MODEL` — fallback model if the primary fails (defaults to `LLM_MODEL`)
 
 **Reviewer independence principle** (from `shared-references/cross-model-review.md`):
-Never share Claude's analysis with the Review LLM before it gives its independent assessment.
+Never share the primary agent's analysis with the Review LLM before it gives its independent assessment.
 The value of cross-model review comes from genuine independence.
 
 ---
@@ -177,4 +178,4 @@ for k in keys:
 "
 ```
 
-After adding `LLM_*` variables, restart Claude Code so the MCP server picks them up.
+After adding `LLM_*` variables, restart your coding agent so the MCP server picks them up.

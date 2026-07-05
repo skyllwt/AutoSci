@@ -409,7 +409,7 @@ function skillSlug(s) {
 //   /check     -> fetch /api/lint, render inline lint card (mechanical, no LLM)
 //   /discover  -> render checkpoint browser inline (peek at past ranked runs)
 //   others     -> open the intent form with a per-skill schema, then show the
-//                 generated /skill command in the existing copy-to-clipboard
+//                 generated agent command in the existing copy-to-clipboard
 //                 modal. The schemas mirror the keys each intent builder in
 //                 tools/serve.py:_handle_intent actually consumes — drift
 //                 there is harmless (unknown keys ignored) but pointless.
@@ -462,7 +462,7 @@ function renderQuickActions() {
       <p class="muted small">
         <code>/check</code> and <code>/discover</code> run inline below
         (mechanical, no LLM). The other five open a parameter form, then
-        produce a ready-to-paste <code>/skill ...</code> command for Claude Code.
+        produce ready-to-paste commands for Claude Code and Codex.
       </p>
       <div class="action-grid">${cards}</div>
       <div id="quick-action-result" class="quick-action-result" aria-live="polite"></div>
@@ -668,7 +668,7 @@ function wireCheckpointBrowser(mount) {
   if (close) close.onclick = () => { mount.innerHTML = ""; };
   const fresh = mount.querySelector(".checkpoint-fresh-btn");
   if (fresh) fresh.onclick = () => {
-    // /discover supports four seed modes (see .claude/skills/discover/SKILL.md).
+    // /discover supports four seed modes (see the active discover/SKILL.md).
     // All form fields are optional — leave everything blank and the backend
     // returns `/discover --from-wiki`, which mines the existing wiki.
     triggerIntent(

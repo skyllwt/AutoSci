@@ -6,8 +6,9 @@ Usage:
     python3 tools/prepare_paper_source.py --raw-root raw --source raw/papers/example.pdf --title "Recovered Paper Title"
     python3 tools/prepare_paper_source.py --raw-root raw --source raw/papers/example.pdf --title "Recovered Paper Title" --arxiv-id 2401.00001
 """
-
 from __future__ import annotations
+
+import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json

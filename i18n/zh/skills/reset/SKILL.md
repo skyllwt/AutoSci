@@ -1,4 +1,5 @@
 ---
+name: reset
 description: 按 scope 重置 wiki 到干净 scaffold（wiki / raw / log / checkpoints / all）。适用于开发迭代或 setup 失败后的无痛重启。
 argument-hint: "--scope wiki|raw|log|checkpoints|all"
 ---

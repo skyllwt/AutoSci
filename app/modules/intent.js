@@ -5,9 +5,9 @@
 // the returned command for copy-paste. If a non-empty schema is passed, a
 // form panel collects parameters first; on submit those values are merged
 // into contextBody and the same modal opens with the parameters substituted
-// in. The SPA still cannot run /skill — this is purely a "build me the
+// in. The SPA still cannot run agent skills — this is purely a "build me the
 // right command, with my parameters" helper that the user pastes into
-// Claude Code.
+// Claude Code or Codex.
 
 import { postIntent } from "./api.js";
 import { showToast, escHtml } from "./ui.js";
@@ -52,7 +52,7 @@ function ensurePopover() {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
         statusEl.hidden = false;
-        statusEl.textContent = "✓ Copied — paste into Claude Code.";
+        statusEl.textContent = "Copied - paste into your coding agent.";
       } else {
         // Fallback: select the <pre> content so user can Ctrl+C
         const range = document.createRange();
@@ -81,12 +81,17 @@ function ensurePopover() {
 function showIntentModal(payload) {
   const pop = ensurePopover();
   pop.querySelector("#intent-title").innerHTML =
-    `Run <code>/${escHtml(payload.skill)}</code> in Claude Code`;
+    `Run <code>${escHtml(payload.skill)}</code> in your coding agent`;
   pop.querySelector("#intent-message").textContent = payload.message || "";
-  pop.querySelector("#intent-cmd").textContent = payload.command || "";
+  const commandText = payload.codex_command
+    ? `Claude Code: ${payload.command || ""}\nCodex: ${payload.codex_command}`
+    : (payload.command || "");
+  pop.querySelector("#intent-cmd").textContent = commandText;
   const docEl = pop.querySelector("#intent-doc");
-  if (payload.doc_url) {
-    docEl.innerHTML = `Skill spec: <code>${escHtml(payload.doc_url)}</code>`;
+  if (payload.doc_url || payload.codex_doc_url) {
+    const claudeDoc = payload.doc_url ? `Claude: <code>${escHtml(payload.doc_url)}</code>` : "";
+    const codexDoc = payload.codex_doc_url ? `Codex: <code>${escHtml(payload.codex_doc_url)}</code>` : "";
+    docEl.innerHTML = `Skill spec: ${[claudeDoc, codexDoc].filter(Boolean).join(" · ")}`;
     docEl.style.display = "";
   } else {
     docEl.style.display = "none";
@@ -189,9 +194,9 @@ function renderFormField(field) {
 function showFormPanel(skill, schema, defaultContext, message, onSubmit) {
   const pop = ensureFormPanel();
   pop.querySelector("#intent-form-title").innerHTML =
-    `Configure <code>/${escHtml(skill)}</code>`;
+    `Configure <code>${escHtml(skill)}</code>`;
   pop.querySelector("#intent-form-message").textContent =
-    message || "Fill the fields below — they will be substituted into the /skill command.";
+    message || "Fill the fields below - they will be substituted into the agent command.";
 
   const form = pop.querySelector("#intent-form");
   form.innerHTML = schema.map(renderFormField).join("");

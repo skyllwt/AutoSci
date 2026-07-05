@@ -1,6 +1,8 @@
-# ΩmegaWiki — Runtime Contract
+# AutoSci — Runtime Contract
 
 Edit `i18n/en/CLAUDE.md`, not the active copy at root. Run `./setup.sh --lang en` to sync.
+
+`AGENTS.md` is the Codex companion file. Keep shared repository rules equivalent between `CLAUDE.md` and `AGENTS.md` unless a rule is specific to one agent runtime.
 
 ## Repository Layout
 
@@ -22,6 +24,7 @@ Wikilinks: `[[slug]]`. Slugs are lowercase, hyphen-separated, no spaces.
 3. `wiki/log.md` is append-only. Never rewrite in place.
 4. Forward link → write reverse simultaneously. Rules in `runtime/schema/xref.yaml`.
 5. User-facing skill flags (those listed in a skill's `argument-hint`) are user-owned. Do not invent, flip, or drop them based on repo state. If the user omitted one, use a default only when the skill documents omission behavior; otherwise ask.
+6. Skill source lives under `i18n/<lang>/skills`; setup regenerates both `.claude/skills` and `.agents/skills` from that source.
 
 ## Where to look
 

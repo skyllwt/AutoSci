@@ -1,4 +1,5 @@
 ---
+name: novelty
 description: 多源 novelty 验证：WebSearch + Semantic Scholar + wiki + Review LLM cross-verify，输出 novelty 评分与建议。可选 --write，把分数写回 idea 页面。
 argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 ---

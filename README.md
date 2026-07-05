@@ -9,6 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
 [![Claude Code](https://img.shields.io/badge/Powered_by-Claude_Code-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
+[![Codex](https://img.shields.io/badge/Compatible_with-Codex-111111.svg)](https://developers.openai.com/codex)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
 [![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
@@ -254,15 +255,16 @@ The following papers were generated end-to-end using AutoSci — from literature
 git clone https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 
-# 2. Install Claude Code
+# 2. Install a coding agent
 npm install -g @anthropic-ai/claude-code
 claude login
+# Or use Codex if that is your preferred coding agent.
 
 # 3. One-click setup
 chmod +x setup.sh && ./setup.sh        # Linux / macOS
 # Windows (PowerShell):
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# setup creates a .venv for AutoSci; /init will use it automatically
+# setup creates .venv and syncs both .claude/skills and .agents/skills
 
 # 4. Put your own papers in raw/papers/ (.tex or .pdf)
 #    Optional: intent notes in raw/notes/, saved pages in raw/web/
@@ -270,6 +272,10 @@ chmod +x setup.sh && ./setup.sh        # Linux / macOS
 # 5. Build your research memory and start a project
 claude
 # Then type: /init [your-research-topic]
+
+# Or in Codex:
+codex
+# Then invoke: $init [your-research-topic]
 ```
 
 <details>
@@ -280,6 +286,9 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                 # Edit to add API keys
 cp config/settings.local.json.example .claude/settings.local.json
+mkdir -p .agents/skills/shared-references
+cp -R i18n/en/skills/. .agents/skills/
+cp i18n/en/shared-references/*.md .agents/skills/shared-references/
 ```
 
 </details>
@@ -293,6 +302,9 @@ python -m venv .venv
 pip install -r requirements.txt
 Copy-Item .env.example .env          # Edit to add API keys
 Copy-Item config\settings.local.json.example .claude\settings.local.json
+New-Item -ItemType Directory -Force .agents\skills\shared-references | Out-Null
+Copy-Item i18n\en\skills\* .agents\skills -Recurse -Force
+Copy-Item i18n\en\shared-references\*.md .agents\skills\shared-references -Force
 ```
 
 Note: native Windows is supported for the local pipeline. Remote-GPU
@@ -305,23 +317,24 @@ and are best run from WSL2 or Linux/macOS.
 
 | Key | Required? | How to get | What it enables |
 |-----|-----------|-----------|-----------------|
-| `ANTHROPIC_API_KEY` | **Yes** (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers all Claude Code skills |
+| Agent runtime auth | **Yes** | Claude Code: `claude login`; Codex: sign in through Codex | Powers the interactive coding-agent skills |
+| `ANTHROPIC_API_KEY` | Claude Code only (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers Claude Code skills |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
 | `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
 
-> **Don't have an Anthropic API key?** AutoSci runs on Claude Code, which supports any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for setup snippets.
+> **Don't have an Anthropic API key?** You can use Codex, or use Claude Code with any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for Claude Code provider snippets.
 
-> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in Claude-only mode.
+> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in single-agent mode.
 
 ---
 
 ## LLM API Configuration / 大模型 API 配置
 
-AutoSci runs on **Claude Code**, which speaks the **Anthropic API** protocol. You can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables.
+AutoSci runs on **Claude Code** or **Codex**. Claude Code speaks the **Anthropic API** protocol: you can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables. Codex uses the Codex/OpenAI sign-in path and reads the repo skills from `.agents/skills`.
 
-AutoSci 基于 **Claude Code**,Claude Code 使用 **Anthropic API** 协议通信。你既可以直接使用 Claude,也可以通过覆盖几个环境变量,把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。
+AutoSci 支持 **Claude Code** 与 **Codex**。Claude Code 使用 **Anthropic API** 协议通信：你既可以直接使用 Claude, 也可以通过覆盖几个环境变量, 把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。Codex 使用 Codex/OpenAI 登录路径，并从 `.agents/skills` 读取 repo skills。
 
 ### Option A — Native Claude / 原生 Claude
 
@@ -410,10 +423,15 @@ Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the 
 
 ## Skills
 
-AutoSci ships with 30+ slash commands spanning the full research lifecycle.
+AutoSci ships with 30+ agent skills spanning the full research lifecycle.
+
+- Claude Code: invoke skills as slash commands, for example `/init`.
+- Codex: invoke skills with `$skill-name` or from `/skills`, for example `$init`.
 
 <details>
 <summary><b>View all skills</b></summary>
+
+For Codex, replace the leading `/` below with `$`.
 
 ### Phase 0: Setup
 | Command | What it does |
@@ -495,7 +513,7 @@ If you find AutoSci useful in your research, please cite our paper:
 
 ## Acknowledgments
 
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** — the AI agent runtime that powers AutoSci
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** and **[Codex](https://developers.openai.com/codex)** — supported coding-agent runtimes for AutoSci
 - The `/poster` pipeline is adapted from [PaperX](https://github.com/yutao1024/PaperX)
 
 ## License
@@ -517,7 +535,7 @@ If you find AutoSci useful in your research, please cite our paper:
 
 <div align="center">
 
-**Built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code)**
+**Built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Codex](https://developers.openai.com/codex)**
 
 If this project helps your research, give it a ⭐
 

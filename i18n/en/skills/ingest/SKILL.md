@@ -1,4 +1,5 @@
 ---
+name: ingest
 description: Ingest a paper into the wiki — creates pages (papers + concepts + methods + people) and builds all cross-references and graph edges. Trigger whenever the user says "ingest", "add this paper", drops a `.pdf` / `.tex` / arXiv URL, or asks to fold a paper into the knowledge base.
 argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 ---

@@ -1,4 +1,5 @@
 ---
+name: ideate
 description: 多阶段研究 idea 生成管道：景观扫描 → 双模型脑暴 → 筛选与验证 → 写入 wiki → 预实验
 argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation] [--skip-pilot] [--auto]"
 ---

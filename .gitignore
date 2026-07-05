@@ -12,6 +12,7 @@ build/
 
 # Language state (set by setup.sh --lang)
 .claude/.current-lang
+.agents/.current-lang
 
 # Claude Code local settings (contains MCP server permissions, may contain API keys)
 .claude/settings.local.json

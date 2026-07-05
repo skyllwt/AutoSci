@@ -1,4 +1,5 @@
 ---
+name: survey
 description: 从 wiki 知识生成论文 Related Work 章节：主题分组 → 叙事结构 → LaTeX 输出，遵循 citation-verification 和 academic-writing
 argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--max-papers 30]
 ---

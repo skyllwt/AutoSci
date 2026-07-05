@@ -15,8 +15,9 @@ Exit codes:
     2  page not found (HTTP 404 or API error indicating missing page)
     3  network or parse error
 """
-
 from __future__ import annotations
+
+import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json

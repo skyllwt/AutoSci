@@ -1,5 +1,6 @@
 ---
-description: 基于用户素材与可选外部发现搭建 ΩmegaWiki，并用并行 `/ingest` 完成最终论文集的消化
+name: init
+description: 基于用户素材与可选外部发现搭建 AutoSci，并用并行 `/ingest` 完成最终论文集的消化
 argument-hint: "[topic] [--no-introduction]"
 ---
 

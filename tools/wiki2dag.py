@@ -1,4 +1,4 @@
-"""Build a PaperX-compatible dag.json from an OmegaWiki paper directory.
+"""Build a PaperX-compatible dag.json from an AutoSci paper directory.
 
 Reads `paper/main.tex` + `paper/sections/*.tex` + `paper/figures/` and
 produces the same dag.json schema that PaperX's DAG2poster pipeline expects.
@@ -18,7 +18,7 @@ dag.json schema:
 }
 
 This bridge is LaTeX-only. Wiki entity enrichment happens in the /poster
-SKILL.md, where Claude can read PAPER_PLAN and linked wiki/ideas/*.md to
+or $poster SKILL.md, where the coding agent can read PAPER_PLAN and linked wiki/ideas/*.md to
 inform per-section distillation prompts.
 """
 

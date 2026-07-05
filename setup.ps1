@@ -1,5 +1,5 @@
 # ============================================================================
-# OmegaWiki - One-Click Setup (Windows / PowerShell)
+# AutoSci - One-Click Setup (Windows / PowerShell)
 # ============================================================================
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1            # English (default)
@@ -7,7 +7,7 @@
 #
 # Mirrors setup.sh: prerequisites -> venv + deps -> config -> activate i18n -> verify.
 # API key configuration (Semantic Scholar, DeepXiv, Review LLM) is handled
-# interactively by Claude Code - run /setup after starting Claude Code.
+# interactively by your coding agent - run /setup in Claude Code or $setup in Codex.
 # ============================================================================
 
 [CmdletBinding()]
@@ -32,7 +32,7 @@ if (-not (Test-Path $I18nDir)) {
 
 Write-Host ""
 Write-Host "============================================"
-Write-Host "  OmegaWiki - Setup (Windows)"
+Write-Host "  AutoSci - Setup (Windows)"
 Write-Host "============================================"
 Write-Host ""
 
@@ -74,19 +74,31 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Ok "pip available"
 
-# Claude Code
+$HaveClaude = $false
+$HaveCodex = $false
 if (Get-Command claude -ErrorAction SilentlyContinue) {
+    $HaveClaude = $true
     Write-Ok "Claude Code installed"
 } else {
     Write-Warn2 "Claude Code not found."
+}
+
+if (Get-Command codex -ErrorAction SilentlyContinue) {
+    $HaveCodex = $true
+    Write-Ok "Codex installed"
+} else {
+    Write-Warn2 "Codex not found."
+}
+
+if (-not $HaveClaude -and -not $HaveCodex) {
     Write-Host ""
-    Write-Host "  Claude Code is required to use OmegaWiki skills."
-    Write-Host "  Install with:"
+    Write-Host "  Install at least one coding-agent runtime to use AutoSci skills:"
     Write-Host "    npm install -g @anthropic-ai/claude-code"
+    Write-Host "    # or install Codex from your OpenAI/Codex setup path"
     Write-Host ""
-    $reply = Read-Host "  Continue setup without Claude Code? [y/N]"
+    $reply = Read-Host "  Continue setup without a coding agent? [y/N]"
     if ($reply -notmatch '^[Yy]$') {
-        Write-Host "  Install Claude Code first, then re-run setup.ps1"
+        Write-Host "  Install Claude Code or Codex first, then re-run setup.ps1"
         exit 1
     }
 }
@@ -98,7 +110,7 @@ Write-Info "Setting up Python environment..."
 Push-Location $ProjectRoot
 try {
     if ($env:VIRTUAL_ENV -or ($env:CONDA_DEFAULT_ENV -and $env:CONDA_DEFAULT_ENV -ne "base")) {
-        Write-Warn2 "Active environment detected; setup always installs OmegaWiki into .venv"
+        Write-Warn2 "Active environment detected; setup always installs AutoSci into .venv"
     }
 
     if (Test-Path ".venv") {
@@ -144,24 +156,32 @@ try {
     Write-Host ""
     Write-Info "Activating language: $Lang"
     Copy-Item (Join-Path $I18nDir "CLAUDE.md") "CLAUDE.md" -Force
+    $AgentsSource = Join-Path $I18nDir "AGENTS.md"
+    if (Test-Path $AgentsSource) {
+        Copy-Item $AgentsSource "AGENTS.md" -Force
+    }
 
     $skillsSrc = Join-Path $I18nDir "skills"
-    Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
-        $name = $_.Name
-        $destDir = Join-Path ".claude\skills" $name
-        if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-        Get-ChildItem -Path $_.FullName -File | ForEach-Object {
-            Copy-Item $_.FullName (Join-Path $destDir $_.Name) -Force
+    foreach ($agentSkillsDir in @(".claude\skills", ".agents\skills")) {
+        if (-not (Test-Path $agentSkillsDir)) { New-Item -ItemType Directory -Path $agentSkillsDir -Force | Out-Null }
+        Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
+            $name = $_.Name
+            $destDir = Join-Path $agentSkillsDir $name
+            if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+            Copy-Item (Join-Path $_.FullName "*") $destDir -Recurse -Force
+        }
+
+        $sharedDest = Join-Path $agentSkillsDir "shared-references"
+        if (-not (Test-Path $sharedDest)) { New-Item -ItemType Directory -Path $sharedDest -Force | Out-Null }
+        Get-ChildItem -Path (Join-Path $I18nDir "shared-references") -Filter "*.md" | ForEach-Object {
+            Copy-Item $_.FullName (Join-Path $sharedDest $_.Name) -Force
         }
     }
 
-    $sharedDest = ".claude\skills\shared-references"
-    if (-not (Test-Path $sharedDest)) { New-Item -ItemType Directory -Path $sharedDest -Force | Out-Null }
-    Get-ChildItem -Path (Join-Path $I18nDir "shared-references") -Filter "*.md" | ForEach-Object {
-        Copy-Item $_.FullName (Join-Path $sharedDest $_.Name) -Force
-    }
     Set-Content -Path ".claude\.current-lang" -Value $Lang -NoNewline
-    Write-Ok "Language files activated ($Lang)"
+    if (-not (Test-Path ".agents")) { New-Item -ItemType Directory -Path ".agents" -Force | Out-Null }
+    Set-Content -Path ".agents\.current-lang" -Value $Lang -NoNewline
+    Write-Ok "Language files activated for Claude Code and Codex ($Lang)"
 
     # -- Step 4: Verify installation ---------------------------------------
     Write-Host ""
@@ -241,22 +261,26 @@ Write-Host "============================================"
 Write-Host ""
 Write-Host "  Next steps:"
 Write-Host ""
-Write-Host "  1. Authenticate Claude Code (if not already):"
+Write-Host "  1. Authenticate your coding agent (if not already):"
 Write-Host "       claude login"
+Write-Host "       codex"
 Write-Host ""
 Write-Host "  2. Activate the venv in your shell only if you want to run Python tools manually:"
 Write-Host "       .\.venv\Scripts\Activate.ps1"
 Write-Host "       setup.ps1 does not activate your current shell permanently."
 Write-Host "       /init will use .venv automatically when it exists."
 Write-Host ""
-Write-Host "  3. Start Claude Code:"
+Write-Host "  3. Start an agent:"
 Write-Host "       claude"
+Write-Host "       codex"
 Write-Host ""
 Write-Host "  4. Complete API key configuration (guided):"
-Write-Host "       /setup"
+Write-Host "       Claude Code: /setup"
+Write-Host "       Codex:       `$setup"
 Write-Host ""
 Write-Host "  5. Then initialize your wiki:"
-Write-Host "       /init [your-research-topic]"
+Write-Host "       Claude Code: /init [your-research-topic]"
+Write-Host "       Codex:       `$init [your-research-topic]"
 Write-Host ""
 Write-Host "  For more, see README.md"
 Write-Host ""

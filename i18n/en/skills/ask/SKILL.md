@@ -1,4 +1,5 @@
 ---
+name: ask
 description: Ask the wiki a question, retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki
 argument-hint: <question>
 ---

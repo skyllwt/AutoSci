@@ -1,11 +1,12 @@
 ---
+name: visualize
 description: 生成并更新可视化产物 —— Obsidian 图谱配置与 Canvas 知识地图。交互式网页图谱视图位于 SPA 的 app/modules/graph.js（由 tools/serve.py 提供服务）。
 argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
 # /visualize
 
-> 为 OmegaWiki 知识图谱生成可视化产物。
+> 为 AutoSci 知识图谱生成可视化产物。
 > 产出 Obsidian 图谱配置（按实体类型分色组）以及带类型标签边的精选 Canvas 视图。
 > 交互式网页探索请使用 SPA 的 Graph 视图（先跑 `tools/serve.py`，然后访问 `#/graph`）。
 

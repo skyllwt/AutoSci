@@ -1,4 +1,5 @@
 ---
+name: exp-run
 description: 实验执行全流程：准备代码 → 部署运行(运行前需向用户确认，申请用户手动检查) → 监控状态 → 收集结果，支持三种运行模式
 argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---

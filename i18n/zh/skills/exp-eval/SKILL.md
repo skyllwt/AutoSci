@@ -1,4 +1,5 @@
 ---
+name: exp-eval
 description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判决路径 → 自动更新 linked idea 的 status / failure_reason 与 graph edges
 argument-hint: <experiment-slug> [--auto]
 ---

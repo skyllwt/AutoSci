@@ -1,6 +1,8 @@
-# ΩmegaWiki — Runtime Contract
+# AutoSci — Runtime Contract
 
 编辑 `i18n/zh/CLAUDE.md`,不要改根目录下的副本。运行 `./setup.sh --lang zh` 同步。
+
+`AGENTS.md` 是 Codex 的配套说明文件。除非规则只针对某一个 agent runtime, 否则要让 `CLAUDE.md` 与 `AGENTS.md` 中的共享仓库规则保持一致。
 
 ## 仓库布局
 
@@ -22,6 +24,7 @@ Wikilink:`[[slug]]`。slug 全小写、连字符分隔、无空格。
 3. `wiki/log.md` 是 append-only。绝不就地重写。
 4. 写正向链接 → 同步写反向链接。完整规则在 `runtime/schema/xref.yaml`。
 5. 用户面 skill 参数(skill `argument-hint` 里列出的 flag)归用户所有。不得仅根据仓库状态擅自补出、翻转或删除它们。用户未提供时,只有 skill 文档化了省略行为才用默认值;否则询问用户。
+6. Skill 源文件位于 `i18n/<lang>/skills`; setup 会从该源同步生成 `.claude/skills` 和 `.agents/skills`。
 
 ## 查阅索引
 

@@ -14,17 +14,17 @@ The reviewer must receive:
 - The **review criteria** (what to evaluate, at what difficulty level)
 
 The reviewer must **NOT** receive:
-- Claude's own score or rating of the artifact
-- Claude's assessment of strengths/weaknesses
-- Claude's recommendation (proceed/modify/abandon)
+- The primary agent's own score or rating of the artifact
+- The primary agent's assessment of strengths/weaknesses
+- The primary agent's recommendation (proceed/modify/abandon)
 - Any framing that anchors the reviewer toward a particular conclusion
 
 ---
 
 ## Why This Matters
 
-1. **Anchoring bias**: If the Review LLM sees "Claude rated this 7/10", its review will cluster around 7. Independent assessment catches blind spots that anchored assessment misses.
-2. **Confirmation bias**: If Claude says "the main weakness is X", the Review LLM will focus on X and miss weakness Y. Unprimed reviewers explore the full space.
+1. **Anchoring bias**: If the Review LLM sees "the primary agent rated this 7/10", its review will cluster around 7. Independent assessment catches blind spots that anchored assessment misses.
+2. **Confirmation bias**: If the primary agent says "the main weakness is X", the Review LLM will focus on X and miss weakness Y. Unprimed reviewers explore the full space.
 3. **Diversity of perspective**: The entire value of cross-model review is that different models have different biases. Sharing judgments before review collapses this diversity.
 
 ---
@@ -33,16 +33,16 @@ The reviewer must **NOT** receive:
 
 ### In `/review` (adversarial critique)
 - Step 2: Send artifact + context + review prompt to the Review LLM. Do NOT include any pre-assessment.
-- Step 3 (multi-turn): Claude may respond to the Review LLM's critique with rebuttals, but these are responses to its points, not pre-formed judgments.
+- Step 3 (multi-turn): The primary agent may respond to the Review LLM's critique with rebuttals, but these are responses to its points, not pre-formed judgments.
 
 ### In `/novelty` (cross-verification)
-- Step 3: Send method signature + existing similar works to the Review LLM. Do NOT include Claude's novelty score from Step 2.
+- Step 3: Send method signature + existing similar works to the Review LLM. Do NOT include the primary agent's novelty score from Step 2.
 
 ### In `/ideate` (dual-model brainstorm)
-- Phase 2: The Review LLM generates ideas from the same landscape context as Claude, but does NOT see Claude's idea list. Merge happens after both complete independently.
+- Phase 2: The Review LLM generates ideas from the same landscape context as the primary agent, but does NOT see the primary agent's idea list. Merge happens after both complete independently.
 
 ### In `/exp-eval` (impartial verdict)
-- Step 2: Send experiment results + the linked idea's hypothesis + context to the Review LLM. Do NOT include Claude's interpretation of the results.
+- Step 2: Send experiment results + the linked idea's hypothesis + context to the Review LLM. Do NOT include the primary agent's interpretation of the results.
 
 ---
 
@@ -73,18 +73,18 @@ A call to `mcp__llm-review__chat` will fail if:
 When the review MCP server is **unavailable**:
 
 1. **Do NOT silently skip the review step.** Inform the user:
-   > "Cross-model review is not configured. This skill works best with an independent review LLM. Would you like to set it up now, or proceed with Claude-only analysis?"
+   > "Cross-model review is not configured. This skill works best with an independent review LLM. Would you like to set it up now, or proceed with single-agent analysis?"
 
 2. **If the user wants to configure**, guide them interactively:
    - Ask which OpenAI-compatible API provider they have (DeepSeek, OpenAI, Qwen, OpenRouter, etc.)
    - Help them edit `.env` to set `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`
-   - Tell them to restart Claude Code so the MCP server picks up the new config
+   - Tell them to restart their coding agent so the MCP server picks up the new config
    - Reference `.env.example` for the full provider table
 
-3. **If the user wants to proceed without review**, continue with Claude-only mode:
+3. **If the user wants to proceed without review**, continue with single-agent mode:
    - Skip the `mcp__llm-review__chat` call
-   - Perform the review/critique step using Claude itself (self-review)
-   - Clearly mark the output as `[Claude self-review — no independent second opinion]`
+   - Perform the review/critique step using the primary agent itself (self-review)
+   - Clearly mark the output as `[single-agent self-review — no independent second opinion]`
    - The rest of the skill workflow proceeds normally
 
 ### When Review LLM IS Available

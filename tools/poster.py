@@ -1,13 +1,13 @@
 """Render an academic HTML poster from a dag.json + outline + template.
 
-Ports the mechanical bits of PaperX's DAG2poster.py into OmegaWiki:
+Ports the mechanical bits of PaperX's DAG2poster.py into AutoSci:
   build         — inject outline section blocks into the template
   inject-title  — set <h1 class="title"> and <div class="authors"> from dag.json
   inject-figures — copy referenced figures into the poster's images/ dir
                    (PDF → PNG conversion via pdftoppm when needed)
   validate      — sanity checks on the final HTML
 
-Claude (in the /poster SKILL.md workflow) writes the outline HTML — this
+The coding agent (in the /poster or $poster SKILL.md workflow) writes the outline HTML — this
 tool only handles mechanical injection, copying, and validation.
 """
 

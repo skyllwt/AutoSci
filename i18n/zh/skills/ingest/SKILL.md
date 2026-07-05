@@ -1,4 +1,5 @@
 ---
+name: ingest
 description: 把一篇论文 ingest 进 wiki —— 建立 papers + concepts + methods + people 页面，并完成所有双向交叉引用与 graph edge。当用户说 "ingest"、"加入这篇论文"、丢 `.pdf` / `.tex` / arXiv URL 或要求把论文折叠进知识库时触发。
 argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 ---

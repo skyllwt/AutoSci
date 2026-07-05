@@ -1,4 +1,5 @@
 ---
+name: review
 description: 通用跨模型审查：Review LLM 对任意研究制品进行独立评审，输出结构化评分、wiki 实体映射与改进建议
 argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---

@@ -1,4 +1,5 @@
 ---
+name: exp-eval
 description: Experiment verdict gate — Review LLM independently judges results → 4 verdict paths → auto-update the linked idea's status / failure_reason and graph edges
 argument-hint: <experiment-slug> [--auto]
 ---

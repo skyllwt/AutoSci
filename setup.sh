@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ============================================================================
-# ΩmegaWiki — One-Click Setup
+# AutoSci — One-Click Setup
 # ============================================================================
 # Usage:
 #   chmod +x setup.sh && ./setup.sh            # English (default)
 #   chmod +x setup.sh && ./setup.sh --lang zh  # Chinese / 中文
 #
 # What it does:
-#   1. Checks prerequisites (Python, pip, Claude Code)
+#   1. Checks prerequisites (Python, pip, Claude Code or Codex)
 #   2. Creates virtual environment and installs dependencies
 #   3. Copies configuration templates
 #   4. Verifies the installation
 #
 # API key configuration (Semantic Scholar, DeepXiv, Review LLM) is handled
-# interactively by Claude Code — run /setup after starting Claude Code.
+# interactively by your coding agent — run /setup in Claude Code or $setup in Codex.
 # ============================================================================
 
 set -e
@@ -56,7 +56,7 @@ cd "$PROJECT_ROOT"
 
 echo ""
 echo "============================================"
-echo "  ΩmegaWiki — Setup"
+echo "  AutoSci — Setup"
 echo "============================================"
 echo ""
 
@@ -89,20 +89,33 @@ else
     exit 1
 fi
 
-# Claude Code
+# Coding agent runtime
+HAVE_CLAUDE=0
+HAVE_CODEX=0
 if command -v claude &>/dev/null; then
+    HAVE_CLAUDE=1
     ok "Claude Code installed"
 else
     warn "Claude Code not found."
+fi
+
+if command -v codex &>/dev/null; then
+    HAVE_CODEX=1
+    ok "Codex installed"
+else
+    warn "Codex not found."
+fi
+
+if [ "$HAVE_CLAUDE" -eq 0 ] && [ "$HAVE_CODEX" -eq 0 ]; then
     echo ""
-    echo "  Claude Code is required to use ΩmegaWiki skills."
-    echo "  Install with:"
+    echo "  Install at least one coding-agent runtime to use AutoSci skills:"
     echo "    npm install -g @anthropic-ai/claude-code"
+    echo "    # or install Codex from your OpenAI/Codex setup path"
     echo ""
-    read -p "  Continue setup without Claude Code? [y/N] " -n 1 -r
+    read -p "  Continue setup without a coding agent? [y/N] " -n 1 -r
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "  Install Claude Code first, then re-run setup.sh"
+        echo "  Install Claude Code or Codex first, then re-run setup.sh"
         exit 1
     fi
 fi
@@ -113,7 +126,7 @@ echo ""
 info "Setting up Python environment..."
 
 if [ -n "$VIRTUAL_ENV" ] || { [ -n "$CONDA_DEFAULT_ENV" ] && [ "$CONDA_DEFAULT_ENV" != "base" ]; }; then
-    warn "Active environment detected; setup always installs OmegaWiki into .venv"
+    warn "Active environment detected; setup always installs AutoSci into .venv"
 fi
 
 if [ -d ".venv" ]; then
@@ -160,16 +173,24 @@ fi
 echo ""
 info "Activating language: $LANG_CODE"
 cp "$I18N_DIR/CLAUDE.md" CLAUDE.md
-for src in "$I18N_DIR/skills"/*/SKILL.md; do
-    skill_dir=$(dirname "$src")
-    name=$(basename "$skill_dir")
-    mkdir -p ".claude/skills/$name"
-    cp -R "$skill_dir"/. ".claude/skills/$name/"
+if [ -f "$I18N_DIR/AGENTS.md" ]; then
+    cp "$I18N_DIR/AGENTS.md" AGENTS.md
+fi
+for agent_skills_dir in ".claude/skills" ".agents/skills"; do
+    mkdir -p "$agent_skills_dir"
+    for skill_dir in "$I18N_DIR/skills"/*; do
+        [ -d "$skill_dir" ] || continue
+        name=$(basename "$skill_dir")
+        mkdir -p "$agent_skills_dir/$name"
+        cp -R "$skill_dir"/. "$agent_skills_dir/$name/"
+    done
+    mkdir -p "$agent_skills_dir/shared-references"
+    cp "$I18N_DIR/shared-references"/*.md "$agent_skills_dir/shared-references/"
 done
-mkdir -p ".claude/skills/shared-references"
-cp "$I18N_DIR/shared-references"/*.md ".claude/skills/shared-references/"
 echo "$LANG_CODE" > .claude/.current-lang
-ok "Language files activated ($LANG_CODE)"
+mkdir -p .agents
+echo "$LANG_CODE" > .agents/.current-lang
+ok "Language files activated for Claude Code and Codex ($LANG_CODE)"
 
 # ── Step 4: Verify installation ─────────────────────────────────────────
 
@@ -243,24 +264,28 @@ echo "============================================"
 echo ""
 echo "  Next steps:"
 echo ""
-echo "  1. Authenticate Claude Code (if not already):"
+echo "  1. Authenticate your coding agent (if not already):"
 echo "     claude login"
+echo "     codex"
 echo ""
 echo "  2. Optional: activate .venv for manual Python tool use:"
 echo "     source .venv/bin/activate"
 echo "     setup.sh does not activate your current shell permanently."
 echo "     /init will use .venv/bin/python automatically when it exists."
 echo ""
-echo "  3. Start Claude Code:"
+echo "  3. Start an agent:"
 echo "     claude"
+echo "     codex"
 echo ""
 echo "  4. Complete API key configuration (guided):"
-echo "     /setup"
-echo "     Claude Code will walk you through Semantic Scholar,"
+echo "     Claude Code: /setup"
+echo "     Codex:       \$setup"
+echo "     The agent will walk you through Semantic Scholar,"
 echo "     DeepXiv, and Review LLM — skip any you don't have yet."
 echo ""
 echo "  5. Then initialize your wiki:"
-echo "     /init [your-research-topic]"
+echo "     Claude Code: /init [your-research-topic]"
+echo "     Codex:       \$init [your-research-topic]"
 echo ""
 echo "  For more, see README.md"
 echo ""

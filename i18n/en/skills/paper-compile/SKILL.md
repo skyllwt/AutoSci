@@ -1,4 +1,5 @@
 ---
+name: paper-compile
 description: LaTeX compile → PDF — latexmk compile + auto-fix + page count/anonymity/font/[UNCONFIRMED] checks + submission checklist
 argument-hint: "[paper-dir] [--fix] [--checklist]"
 ---

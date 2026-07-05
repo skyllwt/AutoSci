@@ -1,4 +1,5 @@
 ---
+name: paper-draft
 description: 从 PAPER_PLAN 起草 LaTeX 论文：逐 section 从 wiki 取材撰写 + 生成 figures/tables + BibTeX 验证 + de-AI polish
 argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 ---

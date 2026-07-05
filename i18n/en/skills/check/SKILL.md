@@ -1,4 +1,5 @@
 ---
+name: check
 description: Scan the full wiki to detect health issues and produce a tiered fix-recommendation report (covers all entity types in runtime/schema/entities.yaml + graph consistency)
 ---
 

@@ -1,11 +1,12 @@
 ---
+name: visualize
 description: Generate and update visualization artifacts — Obsidian graph config and Canvas knowledge maps. The interactive web graph view lives in the SPA at app/modules/graph.js (served by tools/serve.py).
 argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
 # /visualize
 
-> Generate visualization artifacts for the OmegaWiki knowledge graph.
+> Generate visualization artifacts for the AutoSci knowledge graph.
 > Produces Obsidian graph config (color groups by entity type) and curated
 > Canvas views with labeled typed edges. For interactive web exploration
 > use the SPA Graph view (`tools/serve.py`, then `#/graph`).

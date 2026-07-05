@@ -1,4 +1,5 @@
 ---
+name: poster
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
 argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---

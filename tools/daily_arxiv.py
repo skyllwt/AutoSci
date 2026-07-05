@@ -5,8 +5,9 @@ The slash skill is the policy and LLM judgment layer. This helper keeps the
 repeatable parts in one place: config resolution, arXiv feed handling, wiki
 profile extraction, optional external enrichment, and digest formatting.
 """
-
 from __future__ import annotations
+
+import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json
@@ -1294,7 +1295,7 @@ def run_third_party_recommendation(
     temperature: float = 0.1,
 ) -> dict[str, Any]:
     if context.get("mode") != "inform":
-        raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires Claude Code runtime")
+        raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires a coding-agent runtime")
     env = _require_llm_env()
     compact = _compact_llm_context(context, limit)
     allowed_ids = {

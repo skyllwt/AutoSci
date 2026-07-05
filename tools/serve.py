@@ -37,17 +37,18 @@ and other skills can distinguish SPA-originated edits):
   POST  /api/intent/{skill}           body context for command synthesis
                                        skill ∈ {ingest, ask, edit, check,
                                                 ideate, discover, exp-design}
-                                       -> {skill, command, doc_url, message}
+                                       -> {skill, command, codex_command,
+                                           doc_url, codex_doc_url, message}
 
 Skill-intent boundary
 ---------------------
-The SPA cannot run /skill X — slash-commands need a Claude Code LLM
+The SPA cannot run an agent skill — skills need a coding-agent LLM
 session. Naive UX would silently call a different code path and produce
-results that diverge from /skill X's actual behavior. So every UI button
+results that diverge from the skill's actual behavior. So every UI button
 that wants a skill posts to /api/intent/{skill}; the backend assembles
-the right "/skill ..." command (filling in slug/arxiv-id/etc. from page
+the right agent command (filling in slug/arxiv-id/etc. from page
 context) and returns it. The SPA opens a copy-to-clipboard modal with the
-command. The user pastes it into Claude Code. The boundary is explicit
+command. The user pastes it into Claude Code or Codex. The boundary is explicit
 in the API surface itself — no silent skill faking.
 
 Live reload (SSE)
@@ -58,7 +59,7 @@ to all connected /api/events clients. The SPA's EventSource listener
 refetches data and re-renders the current view. A 2.5s grace window
 after each SPA-initiated write suppresses redundant re-renders triggered
 by the SPA's own write — state.lastWriteAt is consulted before
-re-rendering. External edits (Obsidian, Claude Code editing wiki/* during
+re-rendering. External edits (Obsidian, coding-agent edits to wiki/* during
 a running ingest, manual research_wiki.py invocations) all reflect in the
 SPA within ~1.5 seconds with no manual refresh.
 
@@ -75,6 +76,8 @@ Smoke test:
            the change -> wiki/log.md has a new "frontend | PATCH..." line.
 """
 from __future__ import annotations
+
+import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json
@@ -767,13 +770,14 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     # --- /api/intent/{skill} POST -------------------------------------------
     #
-    # These return ready-to-paste `/skill ...` command strings. They do NOT
+    # These return ready-to-paste agent command strings. They do NOT
     # execute the skill (the SPA has no LLM session). The frontend shows
-    # the command in a copy-to-clipboard modal; user pastes into Claude Code.
+    # the command in a copy-to-clipboard modal; user pastes into Claude Code
+    # or Codex.
 
     INTENT_DEFAULT_MESSAGE = (
-        "Run this in Claude Code. The SPA cannot orchestrate /skill — "
-        "skills require an LLM session."
+        "Run this in Claude Code or Codex. The SPA cannot orchestrate "
+        "agent skills — skills require an LLM session."
     )
 
     def _handle_intent(self, skill: str, body: dict) -> None:
@@ -797,6 +801,9 @@ class WikiHandler(SimpleHTTPRequestHandler):
         out = b(body)
         out.setdefault("skill", skill)
         out.setdefault("doc_url", f".claude/skills/{skill}/SKILL.md")
+        out.setdefault("codex_doc_url", f".agents/skills/{skill}/SKILL.md")
+        if "codex_command" not in out and out.get("command", "").startswith("/"):
+            out["codex_command"] = "$" + out["command"][1:]
         out.setdefault("message", self.INTENT_DEFAULT_MESSAGE)
         self._send_json(out)
 
@@ -809,7 +816,7 @@ class WikiHandler(SimpleHTTPRequestHandler):
             "command": "/ingest <local-path-or-arXiv-URL>",
             "message": ("Replace <local-path-or-arXiv-URL> with a "
                         ".pdf path, .tex path, or arXiv link, then run in "
-                        "Claude Code."),
+                        "Claude Code or Codex."),
         }
 
     @staticmethod
@@ -852,7 +859,7 @@ class WikiHandler(SimpleHTTPRequestHandler):
 
     @staticmethod
     def _intent_discover(body: dict) -> dict:
-        # /discover has four seed modes (see .claude/skills/discover/SKILL.md).
+        # /discover has four seed modes (see the active discover/SKILL.md).
         # Priority when multiple fields are present: anchor > topic > venue/year
         # > from-wiki. `--limit` is universal and tacks on at the end.
         anchor = (body.get("anchor") or "").strip()

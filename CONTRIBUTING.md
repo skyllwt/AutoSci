@@ -1,6 +1,6 @@
-# Contributing to OmegaWiki
+# Contributing to AutoSci
 
-Thank you for your interest in contributing to OmegaWiki. This guide covers the essentials.
+Thank you for your interest in contributing to AutoSci. This guide covers the essentials.
 
 ## Reporting Bugs & Requesting Features
 
@@ -26,7 +26,7 @@ Key points:
 - Skills are **orchestrators** that use LLM reasoning and multi-step decisions.
 - Skills call tools via `Bash: python3 tools/X.py` -- they do not contain deterministic logic themselves.
 - Every skill must read from and/or write back to the wiki.
-- **Bilingual requirement**: create both `i18n/en/skills/<name>/SKILL.md` and `i18n/zh/skills/<name>/SKILL.md`, then run `./setup.sh` to sync active files.
+- **Bilingual + dual-agent requirement**: create both `i18n/en/skills/<name>/SKILL.md` and `i18n/zh/skills/<name>/SKILL.md`, include `name` and `description` in frontmatter, then run `./setup.sh` to sync active `.claude/skills` and `.agents/skills` files.
 - Add tests in `tests/test_skill_validation.py`.
 
 ## Adding a New Tool
@@ -35,7 +35,7 @@ Tools live in `tools/` and are **deterministic Python helpers** (no LLM reasonin
 
 - File naming: `snake_case.py`
 - Add corresponding tests in `tests/test_<module>.py`.
-- Do **NOT** create a `src/` Python package. This is a Claude Code skill project, not a pip-installable library.
+- Do **NOT** create a `src/` Python package. This is an agent-skill project, not a pip-installable library.
 
 ## Testing
 
@@ -51,14 +51,15 @@ python -m pytest tests/ -v
 
 ## Bilingual (i18n)
 
-OmegaWiki ships in English and Chinese. English is canonical.
+AutoSci ships in English and Chinese. English is canonical.
 
-When modifying any SKILL.md, runtime CLAUDE.md, or shared-references file:
+When modifying any `SKILL.md`, `CLAUDE.md`, `AGENTS.md`, or shared-references file:
 
 1. Edit `i18n/en/<path>` first.
 2. Apply the equivalent change to `i18n/zh/<path>`.
 3. Run `./setup.sh --lang $(cat .claude/.current-lang 2>/dev/null || echo en)` to sync.
-4. Run tests.
+4. Confirm both `.claude/skills` and `.agents/skills` received the change.
+5. Run tests.
 
 ## Code Style
 

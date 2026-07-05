@@ -19,6 +19,7 @@ import sys
 import time
 
 import _env  # noqa: F401 — load .env files for API keys
+import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import requests
 

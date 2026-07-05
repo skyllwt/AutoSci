@@ -1,4 +1,5 @@
 ---
+name: exp-run
 description: Full experiment execution pipeline — prepare code → deploy(Confirm with the user before operation and ask the applicant to conduct manual inspection) → monitor → collect results, supporting three run modes
 argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---

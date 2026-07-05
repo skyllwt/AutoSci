@@ -1,3 +1,3 @@
-# Wiki Log
+# OmegaWiki Log
 
-> Append-only chronological log. Entry format: `## [YYYY-MM-DD] action | details`
+## [2026-07-05] init | wiki initialized

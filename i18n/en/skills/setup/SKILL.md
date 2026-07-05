@@ -1,10 +1,11 @@
 ---
+name: setup
 description: Interactive API key configuration guide — checks current .env state and walks you through Semantic Scholar, DeepXiv, and Review LLM setup
 ---
 
-# /setup
+# /setup / $setup
 
-> Guides you through ΩmegaWiki's optional API key configuration.
+> Guides you through AutoSci's optional API key configuration.
 > Reads your current `.env`, shows what is and isn't configured, and helps you
 > set up each key with clear explanations of what it does and how to get it.
 > Safe to re-run at any time — only updates keys you choose to configure.
@@ -71,9 +72,9 @@ python3 --version
 Present a clear summary to the user, grouped by status:
 
 ```
-ΩmegaWiki Configuration Status
+AutoSci Configuration Status
 ================================
-✓  ANTHROPIC_API_KEY      — managed by Claude Code (claude login)
+✓  Agent runtime          — managed outside `.env` (Claude Code: `claude login`; Codex: sign in through Codex)
 
 Recommended:
 ✗  Semantic Scholar        — not set  (citation expansion 3x slower — get free key)
@@ -171,7 +172,7 @@ offer to let the user paste a token manually instead.
 
 #### 4c: Review LLM
 
-**Explain**: "The Review LLM connects ΩmegaWiki to a second AI model for independent
+**Explain**: "The Review LLM connects AutoSci to a second AI model for independent
 adversarial review. It's used by /review, /novelty, /ideate, /paper-plan, /paper-draft,
 /rebuttal, /refine, /exp-eval, /exp-design, and /daily-arxiv inform recommendations.
 Works with any OpenAI-compatible API.
@@ -192,8 +193,8 @@ Without it, those skills skip the cross-model review step (everything still work
 
 **Write all three** to `.env` once the user confirms.
 
-**After writing**: Remind the user that the Review LLM MCP server starts when Claude Code
-launches and reads `.env` at that time — changes take effect after restarting Claude Code.
+**After writing**: Remind the user that the Review LLM MCP server starts when the coding
+agent launches and reads `.env` at that time — changes take effect after restarting the agent.
 
 ---
 
@@ -224,7 +225,7 @@ for k in keys:
 ```
 
 Show a final summary. For any keys still not set, briefly note what they unlock
-and that the user can run `/setup` again anytime to add them.
+and that the user can run `/setup` in Claude Code or `$setup` in Codex anytime to add them.
 
 ### Step 6: Next Steps
 
@@ -233,13 +234,13 @@ If this is a fresh install (no `wiki/` directory):
 Configuration done. Next:
   • Put your own papers in raw/papers/ (.tex or .pdf)
   • Optional: add intent notes to raw/notes/ and saved pages to raw/web/
-  • /init and direct local /ingest will manage generated inputs under raw/discovered/ and raw/tmp/
-  • Run: /init [your-research-topic]
+  • /init (Claude Code) or $init (Codex) and direct local /ingest or $ingest will manage generated inputs under raw/discovered/ and raw/tmp/
+  • Run: /init [your-research-topic] in Claude Code, or $init [your-research-topic] in Codex
 ```
 
 If `wiki/` already exists:
 ```
-Configuration updated. Restart Claude Code for Review LLM changes to take effect.
+Configuration updated. Restart your coding agent for Review LLM changes to take effect.
 ```
 
 ## Constraints

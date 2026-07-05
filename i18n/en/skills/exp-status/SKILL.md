@@ -1,4 +1,5 @@
 ---
+name: exp-status
 description: View the status of all running experiments; optionally auto-collect completed experiments and advance the pipeline
 argument-hint: "[--pipeline <slug>] [--collect-ready] [--auto-advance]"
 ---

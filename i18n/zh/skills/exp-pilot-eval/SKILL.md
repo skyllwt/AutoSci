@@ -1,4 +1,5 @@
 ---
+name: exp-pilot-eval
 description: 预实验结果评估 — 读取预实验结果，应用成功标准，更新 idea 页面（pilot_result，失败时更新 failure_reason），生成 PILOT_VERDICT_REPORT。由 /ideate Phase 5 在 /exp-pilot-run 之后调用。
 argument-hint: <idea-slug> [--auto]
 ---

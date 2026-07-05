@@ -1,4 +1,5 @@
 ---
+name: paper-plan
 description: 从 idea graph 编译论文大纲：编译 evidence map → 叙事结构 → 章节计划 + figure plan + citation plan，Review LLM review 必选
 argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
 ---

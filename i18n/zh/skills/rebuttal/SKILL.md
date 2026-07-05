@@ -1,4 +1,5 @@
 ---
+name: rebuttal
 description: 解析审稿意见 → 原子化 concerns (Rvx-Cy) → 映射到 wiki ideas/methods → 检查 evidence → Review LLM stress-test → 生成 rebuttal
 argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---

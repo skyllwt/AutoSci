@@ -1,9 +1,9 @@
 # writers.yaml — Field- and edge-level write permissions.
 #
 # STATUS: SPEC, NOT A RUNTIME GATE.
-# Nothing in tools/ or .claude/skills/ reads this file at write time. It is a
-# declarative contract for SKILL.md authors and for Claude when reading the
-# repo's rules — "this is who is supposed to write this." Enforcement is at
+# Nothing in tools/, .claude/skills/, or .agents/skills/ reads this file at
+# write time. It is a declarative contract for SKILL.md authors and for agents
+# when reading the repo's rules — "this is who is supposed to write this." Enforcement is at
 # the prompt level (each skill's SKILL.md tells the agent what it writes), not
 # at the CLI. We deliberately did not plumb a `--skill` arg through set-meta /
 # add-edge: research workflows are fluid, and `/edit` exists as a designed

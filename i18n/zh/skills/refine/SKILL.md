@@ -1,4 +1,5 @@
 ---
+name: refine
 description: 通用多轮迭代改进：对任意研究制品反复调用 /review → 解析反馈 → 修复 → 更新 wiki，直到达标
 argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---

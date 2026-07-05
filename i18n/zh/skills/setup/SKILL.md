@@ -1,10 +1,11 @@
 ---
+name: setup
 description: 交互式 API key 配置引导 — 检测当前 .env 状态，逐步引导配置 Semantic Scholar、DeepXiv 和 Review LLM
 ---
 
-# /setup
+# /setup / $setup
 
-> 引导你完成 ΩmegaWiki 的可选 API key 配置。
+> 引导你完成 AutoSci 的可选 API key 配置。
 > 读取当前 `.env`，展示已配置和未配置的内容，并帮助你逐步设置每个 key，
 > 包括清晰解释每个 key 的作用和获取方式。
 > 可随时重新运行，只更新你选择配置的 key。
@@ -71,9 +72,9 @@ python3 --version
 向用户展示清晰的状态总结，按状态分组：
 
 ```
-ΩmegaWiki 配置状态
+AutoSci 配置状态
 ================================
-✓  ANTHROPIC_API_KEY      — 由 Claude Code 管理（claude login）
+✓  Agent runtime          — 在 `.env` 外部管理（Claude Code: `claude login`; Codex: 通过 Codex 登录）
 
 推荐配置：
 ✗  Semantic Scholar        — 未配置（引用链扩展速度慢 3 倍，建议配置免费 key）
@@ -169,7 +170,7 @@ stdout → token 值；stderr → 人类可读状态（直接透传，不要抑�
 
 #### 4c：Review LLM
 
-**解释**："Review LLM 将 ΩmegaWiki 连接到第二个 AI 模型，进行独立的对抗性评审。
+**解释**："Review LLM 将 AutoSci 连接到第二个 AI 模型，进行独立的对抗性评审。
 被 /review、/novelty、/ideate、/paper-plan、/paper-draft、/rebuttal、/refine、
 /exp-eval、/exp-design，以及 /daily-arxiv 的 inform 推荐使用。支持任何 OpenAI-compatible API。
 不配置时，这些 skill 跳过跨模型 review 步骤（功能全部保留）。"
@@ -189,8 +190,8 @@ stdout → token 值；stderr → 人类可读状态（直接透传，不要抑�
 
 **用户确认后写入** `.env` 中的三个变量。
 
-**写入后提醒**：Review LLM MCP server 在 Claude Code 启动时读取 `.env`，
-变更在重启 Claude Code 后生效。
+**写入后提醒**：Review LLM MCP server 在 coding agent 启动时读取 `.env`，
+变更在重启 agent 后生效。
 
 ---
 
@@ -221,7 +222,7 @@ for k in keys:
 ```
 
 展示最终总结。对仍未配置的 key，简要说明其解锁的功能，
-并告知用户可以随时重新运行 `/setup` 来补充配置。
+并告知用户可以随时在 Claude Code 中重新运行 `/setup`，或在 Codex 中运行 `$setup` 来补充配置。
 
 ### Step 6：下一步
 
@@ -230,13 +231,13 @@ for k in keys:
 配置完成。接下来：
   • 将你自己的论文放入 raw/papers/（.tex 或 .pdf）
   • 可选：把意图笔记放入 raw/notes/，网页存档放入 raw/web/
-  • /init 与直接本地 /ingest 会自动管理 raw/discovered/ 与 raw/tmp/ 下的生成内容
-  • 运行：/init [你的研究主题]
+  • Claude Code 的 /init 或 Codex 的 $init，以及直接本地 /ingest 或 $ingest 会自动管理 raw/discovered/ 与 raw/tmp/ 下的生成内容
+  • 运行：Claude Code 中 /init [你的研究主题]；Codex 中 $init [你的研究主题]
 ```
 
 如果 `wiki/` 已存在：
 ```
-配置已更新。重启 Claude Code 后 Review LLM 变更生效。
+配置已更新。重启 coding agent 后 Review LLM 变更生效。
 ```
 
 ## Constraints

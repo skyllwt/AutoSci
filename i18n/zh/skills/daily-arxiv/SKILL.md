@@ -1,4 +1,5 @@
 ---
+name: daily-arxiv
 description: 运行或管理每日 arXiv 推荐 feed。用于手动获取新论文推荐、配置/检查/停用 GitHub Actions 定时任务、邮件 digest，以及显式高置信 auto-ingest。
 argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---

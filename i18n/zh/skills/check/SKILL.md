@@ -1,4 +1,5 @@
 ---
+name: check
 description: 扫描全 wiki 发现健康问题，生成分级修复建议报告（覆盖 runtime/schema/entities.yaml 中全部 entity 类型 + graph 一致性）
 ---
 

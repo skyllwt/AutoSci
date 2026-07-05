@@ -48,7 +48,7 @@ cp config/settings.local.json.example .claude/settings.local.json
 
 `enableAllProjectMcpServers: true` auto-starts the `llm-review` server declared in `.mcp.json` without a first-run prompt.
 
-These permissions grant broad access so that all skills work without interruption. Claude Code will **not** prompt for individual tool calls covered by this list.
+These permissions grant broad access so that all Claude Code skills work without interruption. Claude Code will **not** prompt for individual tool calls covered by this list.
 
 **To restrict access:** If you prefer more manual control, you can replace `Bash(*)` with specific patterns (e.g., `Bash(python3:*)`, `Bash(latexmk:*)`) and remove permissions you don't need. Note that some skills may then require additional approval prompts. See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for the full permissions format.
 
@@ -76,8 +76,16 @@ Then edit `config/server.yaml` with your server's SSH details, GPU info, conda e
 | `identity_file` | No | `~/.ssh/id_ed25519` |
 | `proxy_jump` | No | `bastion.cs.edu` |
 
+### Codex skills
+
+Codex does not use `.claude/settings.local.json`. Repo skills are active from
+`.agents/skills`, generated from the same `i18n/<lang>/skills` source as
+`.claude/skills`. Invoke them in Codex with `$setup`, `$init`, `$ingest`, or
+through `/skills`.
+
 ## All Done by `setup.sh`
 
-If you ran `setup.sh`, `.env` and `.claude/settings.local.json` are already
-copied to the right locations. `daily-arxiv.yml` and `server.yaml` are optional
-and can be created later when you use those features.
+If you ran `setup.sh`, `.env`, `.claude/settings.local.json`, `.claude/skills`,
+`.agents/skills`, `CLAUDE.md`, and `AGENTS.md` are already copied to the right
+locations. `daily-arxiv.yml` and `server.yaml` are optional and can be created
+later when you use those features.
