@@ -69,7 +69,7 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. If mode is `auto-ingest`, use Claude Code runtime only: choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Third-party LLMs are recommendation-only and must not auto-ingest.
+3. If mode is `auto-ingest`, note the current runtime limit: CI auto-ingest is supported only through the Claude Code Action path. Choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Third-party LLMs are recommendation-only and must not auto-ingest.
 
 4. Finalize the digest:
 

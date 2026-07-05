@@ -74,7 +74,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 2. **Auto-recovery detection** (when `--start-from` is not specified):
    - If `wiki/outputs/pipeline-progress.md` exists and `status == running`:
      - Read direction, current_stage, started, slug
-     - Use AskUserQuestion to prompt the user:
+     - Ask the user:
        ```
        Unfinished pipeline detected:
        Direction: {direction}
@@ -214,7 +214,7 @@ Args: "{direction}" --auto
 
 **If interactive mode**:
 - List all generated ideas (slug, title, priority, novelty score，pilot result)
-- Use AskUserQuestion to prompt user to select one idea (or enter "stop" to halt)
+- Ask the user to select one idea (or enter "stop" to halt)
 - If user selects stop: save progress, terminate pipeline
 
 **Save progress**:
@@ -377,7 +377,7 @@ Args: "{experiment_slug}" --auto
   Idea: {slug} | Status: {status} | Novelty: {novelty_score}
   Linked experiments: {count} ({succeeded}/{inconclusive}/{failed})
   ```
-- Use AskUserQuestion to prompt user: ready for paper / need more experiments / stop here
+- Ask the user: ready for paper / need more experiments / stop here
 - If "need more experiments": return to Stage 2 for replanning
 - If "stop here": save progress, generate final report (without paper)
 
@@ -545,9 +545,9 @@ Update pipeline-progress: status: completed
 ### MCP Servers
 - None directly — all Review LLM interactions are used indirectly via sub-skills
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read pipeline-progress, wiki pages, RESEARCH_BRIEF
 - `Write` — write pipeline-progress, PIPELINE_REPORT
 - `Glob` — find experiments, ideas, methods
 - `Skill` — call sub-skills (core capability)
-- `AskUserQuestion` — user interaction at Gates and auto-recovery detection
+- interactive user prompt — user interaction at Gates and auto-recovery detection

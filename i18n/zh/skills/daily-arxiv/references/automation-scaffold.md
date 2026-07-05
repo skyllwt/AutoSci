@@ -56,7 +56,7 @@ SMTP 发送：
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- Claude 运行时的 `llm-decisions.json`
+- Claude Code Action 运行时的 `llm-decisions.json`
 - `digest.md`
 - `digest.json`
 

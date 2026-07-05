@@ -7,7 +7,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 # /refine
 
 > 通用多轮迭代改进循环，适用于任何研究制品（idea、proposal、experiment plan、paper draft）。
-> 每轮调用 /review 获取结构化反馈 → 解析 actionable items → Claude 修复制品 → 更新 wiki 实体 →
+> 每轮调用 /review 获取结构化反馈 → 解析 actionable items → 主 agent 修复制品 → 更新 wiki 实体 →
 > 重新 /review，直到评分达到目标分数或达到最大轮次。
 > 输出改进历史和最终 review 评分。
 
@@ -105,7 +105,7 @@ Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 
 对每个 actionable item 进行分类和处理：
 
-**Category A — 方法/内容问题（Claude 直接修复）：**
+**Category A — 方法/内容问题（主 agent 直接修复）：**
 - 方法描述不够具体 → 补充细节
 - 缺少对比分析 → 添加与 baseline 的对比
 - 论证逻辑不完整 → 补充推理步骤
@@ -119,7 +119,7 @@ Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 - 需要实验验证 → 建议运行 `/exp-run`
 - → 记录到 `unresolved_issues`，在报告中列出建议操作
 
-**Category C — idea / method 更新（Claude 修复 wiki）：**
+**Category C — idea / method 更新（主 agent 修复 wiki）：**
 - review 指出 idea 的 `origin_gaps` 缺少某个 concept 链接 → 补上链接并写入反向 `linked_ideas`
 - review 发现 method 缺少 parent/child 关系 → 修补 method 页面
 - review 发现新的 gap → 记录到 gap_map（通过 rebuild）
@@ -223,10 +223,10 @@ python3 tools/research_wiki.py log wiki/ \
 ### Skills（via Skill tool）
 - `/review` — 每轮审查（核心依赖）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 artifact 和 wiki 页面
 - `Edit` — 修复 artifact 内容
 - `Glob` — 查找 artifact 和相关 wiki 页面
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — 通过 /review 间接依赖
+- `shared-references/cross-model-review.md` — 通过 /review 间接依赖

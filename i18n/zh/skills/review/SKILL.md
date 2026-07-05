@@ -20,7 +20,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - 自由文本（直接粘贴的 proposal 或 idea 描述）
 - `--difficulty`（可选，默认 `standard`）：
   - `standard`：单轮审查，给出结构化反馈
-  - `hard`：多轮对话（最多 3 轮），Claude 对每个 weakness 进行 rebuttal
+  - `hard`：多轮对话（最多 3 轮），主 agent 对每个 weakness 进行 rebuttal
   - `adversarial`：多轮对话（最多 3 轮），Review LLM 额外尝试找致命缺陷，模拟最严苛的审稿人
 - `--focus`（可选，默认全面审查）：
   - `method`：聚焦方法设计的正确性、创新性、可行性
@@ -51,7 +51,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 - `wiki/ideas/*.md` — 如果审查的是 idea，检查其上下文
 - `wiki/graph/context_brief.md` — 获取全局上下文
 - `wiki/graph/open_questions.md` — 对照 gap map 检查完整性
-- `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则
+- `shared-references/cross-model-review.md` — 审稿独立性原则
 
 ### Writes
 - **无**。Review 是只读查询操作。
@@ -109,10 +109,10 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 ### Step 2: Review LLM 首轮审查
 
-**遵循 cross-model-review.md**：不向 Review LLM 发送任何 Claude 的预判。
+**遵循 cross-model-review.md**：不向 Review LLM 发送任何 主 agent 的预判。
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: {reviewer system prompt from Step 1}
   message: |
     ## Artifact to Review
@@ -142,14 +142,14 @@ mcp__llm-review__chat:
 
 **Round N（N = 1, 2, 3）：**
 
-1. Claude 分析 Review LLM 的 weaknesses，对每个 weakness 分类：
-   - **可反驳（rebuttal）**：Claude 有充分理由或 wiki 证据反驳 → 写出 rebuttal
+1. 主 agent 分析 Review LLM 的 weaknesses，对每个 weakness 分类：
+   - **可反驳（rebuttal）**：主 agent 有充分理由或 wiki 证据反驳 → 写出 rebuttal
    - **承认（acknowledge）**：weakness 确实存在 → 承认并提出修复方案
    - **需要更多信息（clarify）**：weakness 基于误解 → 提供澄清
 
-2. 将 Claude 的回应发送给 Review LLM：
+2. 将 主 agent 的回应发送给 Review LLM：
    ```
-   mcp__llm-review__chat-reply:
+   llm-review MCP chat-reply tool:
      threadId: {from Step 2}
      message: |
        Thank you for the review. Here are my responses:
@@ -231,7 +231,7 @@ mcp__llm-review__chat:
 
 ### Round 1
 **Review LLM**: {summary of initial review}
-**Claude**: {summary of rebuttals/acknowledgments}
+**主 agent**: {summary of rebuttals/acknowledgments}
 
 ### Round 2
 **Review LLM**: {updated assessment}
@@ -245,7 +245,7 @@ mcp__llm-review__chat:
 
 ## Constraints
 
-- **审稿独立性**：严格遵循 `shared-references/cross-model-review.md`，不向 Review LLM 泄露 Claude 的预判
+- **审稿独立性**：严格遵循 `shared-references/cross-model-review.md`，不向 Review LLM 泄露 主 agent 的预判
 - **不修改 wiki**：review 只输出建议，不直接修改任何 wiki 页面。wiki 修改由调用方（如 /refine）执行
 - **score 必须有 justification**：不接受没有理由的分数
 - **weakness 必须有 fix**：每个 weakness 必须附带具体的、可操作的修复建议，不接受空洞批评
@@ -257,10 +257,10 @@ mcp__llm-review__chat:
 ## Error Handling
 
 - **artifact 找不到**：提示用户检查 slug 或路径，列出可能的候选页面
-- **Review LLM 不可用**：降级为 Claude 自我审查模式，报告标注「single-model review, cross-model verification unavailable」，建议用户稍后用 Review LLM 重新审查
+- **Review LLM 不可用**：降级为 主 agent 自我审查模式，报告标注「single-model review, cross-model verification unavailable」，建议用户稍后用 Review LLM 重新审查
 - **wiki 为空**：正常执行审查，但 Wiki Entity Mapping 部分标注「wiki empty, no entity mapping available」
 - **artifact 太长**：若超过 Review LLM 上下文窗口，按 section 分段审查，最后合并
-- **Review LLM 返回无效响应**：重试一次，若仍无效则使用 Claude 自审降级方案
+- **Review LLM 返回无效响应**：重试一次，若仍无效则使用 主 agent 自审降级方案
 - **多轮对话中 Review LLM 不收敛**：3 轮后强制结束，输出最后一轮的评分和总结
 
 ## Dependencies
@@ -269,15 +269,15 @@ mcp__llm-review__chat:
 - 无直接工具调用（review 不需要确定性工具）
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Review LLM 首轮审查（Step 2）
-- `mcp__llm-review__chat-reply` — Review LLM 多轮对话（Step 3）
+- `llm-review MCP chat tool` — Review LLM 首轮审查（Step 2）
+- `llm-review MCP chat-reply tool` — Review LLM 多轮对话（Step 3）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 artifact 和 wiki 页面
 - `Glob` — 查找 artifact 对应的 wiki 页面
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则（必读）
+- `shared-references/cross-model-review.md` — 审稿独立性原则（必读）
 
 ### Called by
 - `/ideate` Phase 4（审查 top ideas）

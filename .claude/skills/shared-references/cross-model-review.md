@@ -59,12 +59,12 @@ After both models have independently assessed:
 
 ## Review LLM Availability Check
 
-Before calling `mcp__llm-review__chat`, every skill must check availability and handle gracefully.
+Before calling `llm-review MCP chat tool`, every skill must check availability and handle gracefully.
 
 ### Detection
 
-A call to `mcp__llm-review__chat` will fail if:
-- The MCP server is not configured (missing `.mcp.json` or `enableAllProjectMcpServers` not set)
+A call to the `llm-review` MCP chat tool will fail if:
+- The MCP server is not configured (Claude Code: missing `.mcp.json` or `enableAllProjectMcpServers`; Codex: missing user-level `mcp_servers.llm-review` config)
 - `LLM_API_KEY` or `LLM_BASE_URL` is not set in `.env`
 - The API endpoint is unreachable
 
@@ -82,11 +82,11 @@ When the review MCP server is **unavailable**:
    - Reference `.env.example` for the full provider table
 
 3. **If the user wants to proceed without review**, continue with single-agent mode:
-   - Skip the `mcp__llm-review__chat` call
+   - Skip the `llm-review` MCP chat tool call
    - Perform the review/critique step using the primary agent itself (self-review)
    - Clearly mark the output as `[single-agent self-review — no independent second opinion]`
    - The rest of the skill workflow proceeds normally
 
 ### When Review LLM IS Available
 
-Proceed with the standard cross-model review protocol as defined above. The `mcp__llm-review__chat` tool is provided by the `llm-review` MCP server (configured in `.mcp.json`), which works with any OpenAI-compatible API.
+Proceed with the standard cross-model review protocol as defined above. The chat tool is provided by the `llm-review` MCP server, which works with any OpenAI-compatible API.

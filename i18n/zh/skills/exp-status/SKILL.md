@@ -217,7 +217,7 @@ Args: "{slug} --collect"
 - `screen -ls` — local 进程状态
 - `tail -20 {log}` — local 日志获取
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取实验页面和 pipeline-progress
 - `Write` — pipeline-progress 状态更新
 - `Glob` — 扫描 wiki/experiments/*.md

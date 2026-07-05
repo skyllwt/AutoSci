@@ -29,7 +29,7 @@ argument-hint: "[domain] [--add '概念名']"
 ### 读取
 - `wiki/topics/*.md` — 用于推断 domain（未指定时）
 - `wiki/foundations/*.md` — 跳过已存在的 foundation（幂等）
-- `.claude/skills/prefill/foundations-catalog.yaml` — 种子列表
+- `foundations-catalog.yaml` — 种子列表
 
 ### 写入
 - `wiki/foundations/{slug}.md`（仅新建，从不覆盖）
@@ -48,7 +48,7 @@ argument-hint: "[domain] [--add '概念名']"
 
 ### Step 2: 加载种子
 
-- **Catalog 模式**：读取 `.claude/skills/prefill/foundations-catalog.yaml`，取 `domains.{domain}` 下所有条目，并叠加 `domains.general` 的全部条目（general foundations 适用所有领域）。
+- **Catalog 模式**：读取 `foundations-catalog.yaml`，取 `domains.{domain}` 下所有条目，并叠加 `domains.general` 的全部条目（general foundations 适用所有领域）。
 - **`--add` 模式**：构造单一种子 `{slug: <slugified concept>, title: <concept>, summary: ""}`。Slug 用 `python3 tools/research_wiki.py slug "<concept>"` 生成。
 
 对每个种子，若 `wiki/foundations/{slug}.md` 已存在则**跳过**（不覆盖、不警告）。
@@ -147,7 +147,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 - **`wiki/foundations/` 不存在**：先运行 `python3 tools/research_wiki.py init wiki/`。
 - **Wikipedia 404**：记录缺失页面，该种子回退 LLM 知识（`source_url: ""`）。
 - **网络失败**：打印失败的种子，继续处理其余种子，不中断整个批次。
-- **catalog 文件缺失**：报错并指向 `.claude/skills/prefill/foundations-catalog.yaml`。
+- **catalog 文件缺失**：报错并指向 `foundations-catalog.yaml`。
 
 ## Dependencies
 
@@ -158,4 +158,4 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 - `python3 tools/research_wiki.py log wiki/ "<message>"`
 
 ### Catalog
-- `.claude/skills/prefill/foundations-catalog.yaml`
+- `foundations-catalog.yaml`

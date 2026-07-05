@@ -83,7 +83,7 @@ Each workflow run uploads:
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- `llm-decisions.json` when Claude ran
+- `llm-decisions.json` when the Claude Code Action ran
 - `digest.md`
 - `digest.json`
 

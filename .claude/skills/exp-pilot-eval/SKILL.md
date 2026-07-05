@@ -154,7 +154,7 @@ If verdict == `inconclusive`:
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to <status> [--reason "..."]` — transition idea lifecycle status
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read idea page, pilot results, pilot log, Pilot Spec
 - `Edit` — update idea page fields
 - `Bash` — execute research_wiki.py commands

@@ -47,7 +47,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `wiki/outputs/paper-plan-*.md`(可选)—— 叙事线、配图计划、证据图
 - `wiki/ideas/*.md`(可选)—— 假设、新颖性论证,用于海报开头
 - `wiki/experiments/*.md`(可选)—— 关键数值与结果,用于结果区 callout
-- `.claude/skills/shared-references/academic-writing.md` —— 去 AI 风格化规则
+- `shared-references/academic-writing.md` —— 去 AI 风格化规则
 
 ### Writes
 - `poster/` 目录(完整列于 Outputs)
@@ -64,7 +64,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 目标:收集 venue 文本与(可选的)两个 logo,用于海报 header 渲染。如果用户已通过 CLI flag 传入对应值,则静默跳过该项。
 
-整个交互流程用 `AskUserQuestion` 做是/否/布局选择,自由文本(路径与 venue)直接读取下一条用户消息。
+整个交互流程用 交互式用户询问 做是/否/布局选择,自由文本(路径与 venue)直接读取下一条用户消息。
 
 1. **作者** —— 论文级别的元数据,按下面的优先级解析:
 
@@ -75,7 +75,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
    5. **否则(匿名稿且没有缓存的 display name)**:问用户。
 
    询问流程(只在第 5 条触发时进入):
-   - 用 `AskUserQuestion`,选项:
+   - 用 交互式用户询问,选项:
      - `"Keep 'Anonymous' (double-blind submission)"`(Recommended)
      - `"Provide author names (I'll ask for the string)"`
    - 若选 "Provide author names":自由文本询问 *"海报上应显示什么作者字符串?例如 `Mingtian Yang, Co-Author Name`。回复字符串,或回复 `skip` 保留 'Anonymous'。"* 把下一条用户消息取作 authors 字符串。
@@ -87,14 +87,14 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
    - 把下一条用户消息原文取作 venue。`skip`(不区分大小写)视为空。
 
 3. **单位/实验室 logo** —— 若未传入 `--affiliation-logo` 且未传入 `--no-logos`:
-   - 用 `AskUserQuestion` 询问,选项:`"Yes, I have a logo file"` / `"No, skip the affiliation logo"`。
+   - 用 交互式用户询问 询问,选项:`"Yes, I have a logo file"` / `"No, skip the affiliation logo"`。
    - 若选 yes:询问 *"单位 logo 文件路径?(PNG / JPG / PDF;相对路径或绝对路径都可以)"*。把下一条用户消息当作路径。校验文件存在;若不存在,提示错误后再询问一次,仍失败则按 skip 处理。
 
 4. **会议/期刊 logo** —— 若未传入 `--conference-logo` 且未传入 `--no-logos`:
-   - 流程同上(yes/no 用 `AskUserQuestion`,路径自由文本)。
+   - 流程同上(yes/no 用 交互式用户询问,路径自由文本)。
 
 5. **布局** —— 若至少一个 logo 被提供,且未传入 `--layout`:
-   - 用 `AskUserQuestion` 询问,选项:
+   - 用 交互式用户询问 询问,选项:
      - `"corners —— 单位 logo 左上、会议 logo 右上"`(Recommended)
      - `"stacked —— 两个 logo 叠在右侧 conf 区,venue 文本在上方"`
    - 若只有 venue 没有 logo:跳过布局询问(默认 `corners` 即可,只用 venue 文本槽)。
@@ -131,7 +131,7 @@ python3 tools/wiki2dag.py build --paper-dir paper/ --output poster/dag.json
 
 - **不存在 plan 文件**:打印一行 —— `Step 2: 在 wiki/outputs/ 未找到 paper-plan-*.md —— Step 3 将在没有 WIKI_CONTEXT 的情况下运行。` 跳到 Step 2.5。
 
-- **存在 plan 文件**:打印一行总结找到了什么,例如 `Step 2: 找到 wiki/outputs/paper-plan-2026-05-17.md(3 个 idea,2 个 experiment)。` 然后用 `AskUserQuestion`:
+- **存在 plan 文件**:打印一行总结找到了什么,例如 `Step 2: 找到 wiki/outputs/paper-plan-2026-05-17.md(3 个 idea,2 个 experiment)。` 然后用 交互式用户询问:
   - `"Yes —— 作为 WIKI_CONTEXT 锚点采用"`(推荐)
   - `"No —— 仅基于论文源蒸馏"`
 
@@ -194,11 +194,11 @@ aspect 由 `resolution`(W×H)计算。⚠ wide 标记来自 dag.json 的 `wide` 
 |---|---|---|
 | 0 | — | 无图(不询问,静默) |
 | 1 | any | 静默 inline 使用(manifest 已展示;若 `wide`,⚠ 标记即提示)。用户可重跑加 `--no-figures` 来移除。 |
-| ≥2 | any | **询问 Q-Pick**(多选):*"Which figure(s) for {Section}?"* —— `AskUserQuestion` 配 `multiSelect: true`,选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let Claude decide (pick largest one)` / `No figure`。用户可选一张、多张或全部。 |
+| ≥2 | any | **询问 Q-Pick**(多选):*"Which figure(s) for {Section}?"* —— 交互式用户询问 配 `multiSelect: true`,选项:每个候选(标签包含 ⚠ wide 标记如适用) / `Let 主 agent decide (pick largest one)` / `No figure`。用户可选一张、多张或全部。 |
 
-每次询问用 `AskUserQuestion`,选项数 ≤ 4。若某章节有 4 个以上候选,去掉 `Let Claude decide` 这一项以满足上限(用户已经在显式选了)。
+每次询问用 交互式用户询问,选项数 ≤ 4。若某章节有 4 个以上候选,去掉 `Let 主 agent decide` 这一项以满足上限(用户已经在显式选了)。
 
-**跟进:同一章节选了 ≥2 张时询问布局。** 用 `AskUserQuestion`(单选):
+**跟进:同一章节选了 ≥2 张时询问布局。** 用 交互式用户询问(单选):
 
 | 选项 | 行为 | 何时推荐 |
 |---|---|---|
@@ -467,7 +467,7 @@ python3 tools/poster.py render poster/poster.html
 3. **提前收敛(仅溢出报告路径)**:若 `i == 1` 且 `overflow.ok == true`,且认真比对截图后没看到任何明显的 LaTeX / 编码 / 编号问题(对自己应用下面 refinement 提示词里的强制 checklist),**可以**在这里就声明收敛:记录 `"converged after 0 iterations — DOM clean, no visible content issues"` 并退出。如果有**任何**疑虑就不要走这条捷径 —— 跑一轮 refinement 的成本远小于交付一张细节有问题的海报。
 4. 在内存里快照 `pre_html = <当前 poster.html>` —— 用于后面的文字稳定性判定。
 5. 读取 `poster/poster.png`(多模态)、`poster/poster.html`、以及 `raw/tmp/poster.overflow.json`(ground truth 的 clipping 报告)。
-6. 应用下面的 refinement 提示词。把 overflow JSON 作为 prompt 的一部分传入 —— LLM 凭它**精确**知道哪些章节要 trim,而不是从截图里猜。用 Claude(会话内,已多模态)。**不要**用 `mcp__llm-review__chat`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
+6. 应用下面的 refinement 提示词。把 overflow JSON 作为 prompt 的一部分传入 —— LLM 凭它**精确**知道哪些章节要 trim,而不是从截图里猜。用 主 agent(会话内,已多模态)。**不要**用 `llm-review MCP chat tool`,它按 `mcp-servers/llm-review/server.py` 只接受文本。
 7. 解析 LLM 输出:从第一个 ```` ```html ```` 围栏代码块里提取 HTML。
 8. 把修订后的 HTML 写回 `poster/poster.html`,并快照为 `post_html`。
 9. 重跑 `python3 tools/poster.py validate poster/poster.html`。若 validate 失败:停止,告诉用户具体问题,HTML 保留原样。
@@ -542,7 +542,7 @@ python3 tools/poster.py render poster/poster.html
 > ```
 >
 > **Screenshot**:
-> *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
+> *(the contents of poster/poster.png attached via the Read tool — 主 agent reads it as an image)*
 
 **终止条件**:
 - **收敛(首选)**:overflow.ok=true 且 prose diff < 50 字符。正常退出。
@@ -558,7 +558,7 @@ python3 tools/poster.py render poster/poster.html
 若传入 `--review`,把海报 HTML 发给 Review LLM:
 
 ```
-mcp__llm-review__chat
+llm-review MCP chat tool
   system: "You are a senior researcher reviewing an academic poster.
            Evaluate: (1) Is the content hierarchy clear? (2) Are key results prominently placed?
            (3) Is each section self-contained and readable? (4) Is the visual balance good (text vs figures)?
@@ -640,7 +640,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **没有图片引用**:文本-only 章节继续渲染;在 POSTER_REPORT 中给出警告。
 - **`pdftoppm` 未安装**:PDF 图无法转 PNG;提示 `brew install poppler`(macOS)或 `apt install poppler-utils`(Linux)。海报仍能渲染但这些图会显示为 broken img。
 - **嵌套图路径**(如 `paper/figures/exp1/foo.pdf`):桥接工具会扁平化为 `images/foo.png`,且图片解析只在 `paper/figures/` 顶层查找。若多个图片跨子目录同名,后者会覆盖前者。当前仅支持扁平的 `paper/figures/` 布局。
-- **`PIL`/Pillow 未安装**:图片分辨率无法计算,`dag.json` 的 visuals `resolution` 为空;poster_outline_prompt 的 "最高分辨率优先" 规则失效,Claude 按章节顺序选图。提示 `pip install Pillow`。
+- **`PIL`/Pillow 未安装**:图片分辨率无法计算,`dag.json` 的 visuals `resolution` 为空;poster_outline_prompt 的 "最高分辨率优先" 规则失效,主 agent 按章节顺序选图。提示 `pip install Pillow`。
 - **validate 失败**:把所有问题写入 stderr,不删除已有输出。用户改正 outline 后从 Step 5 继续。
 - **`render` 找不到可用浏览器**:打印对应平台的安装提示并继续(推荐 Chrome / Edge / Chromium;Firefox 作为兜底也可)。HTML 海报仍可用,只是少了 PNG。Step 5.5 critique-revise 也会跳过(无截图可参考)。Safari 不支持(没有 headless CLI)。
 - **退化到 Firefox**:`render` 会向 stderr 打印警告(不支持 HiDPI 缩放,layout 可能尚未收敛)。输出仍能用,但比 Chrome/Edge 质量低。建议用户装一个 Chromium 系浏览器以获得最佳效果。
@@ -666,17 +666,17 @@ python3 tools/research_wiki.py log wiki/ \
 - 系统 headless 浏览器(兜底)—— 自动探测顺序:Google Chrome → Microsoft Edge → Chromium → Firefox。Chrome/Edge/Chromium 完全等价;Firefox 只能在 1× 尺度渲染且无 sync-wait。Safari 不支持(无 headless CLI)。
 
 ### MCP Servers
-- `mcp__llm-review__chat` —— 可选的跨模型评审(`--review`)
+- `llm-review MCP chat tool` —— 可选的跨模型评审(`--review`)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` —— 读 .tex / dag.json / outline.html / poster.png(多模态)
 - `Write` —— 写 outline.html
 - `Edit` —— 给 outline.html 注入过渡句,或在 Step 5.5 写回修订后的 HTML
 - `Bash` —— 调用 wiki2dag / poster / research_wiki
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` —— 去 AI 风格化规则
-- `.claude/skills/shared-references/cross-model-review.md` —— Review LLM 协议(`--review` 时)
+- `shared-references/academic-writing.md` —— 去 AI 风格化规则
+- `shared-references/cross-model-review.md` —— Review LLM 协议(`--review` 时)
 
 ### Called by
 - 用户手动调用

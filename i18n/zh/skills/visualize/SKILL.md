@@ -82,7 +82,7 @@ python3 tools/visualize.py generate-canvas wiki/
 2. 否则枚举 foundation 页：`ls wiki/foundations/*.md`（排除 `.gitkeep`）。
    - **0 个**：跳过 Step 2b，不生成聚焦 Canvas，只输出 Step 2a 的完整知识地图。
    - **1 个**：自动用该 foundation 作为 `--focus`（即 `foundations/<slug>`），打印选择，**不弹问**。
-   - **2 个及以上**：用 `AskUserQuestion` 让用户挑一个。每个 foundation 列为一个选项（label = `foundations/<slug>`，description = 该页 frontmatter 的 `title`）。把用户选的 slug 作为 `--focus`。
+   - **2 个及以上**：用 交互式用户询问 让用户挑一个。每个 foundation 列为一个选项（label = `foundations/<slug>`，description = 该页 frontmatter 的 `title`）。把用户选的 slug 作为 `--focus`。
 
 然后生成：
 
@@ -146,7 +146,7 @@ Canvas 边 schema：
    python3 tools/serve.py
    ```
 
-   不要用 `Agent` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `Bash` 进程归 Claude Code 会话所有，活到会话结束。
+   不要用 `Agent` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `Bash` 进程归当前 agent 会话所有，活到会话结束。
 
 3. 把 URL 打印给用户：
 

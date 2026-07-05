@@ -284,7 +284,7 @@ See `references/error-handling.md`. Highlights: source parse failures cascade te
 
 ### Shared References
 
-- `.claude/skills/shared-references/citation-verification.md`
+- `shared-references/citation-verification.md`
 
 ### Skills
 

@@ -59,12 +59,12 @@ After both models have independently assessed:
 
 ## Review LLM 可用性检查
 
-调用 `mcp__llm-review__chat` 之前，每个 skill 必须检查可用性并优雅处理。
+调用 `llm-review MCP chat tool` 之前，每个 skill 必须检查可用性并优雅处理。
 
 ### 检测
 
-`mcp__llm-review__chat` 调用会失败的情况：
-- MCP server 未配置（缺少 `.mcp.json` 或 `enableAllProjectMcpServers` 未启用）
+`llm-review` MCP chat tool 调用会失败的情况：
+- MCP server 未配置（Claude Code：缺少 `.mcp.json` 或 `enableAllProjectMcpServers` 未启用；Codex：缺少用户级 `mcp_servers.llm-review` 配置）
 - `.env` 中未设置 `LLM_API_KEY` 或 `LLM_BASE_URL`
 - API 端点不可达
 
@@ -82,11 +82,11 @@ After both models have independently assessed:
    - 引导参考 `.env.example` 中的 provider 列表
 
 3. **若用户选择继续（不配置 review）**，进入单 agent 模式：
-   - 跳过 `mcp__llm-review__chat` 调用
+   - 跳过 `llm-review` MCP chat tool 调用
    - 由 primary agent 自身执行 review/critique 步骤（自评模式）
    - 明确标注输出为 `[single-agent 自评 — 无独立第二意见]`
    - 其余 skill 流程正常执行
 
 ### 当 Review LLM 可用时
 
-按上述标准跨模型 review 协议执行。`mcp__llm-review__chat` 工具由 `llm-review` MCP server 提供（在 `.mcp.json` 中配置），兼容任何 OpenAI-compatible API。
+按上述标准跨模型 review 协议执行。chat tool 由 `llm-review` MCP server 提供，兼容任何 OpenAI-compatible API。

@@ -44,8 +44,8 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/open_questions.md` — knowledge gaps (annotate paper limitations)
 - `wiki/graph/edges.jsonl` — relationship graph (build narrative logic chain)
-- `.claude/skills/shared-references/academic-writing.md` — writing principles
-- `.claude/skills/shared-references/citation-verification.md` — citation discipline
+- `shared-references/academic-writing.md` — writing principles
+- `shared-references/citation-verification.md` — citation discipline
 
 ### Writes
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — paper plan file
@@ -247,7 +247,7 @@ Following `shared-references/citation-verification.md`:
 ### Step 7: Review LLM Review (mandatory)
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are an area chair at {venue} reviewing a paper outline.
            Assess: Is the narrative convincing? Does every section serve a clear purpose?
            Are the experiments sufficient to support the paper's central ideas?
@@ -369,7 +369,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 - **No experiment evidence**: error "at least one experimental result is required"; suggest running /exp-design + /exp-run first
 - **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider /ingest of more papers first"
 - **Page budget exceeded**: automatically move lower-priority sections to appendix plan; report the adjustment
-- **Review LLM unavailable**: fall back to Claude self-review; report annotated "single-model review — cross-model verification unavailable"
+- **Review LLM unavailable**: fall back to the primary agent self-review; report annotated "single-model review — cross-model verification unavailable"
 - **BibTeX fetch failed**: mark [UNCONFIRMED]; summarize in the citation plan report
 - **Slug conflict**: append date suffix
 - **Target idea not found**: error; list candidates in wiki/ideas/
@@ -384,16 +384,16 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 - `python3 tools/fetch_s2.py search "<title>"` — Semantic Scholar search (citation plan fallback)
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 7 outline review (mandatory)
+- `llm-review MCP chat tool` — Step 7 outline review (mandatory)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages
 - `Glob` — find ideas, experiments, methods, papers
 - `WebFetch` — DBLP / CrossRef BibTeX fetch (Step 6)
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — narrative structure and section design principles
-- `.claude/skills/shared-references/citation-verification.md` — citation fetch and verification rules
+- `shared-references/academic-writing.md` — narrative structure and section design principles
+- `shared-references/citation-verification.md` — citation fetch and verification rules
 
 ### Called by
 - `/research` Stage 5 (paper writing stage)

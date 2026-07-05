@@ -284,7 +284,7 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 
 ### Shared References
 
-- `.claude/skills/shared-references/citation-verification.md`
+- `shared-references/citation-verification.md`
 
 ### Skills
 

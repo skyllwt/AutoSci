@@ -44,8 +44,8 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/open_questions.md` — 知识缺口（标注论文 limitation）
 - `wiki/graph/edges.jsonl` — 关系图谱（构建叙事逻辑链）
-- `.claude/skills/shared-references/academic-writing.md` — 写作原则
-- `.claude/skills/shared-references/citation-verification.md` — 引用纪律
+- `shared-references/academic-writing.md` — 写作原则
+- `shared-references/citation-verification.md` — 引用纪律
 
 ### Writes
 - `wiki/outputs/paper-plan-{slug}-{date}.md` — 论文计划文件
@@ -247,7 +247,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 ### Step 7: Review LLM Review（必选）
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are an area chair at {venue} reviewing a paper outline.
            Assess: Is the narrative convincing? Does every section serve a clear purpose?
            Are the experiments sufficient to support the paper's central ideas?
@@ -369,7 +369,7 @@ mcp__llm-review__chat:
 - **无 experiment evidence**：报错「至少需要一个实验结果」，建议先运行 /exp-design + /exp-run
 - **wiki papers 不足**：若 citation plan 中 wiki 论文 < 5 篇，警告「相关工作覆盖不足，建议先 /ingest 更多论文」
 - **page budget 超限**：自动将低优先级 section 移至 appendix 计划，报告调整
-- **Review LLM 不可用**：降级为 Claude 自审，报告标注「single-model review — cross-model verification unavailable」
+- **Review LLM 不可用**：降级为 主 agent 自审，报告标注「single-model review — cross-model verification unavailable」
 - **BibTeX 获取失败**：标记 [UNCONFIRMED]，在 citation plan 报告中汇总
 - **slug 冲突**：追加日期后缀
 - **target idea 找不到**：报错，列出 wiki/ideas/ 中候选
@@ -384,16 +384,16 @@ mcp__llm-review__chat:
 - `python3 tools/fetch_s2.py search "<title>"` — Semantic Scholar 搜索（citation plan fallback）
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 7 大纲审查（必选）
+- `llm-review MCP chat tool` — Step 7 大纲审查（必选）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面
 - `Glob` — 查找 ideas、experiments、methods、papers
 - `WebFetch` — DBLP / CrossRef BibTeX 获取（Step 6）
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — 叙事结构和章节设计原则
-- `.claude/skills/shared-references/citation-verification.md` — 引用获取和验证规则
+- `shared-references/academic-writing.md` — 叙事结构和章节设计原则
+- `shared-references/citation-verification.md` — 引用获取和验证规则
 
 ### Called by
 - `/research` Stage 5（论文写作阶段）

@@ -67,7 +67,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. 如果 mode 是 `auto-ingest`，只能使用 Claude Code runtime：选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。第三方 LLM 只用于推荐，不能 auto-ingest。
+3. 如果 mode 是 `auto-ingest`，注意当前 runtime 限制：CI auto-ingest 只支持 Claude Code Action 路径。选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。第三方 LLM 只用于推荐，不能 auto-ingest。
 
 4. 生成 digest：
 

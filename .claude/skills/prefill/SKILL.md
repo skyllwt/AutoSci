@@ -29,7 +29,7 @@ Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
 ### Reads
 - `wiki/topics/*.md` — for domain inference (when `domain` is omitted)
 - `wiki/foundations/*.md` — to skip already-seeded concepts (idempotent)
-- `.claude/skills/prefill/foundations-catalog.yaml` — seed list
+- `foundations-catalog.yaml` — seed list
 
 ### Writes
 - `wiki/foundations/{slug}.md` (new only — never overwrite)
@@ -48,7 +48,7 @@ Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
 
 ### Step 2: Load seeds
 
-- **Catalog mode**: read `.claude/skills/prefill/foundations-catalog.yaml`. Pick all entries under `domains.{domain}` plus everything under `domains.general` (general foundations apply to every research field).
+- **Catalog mode**: read `foundations-catalog.yaml`. Pick all entries under `domains.{domain}` plus everything under `domains.general` (general foundations apply to every research field).
 - **`--add` mode**: synthesize a single seed entry `{slug: <slugified concept>, title: <concept>, summary: ""}`. Use `python3 tools/research_wiki.py slug "<concept>"` to derive the slug.
 
 For each seed, check `wiki/foundations/{slug}.md`. If it already exists, **skip** (do not overwrite, do not warn).
@@ -147,7 +147,7 @@ Remind the user that subsequent `/ingest` runs will dedup against these foundati
 - **`wiki/foundations/` does not exist**: run `python3 tools/research_wiki.py init wiki/` first.
 - **Wikipedia 404**: log the missing page, fall back to LLM knowledge for that seed (`source_url: ""`).
 - **Network failure**: print which seeds failed and continue with the remainder; do not abort the whole batch.
-- **Catalog file missing**: print error pointing to `.claude/skills/prefill/foundations-catalog.yaml`.
+- **Catalog file missing**: print error pointing to `foundations-catalog.yaml`.
 
 ## Dependencies
 
@@ -158,4 +158,4 @@ Remind the user that subsequent `/ingest` runs will dedup against these foundati
 - `python3 tools/research_wiki.py log wiki/ "<message>"`
 
 ### Catalog
-- `.claude/skills/prefill/foundations-catalog.yaml`
+- `foundations-catalog.yaml`

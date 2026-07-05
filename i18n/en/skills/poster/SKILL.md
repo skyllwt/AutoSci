@@ -20,7 +20,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `--anonymous` (optional): force authors to "Anonymous" regardless of `\author{}` content, the `paper/.author_display.txt` cache, or `--authors`
 - `--no-figures` (optional): render every section as text-only (useful for text-heavy posters, or when figures aren't ready)
 - `--no-logos` (optional): skip the affiliation/conference-logo prompts; header shows venue text only
-- `--no-refine` (optional): skip Step 5.5 critique-revise (default runs 1 iteration via Claude)
+- `--no-refine` (optional): skip Step 5.5 critique-revise (default runs 1 iteration via the primary agent)
 
 ### Power-user (scripted use; rarely needed in interactive runs)
 
@@ -48,7 +48,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 - `wiki/outputs/paper-plan-*.md` (optional) — narrative arc, figure plan, evidence map
 - `wiki/ideas/*.md` (optional) — hypothesis, novelty argument for poster opening
 - `wiki/experiments/*.md` (optional) — key results, outcome numbers for headline callouts
-- `.claude/skills/shared-references/academic-writing.md` — de-AI polish rules
+- `shared-references/academic-writing.md` — de-AI polish rules
 
 ### Writes
 - `poster/` directory (all files listed in Outputs)
@@ -65,7 +65,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 Goal: collect venue text and (optionally) two logos to render in the poster header. Skipped silently for any field the user already supplied as a CLI flag.
 
-The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for paths and venue text in free-form (Claude reads the next user message as the answer).
+The flow uses interactive user prompts for the yes/no/layout choices, then asks for paths and venue text in free-form (the primary agent reads the next user message as the answer).
 
 1. **Authors** — paper-level metadata, resolved with this precedence:
 
@@ -76,7 +76,7 @@ The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for pat
    5. **Otherwise (anonymized paper, no cached display name)**: ASK the user.
 
    Asking flow (only when reached):
-   - Use `AskUserQuestion`:
+   - Ask with an interactive user prompt:
      - `"Keep 'Anonymous' (double-blind submission)"` (Recommended)
      - `"Provide author names (I'll ask for the string)"`
    - If "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors string.
@@ -88,14 +88,14 @@ The flow uses `AskUserQuestion` for the yes/no/layout choices, then asks for pat
    - Take the next user message verbatim. Treat the literal string `skip` (case-insensitive) as empty.
 
 3. **Affiliation logo** — if `--affiliation-logo` was not provided AND `--no-logos` was not passed:
-   - Use `AskUserQuestion` with options: `"Yes, I have a logo file"` / `"No, skip the affiliation logo"`.
+   - Ask with an interactive user prompt offering: `"Yes, I have a logo file"` / `"No, skip the affiliation logo"`.
    - If yes: ask *"What's the path to the affiliation logo? (PNG / JPG / PDF; relative or absolute)."* Take the next user message as the path. Verify the file exists; if not, re-ask once with the resolved-path issue surfaced, then either accept a new path or treat as skipped.
 
 4. **Conference / journal logo** — if `--conference-logo` was not provided AND `--no-logos` was not passed:
-   - Same flow as the affiliation logo (yes/no via `AskUserQuestion`, path via free text).
+   - Same flow as the affiliation logo (yes/no via an interactive user prompt, path via free text).
 
 5. **Layout** — if at least one logo was provided AND `--layout` was not passed:
-   - Use `AskUserQuestion` with options:
+   - Ask with an interactive user prompt offering:
      - `"corners — affiliation top-left, conference top-right"` (Recommended)
      - `"stacked — both logos stacked in the right conf area, venue text on top"`
    - If only `--venue` and no logos: skip the layout question (default `corners` is fine — only the venue text slot is used).
@@ -132,7 +132,7 @@ Goal: optionally ground the Step 3 distillation prompts in the paper's own plann
 
 - **No plan file present**: print one line — `Step 2: no paper-plan-*.md found in wiki/outputs/ — Step 3 will run without WIKI_CONTEXT.` Skip to Step 2.5.
 
-- **Plan file present**: print one line summarizing what was found, e.g. `Step 2: found wiki/outputs/paper-plan-2026-05-17.md (3 linked ideas, 2 experiments).` Then `AskUserQuestion`:
+- **Plan file present**: print one line summarizing what was found, e.g. `Step 2: found wiki/outputs/paper-plan-2026-05-17.md (3 linked ideas, 2 experiments).` Then interactive user prompt:
   - `"Yes — adopt as WIKI_CONTEXT grounding"` (Recommended)
   - `"No — distill from paper source only"`
 
@@ -195,11 +195,11 @@ For each section, decide what to ask based on candidate count and wide-flags:
 |---|---|---|
 | 0 | — | No figure (no question, silent) |
 | 1 | any | Use it inline (no question — the manifest already showed it; if `wide`, the ⚠ marker is the heads-up). User can re-run with `--no-figures` to drop it. |
-| ≥2 | any | **Ask Q-Pick** (multi-select): *"Which figure(s) for {Section}?"* — `AskUserQuestion` with `multiSelect: true`, options: each candidate (label includes ⚠ wide marker if applicable) / `Let Claude decide (pick largest one)` / `No figure`. User may pick one, several, or all. |
+| ≥2 | any | **Ask Q-Pick** (multi-select): *"Which figure(s) for {Section}?"* — interactive user prompt with `multiSelect: true`, options: each candidate (label includes ⚠ wide marker if applicable) / `Let the primary agent decide (pick largest one)` / `No figure`. User may pick one, several, or all. |
 
-Use `AskUserQuestion` for each prompt; cap at 4 options total. When a section has 4+ candidates, drop the `Let Claude decide` option to stay within the limit (the user is being explicit anyway).
+Use an interactive user prompt for each prompt; cap at 4 options total. When a section has 4+ candidates, drop the `Let the primary agent decide` option to stay within the limit (the user is being explicit anyway).
 
-**Follow-up: layout when ≥2 figures were picked for the same section.** Ask via `AskUserQuestion` (single-select):
+**Follow-up: layout when ≥2 figures were picked for the same section.** Ask via interactive user prompt (single-select):
 
 | Option | What it does | When to recommend |
 |---|---|---|
@@ -448,7 +448,7 @@ This writes `poster/poster.png` at 2× the CSS pixel dimensions (default 2800×1
 
 If no supported browser is found, `render` exits with platform-specific install hints. The HTML poster remains usable in any browser — the user can still `open poster/poster.html` directly.
 
-### Step 5.5: Critique-revise via Claude (screenshot + DOM overflow report)
+### Step 5.5: Critique-revise via the primary agent (screenshot + DOM overflow report)
 
 Goal: refine the HTML using both a **programmatic overflow report** (ground truth from the rendered DOM) and the **screenshot** (visual context). The DOM report is what fit() and the LLM can both miss — it measures every leaf element's bottom/right vs the flow's edges and reports any clipping precisely. The LLM cannot declare convergence while the report shows clipping; it must trim prose until the report comes back clean.
 
@@ -468,7 +468,7 @@ Auto-applied; no user interaction.
 3. **Early convergence (overflow-only path)**: if `i == 1` AND `overflow.ok == true` AND no obvious LaTeX/encoding/numbering issues are visible in the screenshot at a careful look (apply the mandatory checklist in the refinement prompt below to your own evaluation), you MAY declare convergence here: record `"converged after 0 iterations — DOM clean, no visible content issues"` and exit. Skip this shortcut if you have *any* doubt — the cost of one refinement pass is small compared to shipping a poster with subtle issues.
 4. Snapshot `pre_html = <current poster.html>` in memory — needed for the prose-stability convergence check.
 5. Read `poster/poster.png` (multimodal), `poster/poster.html`, and `raw/tmp/poster.overflow.json` (the ground-truth clipping report).
-6. Apply the refinement prompt below. Pass the overflow JSON as part of the prompt — the LLM uses it to know *exactly* which sections need trimming, instead of guessing from the screenshot. Use Claude (in-session, multimodal). Do NOT use `mcp__llm-review__chat` — text-only per `mcp-servers/llm-review/server.py`.
+6. Apply the refinement prompt below. Pass the overflow JSON as part of the prompt — the LLM uses it to know *exactly* which sections need trimming, instead of guessing from the screenshot. Use the primary agent (in-session, multimodal). Do NOT use `llm-review MCP chat tool` — text-only per `mcp-servers/llm-review/server.py`.
 7. Parse the LLM output: extract HTML from the first ```` ```html ```` fenced block.
 8. Write the revised HTML back to `poster/poster.html`. Snapshot it as `post_html`.
 9. Re-run `python3 tools/poster.py validate poster/poster.html`. If validation fails: stop, surface issues to the user, leave HTML as-is.
@@ -543,7 +543,7 @@ Auto-applied; no user interaction.
 > ```
 >
 > **Screenshot**:
-> *(the contents of poster/poster.png attached via the Read tool — Claude reads it as an image)*
+> *(the contents of poster/poster.png attached via the Read tool — the primary agent reads it as an image)*
 
 **Termination conditions**:
 - **Convergence (preferred)**: overflow.ok=true AND prose diff < 50 chars. Exit normally.
@@ -559,7 +559,7 @@ Auto-applied; no user interaction.
 If `--review` is passed, send the poster HTML to the Review LLM:
 
 ```
-mcp__llm-review__chat
+llm-review MCP chat tool
   system: "You are a senior researcher reviewing an academic poster.
            Evaluate: (1) Is the content hierarchy clear? (2) Are key results prominently placed?
            (3) Is each section self-contained and readable? (4) Is the visual balance good (text vs figures)?
@@ -641,7 +641,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 - **No figures referenced**: continue with text-only sections; warn in POSTER_REPORT.
 - **`pdftoppm` not installed**: PDF figures fail to convert; warn and suggest `brew install poppler` (macOS) or `apt install poppler-utils` (Linux). The poster will still render but with broken image refs for those figures.
 - **Nested figure paths** (`paper/figures/exp1/foo.pdf`): the bridge currently flattens to `images/foo.png` and the figure resolver looks only in `paper/figures/`. If two figures across nested dirs share the same basename, the second one wins. Flat `paper/figures/` is the supported layout for now.
-- **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — Claude picks by section order instead. Suggest `pip install Pillow`.
+- **`PIL`/Pillow not installed**: image resolutions cannot be computed; `dag.json` visuals have empty `resolution`. The poster_outline_prompt loses its "highest-resolution wins" tiebreaker — the primary agent picks by section order instead. Suggest `pip install Pillow`.
 - **Validation fails**: print all issues to stderr; do not delete the partial output. User can fix the outline and re-run from Step 5.
 - **No supported browser found for `render`**: print install instructions per platform (Chrome / Edge / Chromium recommended; Firefox accepted as fallback) and continue. The HTML poster is still usable; only the PNG is missing. Step 5.5 critique-revise also skips (no screenshot → nothing to critique). Safari is not supported (no headless CLI).
 - **Firefox fallback in use**: `render` prints warnings to stderr (no HiDPI scale, layout may not be fully converged). Output is functional but lower quality than Chrome/Edge. Suggest the user install a Chromium-based browser for best results.
@@ -667,17 +667,17 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 - Headless system browser (fallback) — auto-detected in this order: Google Chrome → Microsoft Edge → Chromium → Firefox. Chrome/Edge/Chromium are equivalent; Firefox renders at 1× scale only and without sync-wait. Safari is not supported (no headless CLI).
 
 ### MCP Servers
-- `mcp__llm-review__chat` — optional cross-model review (`--review`)
+- `llm-review MCP chat tool` — optional cross-model review (`--review`)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read .tex, dag.json, outline.html
 - `Write` — write outline.html
 - `Edit` — apply transition sentences to outline.html
 - `Bash` — invoke wiki2dag, poster, research_wiki tools
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — de-AI polish standards
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM protocol (when `--review`)
+- `shared-references/academic-writing.md` — de-AI polish standards
+- `shared-references/cross-model-review.md` — Review LLM protocol (when `--review`)
 
 ### Called by
 - Manual user invocation

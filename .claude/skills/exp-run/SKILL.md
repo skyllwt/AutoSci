@@ -109,7 +109,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 5. **Optional Review LLM code review** (`--review`):
    ```
-   mcp__llm-review__chat:
+   llm-review MCP chat tool:
      system: "You are a senior ML engineer reviewing experiment code.
               Focus on: correctness of the training loop, proper evaluation protocol,
               fair baseline comparison, reproducibility (seeds, determinism),
@@ -406,9 +406,9 @@ done
 - `config/server.yaml` — remote server config (required only with `--env remote`)
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Phase 1 code review (optional, when `--review` is used)
+- `llm-review MCP chat tool` — Phase 1 code review (optional, when `--review` is used)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages and log files
 - `Write` — write experiment code to `experiments/code/{slug}/`
 - `Bash` — execute deployment commands, monitor processes

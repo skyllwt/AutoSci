@@ -34,7 +34,7 @@ argument-hint: <experiment-slug> [--auto]
 - `wiki/ideas/{linked-idea}.md` — linked idea current state: `status`, `## Hypothesis`, `## Risks`
 - `wiki/experiments/*.md` — sibling experiments with the same `linked_idea` (aggregate assessment)
 - `wiki/graph/context_brief.md` — global context
-- `.claude/skills/shared-references/cross-model-review.md` — reviewer independence principle
+- `shared-references/cross-model-review.md` — reviewer independence principle
 
 ### Writes
 - `wiki/ideas/{linked-idea}.md` — update `status`, `failure_reason`, `date_resolved`
@@ -77,10 +77,10 @@ argument-hint: <experiment-slug> [--auto]
 
 ### Step 2: Review LLM Verdict (Cross-Model Verdict)
 
-**Follow cross-model-review.md**: do not send Claude's pre-judgment to Review LLM.
+**Follow cross-model-review.md**: do not send the primary agent's pre-judgment to Review LLM.
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are an impartial scientific judge evaluating whether experimental
            results support or refute a research hypothesis. Be rigorous and objective.
            Consider: statistical significance, effect size, experimental validity,
@@ -120,11 +120,11 @@ mcp__llm-review__chat:
 
 Record Review LLM's verdict.
 
-### Step 3: Claude Synthesis
+### Step 3: Primary Agent Synthesis
 
-1. **Form Claude's independent verdict** (after reading Review LLM's verdict, Claude also analyzes independently):
+1. **Form the primary agent's independent verdict** (after reading Review LLM's verdict, the primary agent also analyzes independently):
    - Based on experimental results, the idea's hypothesis, and aggregate evidence from sibling experiments
-   - Form Claude's own verdict and idea-status recommendation
+   - Form the primary agent's own verdict and idea-status recommendation
 
 2. **Synthesize both verdicts** (follow cross-model-review.md composing rules):
    - **Both agree** (same verdict): use that verdict, high certainty
@@ -217,7 +217,7 @@ Record Review LLM's verdict.
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}
    - **Linked idea**: [[{linked-idea}]] status {old} → {new}
-   - **Judge agreement**: {Claude and Review LLM agreed / disagreed on ...}
+   - **Judge agreement**: {the primary agent and Review LLM agreed / disagreed on ...}
    - **Date**: YYYY-MM-DD
    ```
 
@@ -242,14 +242,14 @@ Record Review LLM's verdict.
    ## Verdict: {SUPPORTED / PARTIALLY_SUPPORTED / NOT_SUPPORTED / INCONCLUSIVE}
 
    ## Judge Assessment
-   | | Claude | Review LLM | Final |
+   | | Primary agent | Review LLM | Final |
    |---|-------|------|-------|
    | Verdict | {verdict} | {verdict} | {verdict} |
    | Idea status rec | {rec} | {rec} | {rec} |
    | Evidence strength | {strength} | {strength} | {strength} |
 
    ## Key Reasoning
-   {2-3 sentences from Review LLM + Claude synthesis}
+   {2-3 sentences from Review LLM + the primary agent synthesis}
 
    ## Wiki Changes
    | Entity | Field | Before | After |
@@ -279,11 +279,11 @@ Record Review LLM's verdict.
 
 - **Only process completed experiments**: experiments with status != completed are refused; prompt user to use /exp-run first.
 - **`linked_idea` is mandatory**: refuse to evaluate any experiment whose `linked_idea` is empty (the new schema enforces this; if you encounter such a page it is a pre-refactor artifact and must be fixed manually).
-- **Reviewer independence**: strictly follow cross-model-review.md — do not send Claude's pre-judgment to Review LLM.
+- **Reviewer independence**: strictly follow cross-model-review.md — do not send the primary agent's pre-judgment to Review LLM.
 - **`failure_reason` must be specific**: the not_supported path's `failure_reason` cannot be vague (e.g. "experiment failed") — must state the concrete reason. `transition --reason` rejects an empty string.
 - **Idea lifecycle is forward-only**: `proposed → in_progress → tested → validated/failed`. Use `tools/research_wiki.py transition` (not direct frontmatter writes) so the lifecycle validator runs.
 - **Graph edges via tools/research_wiki.py**: do not manually edit `edges.jsonl`.
-- **Conservative principle**: when Claude and Review LLM verdicts disagree, use the more conservative verdict.
+- **Conservative principle**: when the primary agent and Review LLM verdicts disagree, use the more conservative verdict.
 - **Assess using all sibling experiments**: consider not just the current experiment but also other experiments sharing the same `linked_idea`.
 
 ## Error Handling
@@ -292,7 +292,7 @@ Record Review LLM's verdict.
 - **Experiment not completed**: report status, suggest running `/exp-run {slug}` or `/exp-run {slug} --check`.
 - **`linked_idea` missing**: refuse to proceed; instruct the user to run `/edit` to set the experiment's `linked_idea`.
 - **Linked idea page does not exist**: report a dangling reference; refuse to update — recommend `/edit` or `/ideate` to create the idea page first.
-- **Review LLM unavailable**: fall back to Claude single-model verdict, note "single-model verdict, cross-model verification unavailable" in report, suggest user confirm later.
+- **Review LLM unavailable**: fall back to the primary agent single-model verdict, note "single-model verdict, cross-model verification unavailable" in report, suggest user confirm later.
 - **Idea was modified by another experiment**: re-read the latest state before applying transitions; do not overwrite a more advanced lifecycle state with a lower one.
 - **Results data missing**: if the experiment page's Results section is empty, prompt user to run `/exp-run {slug} --check` first.
 
@@ -306,15 +306,15 @@ Record Review LLM's verdict.
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 2 Review LLM independent verdict
+- `llm-review MCP chat tool` — Step 2 Review LLM independent verdict
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages
 - `Glob` — find sibling experiments sharing the same `linked_idea`
 - `Edit` — update wiki pages
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM independence principle (required reading)
+- `shared-references/cross-model-review.md` — Review LLM independence principle (required reading)
 
 ### Called by
 - `/research` Stage 4 (verdict and iteration stage)

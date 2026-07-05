@@ -154,7 +154,7 @@ argument-hint: <idea-slug> [--auto]
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to <status> [--reason "..."]` — 转换 idea 生命周期状态
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 idea 页面、预实验结果、预实验日志、Pilot Spec
 - `Edit` — 更新 idea 页面字段
 - `Bash` — 执行 research_wiki.py 命令

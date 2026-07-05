@@ -92,7 +92,7 @@ entity type, then settled via a spring–electron simulation.
      the full knowledge map from Step 2a is produced.
    - **1 file**: auto-select that foundation as `--focus` (e.g.
      `foundations/<slug>`). Print the choice to the console; do **not** prompt.
-   - **2+ files**: ask the user via `AskUserQuestion` to pick one. List each
+   - **2+ files**: ask the user via interactive user prompt to pick one. List each
      foundation slug as an option (label = `foundations/<slug>`, description =
      the page's frontmatter `title`). Use the picked slug as `--focus`.
 
@@ -174,7 +174,7 @@ manually.
 
    Do not spawn an `Agent` subagent for this — agents are not designed for
    long-running services, and the server may die when the agent returns. The
-   background `Bash` process is owned by the Claude Code session and lives
+   background `Bash` process is owned by the agent session and lives
    for the session's lifetime.
 
 3. Print the SPA URL to the user:

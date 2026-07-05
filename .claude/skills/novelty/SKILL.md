@@ -105,7 +105,7 @@ Use DeepXiv brief TLDRs to quickly judge method similarity.
 Submit the following to Review LLM for independent assessment:
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher assessing the novelty of a proposed method.
            Be rigorous: if the method is essentially a recombination of known techniques
            with minor changes, score it low. Only score 4-5 if there is a genuinely new
@@ -162,7 +162,7 @@ Synthesize Step 2 search results and Step 3 Review LLM assessment into a structu
 ```
 
 **Scoring rules (composite judgment):**
-- Take the lower of Claude's search-based score and Review LLM's score (conservative principle)
+- Take the lower of the primary agent's search-based score and Review LLM's score (conservative principle)
 - If wiki contains a failed idea whose failure_reason overlaps with this idea → lower score by 1
 - If wiki contains a highly overlapping in_progress idea → mark as abandon (internal duplication)
 
@@ -185,7 +185,7 @@ Where `{N}` is the integer 1-5 from the composite scoring rules above. If `set-m
 - **Conservative scoring**: underestimate novelty rather than overestimate to avoid wasting effort on known work
 - **Must check failed ideas**: ideas with status=failed in wiki/ideas/ are important anti-repetition signals
 - **Search coverage**: at least 5 distinct WebSearch queries + Semantic Scholar + wiki internal search
-- **Review LLM independence**: do not include Claude's own novelty judgment when submitting to Review LLM; let Review LLM assess independently
+- **Review LLM independence**: do not include the primary agent's own novelty judgment when submitting to Review LLM; let Review LLM assess independently
 - **Cite real sources**: all prior work listed in the report must be real (returned by WebSearch/S2); do not fabricate
 
 ## Error Handling
@@ -208,11 +208,11 @@ Where `{N}` is the integer 1-5 from the composite scoring rules above. If `set-m
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log on write
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Review LLM cross-verify (Step 3)
+- `llm-review MCP chat tool` — Review LLM cross-verify (Step 3)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `WebSearch` — multi-query web search (Step 2 Sources A + D)
 - `Agent` tool — parallel execution of multi-source search (Step 2)
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` (created in Phase 2, Review LLM independence principle)
+- `shared-references/cross-model-review.md` (created in Phase 2, Review LLM independence principle)

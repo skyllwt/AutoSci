@@ -207,4 +207,4 @@ argument-hint: <question>
 - `/ingest` — 若建议用户补充知识时引用
 
 ### Shared References
-- `.claude/skills/shared-references/citation-verification.md`（Phase 3 创建）
+- `shared-references/citation-verification.md`（Phase 3 创建）

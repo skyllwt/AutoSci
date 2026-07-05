@@ -47,8 +47,8 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 - `wiki/people/*.md` — 人名和机构（引用格式）
 - `wiki/graph/edges.jsonl` — 关系图（构建论证逻辑链）
 - `wiki/graph/open_questions.md` — 已知局限（写 Limitations 和 Future Work）
-- `.claude/skills/shared-references/academic-writing.md` — 写作规范
-- `.claude/skills/shared-references/citation-verification.md` — 引用纪律
+- `shared-references/academic-writing.md` — 写作规范
+- `shared-references/citation-verification.md` — 引用纪律
 
 ### Writes
 - `paper/` 目录（所有文件）
@@ -179,7 +179,7 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 若启用 `--review`，对每个 section：
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher reviewing one section of a paper draft.
            Focus on: clarity, logical flow, idea-experiment alignment, notation consistency.
            Point out any remaining AI-sounding language patterns.
@@ -221,7 +221,7 @@ mcp__llm-review__chat:
 完成所有 section 后：
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher performing a final review of a complete paper draft.
            Focus on: cross-section coherence, idea-experiment thread (do the experiments back the central ideas?),
            narrative flow, notation consistency across sections, figure/table referencing.
@@ -312,9 +312,9 @@ mcp__llm-review__chat:
 - `python3` — 执行 matplotlib figure 脚本
 
 ### MCP Servers
-- `mcp__llm-review__chat` — 逐 section review（可选，--review）+ 全文 cross-review（Step 5）
+- `llm-review MCP chat tool` — 逐 section review（可选，--review）+ 全文 cross-review（Step 5）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面和 PAPER_PLAN
 - `Glob` — 查找 wiki 页面
 - `Write` — 写入 paper/ 目录中的文件
@@ -322,8 +322,8 @@ mcp__llm-review__chat:
 - `WebFetch` — DBLP / CrossRef BibTeX 获取
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — 写作规范 + de-AI polish 规则 + figure 设计
-- `.claude/skills/shared-references/citation-verification.md` — BibTeX 获取流程 + [UNCONFIRMED] 协议
+- `shared-references/academic-writing.md` — 写作规范 + de-AI polish 规则 + figure 设计
+- `shared-references/citation-verification.md` — BibTeX 获取流程 + [UNCONFIRMED] 协议
 
 ### Called by
 - `/research` Stage 5（论文写作阶段）

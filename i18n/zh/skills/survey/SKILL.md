@@ -41,8 +41,8 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 - `wiki/index.md` — 内容目录，按 importance 筛选
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/edges.jsonl` — 论文间语义关系（same_problem_as、similar_method_to、builds_on、challenges）
-- `.claude/skills/shared-references/academic-writing.md` — Related Work 写作规则
-- `.claude/skills/shared-references/citation-verification.md` — 引用纪律
+- `shared-references/academic-writing.md` — Related Work 写作规则
+- `shared-references/citation-verification.md` — 引用纪律
 
 ### Writes
 - `wiki/outputs/related-work-{slug}-{date}.md` — 归档文件
@@ -203,14 +203,14 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 ### MCP Servers
 - 无（survey 不需要 Review LLM，可通过 /review --focus writing 单独审查）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面
 - `Glob` — 查找 ideas、methods、concepts、topics、papers
 - `WebFetch` — DBLP / CrossRef BibTeX 获取（仅 --format latex）
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — Related Work 写作规则 + de-AI polish
-- `.claude/skills/shared-references/citation-verification.md` — BibTeX 获取和 [UNCONFIRMED] 协议
+- `shared-references/academic-writing.md` — Related Work 写作规则 + de-AI polish
+- `shared-references/citation-verification.md` — BibTeX 获取和 [UNCONFIRMED] 协议
 
 ### Called by
 - `/paper-draft` Step 3（Related Work section 可委托此 skill）

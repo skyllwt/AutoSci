@@ -261,7 +261,7 @@ argument-hint: <idea-slug> [--env local|remote]
 ### Configuration
 - `config/server.yaml` — 远程服务器配置（仅 `--env remote` 时需要）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 Pilot Spec 和 wiki 页面
 - `Write` — 写入预实验代码到 `experiments/pilot/code/{slug}/`
 - `Bash` — 执行预实验代码、监控进程

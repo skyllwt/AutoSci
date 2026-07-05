@@ -42,7 +42,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - `wiki/outputs/PAPER_PLAN.md` — 了解论文结构（来自 /paper-plan，若有 --paper-slug）
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/edges.jsonl` — idea-experiment-paper-method 关系
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test 独立性
+- `shared-references/cross-model-review.md` — Review LLM stress-test 独立性
 
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — 富文本版
@@ -162,12 +162,12 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 ### Step 5: Review LLM Stress-Test
 
-**遵循 cross-model-review.md**：不向 Review LLM 发送 Claude 的 rebuttal 策略分析。
+**遵循 cross-model-review.md**：不向 Review LLM 发送 主 agent 的 rebuttal 策略分析。
 
 若 `--stress-test` 开启（默认）：
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a critical reviewer who has just read a rebuttal to your review
            comments. You are skeptical and will push back on weak responses.
            For each rebuttal response, assess on a scale of 1-5:
@@ -196,7 +196,7 @@ mcp__llm-review__chat:
 **第二轮（若有 score <= 2 的回应）**：
 
 ```
-mcp__llm-review__chat-reply:
+llm-review MCP chat-reply tool:
   threadId: {previous thread}
   message: |
     We've revised the following responses:
@@ -327,17 +327,17 @@ Additional Experiments (if applicable):
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 5 stress-test 首轮
-- `mcp__llm-review__chat-reply` — Step 5 stress-test 后续轮
+- `llm-review MCP chat tool` — Step 5 stress-test 首轮
+- `llm-review MCP chat-reply tool` — Step 5 stress-test 后续轮
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取审稿意见、wiki 页面、shared references
 - `Write` — 写入 rebuttal-{slug}.md、rebuttal-{slug}.txt
 - `Glob` — 查找 ideas、methods、experiments
 - `Grep` — 在 wiki 中搜索 concern 关键词
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test 独立性原则
+- `shared-references/cross-model-review.md` — Review LLM stress-test 独立性原则
 
 ### Suggested follow-up skills
 - `/exp-design` — 为 evidence 不足的 concerns 设计补充实验

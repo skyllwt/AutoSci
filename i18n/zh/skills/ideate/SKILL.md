@@ -7,7 +7,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 # /ideate
 
 > 基于 wiki 知识库和外部搜索，通过 5 阶段管道生成高质量研究 idea。
-> Phase 1 扫描研究景观（wiki + WebSearch + S2），Phase 2 双模型脑暴（Claude + Review LLM 独立生成），
+> Phase 1 扫描研究景观（wiki + WebSearch + S2），Phase 2 双模型脑暴（主 agent + Review LLM 独立生成），
 > Phase 3 初步筛选 + 深度验证（可行性、novelty、review），Phase 4 将 ideas 写入 wiki（包括被淘汰的 ideas，记录原因作为 anti-repetition 记忆），
 > Phase 5 对幸存 ideas 进行预实验（idea 页面已存在）并更新结果。
 
@@ -113,11 +113,11 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 ### Phase 2: 双模型脑暴（Dual-Model Brainstorm）
 
-目标：通过 Claude 和 Review LLM 独立生成 ideas，利用不同模型的视角差异获得多样性。
+目标：通过 主 agent 和 Review LLM 独立生成 ideas，利用不同模型的视角差异获得多样性。
 
-**遵循 `shared-references/cross-model-review.md`**：Claude 和 Review LLM 独立生成，不互相看到对方的结果。
+**遵循 `shared-references/cross-model-review.md`**：主 agent 和 Review LLM 独立生成，不互相看到对方的结果。
 
-1. **Claude 生成 6-10 个 ideas**：
+1. **Primary agent 生成 6-10 个 ideas**：
    - 输入：景观报告 + wiki gaps + active list + banlist
    - **结构化生成路径** — 每个 idea 必须遵循以下四条路径之一：
 
@@ -138,7 +138,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 2. **Review LLM 独立生成 4-6 个 ideas**（并行执行）：
    ```
-   mcp__llm-review__chat:
+   llm-review MCP chat tool:
      system: "You are a creative ML researcher brainstorming research ideas.
               Generate novel, concrete, and feasible ideas based on the given context.
               Each idea MUST follow one of the five structured generation paths below.
@@ -180,7 +180,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    ```
 
 3. **合并与去重**：
-   - 将 Claude 和 Review LLM 的 ideas 合并（10-16 个候选）
+   - 将 主 agent 和 Review LLM 的 ideas 合并（10-16 个候选）
    - 去除高度相似的 ideas（方法核心相同的合并，保留更具体的版本）
    - 去除与 banlist 重叠的 ideas
    - 去除与 active list 高度重复的 ideas
@@ -349,7 +349,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    ## Pipeline Summary
    - Direction: {direction}
    - Phase 1: Scanned {N} external papers, {M} wiki gaps identified
-   - Phase 2: Generated {X} candidates (Claude: {a}, Review LLM: {b})
+   - Phase 2: Generated {X} candidates (主 agent: {a}, Review LLM: {b})
    - Phase 3: {Y} survived filter & validation (from {X})
    - Phase 4: {K} ideas written to wiki
 
@@ -482,7 +482,7 @@ Args: "{idea-slug}"
 - **wiki cold 时自动切换 cold-start mode**：外部搜索扩展（WebSearch 8 查询，S2/DeepXiv limit 30），不阻塞执行
 - **所有 idea 必须有 wiki 依据**：每个 idea 至少引用 2 个 wiki 页面（paper / concept / method / topic）
 - **必须加载 banlist**：Phase 1 必须读取 failed ideas 的 failure_reason，Phase 2/3/4 必须检查重叠
-- **Review LLM 独立性**：Phase 2 中 Review LLM 不看 Claude 的 idea 列表（cross-model-review.md）
+- **Review LLM 独立性**：Phase 2 中 Review LLM 不看 主 agent 的 idea 列表（cross-model-review.md）
 - **被淘汰的 ideas 也写入 wiki**：status=failed + failure_reason，作为 anti-repetition 记忆
 - **不凭空编造**：所有 ideas 必须基于 wiki 已有知识或外部搜索结果推导，不编造不存在的论文或方法
 - **slug 唯一性**：创建前检查 wiki/ideas/ 中是否已存在相同 slug
@@ -494,7 +494,7 @@ Args: "{idea-slug}"
 - **WebSearch 不可用**：跳过外部搜索，仅基于 wiki 内部知识生成（降级模式，在报告中标注）
 - **Semantic Scholar API 不可用**：跳过 S2 搜索，依赖 DeepXiv + WebSearch 补偿
 - **DeepXiv API 不可用**：跳过 DeepXiv 搜索和 trending，依赖 S2 + WebSearch（回退到原有行为）
-- **Review LLM 不可用**：Phase 2 仅用 Claude 生成（无双模型多样性，在报告中标注）
+- **Review LLM 不可用**：Phase 2 仅用 primary agent 生成（无双模型多样性，在报告中标注）
 - **/novelty 失败**：Phase 3 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
 - **/review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动 /review
 - **预实验失败**：标记为 failed 并在 failure_reason 中加 `[pilot]` 前缀，其余 ideas 继续
@@ -523,11 +523,11 @@ Args: "{idea-slug}"
 - `/exp-pilot-eval` — Phase 5 预实验结果评估与 idea 页面更新
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Phase 2 Review LLM 独立脑暴
+- `llm-review MCP chat tool` — Phase 2 Review LLM 独立脑暴
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `WebSearch` — Phase 1 外部搜索、Phase 3 快速 novelty 筛查、Phase 5 预实验验证
 - `Agent` tool — Phase 1 并行搜索、Phase 2 并行脑暴
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Phase 2 Review LLM 独立性原则
+- `shared-references/cross-model-review.md` — Phase 2 Review LLM 独立性原则

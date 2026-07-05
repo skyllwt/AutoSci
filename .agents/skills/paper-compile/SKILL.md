@@ -28,7 +28,7 @@ argument-hint: "[paper-dir] [--fix] [--checklist]"
 
 ### Reads
 - `wiki/outputs/paper-plan-*.md` — retrieve venue information (page limit, anonymity requirements)
-- `.claude/skills/shared-references/citation-verification.md` — [UNCONFIRMED] marker check rules
+- `shared-references/citation-verification.md` — [UNCONFIRMED] marker check rules
 
 ### Writes
 - `paper/main.pdf` — compilation output
@@ -229,15 +229,15 @@ python3 tools/research_wiki.py log wiki/ \
 ### MCP Servers
 - None
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read .tex files and compilation logs
 - `Edit` — auto-fix .tex files (--fix mode)
 - `Bash` — execute compilation and check commands
 - `Grep` — search for [UNCONFIRMED], TODO, anonymity violations
 
 ### Shared References
-- `.claude/skills/shared-references/citation-verification.md` — [UNCONFIRMED] marker check rules
-- `.claude/skills/shared-references/academic-writing.md` — venue page limit reference
+- `shared-references/citation-verification.md` — [UNCONFIRMED] marker check rules
+- `shared-references/academic-writing.md` — venue page limit reference
 
 ### Called by
 - `/research` Stage 5 (paper compilation stage)

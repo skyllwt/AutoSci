@@ -8,7 +8,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 
 > General-purpose multi-round iterative improvement loop for any research artifact
 > (idea, proposal, experiment plan, paper draft).
-> Each round calls /review for structured feedback → parses actionable items → Claude fixes the artifact →
+> Each round calls /review for structured feedback → parses actionable items → the primary agent fixes the artifact →
 > updates wiki entities → re-reviews, until the score reaches the target or the maximum rounds are exhausted.
 > Outputs an improvement history and the final review score.
 
@@ -106,7 +106,7 @@ Parse the review output and extract:
 
 Classify and handle each actionable item:
 
-**Category A — Method/content issues (Claude fixes directly):**
+**Category A — Method/content issues (the primary agent fixes directly):**
 - Method description too vague → add details
 - Missing comparative analysis → add comparison against baseline
 - Incomplete argumentative logic → add reasoning steps
@@ -120,7 +120,7 @@ Classify and handle each actionable item:
 - Requires experimental validation → suggest running `/exp-run`
 - → Record in `unresolved_issues`, list suggested operations in the report
 
-**Category C — Idea / method updates (Claude fixes wiki):**
+**Category C — Idea / method updates (the primary agent fixes wiki):**
 - Review identifies a missing concept link in an idea's `origin_gaps` → add the link and write the reverse `linked_ideas`
 - Review finds a method missing parent/child relations → patch the method page
 - Review discovers a new gap → record to gap_map (via rebuild)
@@ -224,10 +224,10 @@ python3 tools/research_wiki.py log wiki/ \
 ### Skills（via Skill tool）
 - `/review` — each round's review (core dependency)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read artifact and wiki pages
 - `Edit` — fix artifact content
 - `Glob` — find artifact and related wiki pages
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — indirect dependency via /review
+- `shared-references/cross-model-review.md` — indirect dependency via /review

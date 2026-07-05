@@ -217,7 +217,7 @@ After all collections are done, re-print the updated status report.
 - `screen -ls` — local process status
 - `tail -20 {log}` — fetch local logs
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read experiment pages and pipeline-progress
 - `Write` — update pipeline-progress status
 - `Glob` — scan wiki/experiments/*.md

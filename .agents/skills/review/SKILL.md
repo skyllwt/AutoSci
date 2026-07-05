@@ -20,7 +20,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
   - free text (directly pasted proposal or idea description)
 - `--difficulty` (optional, default `standard`):
   - `standard`: single-round review, delivers structured feedback
-  - `hard`: multi-round dialogue (up to 3 rounds), Claude rebuts each weakness
+  - `hard`: multi-round dialogue (up to 3 rounds), the primary agent rebuts each weakness
   - `adversarial`: multi-round dialogue (up to 3 rounds), Review LLM additionally attempts to find fatal flaws, simulating the harshest reviewer
 - `--focus` (optional, default comprehensive review):
   - `method`: focus on technical correctness, novelty, and feasibility of method design
@@ -51,7 +51,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 - `wiki/ideas/*.md` — if reviewing an idea, check its context
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/open_questions.md` — check completeness against the gap map
-- `.claude/skills/shared-references/cross-model-review.md` — reviewer independence principle
+- `shared-references/cross-model-review.md` — reviewer independence principle
 
 ### Writes
 - **None**. Review is a read-only query operation.
@@ -109,10 +109,10 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 ### Step 2: Review LLM Initial Review
 
-**Follow cross-model-review.md**: do not send any of Claude's pre-judgments to Review LLM.
+**Follow cross-model-review.md**: do not send any of the primary agent's pre-judgments to Review LLM.
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: {reviewer system prompt from Step 1}
   message: |
     ## Artifact to Review
@@ -142,14 +142,14 @@ Skip this step if `--difficulty` is `standard`.
 
 **Round N (N = 1, 2, 3):**
 
-1. Claude analyzes Review LLM's weaknesses and classifies each:
-   - **Rebuttal**: Claude has strong reasoning or wiki evidence to counter it → write a rebuttal
+1. the primary agent analyzes Review LLM's weaknesses and classifies each:
+   - **Rebuttal**: the primary agent has strong reasoning or wiki evidence to counter it → write a rebuttal
    - **Acknowledge**: the weakness genuinely exists → acknowledge it and propose a fix
    - **Clarify**: the weakness is based on a misunderstanding → provide clarification
 
-2. Send Claude's response to Review LLM:
+2. Send the primary agent's response to Review LLM:
    ```
-   mcp__llm-review__chat-reply:
+   llm-review MCP chat-reply tool:
      threadId: {from Step 2}
      message: |
        Thank you for the review. Here are my responses:
@@ -231,7 +231,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 
 ### Round 1
 **Review LLM**: {summary of initial review}
-**Claude**: {summary of rebuttals/acknowledgments}
+**the primary agent**: {summary of rebuttals/acknowledgments}
 
 ### Round 2
 **Review LLM**: {updated assessment}
@@ -245,7 +245,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 
 ## Constraints
 
-- **Reviewer independence**: strictly follow `shared-references/cross-model-review.md`; do not leak Claude's pre-judgments to Review LLM
+- **Reviewer independence**: strictly follow `shared-references/cross-model-review.md`; do not leak the primary agent's pre-judgments to Review LLM
 - **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. /refine)
 - **Scores must have justification**: scores without a rationale are not accepted
 - **Weaknesses must have fixes**: every weakness must include a specific, actionable fix suggestion; vague criticism is not accepted
@@ -257,10 +257,10 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ## Error Handling
 
 - **Artifact not found**: prompt user to check slug or path, list likely candidate pages
-- **Review LLM unavailable**: downgrade to Claude self-review mode; annotate report with "single-model review, cross-model verification unavailable"; recommend the user retry with Review LLM later
+- **Review LLM unavailable**: downgrade to the primary agent self-review mode; annotate report with "single-model review, cross-model verification unavailable"; recommend the user retry with Review LLM later
 - **Wiki empty**: proceed with review normally, but annotate Wiki Entity Mapping section with "wiki empty, no entity mapping available"
 - **Artifact too long**: if it exceeds Review LLM's context window, review section by section and merge at the end
-- **Review LLM returns invalid response**: retry once; if still invalid, use Claude self-review fallback
+- **Review LLM returns invalid response**: retry once; if still invalid, use the primary agent self-review fallback
 - **Review LLM does not converge in multi-round dialogue**: force-stop after 3 rounds; output the last round's score and summary
 
 ## Dependencies
@@ -269,15 +269,15 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 - No direct tool calls (review does not require deterministic tools)
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Review LLM initial review (Step 2)
-- `mcp__llm-review__chat-reply` — Review LLM multi-round dialogue (Step 3)
+- `llm-review MCP chat tool` — Review LLM initial review (Step 2)
+- `llm-review MCP chat-reply tool` — Review LLM multi-round dialogue (Step 3)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read artifact and wiki pages
 - `Glob` — find wiki page corresponding to artifact
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — reviewer independence principle (required reading)
+- `shared-references/cross-model-review.md` — reviewer independence principle (required reading)
 
 ### Called by
 - `/ideate` Phase 4 (review top ideas)

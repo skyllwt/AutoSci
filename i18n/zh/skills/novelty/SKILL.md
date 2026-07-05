@@ -105,7 +105,7 @@ python3 tools/fetch_deepxiv.py brief <arxiv_id>
 将以下信息提交 Review LLM 进行独立判断：
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher assessing the novelty of a proposed method.
            Be rigorous: if the method is essentially a recombination of known techniques
            with minor changes, score it low. Only score 4-5 if there is a genuinely new
@@ -162,7 +162,7 @@ mcp__llm-review__chat:
 ```
 
 **评分规则（综合判断）：**
-- Claude 搜索结果 和 Review LLM 意见取较低分（保守原则）
+- 主 agent 搜索结果 和 Review LLM 意见取较低分（保守原则）
 - 若 wiki 中存在 failed idea 且 failure_reason 与本 idea 相关 → 降 1 分
 - 若 wiki 中存在 in_progress idea 高度重叠 → 标记为 abandon（内部重复）
 
@@ -185,7 +185,7 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - **保守评分**：宁可低估 novelty 也不高估，避免在已有工作上浪费精力
 - **必须检查 failed ideas**：wiki/ideas/ 中 status=failed 的 ideas 是重要的 anti-repetition 信号
 - **搜索覆盖面**：至少 5 个不同的 WebSearch 查询 + Semantic Scholar + wiki 内部搜索
-- **Review LLM 独立性**：提交给 Review LLM 时不包含 Claude 自己的 novelty 判断，让 Review LLM 独立评估
+- **Review LLM 独立性**：提交给 Review LLM 时不包含 主 agent 自己的 novelty 判断，让 Review LLM 独立评估
 - **引用真实来源**：报告中列出的所有 prior work 必须是真实存在的（WebSearch/S2 返回的），不得编造
 
 ## Error Handling
@@ -208,11 +208,11 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 写入时追加日志
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Review LLM 交叉验证（Step 3）
+- `llm-review MCP chat tool` — Review LLM 交叉验证（Step 3）
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `WebSearch` — 多查询 web 搜索（Step 2 Source A + D）
 - `Agent` tool — 并行执行多源搜索（Step 2）
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md`（Phase 2 创建，Review LLM 独立性原则）
+- `shared-references/cross-model-review.md`（Phase 2 创建，Review LLM 独立性原则）

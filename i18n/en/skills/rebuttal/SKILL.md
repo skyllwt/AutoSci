@@ -43,7 +43,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from /paper-plan, if --paper-slug provided)
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/edges.jsonl` — idea-experiment-paper-method relationships
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test independence
+- `shared-references/cross-model-review.md` — Review LLM stress-test independence
 
 ### Writes
 - `wiki/outputs/rebuttal-{slug}.md` — rich-text version
@@ -163,12 +163,12 @@ Draft a response for each concern according to its strategy:
 
 ### Step 5: Review LLM Stress-Test
 
-**Follow cross-model-review.md**: do not send Claude's rebuttal strategy analysis to Review LLM.
+**Follow cross-model-review.md**: do not send the primary agent's rebuttal strategy analysis to Review LLM.
 
 If `--stress-test` is enabled (default):
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a critical reviewer who has just read a rebuttal to your review
            comments. You are skeptical and will push back on weak responses.
            For each rebuttal response, assess on a scale of 1-5:
@@ -197,7 +197,7 @@ mcp__llm-review__chat:
 **Second round (if any responses scored <= 2)**:
 
 ```
-mcp__llm-review__chat-reply:
+llm-review MCP chat-reply tool:
   threadId: {previous thread}
   message: |
     We've revised the following responses:
@@ -328,17 +328,17 @@ Additional Experiments (if applicable):
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 5 stress-test first round
-- `mcp__llm-review__chat-reply` — Step 5 stress-test subsequent rounds
+- `llm-review MCP chat tool` — Step 5 stress-test first round
+- `llm-review MCP chat-reply tool` — Step 5 stress-test subsequent rounds
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read review comments, wiki pages, shared references
 - `Write` — write rebuttal-{slug}.md, rebuttal-{slug}.txt
 - `Glob` — find ideas, methods, experiments
 - `Grep` — search wiki for concern keywords
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM stress-test independence principle
+- `shared-references/cross-model-review.md` — Review LLM stress-test independence principle
 
 ### Suggested follow-up skills
 - `/exp-design` — design supplementary experiments for concerns with insufficient evidence

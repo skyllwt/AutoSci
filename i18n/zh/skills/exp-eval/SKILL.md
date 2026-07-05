@@ -34,7 +34,7 @@ argument-hint: <experiment-slug> [--auto]
 - `wiki/ideas/{linked-idea}.md` — linked idea 当前状态：`status`、`## Hypothesis`、`## Risks`
 - `wiki/experiments/*.md` — 同一 `linked_idea` 的 sibling 实验（综合评估）
 - `wiki/graph/context_brief.md` — 全局上下文
-- `.claude/skills/shared-references/cross-model-review.md` — 审稿独立性原则
+- `shared-references/cross-model-review.md` — 审稿独立性原则
 
 ### Writes
 - `wiki/ideas/{linked-idea}.md` — 更新 `status`、`failure_reason`、`date_resolved`
@@ -77,10 +77,10 @@ argument-hint: <experiment-slug> [--auto]
 
 ### Step 2: Review LLM 判决（Cross-Model Verdict）
 
-**遵循 cross-model-review.md**：不向 Review LLM 发送 Claude 的预判。
+**遵循 cross-model-review.md**：不向 Review LLM 发送 主 agent 的预判。
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are an impartial scientific judge evaluating whether experimental
            results support or refute a research hypothesis. Be rigorous and objective.
            Consider: statistical significance, effect size, experimental validity,
@@ -120,11 +120,11 @@ mcp__llm-review__chat:
 
 记录 Review LLM 的判决。
 
-### Step 3: Claude 综合评估
+### Step 3: 主 agent 综合评估
 
-1. **独立形成 Claude 的判决**（在读取 Review LLM 判决后，Claude 也独立分析）：
+1. **独立形成 主 agent 的判决**（在读取 Review LLM 判决后，主 agent 也独立分析）：
    - 基于实验结果、idea 的 hypothesis，以及 sibling 实验的综合证据
-   - 形成 Claude 自己的 verdict 和 idea status 建议
+   - 形成 主 agent 自己的 verdict 和 idea status 建议
 
 2. **综合两个判决**（遵循 cross-model-review.md composing rules）：
    - **两者一致**（verdict 相同）：采用该 verdict，高置信度
@@ -217,7 +217,7 @@ mcp__llm-review__chat:
    ## Idea updates
    - **Verdict**: {supported/partially_supported/not_supported/inconclusive}
    - **Linked idea**: [[{linked-idea}]] status {old} → {new}
-   - **Judge agreement**: {Claude and Review LLM agreed / disagreed on ...}
+   - **Judge agreement**: {主 agent and Review LLM agreed / disagreed on ...}
    - **Date**: YYYY-MM-DD
    ```
 
@@ -242,14 +242,14 @@ mcp__llm-review__chat:
    ## Verdict: {SUPPORTED / PARTIALLY_SUPPORTED / NOT_SUPPORTED / INCONCLUSIVE}
 
    ## Judge Assessment
-   | | Claude | Review LLM | Final |
+   | | 主 agent | Review LLM | Final |
    |---|-------|------|-------|
    | Verdict | {verdict} | {verdict} | {verdict} |
    | Idea status rec | {rec} | {rec} | {rec} |
    | Evidence strength | {strength} | {strength} | {strength} |
 
    ## Key Reasoning
-   {2-3 sentences from Review LLM + Claude synthesis}
+   {2-3 sentences from Review LLM + 主 agent synthesis}
 
    ## Wiki Changes
    | Entity | Field | Before | After |
@@ -279,11 +279,11 @@ mcp__llm-review__chat:
 
 - **只处理 completed 实验**：status != completed 的实验拒绝处理，提示用 /exp-run 先完成。
 - **`linked_idea` 必填**：拒绝评判任何 `linked_idea` 为空的实验（新 schema 强制要求；如果遇到这类页面，那是 refactor 之前的遗留物，必须先手动修复）。
-- **审稿独立性**：严格遵循 cross-model-review.md，不向 Review LLM 发送 Claude 的预判。
+- **审稿独立性**：严格遵循 cross-model-review.md，不向 Review LLM 发送 主 agent 的预判。
 - **`failure_reason` 必须具体**：not_supported 路径的 `failure_reason` 不能是空话（如 "实验失败"），必须写明具体原因。`transition --reason` 会拒绝空字符串。
 - **idea 生命周期只前进**：`proposed → in_progress → tested → validated/failed`。使用 `tools/research_wiki.py transition`（而非直接改 frontmatter），让生命周期校验器跑起来。
 - **graph edges 使用 tools/research_wiki.py**：不手动编辑 `edges.jsonl`。
-- **保守原则**：当 Claude 和 Review LLM 判决不一致时，取更保守的判决。
+- **保守原则**：当 主 agent 和 Review LLM 判决不一致时，取更保守的判决。
 - **综合所有 sibling 实验评估**：不仅看当前实验，还要参考同一 `linked_idea` 的其他实验。
 
 ## Error Handling
@@ -292,7 +292,7 @@ mcp__llm-review__chat:
 - **experiment 未完成**：提示 status，建议先运行 `/exp-run {slug}` 或 `/exp-run {slug} --check`。
 - **`linked_idea` 缺失**：拒绝继续；提示用户运行 `/edit` 设置实验的 `linked_idea`。
 - **linked idea 页面不存在**：报告 dangling reference；拒绝更新 —— 建议先用 `/edit` 或 `/ideate` 创建该 idea 页面。
-- **Review LLM 不可用**：降级为 Claude 单模型判决，在报告中标注「single-model verdict, cross-model verification unavailable」，建议用户稍后确认。
+- **Review LLM 不可用**：降级为 主 agent 单模型判决，在报告中标注「single-model verdict, cross-model verification unavailable」，建议用户稍后确认。
 - **idea 已被其他实验修改**：在应用 transition 前重新读取最新状态；不要把更高生命周期状态退回到更低。
 - **结果数据缺失**：若实验页面的 Results section 为空，提示用户先运行 `/exp-run {slug} --check`。
 
@@ -306,15 +306,15 @@ mcp__llm-review__chat:
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Step 2 Review LLM 独立判决
+- `llm-review MCP chat tool` — Step 2 Review LLM 独立判决
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面
 - `Glob` — 查找同一 `linked_idea` 的 sibling 实验
 - `Edit` — 更新 wiki 页面
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Review LLM 独立性原则（必读）
+- `shared-references/cross-model-review.md` — Review LLM 独立性原则（必读）
 
 ### Called by
 - `/research` Stage 4（判决与迭代阶段）

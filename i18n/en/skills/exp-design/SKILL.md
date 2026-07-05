@@ -499,11 +499,11 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 - `python3 tools/research_wiki.py rebuild-open-questions wiki/` — rebuild gaps
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages
 - `Write` — create design documents and experiment pages
 - `Glob` — find existing experiments
-- `AskUserQuestion` — method candidate selection
+- interactive user prompt — method candidate selection
 
 ### Called by
 - `/ideate` (after pilot evaluation)

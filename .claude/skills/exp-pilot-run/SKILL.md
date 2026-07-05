@@ -261,7 +261,7 @@ Possible reference paths for the preliminary experiment code:
 ### Configuration
 - `config/server.yaml` — remote server config (required only with `--env remote`)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read Pilot Spec and wiki pages
 - `Write` — write pilot code to `experiments/pilot/code/{slug}/`
 - `Bash` — execute pilot code, monitor processes

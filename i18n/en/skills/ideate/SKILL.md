@@ -7,7 +7,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 # /ideate
 
 > Generates high-quality research ideas through a 5-phase pipeline, grounded in the wiki knowledge base and external search.
-> Phase 1 scans the research landscape (wiki + WebSearch + S2), Phase 2 runs a dual-model brainstorm (Claude + Review LLM independently),
+> Phase 1 scans the research landscape (wiki + WebSearch + S2), Phase 2 runs a dual-model brainstorm (the primary agent + Review LLM independently),
 > Phase 3 applies first-pass filter + deep validation (feasibility, novelty, review), Phase 4 writes ideas to the wiki (including eliminated ideas, with failure reasons recorded as anti-repetition memory),
 > Phase 5 runs pilot experiments on surviving ideas (idea pages already exist) and updates results.
 
@@ -113,11 +113,11 @@ Goal: build a comprehensive view of the target domain, including existing work, 
 
 ### Phase 2: Dual-Model Brainstorm
 
-Goal: generate ideas independently with Claude and Review LLM, exploiting the diversity that comes from different model perspectives.
+Goal: generate ideas independently with the primary agent and Review LLM, exploiting the diversity that comes from different model perspectives.
 
-**Follow `shared-references/cross-model-review.md`**: Claude and Review LLM generate independently without seeing each other's output.
+**Follow `shared-references/cross-model-review.md`**: the primary agent and Review LLM generate independently without seeing each other's output.
 
-1. **Claude generates 6–10 ideas**:
+1. **Primary agent generates 6–10 ideas**:
    - Input: landscape report + wiki gaps + active list + banlist
    - **Structured generation paths** — each idea must follow one of these four paths:
 
@@ -138,7 +138,7 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
 
 2. **Review LLM independently generates 4–6 ideas** (run in parallel):
    ```
-   mcp__llm-review__chat:
+   llm-review MCP chat tool:
      system: "You are a creative ML researcher brainstorming research ideas.
               Generate novel, concrete, and feasible ideas based on the given context.
               Each idea MUST follow one of the five structured generation paths below.
@@ -180,7 +180,7 @@ Goal: generate ideas independently with Claude and Review LLM, exploiting the di
    ```
 
 3. **Merge and deduplicate**:
-   - Combine Claude's and Review LLM's ideas (10–16 candidates)
+   - Combine the primary agent's and Review LLM's ideas (10–16 candidates)
    - Remove highly similar ideas (merge ideas with the same core method, keep the more specific version)
    - Remove ideas that overlap with the banlist
    - Remove ideas that heavily duplicate the active list
@@ -350,7 +350,7 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    ## Pipeline Summary
    - Direction: {direction}
    - Phase 1: Scanned {N} external papers, {M} wiki gaps identified
-   - Phase 2: Generated {X} candidates (Claude: {a}, Review LLM: {b})
+   - Phase 2: Generated {X} candidates (the primary agent: {a}, Review LLM: {b})
    - Phase 3: {Y} survived filter & validation (from {X})
    - Phase 4: {K} ideas written to wiki
 
@@ -506,7 +506,7 @@ Args: "{idea-slug}"
 - **Auto-switch to cold-start mode when wiki is cold**: expand external search (WebSearch 8 queries, S2/DeepXiv limit 30), do not block execution
 - **Every idea must have wiki grounding**: each idea must reference at least 2 wiki pages (paper / concept / method / topic)
 - **Banlist must be loaded**: Phase 1 must read failed ideas' failure_reason; Phase 2/3/5 must check for overlap
-- **Review LLM independence**: in Phase 2, Review LLM does not see Claude's idea list (cross-model-review.md)
+- **Review LLM independence**: in Phase 2, Review LLM does not see the primary agent's idea list (cross-model-review.md)
 - **Eliminated ideas are also written to wiki**: status=failed + failure_reason, as anti-repetition memory
 - **No fabrication**: all ideas must be derived from existing wiki knowledge or external search results; do not invent non-existent papers or methods
 - **Slug uniqueness**: check whether the same slug already exists in wiki/ideas/ before creating
@@ -518,7 +518,7 @@ Args: "{idea-slug}"
 - **WebSearch unavailable**: skip external search, generate ideas from wiki internal knowledge only (degraded mode, noted in report)
 - **Semantic Scholar API unavailable**: skip S2 search, rely on DeepXiv + WebSearch for compensation
 - **DeepXiv API unavailable**: skip DeepXiv search and trending, fall back to S2 + WebSearch (original behavior)
-- **Review LLM unavailable**: Phase 2 uses Claude only (no dual-model diversity, noted in report)
+- **Review LLM unavailable**: Phase 2 uses the primary agent only (no dual-model diversity, noted in report)
 - **/novelty fails**: if novelty fails for a single idea in Phase 3, mark "novelty unverified" and continue
 - **/review fails**: if review fails in Phase 3, mark "unreviewed" and continue; recommend user manually runs /review
 - **Pilot fails for an idea**: mark as failed with `[pilot]` prefix in failure_reason; remaining ideas continue
@@ -547,11 +547,11 @@ Args: "{idea-slug}"
 - `/exp-pilot-eval` — Phase 5 pilot result evaluation and idea page update
 
 ### MCP Servers
-- `mcp__llm-review__chat` — Phase 2 Review LLM independent brainstorm
+- `llm-review MCP chat tool` — Phase 2 Review LLM independent brainstorm
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `WebSearch` — Phase 1 external search, Phase 3 quick novelty screening, Phase 5 pilot validation
 - `Agent` tool — Phase 1 parallel search, Phase 2 parallel brainstorm
 
 ### Shared References
-- `.claude/skills/shared-references/cross-model-review.md` — Phase 2 Review LLM independence principle
+- `shared-references/cross-model-review.md` — Phase 2 Review LLM independence principle

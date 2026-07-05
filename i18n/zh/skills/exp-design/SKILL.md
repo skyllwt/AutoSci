@@ -499,11 +499,11 @@ Stage 4：深度分析
 - `python3 tools/research_wiki.py rebuild-open-questions wiki/` — 重建知识空白
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取wiki页面
 - `Write` — 创建设计文档和实验页面
 - `Glob` — 查找已有实验
-- `AskUserQuestion` — 方法候选选择
+- 交互式用户询问 — 方法候选选择
 
 ### Called by
 - `/ideate`（预实验评估后）

@@ -47,8 +47,8 @@ argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 - `wiki/people/*.md` — author names and institutions (citation formatting)
 - `wiki/graph/edges.jsonl` — relationship graph (build argumentative logic chain)
 - `wiki/graph/open_questions.md` — known limitations (write Limitations and Future Work)
-- `.claude/skills/shared-references/academic-writing.md` — writing standards
-- `.claude/skills/shared-references/citation-verification.md` — citation discipline
+- `shared-references/academic-writing.md` — writing standards
+- `shared-references/citation-verification.md` — citation discipline
 
 ### Writes
 - `paper/` directory (all files)
@@ -179,7 +179,7 @@ Apply de-AI polish to each written section (per academic-writing.md):
 If `--review` is enabled, for each section:
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher reviewing one section of a paper draft.
            Focus on: clarity, logical flow, idea-experiment alignment, notation consistency.
            Point out any remaining AI-sounding language patterns.
@@ -221,7 +221,7 @@ Following `shared-references/citation-verification.md`:
 After all sections are complete:
 
 ```
-mcp__llm-review__chat:
+llm-review MCP chat tool:
   system: "You are a senior ML researcher performing a final review of a complete paper draft.
            Focus on: cross-section coherence, idea-experiment thread (do the experiments back the central ideas?),
            narrative flow, notation consistency across sections, figure/table referencing.
@@ -312,9 +312,9 @@ Make final adjustments based on Review LLM feedback.
 - `python3` — execute matplotlib figure scripts
 
 ### MCP Servers
-- `mcp__llm-review__chat` — per-section review (optional, --review) + full-paper cross-review (Step 5)
+- `llm-review MCP chat tool` — per-section review (optional, --review) + full-paper cross-review (Step 5)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages and PAPER_PLAN
 - `Glob` — find wiki pages
 - `Write` — write files to paper/ directory
@@ -322,8 +322,8 @@ Make final adjustments based on Review LLM feedback.
 - `WebFetch` — DBLP / CrossRef BibTeX fetch
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — writing standards + de-AI polish rules + figure design
-- `.claude/skills/shared-references/citation-verification.md` — BibTeX fetch workflow + [UNCONFIRMED] protocol
+- `shared-references/academic-writing.md` — writing standards + de-AI polish rules + figure design
+- `shared-references/citation-verification.md` — BibTeX fetch workflow + [UNCONFIRMED] protocol
 
 ### Called by
 - `/research` Stage 5 (paper writing stage)

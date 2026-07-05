@@ -41,8 +41,8 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 - `wiki/index.md` — content catalog, filtered by importance
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/edges.jsonl` — inter-paper semantic relationships (same_problem_as, similar_method_to, builds_on, challenges)
-- `.claude/skills/shared-references/academic-writing.md` — Related Work writing rules
-- `.claude/skills/shared-references/citation-verification.md` — citation discipline
+- `shared-references/academic-writing.md` — Related Work writing rules
+- `shared-references/citation-verification.md` — citation discipline
 
 ### Writes
 - `wiki/outputs/related-work-{slug}-{date}.md` — archived file
@@ -203,14 +203,14 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 ### MCP Servers
 - None (survey does not require Review LLM; use /review --focus writing for separate review)
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — read wiki pages
 - `Glob` — find ideas, methods, concepts, topics, papers
 - `WebFetch` — DBLP / CrossRef BibTeX fetch (--format latex only)
 
 ### Shared References
-- `.claude/skills/shared-references/academic-writing.md` — Related Work writing rules + de-AI polish
-- `.claude/skills/shared-references/citation-verification.md` — BibTeX fetch and [UNCONFIRMED] protocol
+- `shared-references/academic-writing.md` — Related Work writing rules + de-AI polish
+- `shared-references/citation-verification.md` — BibTeX fetch and [UNCONFIRMED] protocol
 
 ### Called by
 - `/paper-draft` Step 3 (Related Work section can be delegated to this skill)

@@ -208,4 +208,4 @@ Output a summary including:
 - `/ingest` — referenced when suggesting the user supplement knowledge
 
 ### Shared References
-- `.claude/skills/shared-references/citation-verification.md` (created in Phase 3)
+- `shared-references/citation-verification.md` (created in Phase 3)

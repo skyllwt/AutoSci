@@ -28,7 +28,7 @@ argument-hint: "[paper-dir] [--fix] [--checklist]"
 
 ### Reads
 - `wiki/outputs/paper-plan-*.md` — 获取 venue 信息（页数限制、匿名要求）
-- `.claude/skills/shared-references/citation-verification.md` — [UNCONFIRMED] 标记检查规则
+- `shared-references/citation-verification.md` — [UNCONFIRMED] 标记检查规则
 
 ### Writes
 - `paper/main.pdf` — 编译输出
@@ -229,15 +229,15 @@ python3 tools/research_wiki.py log wiki/ \
 ### MCP Servers
 - 无
 
-### Claude Code Native
+### Agent Runtime Capabilities
 - `Read` — 读取 .tex 文件和编译日志
 - `Edit` — 自动修复 .tex 文件（--fix 模式）
 - `Bash` — 执行编译和检查命令
 - `Grep` — 搜索 [UNCONFIRMED]、TODO、匿名违规
 
 ### Shared References
-- `.claude/skills/shared-references/citation-verification.md` — [UNCONFIRMED] 标记检查规则
-- `.claude/skills/shared-references/academic-writing.md` — venue 页数限制参考
+- `shared-references/citation-verification.md` — [UNCONFIRMED] 标记检查规则
+- `shared-references/academic-writing.md` — venue 页数限制参考
 
 ### Called by
 - `/research` Stage 5（论文编译阶段）

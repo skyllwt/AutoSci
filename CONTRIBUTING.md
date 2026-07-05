@@ -61,6 +61,14 @@ When modifying any `SKILL.md`, `CLAUDE.md`, `AGENTS.md`, or shared-references fi
 4. Confirm both `.claude/skills` and `.agents/skills` received the change.
 5. Run tests.
 
+## Active Skill Copies
+
+The active skill trees under `.claude/skills` and `.agents/skills` are committed
+so Claude Code and Codex work immediately after checkout. Treat them as generated
+copies: do not edit them directly. Make workflow changes in `i18n/<lang>/skills`
+or `i18n/<lang>/shared-references`, run setup to regenerate the active copies,
+and commit the source plus regenerated output together.
+
 ## Code Style
 
 | What | Convention |

@@ -52,6 +52,25 @@ These permissions grant broad access so that all Claude Code skills work without
 
 **To restrict access:** If you prefer more manual control, you can replace `Bash(*)` with specific patterns (e.g., `Bash(python3:*)`, `Bash(latexmk:*)`) and remove permissions you don't need. Note that some skills may then require additional approval prompts. See [Claude Code docs](https://docs.anthropic.com/en/docs/claude-code) for the full permissions format.
 
+### `codex.config.toml.example`
+
+Codex MCP configuration snippet for the `llm-review` server. Codex CLI reads MCP
+servers from the user config at `$CODEX_HOME/config.toml` (usually
+`~/.codex/config.toml`), not from a repository-local `.codex/config.toml`.
+
+From the AutoSci project root, configure the server with:
+
+```bash
+codex mcp add llm-review -- python3 mcp-servers/llm-review/server.py
+```
+
+Or copy the contents of `config/codex.config.toml.example` into your Codex user
+config. Verify with:
+
+```bash
+codex mcp get llm-review
+```
+
 ### `server.yaml.example`
 
 Remote GPU server configuration for `/exp-run --env remote`. Copy to `config/`:
@@ -81,11 +100,12 @@ Then edit `config/server.yaml` with your server's SSH details, GPU info, conda e
 Codex does not use `.claude/settings.local.json`. Repo skills are active from
 `.agents/skills`, generated from the same `i18n/<lang>/skills` source as
 `.claude/skills`. Invoke them in Codex with `$setup`, `$init`, `$ingest`, or
-through `/skills`.
+through `/skills`. Codex MCP servers are configured separately in the Codex user
+config, as described above.
 
 ## All Done by `setup.sh`
 
 If you ran `setup.sh`, `.env`, `.claude/settings.local.json`, `.claude/skills`,
 `.agents/skills`, `CLAUDE.md`, and `AGENTS.md` are already copied to the right
-locations. `daily-arxiv.yml` and `server.yaml` are optional and can be created
-later when you use those features.
+locations. Codex MCP setup, `daily-arxiv.yml`, and `server.yaml` are optional
+and can be configured later when you use those features.
