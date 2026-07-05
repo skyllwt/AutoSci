@@ -181,6 +181,7 @@ try {
     $initSkill = Join-Path ".opencode\skills\init" "SKILL.md"
     if (Test-Path $initSkill) {
         (Get-Content $initSkill -Raw) -replace '(?m)^name: init$', 'name: autosci-init' | Set-Content $initSkill -NoNewline
+        Rename-Item -Path ".opencode\skills\init" -NewName "autosci-init"
     }
 
     Set-Content -Path ".claude\.current-lang" -Value $Lang -NoNewline

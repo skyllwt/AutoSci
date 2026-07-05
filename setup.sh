@@ -189,6 +189,7 @@ for agent_skills_dir in ".claude/skills" ".agents/skills"; do
 done
 # Avoid naming collision with OpenCode's built-in init command
 sed -i 's/^name: init$/name: autosci-init/' .opencode/skills/init/SKILL.md
+mv .opencode/skills/init .opencode/skills/autosci-init
 mkdir -p .opencode
 echo "$LANG_CODE" > .opencode/.current-lang
 echo "$LANG_CODE" > .claude/.current-lang
