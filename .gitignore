@@ -40,6 +40,10 @@ Thumbs.db
 # placeholders; the actual content is generated locally by /init, /ingest,
 # /exp-run, etc. Each user's wiki is theirs; pushing it back pollutes the
 # template repo. Rules below ignore content but keep the .gitkeep scaffolds.
+#
+# Exception: /init uses `git add -f` to force-add generated content to a
+# local scaffold commit so that parallel worktree subagents inherit it.
+# Those scaffold commits stay local and are never pushed upstream.
 # ---------------------------------------------------------------------------
 
 # User-owned raw inputs (excluding scaffolds)
@@ -53,6 +57,7 @@ raw/discovered/*
 !raw/discovered/.gitkeep
 raw/tmp/*
 !raw/tmp/.gitkeep
+!raw/tmp/papers/
 
 # Wiki entity content (excluding scaffolds)
 wiki/papers/*

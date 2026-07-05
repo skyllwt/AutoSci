@@ -22,6 +22,12 @@
 # Without this driver, /init's Phase B fan-in fails on the first merge and
 # cascades into manual cherry-pick recovery (see init/SKILL.md error handling
 # entries for the failure modes this prevents).
+#
+# Note: wiki/graph/edges.jsonl and wiki/graph/citations.jsonl are currently
+# gitignored (wiki/graph/* in .gitignore) and are not tracked until /init
+# force-adds them in the scaffold commit. The merge=union declarations here
+# are dormant until that point; once force-added, they become active and
+# prevent add/add conflicts during parallel worktree merges.
 wiki/log.md                merge=union
 wiki/graph/edges.jsonl     merge=union
 wiki/graph/citations.jsonl merge=union

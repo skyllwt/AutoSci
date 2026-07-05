@@ -50,7 +50,7 @@
 - 不 merge worktree，也不跑 `dedup-edges`、`rebuild-index`、`lint.py --fix`。这些是 fan-in 操作，归 `/init`。
 
 在 INIT MODE 下，`/ingest` **必须**在成功完成后于 worktree 内提交结果：
-- 将 `wiki/` 下所有新建或修改的文件加入暂存区
+- 执行 `git add -f wiki/` 暂存所有改动 — 需要 `-f` 是因为新建的 wiki 页面匹配 `.gitignore` 规则（`wiki/papers/*`、`wiki/concepts/*` 等），不加 `-f` 的 `git add` 会跳过它们
 - commit 前先执行 `git branch --show-current`，确认当前 branch 是 worktree branch（包含 `init-` 前缀），而不是 base branch。若在 base branch 上，停止并报告，不要 commit
 - 执行 `git commit -m "ingest: <论文标题>"`（或含义类似的提交信息）
 - 不要 push；上层 `/init` 会在 fan-in 时合并该分支
