@@ -103,6 +103,19 @@ Codex does not use `.claude/settings.local.json`. Repo skills are active from
 through `/skills`. Codex MCP servers are configured separately in the Codex user
 config, as described above.
 
+### OpenCode skills
+
+OpenCode reads `AGENTS.md` and skills from `.opencode/skills/`, also generated
+from `i18n/<lang>/skills`. Invoke skills by name (e.g. "run the autosci-init skill") or
+via the OpenCode skill loader. Copy `config/opencode.json.example` to the project
+root as `opencode.json` if you need the `llm-review` MCP server:
+
+```bash
+cp config/opencode.json.example opencode.json
+```
+
+`opencode.json` and `opencode/skills/` are gitignored — each user maintains their own copy.
+
 ## All Done by `setup.sh`
 
 If you ran `setup.sh`, `.env`, `.claude/settings.local.json`, `.claude/skills`,
