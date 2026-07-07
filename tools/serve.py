@@ -912,7 +912,7 @@ class WikiHandler(SimpleHTTPRequestHandler):
     # `tools/lint.py` is the deterministic core of `/check`. It already
     # supports `--json` and `--fix` (with `--dry-run` for preview). Exposing
     # it here lets the SPA show lint results inline without going through
-    # the intent → copy → paste → Claude Code round trip.
+    # the intent → copy → paste → coding-agent round trip.
 
     def _handle_lint(self, fix: bool, dry_run: bool = False) -> None:
         args = ["--wiki-dir", str(WIKI_ROOT), "--json"]

@@ -281,7 +281,7 @@ tail -f logs/exp-{slug}.log
      Latest metric: {metric} = {value}
      Anomalies: {none | NaN detected | ...}
      Estimated remaining: ~{N} hours
-     Run `/exp-status` to monitor all running experiments.
+     Monitor all running experiments with `/exp-status` in Claude Code or `$exp-status` in Codex.
      ```
    - **Return** (do not execute Phase 4)
 
@@ -341,7 +341,7 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update the linked idea in wiki
+   - Update the linked idea in wiki with `/exp-eval {slug}` in Claude Code or `$exp-eval {slug}` in Codex
    - {if succeeded: proceed to next experiment in plan}
    - {if failed: analyze failure, consider /exp-design revision}
    ```

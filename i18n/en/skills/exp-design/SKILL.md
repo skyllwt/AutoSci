@@ -459,7 +459,7 @@ Estimate total compute budget. Generate execution checklist with dependencies.
    - Total estimated: {N} GPU-hours
 
    ## Next Steps
-   - Run `/exp-run [[sensitivity-slug]]` to start Stage 0
+   - Start Stage 0 with `/exp-run [[sensitivity-slug]]` in Claude Code or `$exp-run [[sensitivity-slug]]` in Codex
    ```
 
 ## Constraints

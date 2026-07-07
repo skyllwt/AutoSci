@@ -110,7 +110,7 @@ argument-hint: "[--pipeline <slug>] [--collect-ready] [--auto-advance]"
 ### ⚠️ Anomaly Detected ({N})
 | Experiment | Elapsed | Issue | Action |
 |-----------|---------|-------|--------|
-| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | Run `/exp-run exp-foo-ablation --collect` to inspect |
+| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | 用 Claude Code 的 `/exp-run exp-foo-ablation --collect` 或 Codex 的 `$exp-run exp-foo-ablation --collect` 检查 |
 
 ### ✅ Completed — Pending Collect ({N})
 | Experiment | Finished (estimate) |

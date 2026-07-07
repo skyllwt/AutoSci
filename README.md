@@ -94,7 +94,7 @@ Add the code decision gate, code optimization and config check
 
 ### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
 
-Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; Claude walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
+Run the poster skill after paper-draft and paper-compile (`/poster` in Claude Code, `$poster` in Codex) to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; the agent walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
 
 <p align="center">
   <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output" width="720" />
@@ -102,11 +102,11 @@ Run `/poster` after `/paper-draft` + `/paper-compile` to turn your finished draf
 
 ### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
 
-Run `/discover --venue iclr --year 2024` (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for your research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
+Use `/discover --venue iclr --year 2024` in Claude Code or `$discover --venue iclr --year 2024` in Codex (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for your research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
 
 ### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
 
-Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
+Use `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex for a one-off pass. The current GitHub Actions scheduler is Claude Code Action based; run the setup form locally when configuring that CI path. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls the ingest skill for high-confidence picks; `inform` mode just notifies.
 
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
@@ -431,55 +431,57 @@ AutoSci ships with 30+ agent skills spanning the full research lifecycle.
 <details>
 <summary><b>View all skills</b></summary>
 
-For Codex, replace the leading `/` below with `$`.
+Each skill has the same name in both runtimes. Use the Claude Code slash form
+inside Claude Code, and the Codex dollar form inside Codex or select the skill
+from Codex `/skills`.
 
 ### Phase 0: Setup
-| Command | What it does |
-|---------|-------------|
-| `/setup` | Interactive API key configuration — checks `.env` state and walks through Semantic Scholar, DeepXiv, and Review LLM setup |
-| `/reset` | Destructive cleanup — reset wiki state to a clean scaffold by scope (`wiki / raw / log / checkpoints / all`) |
+| Skill | Claude Code | Codex | What it does |
+|-------|-------------|-------|-------------|
+| setup | `/setup` | `$setup` | Interactive API key configuration — checks `.env` state and walks through Semantic Scholar, DeepXiv, and Review LLM setup |
+| reset | `/reset` | `$reset` | Destructive cleanup — reset wiki state to a clean scaffold by scope (`wiki / raw / log / checkpoints / all`) |
 
 ### Phase 1: Knowledge Base
-| Command | What it does |
-|---------|-------------|
-| `/prefill` | Seed `wiki/foundations/` with domain background so subsequent `/ingest` doesn't create duplicate concept pages for textbook material |
-| `/init` | Bootstrap the wiki from your source files, with optional discovery, then ingest the final paper set in parallel |
-| `/ingest` | Ingest a paper (local path or arXiv URL) — creates pages and builds all cross-references and graph edges |
-| `/discover` | Build a ranked shortlist of candidate papers (anchor-driven, topic-driven, venue-filtered, or from wiki state) without ingesting |
-| `/edit` | Add or remove raw sources, or update wiki content, per user request |
-| `/ask` | Ask the wiki a question — retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki |
-| `/check` | Scan the full wiki to detect health issues and produce a tiered fix-recommendation report |
+| Skill | Claude Code | Codex | What it does |
+|-------|-------------|-------|-------------|
+| prefill | `/prefill` | `$prefill` | Seed `wiki/foundations/` with domain background so later ingest runs do not create duplicate concept pages for textbook material |
+| init | `/init` | `$init` | Bootstrap the wiki from your source files, with optional discovery, then ingest the final paper set in parallel |
+| ingest | `/ingest` | `$ingest` | Ingest a paper (local path or arXiv URL) — creates pages and builds all cross-references and graph edges |
+| discover | `/discover` | `$discover` | Build a ranked shortlist of candidate papers (anchor-driven, topic-driven, venue-filtered, or from wiki state) without ingesting |
+| edit | `/edit` | `$edit` | Add or remove raw sources, or update wiki content, per user request |
+| ask | `/ask` | `$ask` | Ask the wiki a question — retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki |
+| check | `/check` | `$check` | Scan the full wiki to detect health issues and produce a tiered fix-recommendation report |
 
 ### Phase 2: Ideation & Experiments
-| Command | What it does |
-|---------|-------------|
-| `/daily-arxiv` | Run or schedule the daily arXiv recommendation feed; delivers a ranked digest by email with optional auto-ingest for high-confidence picks |
-| `/ideate` | Multi-phase research idea generation: landscape scan → dual-model brainstorm → filter & validation → write to wiki → pilot |
-| `/exp-pilot-run` | Pilot experiment execution — write code, deploy, monitor, collect raw results (called by `/ideate` Phase 5) |
-| `/exp-pilot-eval` | Pilot result evaluation — read results, apply success criteria, update idea page (called by `/ideate` Phase 5) |
-| `/novelty` | Multi-source novelty verification via WebSearch + Semantic Scholar + wiki + Review LLM; outputs novelty score and recommendations |
-| `/review` | Cross-model review of any research artifact — outputs structured scores, wiki entity mapping, and improvement suggestions |
-| `/exp-design` | Idea-driven experiment design with iterative ablation — method candidates → benchmark selection → sensitivity analysis → main experiment |
-| `/exp-run` | Full experiment execution pipeline — prepare code → deploy → monitor → collect results |
-| `/exp-status` | View the status of all running experiments; optionally auto-collect completed runs and advance the pipeline |
-| `/exp-eval` | Experiment verdict gate — Review LLM independently judges results and auto-updates the linked idea's status and graph edges |
-| `/refine` | Multi-round iterative improvement — repeatedly calls `/review`, parses feedback, applies fixes, and updates wiki until target score |
+| Skill | Claude Code | Codex | What it does |
+|-------|-------------|-------|-------------|
+| daily-arxiv | `/daily-arxiv` | `$daily-arxiv` | Run or schedule the daily arXiv recommendation feed; delivers a ranked digest by email with optional auto-ingest for high-confidence picks |
+| ideate | `/ideate` | `$ideate` | Multi-phase research idea generation: landscape scan → dual-model brainstorm → filter & validation → write to wiki → pilot |
+| exp-pilot-run | `/exp-pilot-run` | `$exp-pilot-run` | Pilot experiment execution — write code, deploy, monitor, collect raw results as part of the ideation pipeline |
+| exp-pilot-eval | `/exp-pilot-eval` | `$exp-pilot-eval` | Pilot result evaluation — read results, apply success criteria, update idea page as part of the ideation pipeline |
+| novelty | `/novelty` | `$novelty` | Multi-source novelty verification via WebSearch + Semantic Scholar + wiki + Review LLM; outputs novelty score and recommendations |
+| review | `/review` | `$review` | Cross-model review of any research artifact — outputs structured scores, wiki entity mapping, and improvement suggestions |
+| exp-design | `/exp-design` | `$exp-design` | Idea-driven experiment design with iterative ablation — method candidates → benchmark selection → sensitivity analysis → main experiment |
+| exp-run | `/exp-run` | `$exp-run` | Full experiment execution pipeline — prepare code → deploy → monitor → collect results |
+| exp-status | `/exp-status` | `$exp-status` | View the status of all running experiments; optionally auto-collect completed runs and advance the pipeline |
+| exp-eval | `/exp-eval` | `$exp-eval` | Experiment verdict gate — Review LLM independently judges results and auto-updates the linked idea's status and graph edges |
+| refine | `/refine` | `$refine` | Multi-round iterative improvement — repeatedly reviews an artifact, parses feedback, applies fixes, and updates wiki until target score |
 
 ### Phase 3: Writing & Dissemination
-| Command | What it does |
-|---------|-------------|
-| `/survey` | Generate a Related Work section from wiki knowledge — thematic grouping → narrative structure → LaTeX output |
-| `/paper-plan` | Compile a paper outline from the idea graph — evidence map → narrative structure → section + figure + citation plan |
-| `/paper-draft` | Draft a LaTeX paper from `PAPER_PLAN` — write each section from wiki sources, generate figures/tables, verify BibTeX |
-| `/paper-compile` | LaTeX compile → PDF — latexmk compile + auto-fix + page count / anonymity / font checks + submission checklist |
-| `/research` | End-to-end research orchestrator — idea discovery → experiment design → execution → verdict → paper writing with human gates |
-| `/rebuttal` | Parse review comments → atomize concerns → map to wiki → stress-test with Review LLM → generate rebuttal |
-| `/poster` | Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures |
+| Skill | Claude Code | Codex | What it does |
+|-------|-------------|-------|-------------|
+| survey | `/survey` | `$survey` | Generate a Related Work section from wiki knowledge — thematic grouping → narrative structure → LaTeX output |
+| paper-plan | `/paper-plan` | `$paper-plan` | Compile a paper outline from the idea graph — evidence map → narrative structure → section + figure + citation plan |
+| paper-draft | `/paper-draft` | `$paper-draft` | Draft a LaTeX paper from `PAPER_PLAN` — write each section from wiki sources, generate figures/tables, verify BibTeX |
+| paper-compile | `/paper-compile` | `$paper-compile` | LaTeX compile → PDF — latexmk compile + auto-fix + page count / anonymity / font checks + submission checklist |
+| research | `/research` | `$research` | End-to-end research orchestrator — idea discovery → experiment design → execution → verdict → paper writing with human gates |
+| rebuttal | `/rebuttal` | `$rebuttal` | Parse review comments → atomize concerns → map to wiki → stress-test with Review LLM → generate rebuttal |
+| poster | `/poster` | `$poster` | Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures |
 
 ### Utilities
-| Command | What it does |
-|---------|-------------|
-| `/visualize` | Generate Obsidian graph configs and Canvas knowledge maps; the interactive web graph is served by `tools/serve.py` |
+| Skill | Claude Code | Codex | What it does |
+|-------|-------------|-------|-------------|
+| visualize | `/visualize` | `$visualize` | Generate Obsidian graph configs and Canvas knowledge maps; the interactive web graph is served by `tools/serve.py` |
 
 </details>
 

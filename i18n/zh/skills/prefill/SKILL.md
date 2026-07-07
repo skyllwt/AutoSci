@@ -1,6 +1,6 @@
 ---
 name: prefill
-description: 用领域基础知识填充 wiki/foundations/，避免后续 /ingest 为教科书材料创建重复的 concept 页面
+description: 用领域基础知识填充 wiki/foundations/，避免后续 ingest 为教科书材料创建重复的 concept 页面
 argument-hint: "[domain] [--add '概念名']"
 ---
 

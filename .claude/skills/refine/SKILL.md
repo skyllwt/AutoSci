@@ -1,6 +1,6 @@
 ---
 name: refine
-description: General-purpose multi-round iterative improvement — repeatedly calls /review on any research artifact, parses feedback, applies fixes, updates wiki, until the target score is reached
+description: General-purpose multi-round iterative improvement — repeatedly reviews any research artifact, parses feedback, applies fixes, updates wiki, until the target score is reached
 argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---
 
@@ -182,8 +182,8 @@ After iteration ends, generate the REFINE_REPORT:
 
 | Issue | Severity | Suggested action |
 |-------|----------|------------------|
-| Missing experimental validation | critical | Run `/exp-design {slug}` |
-| Missing comparison paper | major | Run `/ingest` for {paper-title} |
+| Missing experimental validation | critical | Use `/exp-design {slug}` in Claude Code or `$exp-design {slug}` in Codex |
+| Missing comparison paper | major | Use `/ingest` in Claude Code or `$ingest` in Codex for {paper-title} |
 
 ## Next Steps
 - {based on verdict and unresolved issues}

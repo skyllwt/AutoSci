@@ -1,7 +1,7 @@
 # Daily arXiv Automation
 
 GitHub Actions is the unattended scheduler for `/daily-arxiv`. It should run
-the same pipeline as a manual slash skill pass; it should not define the
+the same pipeline as a manual agent skill pass; it should not define the
 feature's user-facing purpose.
 
 ## Source of Truth

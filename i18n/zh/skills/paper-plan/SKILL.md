@@ -347,7 +347,7 @@ llm-review MCP chat tool:
    ## Review LLM Review: score {X}/10, verdict: {verdict}
 
    ## Next Steps
-   - Run `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
+   - 用 Claude Code 的 `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` 或 Codex 的 `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` 起草论文
    - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
    ```
 

@@ -1,6 +1,6 @@
 ---
 name: exp-pilot-eval
-description: Pilot result evaluation — read pilot results, apply success criteria, update idea page (pilot_result, failure_reason if failed), generate PILOT_VERDICT_REPORT. Called by /ideate Phase 5 after /exp-pilot-run.
+description: Pilot result evaluation — read pilot results, apply success criteria, update idea page (pilot_result, failure_reason if failed), generate PILOT_VERDICT_REPORT. Called by the ideate workflow after exp-pilot-run.
 argument-hint: <idea-slug> [--auto]
 ---
 

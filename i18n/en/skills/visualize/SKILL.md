@@ -58,7 +58,7 @@ Set `WIKI_ROOT=wiki/`.
 ### Step 0: Verify graph data exists
 
 Check that `wiki/graph/edges.jsonl` exists and is non-empty. If empty, report that no graph data
-exists yet and suggest running `/ingest` first.
+exists yet and suggest running `/ingest` in Claude Code or `$ingest` in Codex first.
 
 ### Step 1: Generate Obsidian config (--obsidian or --all)
 

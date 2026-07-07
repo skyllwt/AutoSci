@@ -1,6 +1,6 @@
 ---
 name: refine
-description: 通用多轮迭代改进：对任意研究制品反复调用 /review → 解析反馈 → 修复 → 更新 wiki，直到达标
+description: 通用多轮迭代改进：对任意研究制品反复 review → 解析反馈 → 修复 → 更新 wiki，直到达标
 argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---
 
@@ -181,8 +181,8 @@ python3 tools/research_wiki.py rebuild-open-questions wiki/
 
 | Issue | Severity | Suggested action |
 |-------|----------|------------------|
-| 缺少实验验证 | critical | Run `/exp-design {slug}` |
-| 缺少对比论文 | major | Run `/ingest` for {paper-title} |
+| 缺少实验验证 | critical | 用 Claude Code 的 `/exp-design {slug}` 或 Codex 的 `$exp-design {slug}` |
+| 缺少对比论文 | major | 用 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 处理 {paper-title} |
 
 ## Next Steps
 - {based on verdict and unresolved issues}

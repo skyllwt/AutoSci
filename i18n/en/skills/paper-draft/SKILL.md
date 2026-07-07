@@ -275,9 +275,9 @@ Make final adjustments based on Review LLM feedback.
    - [UNCONFIRMED] citations: {count} (resolve before /paper-compile)
 
    ## Next Steps
-   - Run `/paper-compile paper/` to compile and verify
+   - Compile and verify with `/paper-compile paper/` in Claude Code or `$paper-compile paper/` in Codex
    - Resolve [UNCONFIRMED] citations manually
-   - Run `/refine paper/main.tex --focus writing` for further polish
+   - Polish further with `/refine paper/main.tex --focus writing` in Claude Code or `$refine paper/main.tex --focus writing` in Codex
    ```
 
 ## Constraints

@@ -1,6 +1,6 @@
 ---
 name: discover
-description: 基于 anchor 论文、topic 关键词或当前 wiki 状态，产出一份排好序的候选论文 shortlist，供用户或上游 skill 决定是否进一步 `/ingest`。当用户问 "接下来该读什么"、"找和这篇相似的论文"、"推荐相关工作"、"这个方向周围有什么" 时触发；`/ingest --discover` 也会内部调用本 skill。本身不 ingest，只提出候选。
+description: 基于 anchor 论文、topic 关键词或当前 wiki 状态，产出一份排好序的候选论文 shortlist，供用户或上游 skill 决定是否进一步交给 ingest skill。当用户问 "接下来该读什么"、"找和这篇相似的论文"、"推荐相关工作"、"这个方向周围有什么" 时触发；ingest 使用 `--discover` 时也会内部调用本 skill。本身不 ingest，只提出候选。
 argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str> | --from-wiki | --venue <slug> --year <int>) [--limit N]"
 ---
 

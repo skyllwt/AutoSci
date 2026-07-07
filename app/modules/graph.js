@@ -122,7 +122,7 @@ export async function viewGraph(mount) {
   const allEdges = [...(payload.edges || []), ...(payload.citations || [])];
   if (allEdges.length === 0) {
     document.getElementById("cy").innerHTML =
-      `<div class="graph-empty">No graph data yet — run <code>/ingest</code> first.</div>`;
+      `<div class="graph-empty">No graph data yet — run <code>/ingest</code> in Claude Code or <code>$ingest</code> in Codex first.</div>`;
     return;
   }
 

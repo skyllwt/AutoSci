@@ -189,7 +189,7 @@ pdffonts paper/main.pdf
 
 ## Next Steps
 - {specific actions to resolve blocking issues}
-- Run `/refine paper/main.tex --focus writing` for final polish
+- Polish with `/refine paper/main.tex --focus writing` in Claude Code or `$refine paper/main.tex --focus writing` in Codex
 - Manual review of anonymous compliance
 ```
 

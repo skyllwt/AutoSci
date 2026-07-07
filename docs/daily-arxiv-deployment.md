@@ -1,6 +1,10 @@
-# Deploying `/daily-arxiv` on GitHub Actions
+# Deploying Daily arXiv on GitHub Actions
 
-This page is the operator's manual for running the daily arXiv pipeline on GitHub Actions. Read top-to-bottom for first-time setup; jump to **Troubleshooting** when a run fails.
+This page is the operator's manual for the current GitHub Actions deployment path
+for the daily arXiv pipeline. This CI path is **Claude Code Action only** today;
+Codex can run the local `$daily-arxiv` skill, but a Codex-compatible unattended
+CI runner has not been added yet. Read top-to-bottom for first-time setup; jump
+to **Troubleshooting** when a run fails.
 
 ## Setup
 
@@ -19,7 +23,7 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
    ```
    `DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env` — the SDK auto-registers there.
 
-4. **Run `/daily-arxiv setup` once** in your local checkout. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the slash skill, hand-add this under the `daily-arxiv:` job's `env:` block:
+4. **Run the daily-arxiv setup skill once** in your local checkout: `/daily-arxiv setup` in Claude Code, or `$daily-arxiv setup` in Codex for local configuration checks. The checked-in GitHub Actions workflow still uses Claude Code Action for unattended CI. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the agent skill, hand-add this under the `daily-arxiv:` job's `env:` block:
    ```yaml
    SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
    DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
@@ -71,7 +75,7 @@ Without these lines, the Python tool reads the env var as empty and runs in anon
 
 ### `Reached maximum number of turns (N)`
 
-`claude-code-action`'s `--max-turns` ceiling is too low for the work in one prompt. A single `/ingest` runs ~40–50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally.
+`claude-code-action`'s `--max-turns` ceiling is too low for the work in one prompt. A single ingest skill run takes roughly 40-50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally.
 
 ### `fatal: Authentication failed for 'https://github.com/<owner>/<repo>.git/'` (exit 128)
 
@@ -86,7 +90,7 @@ The step also needs `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` in its `env:` bl
 
 ### Pipeline finishes green, but no auto-ingest commit lands and no `wiki/papers/<slug>.md` is created
 
-The action's `--allowedTools` is missing `Skill` (and likely `TodoWrite` / `Agent`). Without `Skill`, Claude has no way to invoke the `/ingest` skill — but the prompt's structured output schema still gets filled in with `ingest_status: success`, so the failure is silent. Use:
+The action's `--allowedTools` is missing `Skill` (and likely `TodoWrite` / `Agent`). Without `Skill`, Claude has no way to invoke the ingest skill — but the prompt's structured output schema still gets filled in with `ingest_status: success`, so the failure is silent. Use:
 
 ```yaml
 claude_args: |

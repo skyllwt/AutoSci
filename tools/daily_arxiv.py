@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Deterministic helpers for the /daily-arxiv recommendation pipeline.
+"""Deterministic helpers for the daily-arxiv recommendation pipeline.
 
-The slash skill is the policy and LLM judgment layer. This helper keeps the
+The agent skill is the policy and LLM judgment layer. This helper keeps the
 repeatable parts in one place: config resolution, arXiv feed handling, wiki
 profile extraction, optional external enrichment, and digest formatting.
 """

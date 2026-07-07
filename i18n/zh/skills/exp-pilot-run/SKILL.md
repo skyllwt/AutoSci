@@ -1,6 +1,6 @@
 ---
 name: exp-pilot-run
-description: 预实验执行 — 读取 Pilot Spec YAML，撰写预实验代码，运行实验(运行前需向用户确认，申请用户手动检查)，返回结果。由 /ideate Phase 5 调用。不修改 wiki 页面，不判定 pass/fail。
+description: 预实验执行 — 读取 Pilot Spec YAML，撰写预实验代码，运行实验(运行前需向用户确认，申请用户手动检查)，返回结果。由 ideate 工作流调用。不修改 wiki 页面，不判定 pass/fail。
 argument-hint: <idea-slug> [--env local|remote]
 ---
 

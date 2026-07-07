@@ -347,7 +347,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    ## Review LLM Review: score {X}/10, verdict: {verdict}
 
    ## Next Steps
-   - Run `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
+   - Draft the paper with `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Claude Code or `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Codex
    - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
    ```
 

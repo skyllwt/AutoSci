@@ -270,7 +270,7 @@ Additional Experiments (if applicable):
 |-----------|-------------|--------------|
 | ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
-→ Run `/exp-design ablation-dataset-x` to design follow-up
+→ Design the follow-up with `/exp-design ablation-dataset-x` in Claude Code or `$exp-design ablation-dataset-x` in Codex
 
 ## Review LLM Stress-Test Summary
 - Average score: {N}/5

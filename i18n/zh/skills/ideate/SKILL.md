@@ -369,8 +369,8 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
    ## Suggested Next Steps
    - If --skip-pilot is not specified, run the pilot experiment for further screening.
-   - Run `/exp-design {top-idea-slug}` to design experiments
-   - Run `/novelty` on any idea before investing time
+   - 用 Claude Code 的 `/exp-design {top-idea-slug}` 或 Codex 的 `$exp-design {top-idea-slug}` 设计实验
+   - 投入时间前，用 Claude Code 的 `/novelty` 或 Codex 的 `$novelty` 检查任一 idea 的 novelty
 
    ## Wiki Growth
    | Metric | Before | After | Delta |

@@ -269,7 +269,7 @@ Additional Experiments (if applicable):
 |-----------|-------------|--------------|
 | ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
-→ Run `/exp-design ablation-dataset-x` to design follow-up
+→ 用 Claude Code 的 `/exp-design ablation-dataset-x` 或 Codex 的 `$exp-design ablation-dataset-x` 设计后续实验
 
 ## Review LLM Stress-Test Summary
 - Average score: {N}/5

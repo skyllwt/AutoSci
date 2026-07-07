@@ -370,8 +370,8 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
 
    ## Suggested Next Steps
    - If --skip-pilot is not specified, run the pilot experiment for further screening.
-   - Run `/exp-design {top-idea-slug}` to design experiments
-   - Run `/novelty` on any idea before investing time
+   - Design experiments with `/exp-design {top-idea-slug}` in Claude Code or `$exp-design {top-idea-slug}` in Codex
+   - Run novelty checks with `/novelty` in Claude Code or `$novelty` in Codex before investing time
 
    ## Wiki Growth
    | Metric | Before | After | Delta |

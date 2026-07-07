@@ -275,9 +275,9 @@ llm-review MCP chat tool:
    - [UNCONFIRMED] citations: {count} (resolve before /paper-compile)
 
    ## Next Steps
-   - Run `/paper-compile paper/` to compile and verify
+   - 用 Claude Code 的 `/paper-compile paper/` 或 Codex 的 `$paper-compile paper/` 编译并检查
    - Resolve [UNCONFIRMED] citations manually
-   - Run `/refine paper/main.tex --focus writing` for further polish
+   - 用 Claude Code 的 `/refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 继续润色
    ```
 
 ## Constraints

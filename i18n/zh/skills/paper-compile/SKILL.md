@@ -189,7 +189,7 @@ pdffonts paper/main.pdf
 
 ## Next Steps
 - {specific actions to resolve blocking issues}
-- Run `/refine paper/main.tex --focus writing` for final polish
+- 用 Claude Code 的 `/refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 做最终润色
 - Manual review of anonymous compliance
 ```
 

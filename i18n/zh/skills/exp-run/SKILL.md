@@ -281,7 +281,7 @@ tail -f logs/exp-{slug}.log
      Latest metric: {metric} = {value}
      Anomalies: {none | NaN detected | ...}
      Estimated remaining: ~{N} hours
-     Run `/exp-status` to monitor all running experiments.
+     用 Claude Code 的 `/exp-status` 或 Codex 的 `$exp-status` 监控所有运行中的实验。
      ```
    - **返回**（不执行 Phase 4）
 
@@ -341,7 +341,7 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update the linked idea in wiki
+   - 用 Claude Code 的 `/exp-eval {slug}` 或 Codex 的 `$exp-eval {slug}` 更新 wiki 中关联的 idea
    - {if succeeded: proceed to next experiment in plan}
    - {if failed: analyze failure, consider /exp-design revision}
    ```

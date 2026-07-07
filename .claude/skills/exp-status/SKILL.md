@@ -110,7 +110,7 @@ For each target experiment, execute in parallel (or sequentially):
 ### ⚠️ Anomaly Detected ({N})
 | Experiment | Elapsed | Issue | Action |
 |-----------|---------|-------|--------|
-| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | Run `/exp-run exp-foo-ablation --collect` to inspect |
+| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | Inspect with `/exp-run exp-foo-ablation --collect` in Claude Code or `$exp-run exp-foo-ablation --collect` in Codex |
 
 ### ✅ Completed — Pending Collect ({N})
 | Experiment | Finished (estimate) |
