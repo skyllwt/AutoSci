@@ -2,10 +2,10 @@
 """One-shot backfill: populate wiki/graph/citations.jsonl for all already-ingested
 papers.
 
-The bootstrap `/init` workflow skips `fetch_s2.py references` in parallel mode
-for safety and never reinstates it at fan-in. As a result, freshly-bootstrapped
-wikis have an empty `citations.jsonl`. This script walks every paper in
-`wiki/papers/`, fetches references from Semantic Scholar, and uses
+The bootstrap `/init` workflow skips per-paper `fetch_s2.py references` in
+INIT MODE so batch ingest can avoid redundant network calls and conflicting
+writes. This script walks every paper in `wiki/papers/`, fetches references
+from Semantic Scholar once after the batch, and uses
 `research_wiki.py add-citations-batch` to append all matching `cites` rows.
 
 Idempotent: re-runs only add newly-discovered references; existing ones are
@@ -15,8 +15,6 @@ Usage:
     .venv/bin/python tools/backfill_citations.py [--wiki-dir wiki/]
 """
 from __future__ import annotations
-
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json
@@ -34,6 +32,11 @@ import tools._env  # noqa: F401, E402  side-effect: load .env files
 # Use the current interpreter (handles .venv automatically when invoked via
 # .venv/bin/python). Fall back to "python3" only if frozen-ish environment.
 PYTHON_BIN = sys.executable or "python3"
+
+
+def _require_network() -> None:
+    """Trigger the Codex sandbox gate only when the S2 fetch loop will run."""
+    import tools._sandbox  # noqa: F401
 
 
 def _parse_arxiv_id(md_path: Path) -> str | None:
@@ -72,6 +75,9 @@ def main() -> int:
 
     paper_files = sorted(papers_dir.glob("*.md"))
     print(f"Found {len(paper_files)} papers in {papers_dir}")
+
+    if any(_parse_arxiv_id(md) for md in paper_files):
+        _require_network()
 
     totals = {"received": 0, "matched": 0, "added": 0,
               "skipped_existing": 0, "unmatched": 0}

@@ -13,7 +13,7 @@ argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 - `references/pdf-preprocessing.md` —— 直接 PDF 输入时的 arXiv-ID 恢复、tex 抓取、prepare-paper 交接流程
 - `references/dedup-policy.md` —— concept / method 的合并与新建决策规则，以及 `/ingest` 形状检查与 `/check` 语义审计的边界
 - `references/cross-references.md` —— 正向/反向链接矩阵与 paper-to-paper edge 类型选择
-- `references/init-mode.md` —— `/init` 的 manifest 交接与并行安全约束
+- `references/init-mode.md` —— init 的 manifest 交接与 batch 安全约束
 - `references/error-handling.md` —— 来源解析、API 与 slug 冲突的 fallback
 
 写 wiki 页面 frontmatter 字段去 `runtime/schema/entities.yaml`,正文章节顺序去 `runtime/templates/{kind}.md.tmpl`;`index.md`、`log.md`、`graph/` 形状去 `runtime/schema/conventions.yaml` 与 `runtime/schema/edges.yaml`。
@@ -22,7 +22,7 @@ argument-hint: <local-path-or-arXiv-URL> [--discover] [--visualize]
 
 - `source`：四种之一 —— arXiv URL（例如 `https://arxiv.org/abs/2106.09685`）、本地 `.tex`、本地 `.pdf`、或 `/init` 通过 `.checkpoints/init-sources.json` 交接的 `canonical_ingest_path`（见 `references/init-mode.md`）
 - `--discover`（可选，默认 **关闭**）：在最终 report 之后调用 `/discover --anchor <this-paper's-arxiv-id>`，把 shortlist 作为 "接下来可能想 ingest 的相关论文" 附在 report 里。从不自动 ingest 推荐结果。INIT MODE 下自动跳过。视为用户可见参数：不得仅根据仓库状态擅自开启。
-- `--visualize`（可选，默认 **关闭**）：在 Step 7 rebuild 之后通过 `tools/visualize.py generate-canvas` 重新生成 Canvas 可视化产物。INIT MODE 下自动跳过 —— 由上层 `/init` 在 fan-in 时统一处理可视化。视为用户可见参数：不得仅根据仓库状态擅自开启。（交互式网页 Graph 视图位于 SPA 的 `app/modules/graph.js`，由 `tools/serve.py` 服务，直接读取 `wiki/graph/`，不需要每次 ingest 单独重生成。）
+- `--visualize`（可选，默认 **关闭**）：在 Step 7 rebuild 之后通过 `tools/visualize.py generate-canvas` 重新生成 Canvas 可视化产物。INIT MODE 下自动跳过 —— 由上层 init workflow 在 batch 后统一处理可视化。视为用户可见参数：不得仅根据仓库状态擅自开启。（交互式网页 Graph 视图位于 SPA 的 `app/modules/graph.js`，由 `tools/serve.py` 服务，直接读取 `wiki/graph/`，不需要每次 ingest 单独重生成。）
 
 ## Outputs
 
@@ -169,7 +169,7 @@ raw 持久化规则：已经在 `raw/discovered/`、`raw/tmp/`、`raw/papers/` �
 
 ### Step 5: paper-to-paper edge 与 `cited_by`
 
-INIT MODE 下整步跳过 —— 由上层 `/init` 在 fan-in 时统一处理。
+INIT MODE 下整步跳过 —— 由上层 init workflow 在 batch 后统一处理。
 
 ```bash
 "$PYTHON_BIN" tools/fetch_s2.py references <arxiv-id>
@@ -205,7 +205,7 @@ INIT MODE 下整步跳过 —— 由上层 `/init` 在 fan-in 时统一处理。
 
 ### Step 7.5: 可选的可视化（仅当 `--visualize` 开启）
 
-只有用户显式传 `--visualize` 时才执行本步。INIT MODE 下也一律跳过 —— `/init` 父流程在 fan-in 时统一重生成 Canvas，单个子代理不应重复执行从而引入并发写。
+只有用户显式传 `--visualize` 时才执行本步。INIT MODE 下也一律跳过 —— init 父流程在 batch 后统一重生成 Canvas，单篇论文 ingest 不应重复执行从而引入冲突写。
 
 开启后，重新生成 Canvas（best-effort；visualize 失败不应让 `/ingest` 失败）：
 
@@ -226,7 +226,7 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 
 ### Step 9: 可选的 discovery（仅当 `--discover` 显式开启）
 
-如果用户没有显式传 `--discover`，跳过本步骤。INIT MODE 下也一律跳过 —— 是否在 fan-in 之后跑 discovery，是 `/init` 父流程的决定，不是单个子代理的决定。
+如果用户没有显式传 `--discover`，跳过本步骤。INIT MODE 下也一律跳过 —— 是否在 batch 之后跑 discovery，是 init 父流程的决定，不是单篇论文 ingest 的决定。
 
 开启时，用刚 ingest 论文作为单 anchor 调用 `/discover`：
 
@@ -247,7 +247,7 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 - `wiki/graph/` 由工具维护。仅通过 `tools/research_wiki.py` 修改。
 - slug 始终来自 `tools/research_wiki.py slug`，不得手写。
 - 每一条正向链接必须在同一 turn 内写入其反向链接 —— 这是 wiki 的双向链接不变量。唯一例外是指向 `wiki/foundations/` 的链接，foundations 是终端节点。
-- 在 INIT MODE 下，不要向已有页面（由 sibling worktree 或 scaffold 创建的）写入反向链接。只通过 `tools/research_wiki.py add-edge` 记录关系；上层 `/init` 在 fan-in 时统一回填反向链接。
+- 在 INIT MODE 下，不要向已有页面（由前一个串行论文步骤、sibling worktree 或 scaffold 创建的）写入反向链接。只通过 `tools/research_wiki.py add-edge` 记录关系；上层 init workflow 在 batch 后统一回填反向链接。
 - 来源优先级：`.tex` > `.pdf` > vision API fallback。只要有可用 `.tex`，就不从 PDF ingest。
 - ingest 对新实体保守：
   - importance < 4：每篇论文最多 **1** 个新 concept、**1** 个新 method
@@ -255,9 +255,9 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
   - 超出上限的候选，必须合并到最接近的已有条目，或整体跳过交给 `/check` 标记。规则与理由：`references/dedup-policy.md`。
 - `methods/` 页面只有当技术**命名了**、**可复用**、且**可能被未来论文引用**时才合理新建。论文页面自身的 `## Method` 正文章节捕捉了这篇论文的方法叙述；除非该方法值得被复用，不要把它复制成一个 method 实体。
 - `/ingest` 只对自己写出的内容做形状检查（必需字段、枚举取值、YAML 可解析），到此为止。反向链接对称性、dangling node、完整语义审计属于 `/check`，不要在本 skill 内重复实现。
-- 必须假设有其他 `/ingest` 在并行 worktree 中同时运行 —— 批量 ingest 已在路线图上。所有对共享文件（`graph/edges.jsonl`、`graph/citations.jsonl`、`index.md`、`log.md`）的写入必须经过 `tools/research_wiki.py` 或采用 append-only 语义。详见 `references/init-mode.md`。
-- INIT MODE 下跳过 `fetch_s2.py citations`、`fetch_s2.py references`，以及 `rebuild-*` 命令 —— 由上层 `/init` 在 fan-in 后统一运行。
-- INIT MODE 下也跳过 Step 7.5 的可视化重生成（无论 `--visualize` 是否开启）；由上层 `/init` 在 fan-in 时统一调用 visualize，避免 sibling worktree 间的并发写。
+- 必须假设有其他 ingest 在同一 batch 或 sibling worktree 中运行。所有对共享文件（`graph/edges.jsonl`、`graph/citations.jsonl`、`index.md`、`log.md`）的写入必须经过 `tools/research_wiki.py` 或采用 append-only 语义。详见 `references/init-mode.md`。
+- INIT MODE 下跳过 `fetch_s2.py citations`、`fetch_s2.py references`，以及 `rebuild-*` 命令 —— 由上层 init workflow 在 batch 后统一运行。
+- INIT MODE 下也跳过 Step 7.5 的可视化重生成（无论 `--visualize` 是否开启）；由上层 init workflow 在 batch 后统一调用 visualize，避免冲突写。
 
 ## Error Handling
 
@@ -288,10 +288,10 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 
 ### Skills
 
-- `/init` —— 通过 INIT MODE 并行调用 `/ingest` 子代理
+- `/init` / `$init` —— 默认通过 INIT MODE SERIAL 逐篇调用 ingest；支持时也可通过 INIT MODE PARALLEL 并行调用子代理
 - `/check` —— 在 `/ingest` 完成后审计 wiki，负责所有 `/ingest` 故意不做的语义检查
 - `/discover` —— 可选后续，当 `--discover` 开启时运行；产出用户可能想接着 ingest 的相关论文 shortlist
-- `/visualize` —— Step 7.5（`--visualize` 开启且非 INIT MODE 时）通过直接调用 `tools/visualize.py` 重新生成 Canvas + HTML（best-effort）
+- `/visualize` —— Step 7.5（`--visualize` 开启且非 INIT MODE 时）通过直接调用 `tools/visualize.py` 重新生成 Canvas（best-effort）；交互式网页 Graph 视图由 `tools/serve.py` 提供服务
 
 ### External APIs
 

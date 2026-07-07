@@ -8,8 +8,6 @@ Usage:
 """
 from __future__ import annotations
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
-
 import argparse
 import json
 import os
@@ -23,7 +21,6 @@ from typing import Any
 
 import requests
 
-from fetch_s2 import search as s2_search
 from research_wiki import slugify
 
 try:
@@ -99,6 +96,18 @@ LATEX_DROP_SIMPLE_COMMANDS = (
 )
 
 
+def _require_network() -> None:
+    """Trigger the Codex sandbox gate only for operations that need HTTP APIs."""
+    import _sandbox  # noqa: F401
+
+
+def _s2_search(query: str, limit: int = 5) -> list[dict[str, Any]]:
+    _require_network()
+    from fetch_s2 import search
+
+    return search(query, limit=limit)
+
+
 def _project_root(raw_root: Path) -> Path:
     return raw_root.resolve().parent
 
@@ -166,7 +175,7 @@ def _recover_arxiv_id_by_title(title: str) -> str:
     if not title or len(title) < 8:
         return ""
     try:
-        results = s2_search(title, limit=5)
+        results = _s2_search(title, limit=5)
     except Exception:
         return ""
     normalized_title = _normalize_text(title)
@@ -190,6 +199,7 @@ def _recover_arxiv_id_by_title(title: str) -> str:
 
 
 def _download_arxiv_source(arxiv_id: str, dest_dir: Path) -> dict[str, Any]:
+    _require_network()
     arxiv_id = _normalize_arxiv_id(arxiv_id)
     headers = {"User-Agent": "OmegaWiki-prepare-paper-source/1.0"}
     try:

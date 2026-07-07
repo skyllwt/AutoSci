@@ -39,9 +39,16 @@
 - `/init` 下载的论文只允许写入 `raw/discovered/`，绝不写入 `raw/papers/`。
 - 若某篇候选已经由 prepared local source 覆盖，则禁止重复抓取。
 
+然后生成执行 handoff：
+
+```bash
+"$PYTHON_BIN" tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json
+```
+
 ## Source Manifest 合同
 
 - `.checkpoints/init-sources.json` 是 Step 5 ingest 顺序的唯一真相源。
 - 用户本地论文在 `init-sources.json` 中以 `origin=user_local` 记录，并在可用时带上 canonical prepared path。
 - introduced 论文在 `init-sources.json` 中以 `origin=introduced` 记录，其 canonical path 位于 `raw/discovered/`。
 - Step 5 必须原样消费 handoff 过来的 `canonical_ingest_path`。
+- `.checkpoints/init-handoff.json` 是 Step 5 的直接执行列表。Codex 使用 `mode: serial` 与 `INIT MODE SERIAL`；支持并行的 runtime 可以用 `--mode parallel` 重新生成。

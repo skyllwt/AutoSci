@@ -39,9 +39,16 @@ Run:
 - External papers downloaded by `/init` go to `raw/discovered/`, never `raw/papers/`.
 - Never fetch a paper that is already represented by a prepared local source from `raw/tmp/`.
 
+Then build the execution handoff:
+
+```bash
+"$PYTHON_BIN" tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json
+```
+
 ## Source Manifest Contract
 
 - `.checkpoints/init-sources.json` is the single source of truth for Step 5 ingest order.
 - User-owned papers appear in `init-sources.json` with `origin=user_local` and their canonical prepared path when available.
 - Introduced papers appear in `init-sources.json` with `origin=introduced` and their canonical `raw/discovered/` path.
 - Step 5 must consume the handed-off `canonical_ingest_path` exactly as written.
+- `.checkpoints/init-handoff.json` is the direct Step 5 execution list. Codex uses `mode: serial` and `INIT MODE SERIAL`; parallel-capable runtimes may regenerate it with `--mode parallel`.

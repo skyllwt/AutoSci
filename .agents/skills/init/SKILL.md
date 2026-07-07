@@ -1,18 +1,18 @@
 ---
 name: init
-description: Bootstrap AutoSci from user sources plus optional discovery, then ingest the final paper set in parallel
+description: Bootstrap AutoSci from user sources plus optional discovery, then ingest the final paper set with a Codex-safe serial path or an optional parallel worktree path
 argument-hint: "[topic] [--no-introduction]"
 ---
 
 # /init
 
-> Build a wiki from `raw/` with deterministic source preparation, planner-guided discovery, provisional notes/web scaffolding, and parallel `/ingest` fan-out/fan-in.
+> Build a wiki from `raw/` with deterministic source preparation, planner-guided discovery, provisional notes/web scaffolding, and batch ingest. Codex defaults to serial ingest in the main workspace; runtimes with reliable subagent workdir control may use the parallel worktree path.
 
 Use these local references on demand:
 
 - `references/prepare-and-discovery.md` — prepare flow, final selection, fetch, and source-manifest rules
 - `references/planner-policy.md` — planner behavior and LLM trim expectations
-- `references/parallel-ingest.md` — worktree isolation, subagent prompt contract, merge, and cleanup
+- `references/parallel-ingest.md` — Codex-safe serial ingest contract plus optional worktree isolation, subagent prompt contract, merge, and cleanup
 
 ## Inputs
 
@@ -24,7 +24,7 @@ Use these local references on demand:
 
 - `wiki/` scaffold and provisional pages (Summary, topics, ideas, concepts)
 - `raw/tmp/` and `raw/discovered/` prepared sources
-- Final paper pages via parallel `/ingest` subagents
+- Final paper pages via the ingest workflow (Codex-safe serial by default; optional parallel worktree mode)
 - `.checkpoints/init-*.json` manifests for resume and replay
 - Updated `wiki/index.md`, `wiki/log.md`, `wiki/graph/*`
 - Refreshed visualization artifacts: `wiki/.obsidian/graph.json` (per-entity-type color groups) and `wiki/canvases/*.canvas` (best-effort, see Step 6). The interactive web Graph view is served by `tools/serve.py` (SPA), not regenerated as a standalone file.
@@ -34,7 +34,7 @@ Use these local references on demand:
 ### Reads
 
 - `raw/papers/`, `raw/notes/`, `raw/web/`
-- `.checkpoints/init-prepare.json` and `.checkpoints/init-sources.json` for resume, planning, and fan-out
+- `.checkpoints/init-prepare.json` and `.checkpoints/init-sources.json` for resume, planning, and batch ingest
 - `wiki/index.md` plus existing `wiki/topics/`, `wiki/ideas/`, `wiki/concepts/`, `wiki/methods/` for duplicate avoidance and scaffold alignment
 
 ### Writes
@@ -42,7 +42,7 @@ Use these local references on demand:
 - `wiki/` scaffold and provisional pages
 - `raw/tmp/` and `raw/discovered/`
 - `wiki/index.md`, `wiki/log.md`, `wiki/graph/*`
-- `.checkpoints/init-prepare.json`, `.checkpoints/init-plan.json`, `.checkpoints/init-sources.json`, and `init-session` checkpoint metadata
+- `.checkpoints/init-prepare.json`, `.checkpoints/init-plan.json`, `.checkpoints/init-sources.json`, `.checkpoints/init-handoff.json`, and `init-session` checkpoint metadata
 
 ### Graph edges created
 
@@ -125,9 +125,16 @@ Then run:
 "$PYTHON_BIN" tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id <candidate-id> --id <candidate-id>
 ```
 
+Then build the ordered ingest handoff. Codex should use `--mode serial`; parallel-capable runtimes may regenerate it with `--mode parallel` before Step 5:
+
+```bash
+"$PYTHON_BIN" tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json
+```
+
 - external papers downloaded by `/init` go to `raw/discovered/`, never `raw/papers/`
 - never fetch a paper that is already represented by a prepared local source from `raw/tmp/`
 - `.checkpoints/init-sources.json` is the single source of truth for downstream ingest order
+- `.checkpoints/init-handoff.json` is the direct execution list for Step 5; follow its `tasks[*].canonical_ingest_path`, `tasks[*].init_mode`, and `tasks[*].active_ingest_skill`
 
 ### Step 4: Create scaffold pages before paper ingest
 
@@ -149,14 +156,42 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - `/prefill` is optional background seeding and is not part of `/init`
 - `/init` must not create `people/` pages directly and must not auto-create foundations
 
-### Step 5: Parallel paper ingest with worktree isolation
+### Step 5: Batch paper ingest orchestration
 
-Paper sources for this step come strictly from `.checkpoints/init-sources.json`:
+Paper sources for this step come strictly from `.checkpoints/init-handoff.json`, which is derived from `.checkpoints/init-sources.json`:
 
 - `origin=user_local`: canonical prepared `.tex` under `raw/tmp/` when available, otherwise fallback `raw/papers/...`
 - `origin=introduced`: fetched dirs or PDFs under `raw/discovered/`
 
-Parallel ingest contract:
+Mode selection:
+
+- **Codex default**: run ingest serially in the main workspace. Use this path whenever the runtime cannot guarantee isolated subagent working directories, branch commits, and fan-in control.
+- **Parallel worktree mode**: use only when the runtime can spawn one subagent per paper with an explicit `$WT_PATH` working directory and can merge committed worktree branches afterward. This remains the Claude Code-compatible fast path.
+- If uncertain, choose serial mode. Correct, resumable ingest is more important than parallelism.
+
+Serial INIT MODE contract (Codex-safe default):
+
+- do not create worktrees
+- do not require a named branch
+- do not stash unrelated dirty files solely for batch ingest; still avoid editing unrelated files
+- process tasks in `tasks[*].order` from `.checkpoints/init-handoff.json`
+- for each task, load the active ingest skill instructions named in `tasks[*].active_ingest_skill` and execute the ingest workflow for exactly one `tasks[*].canonical_ingest_path`; do not bypass ingest by hand-writing paper/concept/method pages directly
+- pass the execution context explicitly as **INIT MODE SERIAL**
+- in INIT MODE SERIAL:
+  - consume the canonical path exactly as provided
+  - treat `raw/` as read-only
+  - skip `fetch_s2.py citations`
+  - skip `fetch_s2.py references`
+  - skip per-paper `rebuild-index`
+  - skip per-paper `rebuild-context-brief`
+  - skip per-paper `rebuild-open-questions`
+  - skip conflict-prone topic writes
+  - skip per-paper visualization and discovery follow-ups
+  - do **not** create a git commit after each paper
+- if one paper fails, record the failure in the final report, leave any partial uncommitted changes for that paper out of the final state when possible, and continue with the remaining papers when the workspace is coherent; stop if a partial failure leaves ambiguous wiki state
+- run all rebuild, dedup, lint, citation-backfill, and visualization steps once in Step 6 after the serial batch finishes
+
+Parallel worktree contract (optional):
 
 - stash unrelated dirty files before fan-out, then record `stash_ref`, `base_branch`, and `base_commit` in checkpoint metadata
 - commit the freshly created scaffold and init manifests before fan-out so `BASE_COMMIT` actually contains the pages, manifests, and handoff metadata that subagents must branch from
@@ -173,33 +208,35 @@ Parallel ingest contract:
 - skip per-subagent `rebuild-open-questions`
 - skip conflict-prone topic writes
 - commit the ingest result inside the worktree before exiting so fan-in merges a real paper-specific commit instead of an empty branch
-- see `references/parallel-ingest.md` for worktree commands, merge order, fan-in, and cleanup
+- see `references/parallel-ingest.md` for serial fallback details, worktree commands, merge order, fan-in, and cleanup
 
 ### Step 6: Fan-in, rebuild, and final report
 
-After all subagents complete:
+After serial ingest completes, or after all parallel subagents complete:
 
-- merge worktree branches sequentially on `BASE_BRANCH`
+- in serial mode, do not merge branches; continue in the main workspace
+- in parallel worktree mode, merge worktree branches sequentially on `BASE_BRANCH`
 - resolve true concept / method conflicts conservatively: merge, do not multiply near-duplicates
 - run:
 
 ```bash
 "$PYTHON_BIN" tools/research_wiki.py dedup-edges wiki/
 "$PYTHON_BIN" tools/research_wiki.py dedup-citations wiki/
+"$PYTHON_BIN" tools/research_wiki.py topic-backfill wiki/
 "$PYTHON_BIN" tools/research_wiki.py rebuild-index wiki/
 "$PYTHON_BIN" tools/research_wiki.py rebuild-context-brief wiki/
 "$PYTHON_BIN" tools/research_wiki.py rebuild-open-questions wiki/
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
-Then backfill `cites` edges via Semantic Scholar — `fetch_s2.py references` was skipped per-worktree (parallel safety) and must be reinstated serially here. Best-effort: S2 outages must not fail `/init`.
+Then backfill `cites` edges via Semantic Scholar — `fetch_s2.py references` was skipped per-paper during INIT MODE and must be reinstated serially here. Best-effort: S2 outages must not fail `/init`.
 
 ```bash
 "$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/ \
   || echo "WARN: citation backfill failed or partial; check stderr above" >&2
 ```
 
-Then regenerate visualization artifacts (best-effort; visualize failure must not fail `/init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `config/visualize.json` so the per-entity-type color groups stay in sync with the runtime config — Obsidian's graph view shows uncolored nodes when `colorGroups` is empty, so this step keeps the graph readable across rebuilds.
+Then regenerate visualization artifacts (best-effort; visualize failure must not fail `/init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `config/visualize.json` so the per-entity-type color groups stay in sync with the runtime config — Obsidian's graph view shows uncolored nodes when `colorGroups` is empty, so this step keeps the graph readable across rebuilds. The interactive web Graph view is the SPA `#/graph` route served by `tools/serve.py`; this stage does not generate a standalone HTML file.
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
@@ -214,12 +251,12 @@ Report separately:
 - user-provided papers that fell back to original `raw/papers/` paths
 - discovered papers from `raw/discovered/`
 - provisional pages seeded from notes/web
-- pages created by `/ingest`
-- pages updated by `/ingest`
+- pages created by ingest
+- pages updated by ingest
 - any skipped or failed papers
-- visualization refresh status (Canvas + HTML succeeded, or which step warned)
+- visualization refresh status (Obsidian config and Canvas succeeded, or which step warned)
 
-If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoint and report the failure.
+If parallel mode created `stash_ref`, pop it at the end. If stash pop fails, keep the checkpoint and report the failure.
 
 ## Constraints
 
@@ -232,8 +269,8 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - `/init` must not create `people/` pages directly
 - notes/web-derived pages are provisional and must carry the exact notice line above
 - paper evidence outranks notes/web for concept consolidation and method extraction
-- all paper ingest must run through parallel `/ingest` subagents with worktree isolation
-- Step 5 must read paper inputs from `.checkpoints/init-sources.json`, not by ad hoc folder scanning
+- all paper ingest must run through the ingest workflow; Codex should use serial INIT MODE unless a reliable subagent/worktree path is available
+- Step 5 must read paper inputs from `.checkpoints/init-handoff.json`, not by ad hoc folder scanning
 - exact deterministic planner policy belongs in `tools/init_discovery.py`, not in duplicated skill constants
 
 ## Error Handling
@@ -246,9 +283,9 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - **S2 or DeepXiv unavailable**: planner falls back to the remaining sources; preserve the warning in the checkpointed plan and note degraded discovery in the report
 - **External fetch fails for one paper**: keep the remaining final set and report the failed download
 - **Single paper ingest fails**: record it via checkpoint, skip it, continue the rest, and list it in the report
-- **Current checkout is detached HEAD**: stop before worktree fan-out and ask the user to switch to or create a named branch first
+- **Current checkout is detached HEAD**: use serial mode, or stop before parallel worktree fan-out and ask the user to switch to or create a named branch first
 - **stash pop fails**: keep checkpoint metadata and report the manual recovery step
-- **Visualization regeneration fails**: warn and continue; never fail `/init`. The user can rerun `/visualize --canvas --html` separately to diagnose
+- **Visualization regeneration fails**: warn and continue; never fail `/init`. The user can rerun `/visualize --canvas` separately to diagnose, or browse the SPA Graph view through `python tools/serve.py`
 
 ## Dependencies
 
@@ -259,22 +296,25 @@ If `stash_ref` exists, pop it at the end. If stash pop fails, keep the checkpoin
 - `"$PYTHON_BIN" tools/research_wiki.py checkpoint-save/load/clear wiki/ init-session ...`
 - `"$PYTHON_BIN" tools/research_wiki.py dedup-edges wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py dedup-citations wiki/`
+- `"$PYTHON_BIN" tools/research_wiki.py topic-backfill wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py rebuild-index wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py rebuild-context-brief wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py rebuild-open-questions wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py log wiki/ "<message>"`
-- `"$PYTHON_BIN" tools/prepare_paper_source.py --raw-root raw --source <local-path> [--title "<recovered-title>"]`
+- `"$PYTHON_BIN" tools/prepare_paper_source.py --raw-root raw --source <local-path> [--title "<recovered-title>"] [--arxiv-id "<recovered-arxiv-id>"]`
 - `"$PYTHON_BIN" tools/init_discovery.py prepare --raw-root raw --pdf-titles-json .checkpoints/init-pdf-titles.json --output-manifest .checkpoints/init-prepare.json`
 - `"$PYTHON_BIN" tools/init_discovery.py plan [--topic "<topic>"] --mode auto --raw-root raw --wiki-root wiki --prepared-manifest .checkpoints/init-prepare.json --allow-introduction <true|false> --output-plan .checkpoints/init-plan.json`
 - `"$PYTHON_BIN" tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id <candidate-id>`
+- `"$PYTHON_BIN" tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json`
+- `"$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/`
 - `"$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix`
 - `"$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/`
 - `"$PYTHON_BIN" tools/visualize.py generate-canvas wiki/`
 
 ### Skills
 
-- `/ingest` — one paper per subagent, in INIT MODE
-- `/visualize` — Step 6 fan-in regenerates Obsidian graph color groups, Canvas, and HTML by calling `tools/visualize.py` directly (best-effort); the user may also invoke `/visualize` manually later for `--focus` views or to re-render after editing `config/visualize.json`
+- `/ingest` / `$ingest` — one paper per serial step or per subagent, in INIT MODE
+- `/visualize` — Step 6 fan-in regenerates Obsidian graph color groups and Canvas by calling `tools/visualize.py` directly (best-effort); the user may also invoke `/visualize` manually later for `--focus` views or to re-render after editing `config/visualize.json`
 
 ### External APIs used by `init_discovery.py`
 

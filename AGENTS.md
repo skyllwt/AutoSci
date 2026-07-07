@@ -69,6 +69,7 @@ and the matching prefix rule from the table below.
 | `tools/fetch_wikipedia.py` | `["$PYTHON_BIN", "tools/fetch_wikipedia.py"]` | "AutoSci fetch_wikipedia needs network access" |
 | `tools/daily_arxiv.py` | `["$PYTHON_BIN", "tools/daily_arxiv.py"]` | "AutoSci daily_arxiv needs network access" |
 | `tools/prepare_paper_source.py` | `["$PYTHON_BIN", "tools/prepare_paper_source.py"]` | "AutoSci prepare_paper_source needs network access" |
+| `tools/backfill_citations.py` | `["$PYTHON_BIN", "tools/backfill_citations.py"]` | "AutoSci backfill_citations needs network access" |
 | `tools/serve.py` | `["$PYTHON_BIN", "tools/serve.py"]` | "AutoSci serve needs network access" |
 
 `$PYTHON_BIN` is resolved by the skill as `.venv/bin/python` (or equivalent).

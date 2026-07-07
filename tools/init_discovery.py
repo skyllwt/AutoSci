@@ -5,6 +5,7 @@ Usage:
     python3 tools/init_discovery.py prepare --raw-root raw --pdf-titles-json .checkpoints/init-pdf-titles.json --output-manifest .checkpoints/init-prepare.json
     python3 tools/init_discovery.py plan [--topic "efficient llm finetuning"] --prepared-manifest .checkpoints/init-prepare.json --output-plan .checkpoints/init-plan.json
     python3 tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id arxiv:2106.09685
+    python3 tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json
     python3 tools/init_discovery.py download --raw-root raw --arxiv-id 2106.09685 --title "Example Paper"
 """
 
@@ -27,13 +28,6 @@ from typing import Any
 
 import requests
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
-
-import prepare_paper_source as paper_source
-from fetch_deepxiv import search as deepxiv_search
-from fetch_s2 import citations as s2_citations
-from fetch_s2 import references as s2_references
-from fetch_s2 import search as s2_search
 from research_wiki import slugify
 
 try:
@@ -89,6 +83,45 @@ RANKING_WEIGHTS = {
 }
 EXCLUSION_PENALTY = 12
 MAX_SOURCE_ARCHIVE_BYTES = 250_000_000
+
+
+def _require_network() -> None:
+    """Trigger the Codex sandbox gate only for commands that need network APIs."""
+    import _sandbox  # noqa: F401
+
+
+def _prepare_paper_source(path: Path, raw_root: Path, *, title: str = "", arxiv_id: str = "") -> dict[str, Any]:
+    import prepare_paper_source as paper_source
+
+    return paper_source.prepare_paper_source(path, raw_root, title=title, arxiv_id=arxiv_id)
+
+
+def _s2_search(query: str, limit: int = 20) -> list[dict[str, Any]]:
+    _require_network()
+    from fetch_s2 import search
+
+    return search(query, limit=limit)
+
+
+def _s2_citations(arxiv_id: str, limit: int = 40) -> list[dict[str, Any]]:
+    _require_network()
+    from fetch_s2 import citations
+
+    return citations(arxiv_id, limit=limit)
+
+
+def _s2_references(arxiv_id: str, limit: int = 40) -> list[dict[str, Any]]:
+    _require_network()
+    from fetch_s2 import references
+
+    return references(arxiv_id, limit=limit)
+
+
+def _deepxiv_search(query: str, limit: int = 12) -> list[dict[str, Any]]:
+    _require_network()
+    from fetch_deepxiv import search
+
+    return search(query, limit=limit)
 
 
 def _paper_entry_match_key(entry: dict[str, Any]) -> tuple[str, str]:
@@ -254,7 +287,7 @@ def _recover_arxiv_id_by_title(title: str) -> str:
     if not title or len(title) < 8:
         return ""
     try:
-        results = s2_search(title, limit=5)
+        results = _s2_search(title, limit=5)
     except Exception:
         return ""
     normalized_title = _normalize_text(title)
@@ -285,6 +318,7 @@ def _download_arxiv_source(arxiv_id: str, dest_dir: Path) -> dict[str, Any]:
     Returns a dict with keys:
         success (bool), format (str), error (str | None).
     """
+    _require_network()
     headers = {"User-Agent": "OmegaWiki-init-discovery/1.0"}
     try:
         src_resp = requests.get(f"https://arxiv.org/e-print/{arxiv_id}", timeout=30, headers=headers)
@@ -631,7 +665,7 @@ def _prepare_text_entry(path: Path, raw_root: Path, kind: str) -> dict[str, Any]
 
 
 def _prepare_paper_entry(path: Path, raw_root: Path, title: str = "", arxiv_id: str = "") -> dict[str, Any]:
-    return paper_source.prepare_paper_source(path, raw_root, title=title, arxiv_id=arxiv_id)
+    return _prepare_paper_source(path, raw_root, title=title, arxiv_id=arxiv_id)
 
 
 def prepare_inputs(
@@ -1278,11 +1312,11 @@ def _gather_external_candidates(
             )
             return [], warnings, errors
         try:
-            candidates.extend(_normalise_s2_result(r, "search_s2") for r in s2_search(query, 20))
+            candidates.extend(_normalise_s2_result(r, "search_s2") for r in _s2_search(query, 20))
         except Exception as exc:
             _record_issue(warnings, "search_s2", str(exc))
         try:
-            candidates.extend(_normalise_deepxiv_result(r, "search_deepxiv") for r in deepxiv_search(query, limit=12))
+            candidates.extend(_normalise_deepxiv_result(r, "search_deepxiv") for r in _deepxiv_search(query, limit=12))
         except Exception as exc:
             _record_issue(warnings, "search_deepxiv", str(exc))
         seed_pool = _dedupe_candidates([c for c in candidates if c])
@@ -1292,14 +1326,14 @@ def _gather_external_candidates(
             try:
                 candidates.extend(
                     _normalise_s2_result(r, "citation", anchor=anchor["candidate_id"])
-                    for r in s2_citations(anchor["arxiv_id"], limit=40)
+                    for r in _s2_citations(anchor["arxiv_id"], limit=40)
                 )
             except Exception as exc:
                 _record_issue(warnings, f"citation:{anchor['arxiv_id']}", str(exc))
             try:
                 candidates.extend(
                     _normalise_s2_result(r, "reference", anchor=anchor["candidate_id"])
-                    for r in s2_references(anchor["arxiv_id"], limit=40)
+                    for r in _s2_references(anchor["arxiv_id"], limit=40)
                 )
             except Exception as exc:
                 _record_issue(warnings, f"reference:{anchor['arxiv_id']}", str(exc))
@@ -1324,14 +1358,14 @@ def _gather_external_candidates(
         try:
             candidates.extend(
                 _normalise_s2_result(r, "citation", anchor=anchor["candidate_id"])
-                for r in s2_citations(anchor["arxiv_id"], limit=50)
+                for r in _s2_citations(anchor["arxiv_id"], limit=50)
             )
         except Exception as exc:
             _record_issue(warnings, f"citation:{anchor['arxiv_id']}", str(exc))
         try:
             candidates.extend(
                 _normalise_s2_result(r, "reference", anchor=anchor["candidate_id"])
-                for r in s2_references(anchor["arxiv_id"], limit=50)
+                for r in _s2_references(anchor["arxiv_id"], limit=50)
             )
         except Exception as exc:
             _record_issue(warnings, f"reference:{anchor['arxiv_id']}", str(exc))
@@ -1339,11 +1373,11 @@ def _gather_external_candidates(
     if len(candidates) < 12:
         if query:
             try:
-                candidates.extend(_normalise_s2_result(r, "search_s2") for r in s2_search(query, 20))
+                candidates.extend(_normalise_s2_result(r, "search_s2") for r in _s2_search(query, 20))
             except Exception as exc:
                 _record_issue(warnings, "search_s2", str(exc))
             try:
-                candidates.extend(_normalise_deepxiv_result(r, "search_deepxiv") for r in deepxiv_search(query, limit=12))
+                candidates.extend(_normalise_deepxiv_result(r, "search_deepxiv") for r in _deepxiv_search(query, limit=12))
             except Exception as exc:
                 _record_issue(warnings, "search_deepxiv", str(exc))
         elif local_papers:
@@ -1481,6 +1515,7 @@ def _download_source(candidate: dict[str, Any], raw_root: Path) -> dict[str, Any
         }
 
     # Fall back to PDF
+    _require_network()
     headers = {"User-Agent": "OmegaWiki-init-discovery/1.0"}
     try:
         pdf_resp = requests.get(f"https://arxiv.org/pdf/{arxiv_id}", timeout=30, headers=headers)
@@ -1602,6 +1637,78 @@ def fetch_from_plan(
     return {"status": "ok", "results": results, "source_manifest": source_manifest}
 
 
+def _load_source_manifest(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"sources manifest not found: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"sources manifest is not valid JSON: {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("sources manifest must be a JSON object")
+    if not isinstance(data.get("sources"), list):
+        raise ValueError("sources manifest must contain a 'sources' list")
+    return data
+
+
+def build_ingest_handoff(source_manifest: dict[str, Any], mode: str = "serial") -> dict[str, Any]:
+    """Build ordered, runtime-neutral ingest handoff tasks for /init.
+
+    The output is intentionally simple so an agent can execute the batch without
+    re-interpreting the source manifest shape. It does not execute ingest.
+    """
+    if mode not in {"serial", "parallel"}:
+        raise ValueError("mode must be 'serial' or 'parallel'")
+    init_mode = "INIT MODE SERIAL" if mode == "serial" else "INIT MODE PARALLEL"
+    sources = list(source_manifest.get("sources") or [])
+    sources.sort(key=lambda item: (item.get("shortlist_rank") or 9999, item.get("candidate_id") or ""))
+
+    tasks: list[dict[str, Any]] = []
+    warnings: list[dict[str, str]] = []
+    for source in sources:
+        path = str(source.get("canonical_ingest_path") or "").strip()
+        candidate_id = str(source.get("candidate_id") or "").strip()
+        if not path:
+            warnings.append({
+                "candidate_id": candidate_id,
+                "warning": "missing canonical_ingest_path; skipped from handoff",
+            })
+            continue
+        if Path(path).is_absolute():
+            warnings.append({
+                "candidate_id": candidate_id,
+                "warning": "canonical_ingest_path is absolute; init handoff expects a project-relative path",
+            })
+        tasks.append({
+            "order": len(tasks) + 1,
+            "candidate_id": candidate_id,
+            "origin": source.get("origin"),
+            "canonical_ingest_path": path,
+            "ingest_format": source.get("ingest_format"),
+            "shortlist_rank": source.get("shortlist_rank"),
+            "init_mode": init_mode,
+            "commit_after_ingest": mode == "parallel",
+            "active_ingest_skill": {
+                "codex": ".agents/skills/ingest/SKILL.md",
+                "claude_code": ".claude/skills/ingest/SKILL.md",
+            },
+            "instructions": (
+                f"Load the active ingest skill, run ingest for exactly this relative path in {init_mode}, "
+                "consume the canonical path verbatim, treat raw/ as read-only, skip per-paper citation/reference "
+                "fetches, rebuilds, topic writes, visualization, and discovery follow-ups."
+            ),
+        })
+
+    return {
+        "status": "ok",
+        "mode": mode,
+        "init_mode": init_mode,
+        "task_count": len(tasks),
+        "tasks": tasks,
+        "warnings": warnings,
+    }
+
+
 def download_to_discovered(
     raw_root: Path,
     arxiv_id: str,
@@ -1648,6 +1755,11 @@ def main() -> None:
     p_fetch.add_argument("--prepared-manifest")
     p_fetch.add_argument("--output-sources")
     p_fetch.add_argument("--id", action="append", default=[])
+
+    p_handoff = sub.add_parser("handoff", help="Build ordered ingest handoff tasks from init-sources.json")
+    p_handoff.add_argument("--sources-json", required=True)
+    p_handoff.add_argument("--mode", choices=["serial", "parallel"], default="serial")
+    p_handoff.add_argument("--output-json")
 
     p_download = sub.add_parser("download", help="Download one arXiv paper into raw/discovered/")
     p_download.add_argument("--raw-root", default="raw")
@@ -1699,6 +1811,19 @@ def main() -> None:
             candidate_id=args.candidate_id,
         )
         _print_json(result)
+        return
+
+    if args.command == "handoff":
+        try:
+            source_manifest = _load_source_manifest(Path(args.sources_json))
+            handoff = build_ingest_handoff(source_manifest, mode=args.mode)
+        except ValueError as exc:
+            parser.error(str(exc))
+        if args.output_json:
+            output_path = Path(args.output_json)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(handoff, ensure_ascii=False, indent=2), encoding="utf-8")
+        _print_json(handoff)
         return
 
     result = fetch_from_plan(

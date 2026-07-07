@@ -48,6 +48,43 @@ Wikilink: `[[slug]]`。slug 全小写、连字符分隔、无空格。
 
 按优先级: `.venv/bin/python`(Windows 上 `.venv/Scripts/python.exe`) -> 当前激活的 conda 环境 -> `python3`(Windows 上 `python`)。tools/ 通过 `tools/_env.py` 自动从 `~/.env` 和项目根 `.env` 加载 API key。
 
+## Sandbox — 提权合同
+
+Codex 在 seccomp sandbox 中运行 Python tools, 会阻止 `socket(2)`。凡是会访问
+Semantic Scholar、DeepXiv、arXiv 或任何 HTTP API 的 tool, 会以 code 126 退出并打印
+"SANDBOX GATE" 消息。**看到这个消息时不要静默降级。** 用
+`sandbox_permissions: "require_escalated"` 和下表对应的 prefix rule 重跑失败命令。
+
+### Prefix-rule 表
+
+| Tool | Prefix rule | Justification |
+|---|---|---|
+| `tools/discover.py` | `["$PYTHON_BIN", "tools/discover.py"]` | "AutoSci discover needs network access (S2/DeepXiv)" |
+| `tools/init_discovery.py` | `["$PYTHON_BIN", "tools/init_discovery.py"]` | "AutoSci init discovery needs network access (S2/DeepXiv/arXiv)" |
+| `tools/fetch_s2.py` | `["$PYTHON_BIN", "tools/fetch_s2.py"]` | "AutoSci fetch_s2 needs network access" |
+| `tools/fetch_deepxiv.py` | `["$PYTHON_BIN", "tools/fetch_deepxiv.py"]` | "AutoSci fetch_deepxiv needs network access" |
+| `tools/fetch_arxiv.py` | `["$PYTHON_BIN", "tools/fetch_arxiv.py"]` | "AutoSci fetch_arxiv needs network access" |
+| `tools/fetch_wikipedia.py` | `["$PYTHON_BIN", "tools/fetch_wikipedia.py"]` | "AutoSci fetch_wikipedia needs network access" |
+| `tools/daily_arxiv.py` | `["$PYTHON_BIN", "tools/daily_arxiv.py"]` | "AutoSci daily_arxiv needs network access" |
+| `tools/prepare_paper_source.py` | `["$PYTHON_BIN", "tools/prepare_paper_source.py"]` | "AutoSci prepare_paper_source needs network access" |
+| `tools/backfill_citations.py` | `["$PYTHON_BIN", "tools/backfill_citations.py"]` | "AutoSci backfill_citations needs network access" |
+| `tools/serve.py` | `["$PYTHON_BIN", "tools/serve.py"]` | "AutoSci serve needs network access" |
+
+`$PYTHON_BIN` 由 skill 解析为 `.venv/bin/python`(或等价解释器)。Agent 应展开为实际绝对路径, 例如:
+
+- `["/home/woden/Migrate/AutoSci/.venv/bin/python", "tools/discover.py"]`
+
+### 响应 SANDBOX GATE
+
+当某个 tool 以 code 126 退出并打印 "SANDBOX GATE":
+
+1. 从 stderr 输出读取 `prefix_rule` 建议。
+2. 用以下参数重跑**完全相同的命令**:
+   - `sandbox_permissions: "require_escalated"`
+   - 上表对应的 `justification`
+   - 上表对应的 `prefix_rule`
+3. 不要跳过、替换为其他方案, 也不要静默降级到 local-only analysis。对于 citation、cross-reference、novelty check 与 discovery, 网络工具是权威来源。
+
 ## Review 指南
 
 - 把用户自有的 `raw/`、`wiki/`、`.env` 和生成的实验输出丢失或被误改视为高严重度问题。

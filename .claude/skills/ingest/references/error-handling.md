@@ -7,7 +7,7 @@ Open this reference when a step fails. `/ingest` prefers to degrade gracefully: 
 - **`.tex` parse fails**: fall back to the PDF if one is available in the same source directory.
 - **PDF text extraction fails**: fall back to a vision-API pass on the first few pages to recover the title and abstract, then run the preprocessing pipeline in `references/pdf-preprocessing.md` with the recovered title.
 - **No readable source at all**: stop and report. Do not create a paper page from a title alone — a paper page without grounded content is noise.
-- **INIT MODE input unreadable**: do not attempt to re-prepare the source (INIT MODE is read-only on `raw/`). Stop, record the failure, and let the parent `/init` retry or skip the paper at fan-in.
+- **INIT MODE input unreadable**: do not attempt to re-prepare the source (INIT MODE is read-only on `raw/`). Stop, record the failure, and let the parent init workflow retry or skip the paper during batch finalization.
 
 ## External APIs
 
@@ -38,7 +38,9 @@ If an ingest fails after some writes have landed (paper page written, but concep
 - do not roll back the writes that succeeded
 - append a log entry via `tools/research_wiki.py log` describing which steps completed and which are incomplete
 - surface the incomplete steps in the user report so the user can run `/edit` or `/check --fix` to finish the job
-- in INIT MODE, if the ingest completed successfully, commit inside the worktree before exiting (see `references/init-mode.md`). If the ingest partially failed, do **not** commit the incomplete state; let the parent `/init` handle the failed worktree at fan-in
+- in INIT MODE SERIAL, do not commit after each paper; leave successful changes in the main workspace for the parent init workflow to finalize after the batch
+- in INIT MODE PARALLEL, if the ingest completed successfully, commit inside the worktree before exiting (see `references/init-mode.md`)
+- if the ingest partially failed, do **not** hide or commit ambiguous incomplete state; let the parent init workflow report the recovery point
 
 ## When to stop vs. continue
 

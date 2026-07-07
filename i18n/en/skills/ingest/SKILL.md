@@ -13,7 +13,7 @@ Use these local references on demand:
 - `references/pdf-preprocessing.md` — arXiv-ID recovery, tex fetching, prepare-paper handoff for direct PDF drops
 - `references/dedup-policy.md` — merge-vs-create decision rule for concepts and methods, and the line that separates `/ingest` shape checks from `/check` semantic audits
 - `references/cross-references.md` — forward/reverse link matrix and paper-to-paper edge-type selection
-- `references/init-mode.md` — manifest-driven handoff from `/init` and parallel-safety conventions
+- `references/init-mode.md` — manifest-driven handoff from init and batch-safety conventions
 - `references/error-handling.md` — source parse, API, and slug-collision fallbacks
 
 Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runtime/templates/{kind}.md.tmpl` for body section structure. For `index.md`, `log.md`, and `graph/` shapes, see `runtime/schema/conventions.yaml` and `runtime/schema/edges.yaml`.
@@ -22,7 +22,7 @@ Open `runtime/schema/entities.yaml` for frontmatter field definitions and `runti
 
 - `source`: one of — arXiv URL (e.g. `https://arxiv.org/abs/2106.09685`), local `.tex`, local `.pdf`, or a `canonical_ingest_path` handed off by `/init` via `.checkpoints/init-sources.json`(see `references/init-mode.md`)
 - `--discover` (optional, default **off**): after the final report, invoke `/discover --anchor <this-paper's-arxiv-id>` and append the shortlist to the report as "Related papers you may want to ingest next". Never auto-ingests the suggestions. Skipped automatically in INIT MODE. Treat this as a user-owned flag: do not set it based on repo state.
-- `--visualize` (optional, default **off**): after Step 7 rebuild, regenerate Canvas visualization artifacts via `tools/visualize.py generate-canvas`. Skipped automatically in INIT MODE — the parent `/init` handles visualization once at fan-in. Treat this as a user-owned flag: do not set it based on repo state. (The interactive web Graph view lives in the SPA at `app/modules/graph.js`, served by `tools/serve.py`; it reads `wiki/graph/` live and needs no per-ingest regeneration.)
+- `--visualize` (optional, default **off**): after Step 7 rebuild, regenerate Canvas visualization artifacts via `tools/visualize.py generate-canvas`. Skipped automatically in INIT MODE — the parent init workflow handles visualization once after the batch. Treat this as a user-owned flag: do not set it based on repo state. (The interactive web Graph view lives in the SPA at `app/modules/graph.js`, served by `tools/serve.py`; it reads `wiki/graph/` live and needs no per-ingest regeneration.)
 
 ## Outputs
 
@@ -169,7 +169,7 @@ Follow `references/dedup-policy.md`. In short:
 
 ### Step 5: Paper-to-paper edges and `cited_by`
 
-Skip this whole step in INIT MODE — the parent `/init` handles it at fan-in.
+Skip this whole step in INIT MODE — the parent init workflow handles it after the batch.
 
 ```bash
 "$PYTHON_BIN" tools/fetch_s2.py references <arxiv-id>
@@ -205,9 +205,9 @@ Unless in INIT MODE:
 
 ### Step 7.5: Optional visualization (only if `--visualize` is set)
 
-Skip this step unless the user explicitly passed `--visualize`. Also skip it in INIT MODE — `/init`'s parent process regenerates Canvas + HTML once at fan-in, so individual subagents must not duplicate the work and risk concurrent writes.
+Skip this step unless the user explicitly passed `--visualize`. Also skip it in INIT MODE — the init parent regenerates visualization artifacts once after the batch, so individual paper ingest steps must not duplicate the work and risk conflicting writes.
 
-When active, regenerate Canvas + HTML (best-effort; visualize failure must not fail `/ingest`):
+When active, regenerate Canvas (best-effort; visualize failure must not fail `/ingest`):
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
@@ -226,7 +226,7 @@ Wiki: +1 paper, +{N} methods, +{M} concepts, +{K} edges
 
 ### Step 9: Optional discovery (only if `--discover` is set)
 
-Skip this step unless the user explicitly passed `--discover`. Also skip it in INIT MODE — `/init`'s parent process decides whether to run discovery at fan-in, not individual subagents.
+Skip this step unless the user explicitly passed `--discover`. Also skip it in INIT MODE — the init parent decides whether to run discovery after the batch, not individual paper ingest steps.
 
 When active, invoke `/discover` with the just-ingested paper as the single anchor:
 
@@ -247,7 +247,7 @@ Append the markdown output to the report under a heading like "Related papers yo
 - `wiki/graph/` is tool-owned. Edit only through `tools/research_wiki.py`.
 - Slugs always come from `tools/research_wiki.py slug`. Never hand-craft.
 - Every forward link writes its reverse link in the same turn — the wiki's bidirectional-link invariant. The only exception is links to `wiki/foundations/`, which are terminal.
-- In INIT MODE, do not write reverse links into pages that already exist (created by a sibling worktree or scaffold). Record the relationship via `tools/research_wiki.py add-edge` only; the parent `/init` backfills reverse links during fan-in.
+- In INIT MODE, do not write reverse links into pages that already exist (created by a previous serial paper step, sibling worktree, or scaffold). Record the relationship via `tools/research_wiki.py add-edge` only; the parent init workflow backfills reverse links after the batch.
 - Source priority: `.tex` > `.pdf` > vision API fallback. Never ingest from a PDF when a usable `.tex` is available.
 - Ingest is conservative about new entities:
   - importance < 4: at most **1** new concept and **1** new method per paper
@@ -255,9 +255,9 @@ Append the markdown output to the report under a heading like "Related papers yo
   - Any further candidates must be merged into their nearest existing entry, or left out for `/check` to flag. Rationale and matching rules: `references/dedup-policy.md`.
 - A `methods/` page is only justified when the technique is **named**, **reusable**, and **citable** by a future paper. The paper page's own `## Method` body section captures this paper's method narrative; do not duplicate it as a methods entity unless the method earns reuse.
 - `/ingest` runs a shape check on its own output (required keys, enum ranges, YAML parses) and stops there. Backlink symmetry, dangling nodes, and full semantic audits belong to `/check`. Do not re-implement them here.
-- Assume another `/ingest` may run concurrently in a sibling worktree. All shared-file writes (`graph/edges.jsonl`, `graph/citations.jsonl`, `index.md`, `log.md`) must go through `tools/research_wiki.py` or use append-only semantics. See `references/init-mode.md`.
-- In INIT MODE, skip `fetch_s2.py citations`, `fetch_s2.py references`, and the `rebuild-*` commands — the parent `/init` runs them once after fan-in.
-- In INIT MODE, also skip Step 7.5 visualization regardless of whether `--visualize` was set; the parent `/init` regenerates Canvas + HTML once at fan-in to avoid concurrent writes from sibling worktrees.
+- Assume another ingest may run in the same batch or a sibling worktree. All shared-file writes (`graph/edges.jsonl`, `graph/citations.jsonl`, `index.md`, `log.md`) must go through `tools/research_wiki.py` or use append-only semantics. See `references/init-mode.md`.
+- In INIT MODE, skip `fetch_s2.py citations`, `fetch_s2.py references`, and the `rebuild-*` commands — the parent init workflow runs them once after the batch.
+- In INIT MODE, also skip Step 7.5 visualization regardless of whether `--visualize` was set; the parent init workflow regenerates visualization artifacts once after the batch to avoid conflicting writes.
 
 ## Error Handling
 
@@ -288,10 +288,10 @@ See `references/error-handling.md`. Highlights: source parse failures cascade te
 
 ### Skills
 
-- `/init` — calls `/ingest` in parallel subagents via INIT MODE
+- `/init` / `$init` — calls ingest one paper at a time in INIT MODE SERIAL by default, or in parallel subagents via INIT MODE PARALLEL when supported
 - `/check` — audits wiki state after `/ingest` completes; owns every semantic check `/ingest` intentionally does not perform
 - `/discover` — optional follow-up when `--discover` is set; produces a shortlist of related papers the user may want to ingest next
-- `/visualize` — Step 7.5 (when `--visualize` is set and not in INIT MODE) regenerates Canvas + HTML by calling `tools/visualize.py` directly (best-effort)
+- `/visualize` — Step 7.5 (when `--visualize` is set and not in INIT MODE) regenerates Canvas by calling `tools/visualize.py` directly (best-effort); the interactive web Graph view is served by `tools/serve.py`
 
 ### External APIs
 

@@ -1,6 +1,20 @@
-# /init Parallel Ingest
+# /init Batch Ingest
 
-当 `/init` 需要把来源交给并行 `/ingest` 子代理并把结果 merge 回来时，打开此参考文件。
+当 `/init` 需要把来源交给 ingest workflow 时，打开此参考文件。Codex 默认使用串行合同；只有 runtime 能保证子代理工作目录、每篇论文 commit 与 fan-in merge 控制时，才使用并行 worktree 合同。
+
+## 串行合同（Codex 默认）
+
+- 在主工作区运行；不要创建 worktree。
+- 按 `.checkpoints/init-handoff.json` 的 `tasks[*].order` 读取论文顺序。
+- 每个任务先读取 `tasks[*].active_ingest_skill` 指定的 active ingest skill 指令，再只对一个相对 `tasks[*].canonical_ingest_path` 执行 ingest workflow。
+- handoff 中明确写出 **INIT MODE SERIAL**，让 ingest 消费 prepared path、把 `raw/` 当作只读、跳过每篇论文自己的 citation/reference fetch、跳过每篇论文自己的 rebuild、跳过易冲突 topic 写入，并且不 commit。
+- 所有最终 rebuild、dedup、lint、citation backfill 与 visualization 都留给 `/init` 在 batch 结束后统一执行。
+- 若某篇论文在写页面前干净失败，记录并继续。若留下含糊 partial wiki 状态，停止并报告恢复点。
+- 串行模式不需要 branch fan-out 或 merge，因此 detached HEAD 可以接受。
+
+## 并行 Worktree 合同（可选）
+
+仅当 runtime 能为每篇论文创建一个子代理、指定明确的 `$WT_PATH` 工作目录，并在之后 merge branch 时使用。
 
 ## Fan-out 前的安全步骤
 
@@ -37,7 +51,7 @@ git worktree add -b "$WT_BRANCH" "$WT_PATH" "$BASE_COMMIT"
 - 子代理的 shell 工作目录必须是 worktree 路径（`$WT_PATH`），而不是主仓库根目录。所有相对路径均从该路径解析。
 - 只对一个相对路径执行 `/ingest`。
 - 不得绕过 `/ingest`。
-- 在 INIT MODE 下，必须原样消费 handoff 给它的 canonical path。
+- 在 INIT MODE PARALLEL 下，必须原样消费 handoff 给它的 canonical path。
 - 跳过 `fetch_s2.py citations`。
 - 跳过 `fetch_s2.py references`。
 - 跳过每个子代理自己的 `rebuild-index`。
@@ -48,7 +62,7 @@ git worktree add -b "$WT_BRANCH" "$WT_PATH" "$BASE_COMMIT"
 
 ## Fan-in
 
-全部子代理完成后：
+全部并行子代理完成后：
 
 1. 如有需要先切回 `BASE_BRANCH`，再按 planner 顺序在该 branch 上逐个 merge worktree branch。
 2. concept / method 冲突默认保守合并，不要扩散 near-duplicate 页面。
