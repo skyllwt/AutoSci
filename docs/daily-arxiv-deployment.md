@@ -1,20 +1,26 @@
 # Deploying Daily arXiv on GitHub Actions
 
 This page is the operator's manual for the current GitHub Actions deployment path
-for the daily arXiv pipeline. This CI path is **Claude Code Action only** today;
-Codex can run the local `$daily-arxiv` skill, but a Codex-compatible unattended
-CI runner has not been added yet. Read top-to-bottom for first-time setup; jump
-to **Troubleshooting** when a run fails.
+for the daily arXiv pipeline. CI `inform` mode supports a Codex CLI recommender
+first, then a legacy Claude Code Action recommender, then an OpenAI-compatible
+Review LLM fallback. CI `auto-ingest` is still legacy Claude Code Action only
+until the Codex writeback path is separately verified. Read top-to-bottom for
+first-time setup; jump to **Troubleshooting** when a run fails.
 
 ## Setup
 
-1. **Pick an auth secret.** One of:
+1. **Pick an inform-mode recommender auth secret.** Preferred:
+   - `OPENAI_API_KEY` — Codex CLI API-key auth.
+   - `CODEX_ACCESS_TOKEN` — Codex CLI access-token auth.
+
+   Optional fallback:
    - `ANTHROPIC_API_KEY` — pay-as-you-go API; quota is independent of any subscription.
    - `CLAUDE_CODE_OAUTH_TOKEN` — Pro/Max subscription quota; generate with `claude setup-token`.
+   - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — OpenAI-compatible Review LLM fallback.
 
-   Set it once with `gh secret set <NAME>`. The workflow is happy with either.
+   Set secrets with `gh secret set <NAME>`. `CODEX_MODEL` can optionally override the Codex model used in CI.
 
-2. **Install the Claude Code GitHub App** on the repo at <https://github.com/apps/claude>. The auth secret alone is not enough; the action needs an app installation to exchange OIDC for a usable token.
+2. **For auto-ingest only, configure legacy Claude Code Action auth.** Set either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, then install the Claude Code GitHub App on the repo at <https://github.com/apps/claude>. The auth secret alone is not enough; the action needs an app installation to exchange OIDC for a usable token. Codex CI currently does not run `$ingest` or push wiki changes.
 
 3. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
    ```bash
@@ -23,7 +29,7 @@ to **Troubleshooting** when a run fails.
    ```
    `DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env` — the SDK auto-registers there.
 
-4. **Run the daily-arxiv setup skill once** in your local checkout: `/daily-arxiv setup` in Claude Code, or `$daily-arxiv setup` in Codex for local configuration checks. The checked-in GitHub Actions workflow still uses Claude Code Action for unattended CI. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the agent skill, hand-add this under the `daily-arxiv:` job's `env:` block:
+4. **Run the daily-arxiv setup skill once** in your local checkout: `/daily-arxiv setup` in Claude Code, or `$daily-arxiv setup` in Codex for local configuration checks. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the agent skill, hand-add this under the `daily-arxiv:` job's `env:` block:
    ```yaml
    SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
    DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
@@ -51,7 +57,7 @@ Match your failing-step error to a heading.
 
 ### `Could not fetch an OIDC token`
 
-The workflow's `permissions:` block must include `id-token: write`. Required because the action exchanges an OIDC token for a Claude Code app token.
+The workflow's `permissions:` block must include `id-token: write` when the legacy Claude Code Action path is used. Required because the action exchanges an OIDC token for a Claude Code app token.
 
 ### `App token exchange failed: 401 - Claude Code is not installed on this repository`
 
@@ -75,11 +81,11 @@ Without these lines, the Python tool reads the env var as empty and runs in anon
 
 ### `Reached maximum number of turns (N)`
 
-`claude-code-action`'s `--max-turns` ceiling is too low for the work in one prompt. A single ingest skill run takes roughly 40-50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally.
+The legacy `claude-code-action` `--max-turns` ceiling is too low for the work in one prompt. A single ingest skill run takes roughly 40-50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally.
 
 ### `fatal: Authentication failed for 'https://github.com/<owner>/<repo>.git/'` (exit 128)
 
-`actions/checkout@v4` installs an auth header in `.git/config`. The intervening `claude-code-action` step unsets it as cleanup, so the commit step's `git push` has no credentials. Re-embed the token in the remote URL before pushing:
+`actions/checkout@v4` installs an auth header in `.git/config`. Agent steps may alter it, so the commit step's `git push` can lose credentials. Re-embed the token in the remote URL before pushing:
 
 ```bash
 git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
@@ -107,6 +113,7 @@ claude_args: |
   unset TOKEN
   ```
 - **`DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env`.** Easy to miss when writing a mirror script.
+- **Codex inform mode only.** `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` lets CI rank recommendations, but it does not enable CI auto-ingest. Auto-ingest still requires the legacy Claude Code Action auth path.
 - **`gh run watch --exit-status` returns 0 on cancellation, not just success.** Confirm with `gh run view <id> --json conclusion`.
 - **Job logs return HTTP 404 while the job is still running.** `gh api .../jobs/<id>/logs` only works after the job reaches a terminal state.
 - **Pro/Max OAuth quota is shared.** The same token authenticates your local Claude Code session and CI's auto-ingest. Heavy local use can starve CI; if CI auth fails for hours, check whether you've been hammering Claude Code locally.

@@ -16,7 +16,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 ## Commands
 
 - `/daily-arxiv`：现在跑一次推荐。如果缺少 `config/daily-arxiv.yml`，从 wiki 推断默认值后继续。
-- `/daily-arxiv setup`：从 `config/daily-arxiv.yml.example` 创建或修复配置，检查 `.github/workflows/daily-arxiv.yml`，并说明需要的 secrets。
+- `/daily-arxiv setup`：从 `config/daily-arxiv.yml.example` 创建或修复配置，检查 `.github/workflows/daily-arxiv.yml`，自动补齐 S2/DeepXiv 的 workflow env 暴露，并说明 Codex、legacy Claude Action、Review LLM、S2、DeepXiv 与 SMTP secrets。
 - `/daily-arxiv status`：检查 config、workflow、schedule、mode、API/e-mail secrets 可用性，以及最近 artifacts。
 - `/daily-arxiv disable`：把 config 中的 `schedule.enabled` 设为 `false`，或告诉用户需要怎样修改；手动 `/daily-arxiv` 仍可使用。
 
@@ -37,7 +37,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
 2. **Workflow 文件**：确认 `.github/workflows/daily-arxiv.yml` 存在。如果缺失，引导用户查阅 `docs/daily-arxiv-deployment.md` 并停止 —— 从零重建该 workflow 超出 setup 的范围。
 
-3. **Workflow env 暴露（自动补丁）**：在 `.github/workflows/daily-arxiv.yml` 中，定位 `daily-arxiv:` job 的 `env:` 块。用 Edit 工具确保下面两行作为 `HAS_CLAUDE_CODE_AUTH` 的同级存在：
+3. **Workflow env 暴露（自动补丁）**：在 `.github/workflows/daily-arxiv.yml` 中，定位 `daily-arxiv:` job 的 `env:` 块。用 Edit 工具确保下面两行作为 `HAS_CODEX_AUTH`、`HAS_CLAUDE_CODE_AUTH`、`HAS_REVIEW_LLM` 的同级存在：
 
    ```yaml
    SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
@@ -46,10 +46,10 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
    - 如果两行都已存在，什么都不做。
    - 如果只缺一行，追加缺失的那一行。
-   - 如果 `env:` 块根本不存在（较旧的 workflow），在该 job 下插入它，包含这两行以及已有的 `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` 标志。不要改动任何其他 step。
+   - 如果 `env:` 块根本不存在（较旧的 workflow），在该 job 下插入它，包含这两行以及已有的 `HAS_CODEX_AUTH` / `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` 标志。不要改动任何其他 step。
    - 任何补丁之后，告诉用户改了什么，并提醒他们 commit。
 
-4. **Secrets 检查**：列出用户已配置了哪些 —— `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、`SEMANTIC_SCHOLAR_API_KEY`、`DEEPXIV_TOKEN`，以及可选的 SMTP secrets。可用时用 `gh secret list`；否则指导用户自己运行。对任何缺失但必需的 secret，给出他们需要的确切 `gh secret set` 命令。
+4. **Secrets 检查**：列出用户已配置了哪些 —— `OPENAI_API_KEY` 或 `CODEX_ACCESS_TOKEN`、`ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、`LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`、`SEMANTIC_SCHOLAR_API_KEY`、`DEEPXIV_TOKEN`，以及可选的 SMTP secrets。可用时用 `gh secret list`；否则指导用户自己运行。对任何缺失但必需的 secret，给出他们需要的确切 `gh secret set` 命令。
 
 5. **Summary**：汇报创建了什么、打了什么补丁，以及用户还需要做什么（安装 GitHub App、设置缺失的 secrets、用一次 `gh workflow run daily-arxiv.yml` 验证）。
 
@@ -61,13 +61,19 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
    python3 tools/daily_arxiv.py prepare --wiki-root wiki --out .daily-arxiv/run/recommendation-context.json --out-feed .daily-arxiv/run/feed.json
    ```
 
-2. 读取 `.daily-arxiv/run/recommendation-context.json`。基于 arXiv、wiki、Semantic Scholar、DeepXiv evidence，用 LLM 判断推荐质量。写出 `.daily-arxiv/run/llm-decisions.json`，字段包括 `decision`、`confidence`、`score`、`rationale`、`wiki_connections`、`signals_used`。在 CI 的 inform mode 中，可用 OpenAI-compatible review LLM 执行：
+2. 读取 `.daily-arxiv/run/recommendation-context.json`。基于 arXiv、wiki、Semantic Scholar、DeepXiv evidence，用 LLM 判断推荐质量。写出 `.daily-arxiv/run/llm-decisions.json`，字段包括 `decision`、`confidence`、`score`、`rationale`、`wiki_connections`、`signals_used`。CI inform mode 的后端顺序是 Codex CLI（`OPENAI_API_KEY` 或 `CODEX_ACCESS_TOKEN`）、legacy Claude Code Action、OpenAI-compatible Review LLM。Codex 使用压缩 context：
+
+   ```bash
+   python3 tools/daily_arxiv.py compact-context --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/codex-context.json
+   ```
+
+   Review LLM fallback 可执行：
 
    ```bash
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. 如果 mode 是 `auto-ingest`，注意当前 runtime 限制：CI auto-ingest 只支持 Claude Code Action 路径。选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。第三方 LLM 只用于推荐，不能 auto-ingest。
+3. 如果 mode 是 `auto-ingest`，注意当前 runtime 限制：CI auto-ingest 只支持 legacy Claude Code Action 路径。Codex CI 在写回路径单独验证前仅用于 inform mode。选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。Codex inform mode 与第三方 LLM 只用于推荐，不能 auto-ingest。
 
 4. 生成 digest：
 

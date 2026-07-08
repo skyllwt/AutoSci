@@ -21,10 +21,13 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
 - Scheduled run: `17 0 * * *` UTC by default.
 - Manual dispatch may override mode, hours, categories, caps, and e-mail.
 - Inform mode prepares context, then uses the first available recommender:
+  Codex CLI with `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN`; otherwise legacy
   Claude Code Action with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`;
   otherwise an OpenAI-compatible LLM via `LLM_API_KEY` / `LLM_BASE_URL` /
   `LLM_MODEL`; otherwise a tool-ranked fallback digest.
-- Auto-ingest mode fails closed unless Claude Code Action auth is present.
+- Auto-ingest mode fails closed unless legacy Claude Code Action auth is
+  present. Codex CI is inform-mode only until the writeback path is separately
+  verified.
 - Auto-ingest commits only staged `wiki/` and `raw/discovered/` changes
   produced by `/ingest`.
 
@@ -32,10 +35,13 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
 
 Recommendation/ingest:
 
+- `OPENAI_API_KEY` — Codex CLI API-key auth for CI inform-mode recommendation.
+- `CODEX_ACCESS_TOKEN` — Codex CLI access-token auth for CI inform-mode recommendation. This is an alternative to `OPENAI_API_KEY`.
+- `CODEX_MODEL` — optional Codex model override for the CI recommendation step.
 - `ANTHROPIC_API_KEY` — direct Anthropic API auth for Claude Code Action.
 - `CLAUDE_CODE_OAUTH_TOKEN` — Claude Code OAuth auth for Pro/Max users; generate
   locally with `claude setup-token`. This is an alternative to
-  `ANTHROPIC_API_KEY` for Claude Code Action.
+  `ANTHROPIC_API_KEY` for legacy Claude Code Action.
 - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — optional OpenAI-compatible LLM
   for `inform` recommendation when Claude Code is not available.
 - `LLM_FALLBACK_MODEL` — optional fallback for the OpenAI-compatible LLM.
@@ -83,7 +89,8 @@ Each workflow run uploads:
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- `llm-decisions.json` when the Claude Code Action ran
+- `codex-context.json` when the Codex recommender ran
+- `llm-decisions.json` when any LLM or agent recommender ran
 - `digest.md`
 - `digest.json`
 

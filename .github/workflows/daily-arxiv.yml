@@ -30,10 +30,14 @@ on:
         required: false
         type: boolean
         default: true
+      recommender:
+        description: "Recommendation backend: auto, codex, claude-action, review-llm, or tool"
+        required: false
+        default: "auto"
 
 permissions:
   # contents: write — auto-ingest commit step pushes to main.
-  # id-token: write — claude-code-action exchanges OIDC for an app token.
+  # id-token: write — legacy claude-code-action exchanges OIDC for an app token.
   contents: write
   id-token: write
 
@@ -45,6 +49,8 @@ jobs:
   daily-arxiv:
     runs-on: ubuntu-latest
     env:
+      CODEX_HOME: ${{ runner.temp }}/codex-home
+      HAS_CODEX_AUTH: ${{ secrets.OPENAI_API_KEY != '' || secrets.CODEX_ACCESS_TOKEN != '' }}
       HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
       # Repo secrets must be exposed as env vars here for the Python steps;
@@ -77,6 +83,7 @@ jobs:
           INPUT_MAX_RECOMMENDATIONS: ${{ github.event.inputs.max_recommendations }}
           INPUT_MAX_AUTO_INGEST: ${{ github.event.inputs.max_auto_ingest }}
           INPUT_SEND_EMAIL: ${{ github.event.inputs.send_email }}
+          INPUT_RECOMMENDER: ${{ github.event.inputs.recommender }}
         run: |
           set -euo pipefail
 
@@ -110,13 +117,20 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import sys
           from pathlib import Path
 
           payload = json.loads(Path(".daily-arxiv/run/resolved-config.json").read_text())
           cfg = payload["config"]
+          recommender = (os.environ.get("INPUT_RECOMMENDER") or "").strip() or "auto"
+          allowed = {"auto", "codex", "claude-action", "review-llm", "tool"}
+          if recommender not in allowed:
+              print(f"Unsupported recommender {recommender!r}; expected one of {sorted(allowed)}", file=sys.stderr)
+              raise SystemExit(2)
           env_lines = [
               "DAILY_ARXIV_RUN_DIR=.daily-arxiv/run",
               f"DAILY_ARXIV_MODE={cfg['mode']}",
+              f"DAILY_ARXIV_RECOMMENDER={recommender}",
               f"DAILY_ARXIV_HOURS={cfg['hours']}",
               "DAILY_ARXIV_CATEGORIES=" + " ".join(cfg["categories"]),
               f"DAILY_ARXIV_MAX_RECOMMENDATIONS={cfg['max_recommendations']}",
@@ -134,21 +148,31 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               fh.write(f"schedule_enabled={str(cfg['schedule']['enabled']).lower()}\n")
               fh.write(f"mode={cfg['mode']}\n")
+              fh.write(f"recommender={recommender}\n")
           PY
 
       - name: Note disabled schedule
         if: github.event_name == 'schedule' && steps.resolve.outputs.schedule_enabled != 'true'
         run: echo "daily-arxiv schedule is disabled in config/daily-arxiv.yml." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Validate auto-ingest credentials
+      - name: Validate recommender credentials
         if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           set -euo pipefail
-          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "::error::mode=auto-ingest requires Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) so Claude can judge and invoke /ingest."
+          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
+            echo "::error::mode=auto-ingest currently requires legacy Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN). Codex CI recommendation is inform-mode only until the writeback path is separately verified."
+            exit 1
+          fi
+          if [ "$DAILY_ARXIV_RECOMMENDER" = "codex" ] && [ "$HAS_CODEX_AUTH" != "true" ]; then
+            echo "::error::recommender=codex requires OPENAI_API_KEY or CODEX_ACCESS_TOKEN."
+            exit 1
+          fi
+          if [ "$DAILY_ARXIV_RECOMMENDER" = "claude-action" ] && [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
+            echo "::error::recommender=claude-action requires ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."
+            exit 1
+          fi
+          if [ "$DAILY_ARXIV_RECOMMENDER" = "review-llm" ] && [ "$HAS_REVIEW_LLM" != "true" ]; then
+            echo "::error::recommender=review-llm requires LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL."
             exit 1
           fi
 
@@ -175,8 +199,61 @@ jobs:
 
           python tools/daily_arxiv.py "${args[@]}"
 
+      - name: Build compact context for Codex
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
+        run: |
+          set -euo pipefail
+          python tools/daily_arxiv.py compact-context \
+            --context "$DAILY_ARXIV_CONTEXT" \
+            --out "$DAILY_ARXIV_RUN_DIR/codex-context.json"
+
+      - name: Setup Node for Codex
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Codex CLI
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
+        run: npm install -g @openai/codex
+
+      - name: Authenticate Codex CLI
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$CODEX_HOME"
+          if [ -n "${CODEX_ACCESS_TOKEN:-}" ]; then
+            printf '%s' "$CODEX_ACCESS_TOKEN" | codex login --with-access-token
+          else
+            printf '%s' "$OPENAI_API_KEY" | codex login --with-api-key
+          fi
+          codex login status
+
+      - name: Run Codex recommendation
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
+        env:
+          CODEX_MODEL: ${{ secrets.CODEX_MODEL }}
+        run: |
+          set -euo pipefail
+          args=(
+            exec
+            --cd "$GITHUB_WORKSPACE"
+            --sandbox workspace-write
+            --ephemeral
+            --output-schema .github/codex/daily-arxiv-decisions.schema.json
+            --output-last-message "$DAILY_ARXIV_DECISIONS"
+          )
+          if [ -n "${CODEX_MODEL:-}" ]; then
+            args+=(--model "$CODEX_MODEL")
+          fi
+          codex --ask-for-approval never "${args[@]}" - < .github/codex/daily-arxiv-inform.md
+          python -m json.tool "$DAILY_ARXIV_DECISIONS" >/dev/null
+
       - name: Run Claude recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH == 'true'
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH == 'true' && ((steps.resolve.outputs.mode == 'auto-ingest') || (steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'claude-action' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true'))))
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -213,17 +290,19 @@ jobs:
             --max-turns 100
             --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
 
-      - name: Note skipped Claude recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH != 'true'
+      - name: Note selected non-agent recommendation
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'review-llm' || steps.resolve.outputs.recommender == 'tool' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true' && env.HAS_CLAUDE_CODE_AUTH != 'true'))
         run: |
-          if [ "$DAILY_ARXIV_MODE" = "inform" ] && [ "${HAS_REVIEW_LLM:-false}" = "true" ]; then
-            echo "Claude Code Action auth is not configured; using OpenAI-compatible LLM recommendation for inform mode." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$DAILY_ARXIV_RECOMMENDER" = "tool" ]; then
+            echo "Using tool-ranked fallback digest because recommender=tool." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${HAS_REVIEW_LLM:-false}" = "true" ]; then
+            echo "Codex/Claude agent auth is not configured; using OpenAI-compatible LLM recommendation for inform mode." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Claude Code Action auth is not configured; finalizing a tool-ranked fallback digest." >> "$GITHUB_STEP_SUMMARY"
+            echo "No recommendation backend auth is configured; finalizing a tool-ranked fallback digest." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Run OpenAI-compatible LLM recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH != 'true' && env.HAS_REVIEW_LLM == 'true' && steps.resolve.outputs.mode == 'inform'
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && env.HAS_REVIEW_LLM == 'true' && (steps.resolve.outputs.recommender == 'review-llm' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true' && env.HAS_CLAUDE_CODE_AUTH != 'true'))
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
@@ -262,6 +341,7 @@ jobs:
             .daily-arxiv/run/resolved-config.json
             .daily-arxiv/run/feed.json
             .daily-arxiv/run/recommendation-context.json
+            .daily-arxiv/run/codex-context.json
             .daily-arxiv/run/llm-decisions.json
             .daily-arxiv/run/digest.md
             .daily-arxiv/run/digest.json
@@ -287,8 +367,8 @@ jobs:
           fi
 
           git commit -m "daily-arxiv auto-ingest"
-          # claude-code-action clears the auth header that actions/checkout
-          # installed; re-embed GITHUB_TOKEN before pushing.
+          # Some agent steps may alter the checkout auth header; re-embed
+          # GITHUB_TOKEN before pushing.
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push
 

@@ -1433,6 +1433,17 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_compact_context(args: argparse.Namespace) -> None:
+    context = json.loads(args.context.read_text(encoding="utf-8"))
+    payload = _compact_llm_context(context, args.limit)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(
+        "daily-arxiv compact-context: "
+        f"{len(payload.get('candidates', []))} candidates -> {args.out}"
+    )
+
+
 def cmd_recommend_llm(args: argparse.Namespace) -> None:
     context = json.loads(args.context.read_text(encoding="utf-8"))
     payload = run_third_party_recommendation(
@@ -1499,6 +1510,15 @@ def build_parser() -> argparse.ArgumentParser:
     finalize.add_argument("--out-md", type=Path, required=True, help="Markdown digest output path")
     finalize.add_argument("--out-json", type=Path, required=True, help="Machine-readable digest output path")
     finalize.set_defaults(func=cmd_finalize)
+
+    compact_context = sub.add_parser(
+        "compact-context",
+        help="Write a compact inform-mode context for coding-agent or LLM recommenders",
+    )
+    compact_context.add_argument("--context", type=Path, required=True, help="Recommendation context JSON from prepare")
+    compact_context.add_argument("--out", type=Path, required=True, help="Compact context JSON output")
+    compact_context.add_argument("--limit", type=int, help="Candidate limit included in the compact context")
+    compact_context.set_defaults(func=cmd_compact_context)
 
     recommend_llm = sub.add_parser(
         "recommend-llm",

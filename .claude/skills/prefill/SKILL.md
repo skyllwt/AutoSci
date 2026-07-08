@@ -38,7 +38,7 @@ Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
 
 ## Workflow
 
-**Pre-conditions**: working directory contains `wiki/`, `tools/`, `.claude/`. Set `WIKI_ROOT=wiki/`.
+**Pre-conditions**: working directory is the project root containing `wiki/` and `tools/`. Set `WIKI_ROOT=wiki/`.
 
 ### Step 1: Resolve domain
 

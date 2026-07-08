@@ -3,9 +3,12 @@
 
 # inform: recommend and notify only.
 # auto-ingest: let /daily-arxiv invoke /ingest for high-confidence picks.
-# In CI inform mode, recommendation can use Claude Code auth
-# (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN) or the OpenAI-compatible
-# LLM_API_KEY / LLM_BASE_URL / LLM_MODEL secrets.
+# In CI inform mode, recommendation uses the first available backend:
+# Codex CLI auth (OPENAI_API_KEY or CODEX_ACCESS_TOKEN), legacy Claude Code
+# Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN), or the
+# OpenAI-compatible LLM_API_KEY / LLM_BASE_URL / LLM_MODEL secrets.
+# CI auto-ingest remains on the legacy Claude Code Action path until Codex
+# writeback is separately verified.
 mode: inform
 
 # Fresh-paper window and source categories.

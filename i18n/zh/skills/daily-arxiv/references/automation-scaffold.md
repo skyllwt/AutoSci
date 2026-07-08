@@ -18,10 +18,12 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
 - 默认定时：`17 0 * * *` UTC。
 - 手动 dispatch 可覆盖 mode、hours、categories、caps 和 e-mail。
 - Inform mode 准备 context，然后使用第一个可用 recommender：
-  带 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 的 Claude Code Action；
-  否则使用 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 对应的
+  带 `OPENAI_API_KEY` 或 `CODEX_ACCESS_TOKEN` 的 Codex CLI；否则使用带
+  `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 的 legacy Claude Code
+  Action；否则使用 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 对应的
   OpenAI-compatible LLM；否则输出 tool-ranked fallback digest。
-- Auto-ingest mode 缺少 Claude Code Action auth 时 fail closed。
+- Auto-ingest mode 缺少 legacy Claude Code Action auth 时 fail closed。Codex
+  CI 在写回路径单独验证前仅用于 inform mode。
 - Auto-ingest 只提交 `/ingest` 产生并 staged 的 `wiki/` 和
   `raw/discovered/` 变更。
 
@@ -29,14 +31,20 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
 
 推荐/ingest：
 
+- `OPENAI_API_KEY` — Codex CLI 的 CI inform-mode API-key auth。
+- `CODEX_ACCESS_TOKEN` — Codex CLI 的 CI inform-mode access-token auth；它是
+  `OPENAI_API_KEY` 的替代方案。
+- `CODEX_MODEL` — 可选，覆盖 CI 推荐步骤使用的 Codex 模型。
 - `ANTHROPIC_API_KEY` — Claude Code Action 的直接 Anthropic API auth。
 - `CLAUDE_CODE_OAUTH_TOKEN` — Pro/Max 用户的 Claude Code OAuth auth；在本地
-  通过 `claude setup-token` 生成。它是 `ANTHROPIC_API_KEY` 的替代方案。
+  通过 `claude setup-token` 生成。它是 legacy Claude Code Action 的
+  `ANTHROPIC_API_KEY` 替代方案。
 - `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` — 可选的 OpenAI-compatible
   LLM，用于没有 Claude Code 时的 `inform` 推荐。
 - `LLM_FALLBACK_MODEL` — 可选的 OpenAI-compatible LLM fallback。
-- `SEMANTIC_SCHOLAR_API_KEY` — 可选，提高 S2 rate limit。
-- `DEEPXIV_TOKEN` — 可选，启用 DeepXiv enrichment。
+- `SEMANTIC_SCHOLAR_API_KEY` — daily-cadence 运行需要；匿名 S2 rate limit
+  会让 prepare 步骤在大量候选上超时。
+- `DEEPXIV_TOKEN` — daily-cadence 运行需要；避免 DeepXiv enrichment 的匿名限流。
 
 SMTP 发送：
 
@@ -56,7 +64,8 @@ SMTP 发送：
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- Claude Code Action 运行时的 `llm-decisions.json`
+- Codex recommender 运行时的 `codex-context.json`
+- 任一 LLM 或 agent recommender 运行时的 `llm-decisions.json`
 - `digest.md`
 - `digest.json`
 

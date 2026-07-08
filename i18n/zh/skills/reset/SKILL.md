@@ -94,7 +94,7 @@ Next steps:
 ## Constraints
 
 - **破坏性操作前必须确认**：禁止在未展示计划并征得用户同意前调用 `--yes`。
-- **保留**：`.gitkeep` 占位、`wiki/CLAUDE.md`、`.claude/`（skill 永不被触碰）。
+- **保留**：`.gitkeep` 占位、`wiki/CLAUDE.md`、`.claude/` 与 `.agents/`（skill 永不被触碰）。
 - **`raw/` 删除不可逆**：PDF 不在 git 中。执行 `raw` 或 `all` scope 前必须警告用户。
 - **`/reset` 不触碰** `tools/`、`mcp-servers/`、`i18n/`、`.env` 或 git 状态。
 - **scope 必填**：无默认行为（`/reset` 不带参数时提示用户选择 scope，而非猜测）。

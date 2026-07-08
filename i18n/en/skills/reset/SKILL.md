@@ -94,7 +94,7 @@ Next steps:
 ## Constraints
 
 - **Confirm before destructive action**: never call `--yes` without showing the plan and asking the user.
-- **Preserves**: `.gitkeep` placeholders, `wiki/CLAUDE.md`, `.claude/` (skills are never touched).
+- **Preserves**: `.gitkeep` placeholders, `wiki/CLAUDE.md`, `.claude/`, and `.agents/` (skills are never touched).
 - **`raw/` deletes are irreversible**: PDFs are not in git history. Warn the user before executing `raw` or `all` scopes.
 - **`/reset` does not touch `tools/`, `mcp-servers/`, `i18n/`, `.env`, or git state.**
 - **Scope is required**: no default action (`/reset` with no flag prompts for scope rather than guessing).

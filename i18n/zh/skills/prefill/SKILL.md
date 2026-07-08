@@ -38,7 +38,7 @@ argument-hint: "[domain] [--add '概念名']"
 
 ## Workflow
 
-**前置条件**：当前目录包含 `wiki/`、`tools/`、`.claude/`。`WIKI_ROOT=wiki/`。
+**前置条件**：当前目录是项目根目录，且包含 `wiki/` 与 `tools/`。`WIKI_ROOT=wiki/`。
 
 ### Step 1: 确定 domain
 

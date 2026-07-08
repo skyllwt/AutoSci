@@ -106,7 +106,7 @@ Use `/discover --venue iclr --year 2024` in Claude Code or `$discover --venue ic
 
 ### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
 
-Use `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex for a one-off pass. The current GitHub Actions scheduler is Claude Code Action based; run the setup form locally when configuring that CI path. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls the ingest skill for high-confidence picks; `inform` mode just notifies.
+Use `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex for a one-off pass. The GitHub Actions scheduler supports Codex CLI for unattended `inform` recommendations, with legacy Claude Code Action and Review LLM fallbacks; CI `auto-ingest` remains on the legacy Claude Action path until Codex writeback is separately verified. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls the ingest skill for high-confidence picks; `inform` mode just notifies.
 
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
@@ -318,8 +318,9 @@ and are best run from WSL2 or Linux/macOS.
 | Key | Required? | How to get | What it enables |
 |-----|-----------|-----------|-----------------|
 | Agent runtime auth | **Yes** | Claude Code: `claude login`; Codex: sign in through Codex | Powers the interactive coding-agent skills |
+| `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` | Optional | OpenAI / Codex account | GitHub Actions Codex CLI recommender for daily-arxiv inform mode |
 | `ANTHROPIC_API_KEY` | Claude Code only (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers Claude Code skills |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions legacy Claude Code auth for Pro/Max users and daily-arxiv auto-ingest |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
 | `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |

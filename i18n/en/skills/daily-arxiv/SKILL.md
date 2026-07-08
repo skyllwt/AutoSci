@@ -16,7 +16,7 @@ Load references only when needed:
 ## Commands
 
 - `/daily-arxiv`: run a one-off recommendation pass now. If `config/daily-arxiv.yml` is missing, infer defaults from the wiki and continue.
-- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required secrets. See *Setup Workflow* below for the exact patch procedure.
+- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required Codex, legacy Claude Action, Review LLM, S2, DeepXiv, and SMTP secrets. See *Setup Workflow* below for the exact patch procedure.
 - `/daily-arxiv status`: inspect config, workflow presence, schedule, mode, API/e-mail secret availability, and recent artifacts when available.
 - `/daily-arxiv disable`: set `schedule.enabled: false` in config or tell the user what to change; manual `/daily-arxiv` must still work.
 
@@ -39,7 +39,7 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
 
 2. **Workflow file**: confirm `.github/workflows/daily-arxiv.yml` exists. If absent, point the user at `docs/daily-arxiv-deployment.md` and stop — re-creating the workflow from scratch is out of scope for setup.
 
-3. **Workflow env exposures (auto-patch)**: in `.github/workflows/daily-arxiv.yml`, locate the `daily-arxiv:` job's `env:` block. Use the Edit tool to ensure both lines are present as siblings of `HAS_CLAUDE_CODE_AUTH`:
+3. **Workflow env exposures (auto-patch)**: in `.github/workflows/daily-arxiv.yml`, locate the `daily-arxiv:` job's `env:` block. Use the Edit tool to ensure both lines are present as siblings of `HAS_CODEX_AUTH`, `HAS_CLAUDE_CODE_AUTH`, and `HAS_REVIEW_LLM`:
 
    ```yaml
    SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
@@ -48,10 +48,10 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
 
    - If both lines already exist, do nothing.
    - If only one is missing, append the missing line.
-   - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` flags. Do not touch any other step.
+   - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing `HAS_CODEX_AUTH` / `HAS_CLAUDE_CODE_AUTH` / `HAS_REVIEW_LLM` flags. Do not touch any other step.
    - After any patch, tell the user what was changed and remind them to commit.
 
-4. **Secrets check**: list which of `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets the user has configured. Use `gh secret list` when available; otherwise instruct the user to run it. Surface any missing-but-required secrets with the exact `gh secret set` command they need.
+4. **Secrets check**: list which of `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN`, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`, `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets the user has configured. Use `gh secret list` when available; otherwise instruct the user to run it. Surface any missing-but-required secrets with the exact `gh secret set` command they need.
 
 5. **Summary**: report what was created, patched, and what the user still needs to do (install the GitHub App, set missing secrets, verify with one `gh workflow run daily-arxiv.yml`).
 
@@ -63,13 +63,19 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    python3 tools/daily_arxiv.py prepare --wiki-root wiki --out .daily-arxiv/run/recommendation-context.json --out-feed .daily-arxiv/run/feed.json
    ```
 
-2. Read `.daily-arxiv/run/recommendation-context.json`. Judge candidates with an LLM using the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence. Write `.daily-arxiv/run/llm-decisions.json` with `decision`, `confidence`, `score`, `rationale`, `wiki_connections`, and `signals_used`. In CI inform mode, an OpenAI-compatible review LLM may do this via:
+2. Read `.daily-arxiv/run/recommendation-context.json`. Judge candidates with an LLM using the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence. Write `.daily-arxiv/run/llm-decisions.json` with `decision`, `confidence`, `score`, `rationale`, `wiki_connections`, and `signals_used`. In CI inform mode, the backend order is Codex CLI (`OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN`), then legacy Claude Code Action, then OpenAI-compatible Review LLM. Codex receives a compact context generated via:
+
+   ```bash
+   python3 tools/daily_arxiv.py compact-context --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/codex-context.json
+   ```
+
+   The Review LLM fallback may do this via:
 
    ```bash
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. If mode is `auto-ingest`, note the current runtime limit: CI auto-ingest is supported only through the Claude Code Action path. Choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Third-party LLMs are recommendation-only and must not auto-ingest.
+3. If mode is `auto-ingest`, note the current runtime limit: CI auto-ingest is supported only through the legacy Claude Code Action path. Codex CI is inform-mode only until the writeback path is separately verified. Choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Codex inform mode and third-party LLMs are recommendation-only and must not auto-ingest.
 
 4. Finalize the digest:
 
