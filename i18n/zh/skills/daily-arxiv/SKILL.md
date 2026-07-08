@@ -4,9 +4,9 @@ description: 运行或管理每日 arXiv 推荐 feed。用于手动获取新论�
 argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---
 
-# /daily-arxiv
+# /daily-arxiv / $daily-arxiv
 
-> 运行或管理每日论文推荐 feed。裸 `/daily-arxiv` 表示“现在跑一次今天的推荐”；GitHub Actions 只是同一条 pipeline 的无人值守调度器。
+> 运行或管理每日论文推荐 feed。Claude Code 中裸 `/daily-arxiv`，或 Codex 中裸 `$daily-arxiv`，表示“现在跑一次今天的推荐”；GitHub Actions 只是同一条 pipeline 的无人值守调度器。
 
 按需读取 reference：
 
@@ -15,10 +15,10 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
 ## Commands
 
-- `/daily-arxiv`：现在跑一次推荐。如果缺少 `config/daily-arxiv.yml`，从 wiki 推断默认值后继续。
-- `/daily-arxiv setup`：从 `config/daily-arxiv.yml.example` 创建或修复配置，检查 `.github/workflows/daily-arxiv.yml`，自动补齐 S2/DeepXiv 的 workflow env 暴露，并说明 Codex、legacy Claude Action、Review LLM、S2、DeepXiv 与 SMTP secrets。
-- `/daily-arxiv status`：检查 config、workflow、schedule、mode、API/e-mail secrets 可用性，以及最近 artifacts。
-- `/daily-arxiv disable`：把 config 中的 `schedule.enabled` 设为 `false`，或告诉用户需要怎样修改；手动 `/daily-arxiv` 仍可使用。
+- Claude Code 的 `/daily-arxiv` 或 Codex 的 `$daily-arxiv`：现在跑一次推荐。如果缺少 `config/daily-arxiv.yml`，从 wiki 推断默认值后继续。
+- Claude Code 的 `/daily-arxiv setup` 或 Codex 的 `$daily-arxiv setup`：从 `config/daily-arxiv.yml.example` 创建或修复配置，检查 `.github/workflows/daily-arxiv.yml`，自动补齐 S2/DeepXiv 的 workflow env 暴露，并说明 Codex、legacy Claude Action、Review LLM、S2、DeepXiv 与 SMTP secrets。
+- Claude Code 的 `/daily-arxiv status` 或 Codex 的 `$daily-arxiv status`：检查 config、workflow、schedule、mode、API/e-mail secrets 可用性，以及最近 artifacts。
+- Claude Code 的 `/daily-arxiv disable` 或 Codex 的 `$daily-arxiv disable`：把 config 中的 `schedule.enabled` 设为 `false`，或告诉用户需要怎样修改；手动 `/daily-arxiv` / `$daily-arxiv` 仍可使用。
 
 ## Inputs
 
@@ -31,7 +31,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
 ## Setup Workflow
 
-由 `/daily-arxiv setup` 触发。幂等 —— 在健康的 repo 上重跑是 no-op。
+由 Claude Code 的 `/daily-arxiv setup` 或 Codex 的 `$daily-arxiv setup` 触发。幂等 —— 在健康的 repo 上重跑是 no-op。
 
 1. **Config**：如果缺少 `config/daily-arxiv.yml`，从 `config/daily-arxiv.yml.example` 拷贝。如果已存在，则保持不动（用户的偏好是持久的）。
 
@@ -73,7 +73,7 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. 如果 mode 是 `auto-ingest`，注意当前 runtime 限制：CI auto-ingest 只支持 legacy Claude Code Action 路径。Codex CI 在写回路径单独验证前仅用于 inform mode。选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。Codex inform mode 与第三方 LLM 只用于推荐，不能 auto-ingest。
+3. 如果 mode 是 `auto-ingest`，注意当前 runtime 限制：CI auto-ingest 只支持 legacy Claude Code Action 路径。Workflow dispatch 必须使用 `recommender=auto` 或 `recommender=claude-action`；显式选择 `codex`、`review-llm` 或 `tool` 会在 auto-ingest mode 下 fail closed。Codex CI 在完整的 Codex CI ingest 编排与 push 被验证前仅用于 inform mode。本地 Codex `$ingest` 与强制 stage 的写回范围已经做过 smoke test，但无人值守 GitHub Actions 路径还没有。选择 `decision: ingest` 且 `confidence: high` 的论文，遵守 `max_auto_ingest`，并按顺序调用 `/ingest <arxiv-url>`。不要手写 wiki 或 graph 文件。Codex inform mode 与第三方 LLM 只用于推荐，不能 auto-ingest。
 
 4. 生成 digest：
 
@@ -87,10 +87,10 @@ argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] 
 
 读取 `wiki/index.md`、`wiki/papers/`、`wiki/topics/`、`wiki/concepts/`、`wiki/methods/`、`wiki/ideas/`、`wiki/log.md` 来构建兴趣 profile 和去重。
 
-inform 运行只写 `.daily-arxiv/` 下的 scratch 文件。`auto-ingest` 中所有持久 wiki/raw 变更都必须来自 `/ingest`。
+inform 运行只写 `.daily-arxiv/` 下的 scratch 文件。`auto-ingest` 中所有持久 wiki/raw 变更都必须来自 Claude Code 的 `/ingest` 或 Codex 的 `$ingest`。
 
 ## Relationships
 
-- `/discover` 回答用户主动提出的 next-read 请求，可来自 anchors、topic 或 wiki 状态；它永不 ingest。
-- `/daily-arxiv` 监听 fresh arXiv stream，可手动或每日通知。
-- `/ingest` 是唯一论文纳入路径。`/daily-arxiv` 只能在显式 `auto-ingest` mode 下调用它。
+- `/discover`（Claude Code）或 `$discover`（Codex）回答用户主动提出的 next-read 请求，可来自 anchors、topic 或 wiki 状态；它永不 ingest。
+- `/daily-arxiv`（Claude Code）或 `$daily-arxiv`（Codex）监听 fresh arXiv stream，可手动或每日通知。
+- `/ingest`（Claude Code）或 `$ingest`（Codex）是唯一论文纳入路径。`/daily-arxiv` / `$daily-arxiv` 只能在显式 `auto-ingest` mode 下调用它。

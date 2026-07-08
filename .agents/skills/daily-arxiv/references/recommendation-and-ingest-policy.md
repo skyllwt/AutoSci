@@ -67,7 +67,10 @@ or available credentials. The user/config/workflow input must choose it.
 - Preserve failures in `llm-decisions.json` and the final digest via
   `ingest_status` or `ingest_error`.
 - Commit only changes produced by `/ingest`, normally under `wiki/` and
-  `raw/discovered/`.
+  `raw/discovered/`. Because those roots are ignored as per-user data in the
+  template repository, auto-ingest writeback must force-stage exactly those
+  allowed roots (`git add -f wiki raw/discovered`) rather than broadening the
+  commit scope.
 - Borderline candidates stay `maybe`; do not ingest medium/low confidence items.
 
 ## Relationship to `/discover`

@@ -26,10 +26,15 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
   otherwise an OpenAI-compatible LLM via `LLM_API_KEY` / `LLM_BASE_URL` /
   `LLM_MODEL`; otherwise a tool-ranked fallback digest.
 - Auto-ingest mode fails closed unless legacy Claude Code Action auth is
-  present. Codex CI is inform-mode only until the writeback path is separately
-  verified.
-- Auto-ingest commits only staged `wiki/` and `raw/discovered/` changes
-  produced by `/ingest`.
+  present and the selected recommender is `auto` or `claude-action`. Explicit
+  `codex`, `review-llm`, and `tool` recommenders are inform-mode only. Codex CI
+  is inform-mode only until full Codex CI ingest orchestration and push are
+  verified. Local Codex `$ingest` and force-staged writeback scope have been
+  smoke-tested, but the unattended GitHub Actions path has not.
+- Auto-ingest commits only `/ingest` outputs under `wiki/` and
+  `raw/discovered/`. These roots are ignored in the template repo as per-user
+  data, so the workflow must force-stage exactly those roots
+  (`git add -f wiki raw/discovered`) and nothing broader.
 
 ## Secrets
 

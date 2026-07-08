@@ -7,8 +7,6 @@ profile extraction, optional external enrichment, and digest formatting.
 """
 from __future__ import annotations
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
-
 import argparse
 import json
 import os
@@ -24,21 +22,6 @@ try:
     import _env  # noqa: F401 - load .env files when present
 except Exception:  # pragma: no cover - defensive for unusual invocation paths
     pass
-
-try:
-    import fetch_arxiv
-except Exception:  # pragma: no cover - reported when fetch is requested
-    fetch_arxiv = None  # type: ignore
-
-try:
-    import fetch_s2
-except Exception:  # pragma: no cover - Semantic Scholar is optional
-    fetch_s2 = None  # type: ignore
-
-try:
-    import fetch_deepxiv
-except Exception:  # pragma: no cover - DeepXiv is optional
-    fetch_deepxiv = None  # type: ignore
 
 try:
     import requests
@@ -117,6 +100,43 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "deepxiv_trending_limit": 50,
     },
 }
+
+
+def _require_network() -> None:
+    """Trigger the Codex sandbox gate only for commands that need network."""
+    import _sandbox  # noqa: F401
+
+
+def _load_fetch_arxiv():
+    _require_network()
+    try:
+        import fetch_arxiv
+    except Exception as exc:  # pragma: no cover - reported to caller
+        raise RuntimeError(f"tools/fetch_arxiv.py could not be imported: {exc}") from exc
+    return fetch_arxiv
+
+
+def _load_fetch_s2():
+    _require_network()
+    # Daily feeds should degrade instead of spending minutes per candidate when
+    # Semantic Scholar is quota-limited. Standalone fetch_s2.py keeps its slower
+    # defaults unless the caller overrides these environment variables.
+    os.environ.setdefault("S2_MAX_RETRIES", "1")
+    os.environ.setdefault("S2_RATE_LIMIT_WAIT_SECONDS", "5")
+    try:
+        import fetch_s2
+    except Exception as exc:  # pragma: no cover - optional provider
+        return None, exc
+    return fetch_s2, None
+
+
+def _load_fetch_deepxiv():
+    _require_network()
+    try:
+        import fetch_deepxiv
+    except Exception as exc:  # pragma: no cover - optional provider
+        return None, exc
+    return fetch_deepxiv, None
 
 
 # ---------------------------------------------------------------------------
@@ -387,8 +407,7 @@ def _load_feed(path: Path) -> list[dict[str, Any]]:
 
 
 def _fetch_feed(cfg: dict[str, Any], out_path: Path | None = None) -> list[dict[str, Any]]:
-    if fetch_arxiv is None:
-        raise RuntimeError("tools/fetch_arxiv.py could not be imported")
+    fetch_arxiv = _load_fetch_arxiv()
     papers = fetch_arxiv.fetch_recent(
         hours=int(cfg["hours"]),
         categories=list(cfg["categories"]),
@@ -585,8 +604,9 @@ def _semantic_scholar_enrich(candidates: list[dict[str, Any]], wiki_profile: dic
     enrichment_cfg = cfg.get("enrichment", {})
     if not enrichment_cfg.get("semantic_scholar", True):
         return ["Semantic Scholar enrichment disabled by config."]
+    fetch_s2, import_error = _load_fetch_s2()
     if fetch_s2 is None:
-        return ["Semantic Scholar enrichment unavailable: tools/fetch_s2.py could not be imported."]
+        return [f"Semantic Scholar enrichment unavailable: tools/fetch_s2.py could not be imported: {import_error}"]
 
     anchors = [anchor["arxiv_id"] for anchor in wiki_profile.get("anchors", []) if anchor.get("arxiv_id")]
     anchors = anchors[: enrichment_cfg.get("s2_anchor_limit", 5)]
@@ -644,8 +664,9 @@ def _deepxiv_enrich(candidates: list[dict[str, Any]], cfg: dict[str, Any]) -> li
     enrichment_cfg = cfg.get("enrichment", {})
     if not enrichment_cfg.get("deepxiv", True):
         return ["DeepXiv enrichment disabled by config."]
+    fetch_deepxiv, import_error = _load_fetch_deepxiv()
     if fetch_deepxiv is None:
-        return ["DeepXiv enrichment unavailable: tools/fetch_deepxiv.py could not be imported."]
+        return [f"DeepXiv enrichment unavailable: tools/fetch_deepxiv.py could not be imported: {import_error}"]
 
     trending_by_id: dict[str, dict[str, Any]] = {}
     try:
@@ -1296,6 +1317,7 @@ def run_third_party_recommendation(
 ) -> dict[str, Any]:
     if context.get("mode") != "inform":
         raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires a coding-agent runtime")
+    _require_network()
     env = _require_llm_env()
     compact = _compact_llm_context(context, limit)
     allowed_ids = {

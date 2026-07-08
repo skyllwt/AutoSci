@@ -4,9 +4,9 @@ description: Run or manage the daily arXiv recommendation feed. Use for one-off 
 argument-hint: "[setup|status|disable] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---
 
-# /daily-arxiv
+# /daily-arxiv / $daily-arxiv
 
-> Run or manage the daily paper recommendation feed. Bare `/daily-arxiv` means "run today's recommendation pass now"; GitHub Actions is only the unattended scheduler for the same pipeline.
+> Run or manage the daily paper recommendation feed. Bare `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex means "run today's recommendation pass now"; GitHub Actions is only the unattended scheduler for the same pipeline.
 
 Load references only when needed:
 
@@ -15,10 +15,10 @@ Load references only when needed:
 
 ## Commands
 
-- `/daily-arxiv`: run a one-off recommendation pass now. If `config/daily-arxiv.yml` is missing, infer defaults from the wiki and continue.
-- `/daily-arxiv setup`: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required Codex, legacy Claude Action, Review LLM, S2, DeepXiv, and SMTP secrets. See *Setup Workflow* below for the exact patch procedure.
-- `/daily-arxiv status`: inspect config, workflow presence, schedule, mode, API/e-mail secret availability, and recent artifacts when available.
-- `/daily-arxiv disable`: set `schedule.enabled: false` in config or tell the user what to change; manual `/daily-arxiv` must still work.
+- `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex: run a one-off recommendation pass now. If `config/daily-arxiv.yml` is missing, infer defaults from the wiki and continue.
+- `/daily-arxiv setup` in Claude Code or `$daily-arxiv setup` in Codex: create or repair `config/daily-arxiv.yml` from `config/daily-arxiv.yml.example`; ensure `.github/workflows/daily-arxiv.yml` exists and that its `daily-arxiv:` job's `env:` block exposes both `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` — **add the missing lines automatically** rather than asking the user to hand-edit YAML (without these exposures the prepare step rate-limits out, identical symptom to never setting the secrets); and explain required Codex, legacy Claude Action, Review LLM, S2, DeepXiv, and SMTP secrets. See *Setup Workflow* below for the exact patch procedure.
+- `/daily-arxiv status` in Claude Code or `$daily-arxiv status` in Codex: inspect config, workflow presence, schedule, mode, API/e-mail secret availability, and recent artifacts when available.
+- `/daily-arxiv disable` in Claude Code or `$daily-arxiv disable` in Codex: set `schedule.enabled: false` in config or tell the user what to change; manual `/daily-arxiv` / `$daily-arxiv` must still work.
 
 > When running `setup` or `status`, treat S2/DeepXiv repo secrets as required (not optional) for any daily-cadence pipeline, and point the user at [`docs/daily-arxiv-deployment.md`](../../../docs/daily-arxiv-deployment.md) for the full setup checklist and symptom-keyed troubleshooting.
 
@@ -33,7 +33,7 @@ Load references only when needed:
 
 ## Setup Workflow
 
-Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo is a no-op.
+Triggered by `/daily-arxiv setup` in Claude Code or `$daily-arxiv setup` in Codex. Idempotent — re-running on a healthy repo is a no-op.
 
 1. **Config**: if `config/daily-arxiv.yml` is missing, copy from `config/daily-arxiv.yml.example`. If present, leave it alone (the user's preferences are durable).
 
@@ -75,7 +75,7 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. If mode is `auto-ingest`, note the current runtime limit: CI auto-ingest is supported only through the legacy Claude Code Action path. Codex CI is inform-mode only until the writeback path is separately verified. Choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Codex inform mode and third-party LLMs are recommendation-only and must not auto-ingest.
+3. If mode is `auto-ingest`, note the current runtime limit: CI auto-ingest is supported only through the legacy Claude Code Action path. Workflow dispatch must use `recommender=auto` or `recommender=claude-action`; explicit `codex`, `review-llm`, or `tool` recommenders fail closed in auto-ingest mode. Codex CI is inform-mode only until full Codex CI ingest orchestration and push are verified. Local Codex `$ingest` and force-staged writeback scope have been smoke-tested, but the unattended GitHub Actions path has not. Choose `decision: ingest` + `confidence: high`, obey `max_auto_ingest`, and invoke `/ingest <arxiv-url>` sequentially. Do not hand-write wiki or graph files. Codex inform mode and third-party LLMs are recommendation-only and must not auto-ingest.
 
 4. Finalize the digest:
 
@@ -89,10 +89,10 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
 
 Reads `wiki/index.md`, `wiki/papers/`, `wiki/topics/`, `wiki/concepts/`, `wiki/methods/`, `wiki/ideas/`, and `wiki/log.md` to build the interest profile and dedupe candidates.
 
-Writes only scratch files under `.daily-arxiv/` during inform runs. In `auto-ingest`, all durable wiki/raw mutations must come from `/ingest`.
+Writes only scratch files under `.daily-arxiv/` during inform runs. In `auto-ingest`, all durable wiki/raw mutations must come from `/ingest` in Claude Code or `$ingest` in Codex.
 
 ## Relationships
 
-- `/discover` answers deliberate next-read requests from anchors, topics, or wiki state; it never ingests.
-- `/daily-arxiv` watches the fresh arXiv stream and can notify daily or manually.
-- `/ingest` is the only paper incorporation path. `/daily-arxiv` may call it only in explicit `auto-ingest` mode.
+- `/discover` (Claude Code) or `$discover` (Codex) answers deliberate next-read requests from anchors, topics, or wiki state; it never ingests.
+- `/daily-arxiv` (Claude Code) or `$daily-arxiv` (Codex) watches the fresh arXiv stream and can notify daily or manually.
+- `/ingest` (Claude Code) or `$ingest` (Codex) is the only paper incorporation path. `/daily-arxiv` / `$daily-arxiv` may call it only in explicit `auto-ingest` mode.

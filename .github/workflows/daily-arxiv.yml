@@ -159,8 +159,12 @@ jobs:
         if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
         run: |
           set -euo pipefail
+          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$DAILY_ARXIV_RECOMMENDER" != "auto" ] && [ "$DAILY_ARXIV_RECOMMENDER" != "claude-action" ]; then
+            echo "::error::mode=auto-ingest currently supports only recommender=auto or recommender=claude-action. Codex, review-llm, and tool recommenders are inform-mode only until full Codex CI ingest orchestration and push are verified."
+            exit 1
+          fi
           if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
-            echo "::error::mode=auto-ingest currently requires legacy Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN). Codex CI recommendation is inform-mode only until the writeback path is separately verified."
+            echo "::error::mode=auto-ingest currently requires legacy Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN). Codex CI recommendation is inform-mode only until full Codex CI ingest orchestration and push are verified."
             exit 1
           fi
           if [ "$DAILY_ARXIV_RECOMMENDER" = "codex" ] && [ "$HAS_CODEX_AUTH" != "true" ]; then
@@ -360,7 +364,10 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add wiki raw/discovered
+          # Generated wiki entities and fetched sources are ignored in the
+          # template repo because they are per-user data. Auto-ingest is the
+          # explicit writeback path, so force-add only the allowed output roots.
+          git add -f wiki raw/discovered
           if git diff --cached --quiet; then
             echo "Auto-ingest mode ran, but no wiki/raw changes were staged." >> "$GITHUB_STEP_SUMMARY"
             exit 0

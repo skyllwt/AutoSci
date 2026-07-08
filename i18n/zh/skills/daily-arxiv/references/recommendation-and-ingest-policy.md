@@ -65,7 +65,10 @@ OpenAI-compatible 第三方 LLM 只支持 `inform` mode，通过
 - 顺序调用 `/ingest`；parallel ingest 不在 scope 内。
 - 通过 `ingest_status` 或 `ingest_error` 在 `llm-decisions.json` 和最终
   digest 中保留失败信息。
-- 只提交 `/ingest` 产生的变更，通常位于 `wiki/` 和 `raw/discovered/`。
+- 只提交 `/ingest` 产生的变更，通常位于 `wiki/` 和 `raw/discovered/`。这两个
+  root 在模板仓库中作为 per-user data 被 ignore；auto-ingest 写回必须只强制
+  stage 这些允许的 root（`git add -f wiki raw/discovered`），而不是扩大 commit
+  范围。
 - 边界候选保留为 `maybe`；不要 ingest medium/low confidence 项。
 
 ## Relationship to `/discover`

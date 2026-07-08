@@ -49,7 +49,18 @@ FLAT_FIELDS = (
 
 S2_API_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 RATE_LIMIT_DELAY = 1.0 if S2_API_KEY else 3.0  # faster with API key
-MAX_RETRIES = 3
+
+
+def _env_int(name: str, default: int, minimum: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+    return max(minimum, value)
+
+
+MAX_RETRIES = _env_int("S2_MAX_RETRIES", 3, 1)
+RATE_LIMIT_WAIT_SECONDS = _env_int("S2_RATE_LIMIT_WAIT_SECONDS", 60, 0)
 
 _HEADERS = {"x-api-key": S2_API_KEY} if S2_API_KEY else {}
 
@@ -72,7 +83,7 @@ def _request(method: str, url: str, *, params: dict | None = None, json_body: di
             timeout=30,
         )
         if resp.status_code == 429:
-            wait = 60 * (attempt + 1)  # 60s, 120s, 180s
+            wait = RATE_LIMIT_WAIT_SECONDS * (attempt + 1)  # default: 60s, 120s, 180s
             print(f"Rate limited, waiting {wait}s... (attempt {attempt+1}/{MAX_RETRIES})", file=sys.stderr)
             time.sleep(wait)
             continue

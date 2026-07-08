@@ -4,8 +4,10 @@ This page is the operator's manual for the current GitHub Actions deployment pat
 for the daily arXiv pipeline. CI `inform` mode supports a Codex CLI recommender
 first, then a legacy Claude Code Action recommender, then an OpenAI-compatible
 Review LLM fallback. CI `auto-ingest` is still legacy Claude Code Action only
-until the Codex writeback path is separately verified. Read top-to-bottom for
-first-time setup; jump to **Troubleshooting** when a run fails.
+until full Codex CI ingest orchestration and push are verified. Local Codex
+`$ingest` and force-staged writeback scope have been smoke-tested, but the
+unattended GitHub Actions path has not. Read top-to-bottom for first-time setup;
+jump to **Troubleshooting** when a run fails.
 
 ## Setup
 
@@ -20,7 +22,7 @@ first-time setup; jump to **Troubleshooting** when a run fails.
 
    Set secrets with `gh secret set <NAME>`. `CODEX_MODEL` can optionally override the Codex model used in CI.
 
-2. **For auto-ingest only, configure legacy Claude Code Action auth.** Set either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, then install the Claude Code GitHub App on the repo at <https://github.com/apps/claude>. The auth secret alone is not enough; the action needs an app installation to exchange OIDC for a usable token. Codex CI currently does not run `$ingest` or push wiki changes.
+2. **For auto-ingest only, configure legacy Claude Code Action auth.** Set either `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, then install the Claude Code GitHub App on the repo at <https://github.com/apps/claude>. The auth secret alone is not enough; the action needs an app installation to exchange OIDC for a usable token. Dispatch `mode=auto-ingest` with `recommender=auto` or `recommender=claude-action`; explicit `codex`, `review-llm`, or `tool` recommenders fail closed in auto-ingest mode. Codex CI currently does not run unattended `$ingest` or push wiki changes.
 
 3. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
    ```bash
@@ -43,6 +45,68 @@ first-time setup; jump to **Troubleshooting** when a run fails.
    gh workflow run daily-arxiv.yml --ref main
    gh run watch
    ```
+
+## Codex Auto-Ingest Boundary
+
+Current status: **Codex CI auto-ingest is not implemented**. Codex can rank
+papers in CI `inform` mode, but unattended `$ingest` plus push remains on the
+legacy Claude Code Action path until a disposable GitHub Actions run proves the
+Codex path end to end.
+
+Run these checks when changing the workflow:
+
+Use `--ref main` after the migration is merged. For a disposable branch or an
+unmerged migration branch, replace `main` with the branch under test so the run
+executes that branch's workflow file and scripts.
+
+```bash
+# Positive Codex CI smoke: recommendation only, no wiki/raw writeback.
+gh workflow run daily-arxiv.yml --ref main \
+  -f mode=inform \
+  -f recommender=codex \
+  -f max_recommendations=2 \
+  -f send_email=false
+
+# Negative canary: must fail before prepare/recommend/commit.
+gh workflow run daily-arxiv.yml --ref main \
+  -f mode=auto-ingest \
+  -f recommender=codex \
+  -f max_auto_ingest=1 \
+  -f send_email=false
+```
+
+For the negative canary, inspect the run and confirm the failure comes from
+`Validate recommender credentials` with the message that Codex, Review LLM, and
+tool recommenders are inform-mode only. A green result here is a regression: it
+means the workflow may have silently enabled an unverified unattended Codex
+writeback path.
+
+The only supported auto-ingest dispatch today is:
+
+```bash
+gh workflow run daily-arxiv.yml --ref main \
+  -f mode=auto-ingest \
+  -f recommender=auto \
+  -f max_auto_ingest=1 \
+  -f send_email=false
+```
+
+That run requires legacy Claude Code Action auth and the Claude GitHub App. It
+may create a `daily-arxiv auto-ingest` commit if a high-confidence candidate is
+selected; the commit step force-stages only `wiki` and `raw/discovered`.
+
+Do not change `mode=auto-ingest` to allow `recommender=codex` until all of the
+following are true in a disposable branch/workflow:
+
+- Codex runs `$ingest <arxiv-url>` unattended from a selected high-confidence
+  candidate.
+- The run creates only allowed durable outputs under `wiki/` and
+  `raw/discovered/`.
+- The commit step force-stages only `wiki` and `raw/discovered`.
+- Scratch files under `.daily-arxiv/` and user-owned `raw/papers/`,
+  `raw/notes/`, and `raw/web/` remain uncommitted.
+- The workflow pushes the resulting commit and a fresh checkout passes
+  `tools/lint.py --wiki-dir wiki --json`.
 
 ## What a good run looks like
 
@@ -113,7 +177,7 @@ claude_args: |
   unset TOKEN
   ```
 - **`DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env`.** Easy to miss when writing a mirror script.
-- **Codex inform mode only.** `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` lets CI rank recommendations, but it does not enable CI auto-ingest. Auto-ingest still requires the legacy Claude Code Action auth path.
+- **Codex inform mode only.** `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` lets CI rank recommendations, but it does not enable CI auto-ingest. `mode=auto-ingest` with `recommender=codex` fails closed instead of silently falling back. Auto-ingest still requires the legacy Claude Code Action auth path until the unattended Codex `$ingest` plus push path is verified in GitHub Actions.
 - **`gh run watch --exit-status` returns 0 on cancellation, not just success.** Confirm with `gh run view <id> --json conclusion`.
 - **Job logs return HTTP 404 while the job is still running.** `gh api .../jobs/<id>/logs` only works after the job reaches a terminal state.
 - **Pro/Max OAuth quota is shared.** The same token authenticates your local Claude Code session and CI's auto-ingest. Heavy local use can starve CI; if CI auth fails for hours, check whether you've been hammering Claude Code locally.

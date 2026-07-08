@@ -1,6 +1,6 @@
 # Daily arXiv Automation
 
-GitHub Actions 是 `/daily-arxiv` 的无人值守调度器。它应运行与手动 slash
+GitHub Actions 是 `/daily-arxiv` 的无人值守调度器。它应运行与手动 agent
 skill 相同的 pipeline；它不定义这个功能的用户入口。
 
 ## Source of Truth
@@ -22,10 +22,14 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
   `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 的 legacy Claude Code
   Action；否则使用 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 对应的
   OpenAI-compatible LLM；否则输出 tool-ranked fallback digest。
-- Auto-ingest mode 缺少 legacy Claude Code Action auth 时 fail closed。Codex
-  CI 在写回路径单独验证前仅用于 inform mode。
-- Auto-ingest 只提交 `/ingest` 产生并 staged 的 `wiki/` 和
-  `raw/discovered/` 变更。
+- Auto-ingest mode 缺少 legacy Claude Code Action auth，或所选 recommender
+  不是 `auto` / `claude-action` 时 fail closed。显式 `codex`、`review-llm`
+  和 `tool` recommender 仅限 inform mode。Codex CI 在完整的 Codex CI ingest
+  编排与 push 被验证前仅用于 inform mode。本地 Codex `$ingest` 与强制 stage
+  的写回范围已经做过 smoke test，但无人值守 GitHub Actions 路径还没有。
+- Auto-ingest 只提交 `/ingest` 在 `wiki/` 和 `raw/discovered/` 下产生的变更。
+  这两个 root 在模板仓库中作为 per-user data 被 ignore，所以 workflow 必须只对
+  这两个 root 执行强制 stage（`git add -f wiki raw/discovered`），不能扩大范围。
 
 ## Secrets
 
@@ -46,6 +50,8 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
   会让 prepare 步骤在大量候选上超时。
 - `DEEPXIV_TOKEN` — daily-cadence 运行需要；避免 DeepXiv enrichment 的匿名限流。
 
+这两个 API key 也必须作为 workflow env vars 暴露（见下方 *Workflow Env Exposures*）。只把它们存成 repo secrets 还不够。
+
 SMTP 发送：
 
 - `SMTP_HOST`
@@ -56,6 +62,22 @@ SMTP 发送：
 - `DAILY_ARXIV_EMAIL_TO`
 
 不要把 secrets 写进 `config/daily-arxiv.yml`。
+
+## Workflow Env Exposures
+
+`.github/workflows/daily-arxiv.yml` 必须在 job-level `env:` block 中引用
+S2/DeepXiv secrets；否则 runner 的 process environment 收不到它们，Python
+prepare 步骤会静默退回 anonymous mode：
+
+```yaml
+jobs:
+  daily-arxiv:
+    env:
+      SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
+      DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
+```
+
+`/daily-arxiv setup` 会自动 patch workflow，补上缺失的任一行 —— 用户不应被要求手工编辑 YAML。`gh secret set` 配上缺失 env exposure 是 daily run rate-limit 的最常见原因：测试者能看到 secret 已配置，便误以为 workflow 能读取它。所以 `setup` 应直接消除这个缺口，而不只是报告它。
 
 ## Artifacts
 
