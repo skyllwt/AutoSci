@@ -11,6 +11,10 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 > Canvas views with labeled typed edges. For interactive web exploration
 > use the SPA Graph view (`tools/serve.py`, then `#/graph`).
 
+## Trigger
+
+Manual: `/visualize [flags]` in Claude Code or `$visualize [flags]` in Codex.
+
 ## Inputs
 
 - `--obsidian` (optional): Generate/update `.obsidian/graph.json` with entity-type color groups
@@ -164,18 +168,21 @@ manually.
    Exit code `0` = port in use (server already up — skip start). Exit code
    `1` = port free (need to start).
 
-2. If the port is free, start the server in the background via the **`Bash`
-   tool with `run_in_background: true`** (not foreground — foreground would
-   block the skill indefinitely):
+2. If the port is free, start the server in the background using the current
+   runtime's background command mechanism (Claude Code: Bash with
+   `run_in_background: true`; Codex: a long-running shell session or an
+   external scheduler). Do not run it in the foreground because that would
+   block the skill indefinitely. In Codex's managed sandbox, `tools/serve.py`
+   may require the documented network escalation rule:
 
    ```bash
    python3 tools/serve.py
    ```
 
-   Do not spawn an `Agent` subagent for this — agents are not designed for
-   long-running services, and the server may die when the agent returns. The
-   background `Bash` process is owned by the agent session and lives
-   for the session's lifetime.
+   Do not spawn an Agent/subagent for this — subagents are not designed for
+   long-running services, and the server may die when the subagent returns.
+   The background process is owned by the current agent session and lives for
+   the session's lifetime.
 
 3. Print the SPA URL to the user:
 
@@ -249,7 +256,7 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 
 ## Error Handling
 
-- **No graph data**: inform user to run `/ingest` first to build the knowledge base
+- **No graph data**: inform user to run `/ingest` in Claude Code or `$ingest` in Codex first to build the knowledge base
 - **config/visualize.json missing**: report error, file should exist at `config/visualize.json`
 - **--focus node not found**: abort with `Error: node "<node_id>" not found`; list 5 closest slug matches
 - **No nodes after filtering**: abort with summary of filters applied and types available

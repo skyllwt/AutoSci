@@ -1,16 +1,16 @@
 ---
 name: exp-pilot-run
-description: Pilot experiment execution — read Pilot Spec YAML, write pilot code, run experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), return results. Called by the ideate workflow. Does NOT modify wiki pages or judge pass/fail.
+description: Pilot experiment execution — read Pilot Spec YAML, write pilot code, pass a user inspection gate, run experiment, return results. Called by the ideate workflow. Does NOT modify wiki pages or judge pass/fail.
 argument-hint: <idea-slug> [--env local|remote]
 ---
 
 # /exp-pilot-run
 
 > Execute a pilot experiment described by a Pilot Spec YAML file.
-> Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, runs the experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), and returns raw results to the caller.
->**No matter which operating mode is adopted, before the experimental code is ready for deployment and operation, confirmation shall be obtained from users. Users need to manually check relevant information including codes and experimental configurations(Such as dataset paths, interface parameter selection, API configuration and so on). The operation can only be launched after confirmation. Otherwise, revisions shall be made repeatedly until users approve the execution.**
+> Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, passes a user inspection gate before execution, and returns raw results to the caller.
+> **User inspection gate**: after preparing or modifying pilot code, but before deployment or execution, present the code paths and experiment configuration for user inspection. The user must explicitly approve the run. If they request changes, revise and repeat the gate before launching.
 > Supports **local** (direct GPU) and **remote** (SSH deployment via `tools/remote.py`) modes.
-> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval`.
+> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval` in Claude Code or `$exp-pilot-eval` in Codex.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ argument-hint: <idea-slug> [--env local|remote]
 ## Wiki Interaction
 
 ### Reads
-- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
+- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration). If it is missing, report the error and suggest running `/ideate` in Claude Code or `$ideate` in Codex to generate it first; do not create a spec in this skill.
 - `wiki/papers/*.md` — related papers' method descriptions (implementation reference)
 
 ### Writes
@@ -55,14 +55,14 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: Prepare**
 
 1. **Read Pilot Spec**:
-   **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
+   If `experiments/pilot/{slug}.yaml` is missing, report the error and suggest running `/ideate` in Claude Code or `$ideate` in Codex to generate it first. Do not synthesize or create a Pilot Spec here; `/exp-pilot-run` / `$exp-pilot-run` executes an existing spec.
    - Load `experiments/pilot/{slug}.yaml`
    - The YAML has a `pilot_spec:` root key; all fields below are nested under it
    - Validate required fields exist under `pilot_spec:`: `implementation`, `setup`, `metrics`, `baseline`, `success_criterion`
    - Extract from `pilot_spec:`: repo, entry_point, modifications, files_to_create, setup (model, dataset, hardware, framework, batch_size, max_steps, learning_rate, seeds, other_hparams), metrics, baseline, success_criterion, hypothesis, approach_sketch
 
 2. **Load implementation context**:
-   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `/ideate` Phase 4, before pilot)
+   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `/ideate` / `$ideate` Phase 4, before pilot)
    - Read related papers' method descriptions for algorithm details (from `wiki/papers/` if they exist)
    - Read source paper repo for base code reference
 
@@ -97,20 +97,19 @@ Possible reference paths for the preliminary experiment code:
    - `run.sh`: launch wrapper (includes CUDA_VISIBLE_DEVICES, logging, conda activation)
    - `requirements.txt`: dependencies (if different from main project)
 
-5. **Sanity check** (small-scale validation):
-   - Run at minimal scale (10 steps / small subset)
-   - Verify: no code crash, data loads correctly, GPU available, loss is finite
-   - If sanity fails → fix code, retry once; if still failing, report error and stop
-
-
 **Gate: Manual Inspection by Users**
 
-> **Note**: Before preparing experimental codes for deployment and operation, confirm with users and apply for users to manually inspect relevant information including codes and experimental configurations. Proceed with operation only after confirmation; otherwise, make revisions until users give approval for execution.
+> **Note**: Before deployment or execution, present code paths and experiment configuration for user inspection, including dataset paths, interface parameters, API configuration, and run commands. Proceed only after explicit user approval; otherwise revise and repeat this gate.
 
 
 **Phase 2: Run**
 
 > **Pilot purpose reminder**: This is a **short, diagnostic run** — not a full experiment. The run should finish quickly (reduced steps). If it diverges or hangs beyond 2× estimated time, that itself is a useful signal. Report it; do not attempt rescue runs.
+
+**Post-approval sanity check** (small-scale validation; run only after the user inspection gate is approved):
+- Run at minimal scale (10 steps / small subset).
+- Verify: no code crash, data loads correctly, GPU available when required, loss is finite.
+- If sanity fails → fix code, repeat the user inspection gate for the changed code, then retry once; if still failing, report error and stop.
 
 #### Local mode (`--env local` or default)
 
@@ -220,28 +219,28 @@ Possible reference paths for the preliminary experiment code:
    - {list of anomalies detected during run, or "None"}
 
    ## Next Steps
-   - Proceed to /exp-pilot-eval for verdict assessment and wiki update
+   - Proceed to `/exp-pilot-eval` in Claude Code or `$exp-pilot-eval` in Codex for verdict assessment and wiki update
    ```
 
-7. **Return** the raw results and key metrics to the caller (e.g., `/ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `/exp-pilot-eval`, not by this skill.
+7. **Return** the raw results and key metrics to the caller (e.g., `/ideate` / `$ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `/exp-pilot-eval` / `$exp-pilot-eval`, not by this skill.
 
 ## Constraints
 
 - **Does not require a wiki experiment page**: reads from `experiments/pilot/{slug}.yaml` instead
-- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `/exp-pilot-eval`
+- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `/exp-pilot-eval` / `$exp-pilot-eval`
 - **Code goes in `experiments/pilot/code/{slug}/`**: do not write to project root or any other location
 - **Results must be saved**: all pilot results saved as JSON in `experiments/pilot/code/{slug}/results/seed_{N}.json`
 - **Multi-seed results use mean ± std**: report mean ± std, not single-run results
-- **Sanity check must pass**: Phase 1 sanity failure reports error and stops (unless user explicitly overrides)
+- **Sanity check must pass after approval**: do not execute generated code before the user inspection gate; post-gate sanity failure reports error and stops unless the user explicitly approves a retry after inspecting fixes
 - **Graph edges are not created here**: pilot experiments do not create graph edges
 - **Automatic fix attempts are limited to 1**: prevents infinite restart loops
 
 ## Error Handling
 
-- **Pilot Spec not found**: report error, suggest running `/ideate` first to generate the spec
-- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `/ideate`
+- **Pilot Spec not found**: report error, suggest running `/ideate` in Claude Code or `$ideate` in Codex first to generate the spec
+- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `/ideate` in Claude Code or `$ideate` in Codex
 - **GPU unavailable**: report error, suggest waiting for GPU to free up
-- **Sanity check fails**: report detailed error, attempt one automatic fix, if still failing report error and stop
+- **Sanity check fails**: report detailed error, attempt one fix, repeat the user inspection gate before retrying, and if it still fails report error and stop
 - **Result files missing**: report error "no result files produced (run may have crashed)"
 - **Screen session timeout**: if screen session persists beyond 2× the estimated time, warn user but do not force-terminate
 - **Remote connection fails**: report SSH error, suggest checking connection config and `config/server.yaml`
@@ -250,7 +249,7 @@ Possible reference paths for the preliminary experiment code:
 
 ## Dependencies
 
-### Skills (via Skill tool)
+### Skills
 - None
 
 ### Tools (via Bash)
@@ -267,5 +266,5 @@ Possible reference paths for the preliminary experiment code:
 - `Bash` — execute pilot code, monitor processes
 
 ### Called by
-- `/ideate` Phase 5
+- `/ideate` (Claude Code) or `$ideate` (Codex) Phase 5
 - User directly

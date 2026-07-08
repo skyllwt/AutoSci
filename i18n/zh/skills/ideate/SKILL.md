@@ -80,7 +80,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - 读取 `wiki/topics/*.md` 与 `wiki/concepts/*.md`：收集 `## Open problems` 下（包括 `### Known gaps` 与 `### Methodological gaps`）的 bullet → **gap candidates list**
    - 若 `direction` 指定，过滤与方向相关的子集
 
-2. **外部搜索**（使用 Agent tool 并行）：
+2. **外部搜索**（runtime 具备可靠 Agent/subagent 工具时可并行；否则在主工作区顺序运行，这是 Codex-safe 默认路径）：
    - **WebSearch**：搜索目标方向最近 6 个月的论文和进展（3-5 个查询）
    - **Semantic Scholar**：
      ```bash
@@ -218,18 +218,18 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 （跳过时：直接进入 Phase 4: 写入 Wiki，所有幸存 ideas 默认 priority = 3）
 
-1. **调用 /novelty `--write`**（逐个执行）：
+1. **调用 `/novelty` / `$novelty` 的 `--write`**（逐个执行）：
    ```
    对每个幸存 idea：
-   Skill: novelty
-   Args: "<idea-slug>" --write
+   Claude Code: /novelty "<idea-slug>" --write
+   Codex:       $novelty "<idea-slug>" --write
    ```
    `--write` 标志会把得到的 `novelty_score`（1-5）写入 idea frontmatter。记录该分数用于 IDEA_REPORT。
 
-2. **调用 /review**（对 top ideas）：
+2. **调用 `/review` / `$review`**（对 top ideas）：
    ```
-   Skill: review
-   Args: "<idea-full-description>" --difficulty hard --focus method
+   Claude Code: /review "<idea-full-description>" --difficulty hard --focus method
+   Codex:       $review "<idea-full-description>" --difficulty hard --focus method
    ```
    记录 review score（1-10）和 weaknesses
 
@@ -452,8 +452,8 @@ pilot_spec:
 用户选择的幸存 idea 写入 Pilot Spec 到 `experiments/pilot/{slug}.yaml` 后：
 
 ```
-Skill: exp-pilot-run
-Args: "{idea-slug}"
+Claude Code: /exp-pilot-run "{idea-slug}"
+Codex:       $exp-pilot-run "{idea-slug}"
 ```
 
 `/exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
@@ -465,8 +465,8 @@ Args: "{idea-slug}"
 `/exp-pilot-run` 返回 PILOT_REPORT 后，评估结果并更新 idea 页面（已在 Phase 4 创建）：
 
 ```
-Skill: exp-pilot-eval
-Args: "{idea-slug}"
+Claude Code: /exp-pilot-eval "{idea-slug}"
+Codex:       $exp-pilot-eval "{idea-slug}"
 ```
 
 `/exp-pilot-eval` 读取预实验结果，应用判定逻辑（宽松阈值——目的是检测明显失败，非衡量最终性能），更新 idea 页面：
@@ -496,11 +496,11 @@ Args: "{idea-slug}"
 - **DeepXiv API 不可用**：跳过 DeepXiv 搜索和 trending，依赖 S2 + WebSearch（回退到原有行为）
 - **Review LLM 不可用**：Phase 2 仅用 primary agent 生成（无双模型多样性，在报告中标注）
 - **/novelty 失败**：Phase 3 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
-- **/review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动 /review
+- **/review / $review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动运行 Claude Code 的 `/review` 或 Codex 的 `$review`
 - **预实验失败**：标记为 failed 并在 failure_reason 中加 `[pilot]` 前缀，其余 ideas 继续
 - **所有预实验都失败**：idea 页面已存在（Phase 4 已写入），报告建议用户查看预实验日志并调整方案
 - **slug 冲突**：若 wiki/ideas/ 中已存在相同 slug，追加数字后缀（如 `sparse-lora-v2`）
-- **所有 ideas 都被淘汰**：仍写入 wiki（status: failed），报告中建议用户扩大搜索方向或 /ingest 更多论文
+- **所有 ideas 都被淘汰**：仍写入 wiki（status: failed），报告中建议用户扩大搜索方向，或用 Claude Code 的 `/ingest` / Codex 的 `$ingest` 增加论文
 
 ## Dependencies
 
@@ -516,18 +516,18 @@ Args: "{idea-slug}"
 - `python3 tools/fetch_deepxiv.py brief <arxiv_id>` — 获取论文 TLDR
 - `python3 tools/fetch_deepxiv.py trending --days 14` — 热门论文趋势
 
-### Skills（via Skill tool）
-- `/novelty` — Phase 3 深度 novelty 验证
-- `/review` — Phase 3 跨模型审查
-- `/exp-pilot-run` — Phase 5 预实验执行
-- `/exp-pilot-eval` — Phase 5 预实验结果评估与 idea 页面更新
+### Skills
+- `/novelty`（Claude Code）或 `$novelty`（Codex）— Phase 3 深度 novelty 验证
+- `/review`（Claude Code）或 `$review`（Codex）— Phase 3 跨模型审查
+- `/exp-pilot-run`（Claude Code）或 `$exp-pilot-run`（Codex）— Phase 5 预实验执行
+- `/exp-pilot-eval`（Claude Code）或 `$exp-pilot-eval`（Codex）— Phase 5 预实验结果评估与 idea 页面更新
 
 ### MCP Servers
 - `llm-review MCP chat tool` — Phase 2 Review LLM 独立脑暴
 
-### Agent Runtime Capabilities
-- `WebSearch` — Phase 1 外部搜索、Phase 3 快速 novelty 筛查、Phase 5 预实验验证
-- `Agent` tool — Phase 1 并行搜索、Phase 2 并行脑暴
+### Runtime Capabilities
+- Web search — Phase 1 外部搜索、Phase 3 快速 novelty 筛查、Phase 5 预实验验证，使用当前 runtime 可用的 web-search 能力。
+- 可选 Agent/subagent 执行 — 仅作为 Phase 1 并行搜索与 Phase 2 并行脑暴的加速器。若不可用，或无法确认 subagent 工作目录控制可靠，则顺序运行同等步骤；这是 Codex-safe 默认路径。
 
 ### Shared References
 - `shared-references/cross-model-review.md` — Phase 2 Review LLM 独立性原则

@@ -7,7 +7,7 @@ argument-hint: "[paper-dir] [--fix] [--checklist]"
 # /paper-compile
 
 > 编译 LaTeX 论文为 PDF，自动修复常见错误，验证提交要求。
-> 输入 paper/ 目录（由 /paper-draft 生成），执行 latexmk 编译，
+> 输入 paper/ 目录（由 `/paper-draft` / `$paper-draft` 生成），执行 latexmk 编译，
 > 解析错误并尝试自动修复（缺失包、引用未定义、figure 路径），
 > 验证页数限制、匿名合规、字体嵌入、[UNCONFIRMED] 标记清除。
 > 生成提交清单。
@@ -125,8 +125,9 @@ for line in result.stdout.splitlines():
 
 **3c. [UNCONFIRMED] 标记检查**：
 ```bash
-# 扫描 references.bib 和所有 .tex 文件
-grep -rn "VERIFY" paper/
+# 扫描 references.bib 和所有 .tex 文件，并检查 citation/key/ref 完整性
+python3 tools/paper_compile_checks.py paper/ --json
+grep -rn "\\[UNCONFIRMED\\]\\|UNCONFIRMED_" paper/
 ```
 - 若存在 [UNCONFIRMED] 标记：列出每个，标注为 **提交阻塞项**
 - 参照 citation-verification.md：[UNCONFIRMED] 是提交的硬阻塞
@@ -211,7 +212,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Error Handling
 
-- **main.tex 不存在**：报错，建议先运行 /paper-draft
+- **main.tex 不存在**：报错，建议先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft`
 - **latexmk 未安装**：报错，提供安装命令（`sudo apt install texlive-full` 或 `brew install --cask mactex`）
 - **编译失败且无法自动修复**：输出完整错误日志 + 定位到具体 .tex 文件和行号
 - **pdfinfo/pdffonts 未安装**：跳过页数/字体检查，在报告中标注
@@ -222,6 +223,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ### Tools（via Bash）
 - `latexmk` — LaTeX 编译
+- `python3 tools/paper_compile_checks.py <paper-dir> --json` — 确定性的本地提交清单检查（[UNCONFIRMED]、TODO/FIXME、citations、inputs、figures、refs、abstract、匿名启发式检查）
 - `pdfinfo` — PDF 页数检查（poppler-utils）
 - `pdffonts` — 字体嵌入检查（poppler-utils）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
@@ -240,5 +242,5 @@ python3 tools/research_wiki.py log wiki/ \
 - `shared-references/academic-writing.md` — venue 页数限制参考
 
 ### Called by
-- `/research` Stage 5（论文编译阶段）
+- `/research`（Claude Code）或 `$research`（Codex）Stage 5（论文编译阶段）
 - 用户手动调用

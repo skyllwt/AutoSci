@@ -1,19 +1,19 @@
 ---
 name: exp-run
-description: Full experiment execution pipeline — prepare code → deploy(Confirm with the user before operation and ask the applicant to conduct manual inspection) → monitor → collect results, supporting three run modes
+description: Full experiment execution pipeline — prepare code → user inspection gate → deploy/run → monitor → collect results, supporting three run modes
 argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---
 
 # /exp-run
 
 > Execute an experiment that has been planned in wiki/experiments/.
-> **No matter which operation mode it is, before preparing the experimental codes and deploying them for operation, confirmation shall be obtained from users. Users need to manually check relevant information such as codes and experimental configurations(Dataset paths, interface parameter selection, API configuration, etc.). The operation can only be launched after confirmation; otherwise, revisions shall be made repeatedly until users approve the execution.**
+> **User inspection gate**: after preparing or modifying experiment code, but before deployment or execution, present the code paths and experiment configuration for user inspection. The user must explicitly approve the run. If they request changes, revise and repeat the gate before launching.
 > **Three run modes** for different scenarios:
 > - **Default (deploy)**: Phase 1-2 only — deploy and return immediately. Best for experiments that take hours or days.
 > - **`--collect`**: Phase 3-4 only — check whether a deployed experiment has finished; collect results if so (`--check` is an alias).
 > - **`--full`**: All four phases end-to-end. Best for short local experiments that finish in minutes.
 >
-> Recommended flow: `/exp-run <slug>` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.
+> Recommended flow: `/exp-run <slug>` in Claude Code or `$exp-run <slug>` in Codex to deploy → `/exp-status` / `$exp-status` to monitor → `/exp-run <slug> --collect` / `$exp-run <slug> --collect` to collect.
 
 ## Inputs
 
@@ -61,7 +61,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/log.md` — append operation log
 
 ### Graph edges created
-- **None**. The tested_by edges between experiments and ideas are created by /exp-design.
+- **None**. The tested_by edges between experiments and ideas are created by `/exp-design` / `$exp-design`.
 
 ## Workflow
 
@@ -129,17 +129,16 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
    ```
    Fix code based on Review LLM feedback.
 
-6. **Sanity check (small-scale validation)**:
-   - Run at minimal scale (1 epoch / 100 steps / small subset)
-   - Verify: no code crash, data loads correctly, GPU available, loss decreases
-   - If sanity fails → fix code, retry once; if still failing, report error and stop
-
-
 **Gate: Manual User Inspection**
 
-> **Note**: Before preparing experimental code for deployment and execution, confirm with users and request them to manually check relevant information including codes and experimental configurations(Dataset paths, interface parameter selection, API configuration, etc.). Proceed with operation only after confirmation; otherwise, make revisions repeatedly until users approve the execution.
+> **Note**: Before deployment or execution, present code paths and experiment configuration for user inspection, including dataset paths, interface parameters, API configuration, and run commands. Proceed only after explicit user approval; otherwise revise and repeat this gate.
 
 **Phase 2: Deploy**
+
+**Post-approval sanity check** (small-scale validation; run only after the user inspection gate is approved):
+- Run at minimal scale (1 epoch / 100 steps / small subset).
+- Verify: no code crash, data loads correctly, GPU available when required, loss decreases or remains finite for diagnostic runs.
+- If sanity fails → fix code, repeat the user inspection gate for the changed code, then retry once; if still failing, report error and stop.
 
 #### Local mode (`--env local` or default)
 
@@ -150,8 +149,12 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      "cd $(pwd) && bash experiments/code/{slug}/run.sh 2>&1 | tee logs/exp-{slug}.log"
    ```
 3. Update `wiki/experiments/{slug}.md`:
-   - status: `running`
    - run_log: `logs/exp-{slug}.log`
+   - status: `running` via lifecycle transition
+   ```bash
+   python3 tools/research_wiki.py transition wiki/experiments/{slug}.md --to running
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md run_log "logs/exp-{slug}.log"
+   ```
 4. **Estimate runtime** and write to frontmatter:
    Estimate based on `setup.hardware` (GPU model/count), `setup.model` (parameter count), `setup.dataset` (scale):
 
@@ -190,23 +193,21 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      --cmd "bash experiments/code/{slug}/run.sh" \
      --gpu {gpu_index}
    ```
-6. Update `wiki/experiments/{slug}.md` frontmatter — all of these fields already exist (empty) because `/exp-design` wrote the full CLAUDE.md template:
+6. Update `wiki/experiments/{slug}.md` frontmatter — all of these fields already exist (empty) because `/exp-design` / `$exp-design` wrote the full `runtime/templates/experiments.md.tmpl` shape:
    ```bash
-   # Top-level scalar fields — use set-meta
-   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md status running
+   # Top-level scalar fields
+   python3 tools/research_wiki.py transition wiki/experiments/{slug}.md --to running
    python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md run_log "logs/exp-{slug}.log"
    ```
 
-   The nested `remote:` block cannot be updated via `set-meta` (it only handles top-level scalar fields). Use the `Edit` tool directly to replace the five empty sub-field values in place. The pre-existing block in the file looks like:
-   ```yaml
-   remote:
-     server: ""
-     gpu: ""
-     session: ""
-     started: ""
-     completed: ""
+   The nested `remote:` block is updated through dotted `set-meta` paths; do not hand-edit the YAML block. These fields already exist because `/exp-design` / `$exp-design` wrote the full experiment template shape:
+   ```bash
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md remote.server "{host}"
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md remote.gpu "gpu-{gpu_index}"
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md remote.session "exp-{slug}"
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md remote.started "{YYYY-MM-DDTHH:MM}"
    ```
-   Use five Edit calls (one per sub-field) to set `server`, `gpu`, `session`, `started`. Leave `completed: ""` — Phase 4 fills that. If you find the `remote:` block missing from the file, that means `/exp-design` did not write the full CLAUDE.md template; stop and report the bug rather than trying to append the block here (appending would drift the file away from the canonical order and break future edits).
+   Leave `remote.completed: ""` — Phase 4 fills that. If any dotted `set-meta` call fails with "field not found", that means `/exp-design` / `$exp-design` did not write the full experiment template shape; stop and report the bug rather than trying to append the block here (appending would drift the file away from the canonical order and break future edits).
 
 7. **Estimate runtime** and write to frontmatter (same estimation logic as local mode):
    ```bash
@@ -236,9 +237,9 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 ### Next Steps
 
-1. Monitor progress: `/exp-status`
-2. Check this experiment: `/exp-run {slug} --collect`
-3. In /research pipeline: progress saved to wiki/outputs/pipeline-progress.md
+1. Monitor progress: `/exp-status` in Claude Code or `$exp-status` in Codex
+2. Check this experiment: `/exp-run {slug} --collect` in Claude Code or `$exp-run {slug} --collect` in Codex
+3. In `/research` / `$research` pipeline: progress saved to wiki/outputs/pipeline-progress.md
 
 ### Quick Commands
 ```bash
@@ -309,16 +310,24 @@ tail -f logs/exp-{slug}.log
    - Compare with baseline, compute improvement delta
 
 4. **Update experiment page** `wiki/experiments/{slug}.md`:
-   - status: `completed`
    - outcome: `succeeded` / `failed` / `inconclusive`
      - succeeded: all success criteria met
      - failed: core metrics did not reach target
      - inconclusive: mixed results or excessive variance
    - key_result: one-sentence summary of the core finding
-   - date_completed: today's date
+   - status: `completed` via lifecycle transition after `key_result` is written
+   - date_completed: set automatically by `transition`
    - Fill `## Results` section: complete results table
    - Fill `## Analysis` section: preliminary analysis
    - If remote mode: update `remote.completed` timestamp
+
+   ```bash
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md outcome "{outcome}"
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md key_result "{key_result}"
+   python3 tools/research_wiki.py transition wiki/experiments/{slug}.md --to completed
+   # Remote mode only:
+   python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md remote.completed "{YYYY-MM-DDTHH:MM}"
+   ```
 
 5. **Append log**:
    ```bash
@@ -343,7 +352,7 @@ tail -f logs/exp-{slug}.log
    ## Next Steps
    - Update the linked idea in wiki with `/exp-eval {slug}` in Claude Code or `$exp-eval {slug}` in Codex
    - {if succeeded: proceed to next experiment in plan}
-   - {if failed: analyze failure, consider /exp-design revision}
+   - {if failed: analyze failure, consider `/exp-design` in Claude Code or `$exp-design` in Codex for revision}
    ```
 
 ---
@@ -371,21 +380,21 @@ done
 - **Collect mode only accepts running experiments**: if status is planned, prompt to deploy first; if completed, note it is already done
 - **Collect mode: do not write wiki when alive**: only report progress, do not modify any wiki files
 - **Code goes in experiments/code/{slug}/**: do not write to project root or any other location
-- **Do not update the linked idea's status**: experiment results are written only to experiments/ pages; idea updates are handled by /exp-eval
-- **Sanity check must pass**: Phase 1 sanity failure blocks deployment (unless user explicitly overrides)
+- **Do not update the linked idea's status**: experiment results are written only to experiments/ pages; idea updates are handled by `/exp-eval` / `$exp-eval`
+- **Sanity check must pass after approval**: do not execute generated code before the user inspection gate; post-gate sanity failure blocks deployment unless the user explicitly approves a retry after inspecting fixes
 - **Results must be saved**: all experiment results saved as JSON in `results/{slug}/seed_{N}.json`
 - **Multi-seed results use mean**: report mean ± std, not single-run results
-- **Graph edges are not created here**: tested_by edges were created by /exp-design
+- **Graph edges are not created here**: tested_by edges were created by `/exp-design` / `$exp-design`
 - **Automatic fix attempts are limited to 1**: prevents infinite restart loops
 
 ## Error Handling
 
 - **Experiment not found**: prompt user to check slug, list candidates in wiki/experiments/ (status=planned or running)
-- **Deploy mode but status == running**: prompt "already running — use `/exp-run {slug} --collect` to check status"
-- **Collect mode but status == completed**: prompt "already completed — run `/exp-eval {slug}` directly"
+- **Deploy mode but status == running**: prompt "already running — use `/exp-run {slug} --collect` in Claude Code or `$exp-run {slug} --collect` in Codex to check status"
+- **Collect mode but status == completed**: prompt "already completed — run `/exp-eval {slug}` in Claude Code or `$exp-eval {slug}` in Codex directly"
 - **GPU unavailable**: report error, suggest using --env remote or waiting for GPU to free up
 - **Review LLM unavailable** (--review mode): skip code review, note "unreviewed" in DEPLOY_REPORT
-- **Sanity check fails**: report detailed error, attempt one automatic fix, if still failing stop and suggest manual debugging
+- **Sanity check fails**: report detailed error, attempt one fix, repeat the user inspection gate before retrying, and if it still fails stop and suggest manual debugging
 - **Remote connection fails**: report SSH error, suggest checking connection config and config/server.yaml
 - **Result files missing** (collect mode): report which seeds are missing results; summarize available results normally; if successful seeds < 2, mark inconclusive
 - **Experiment crashed** (traceback detected in collect mode): include crash info and suggested fix directions in report
@@ -393,10 +402,12 @@ done
 
 ## Dependencies
 
-### Skills（via Skill tool）
+### Skills
 - No direct sub-skill calls
 
 ### Tools（via Bash）
+- `python3 tools/research_wiki.py transition <path> --to <status>` — validated experiment lifecycle transition
+- `python3 tools/research_wiki.py set-meta <path> <field> <value>` — update non-status experiment frontmatter
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `python3 tools/remote.py <command>` — remote operations (status, gpu-status, sync-code, setup-env, launch, check, tail-log, pull-results)
 - `nvidia-smi` — local GPU status
@@ -414,6 +425,6 @@ done
 - `Bash` — execute deployment commands, monitor processes
 
 ### Called by
-- `/research` Stage 3a (deploy mode) and Stage 3c (collect mode)
-- `/exp-status --collect-ready` (collect mode)
+- `/research` (Claude Code) or `$research` (Codex) Stage 3a (deploy mode) and Stage 3c (collect mode)
+- `/exp-status --collect-ready` (Claude Code) or `$exp-status --collect-ready` (Codex) collect mode
 - User directly

@@ -272,7 +272,7 @@ llm-review MCP chat tool:
    - Sections written: {list}
    - De-AI polish: applied
    - Review LLM review: {yes/no, if yes: overall score}
-   - [UNCONFIRMED] citations: {count} (resolve before /paper-compile)
+   - [UNCONFIRMED] citations: {count}（在 `/paper-compile` / `$paper-compile` 前解决）
 
    ## Next Steps
    - 用 Claude Code 的 `/paper-compile paper/` 或 Codex 的 `$paper-compile paper/` 编译并检查
@@ -295,8 +295,8 @@ llm-review MCP chat tool:
 
 ## Error Handling
 
-- **PAPER_PLAN 找不到**：报错，建议先运行 /paper-plan
-- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 /paper-plan
+- **PAPER_PLAN 找不到**：报错，建议先运行 Claude Code 的 `/paper-plan` 或 Codex 的 `$paper-plan`
+- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 Claude Code 的 `/paper-plan` 或 Codex 的 `$paper-plan`
 - **wiki 页面找不到**（plan 引用的 idea/experiment/method/paper 不存在）：警告并跳过该引用，标注缺失
 - **figure 生成失败**（matplotlib 错误）：输出占位符 `% TODO: generate figure {name}`，继续其他 section
 - **BibTeX 全部获取失败**：使用 [UNCONFIRMED] 占位，在终端报告需要手动处理的数量
@@ -326,5 +326,5 @@ llm-review MCP chat tool:
 - `shared-references/citation-verification.md` — BibTeX 获取流程 + [UNCONFIRMED] 协议
 
 ### Called by
-- `/research` Stage 5（论文写作阶段）
+- `/research`（Claude Code）或 `$research`（Codex）Stage 5（论文写作阶段）
 - 用户手动调用

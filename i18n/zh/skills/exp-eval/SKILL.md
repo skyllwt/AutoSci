@@ -4,18 +4,19 @@ description: 实验判决门：Review LLM 独立评判实验结果 → 4 种判�
 argument-hint: <experiment-slug> [--auto]
 ---
 
-# /exp-eval
+# /exp-eval / $exp-eval
 
 > 将已完成实验的结果转化为 wiki 知识更新。
 > Review LLM 作为 impartial judge（遵循 cross-model-review），独立评估实验结果对 linked idea 的 hypothesis 的影响。
 > 4 种判决路径：supported → idea validated / partially_supported → 补充实验 /
 > not_supported → idea failed / inconclusive → debug。
 > 自动更新 linked idea 的 `status`、`failure_reason` 与 graph edges。
+> 手动：Claude Code 中 `/exp-eval <experiment-slug>`，或 Codex 中 `$exp-eval <experiment-slug>`。
 
 ## Inputs
 
 - `experiment`：wiki/experiments/ 中的 slug（status 必须为 `completed`）
-- `--auto`（可选）：自动模式，不暂停等待用户确认 wiki 更新（用于 /research 调用）
+- `--auto`（可选）：自动模式，不暂停等待用户确认 wiki 更新（用于 `/research` / `$research` 调用）
 
 ## Outputs
 
@@ -156,7 +157,7 @@ llm-review MCP chat tool:
      --type supports --evidence "{key_result}"
    ```
 
-3. **建议下一步**：`/paper-plan {linked-idea}` 或继续 ablation/robustness 实验
+3. **建议下一步**：Claude Code 的 `/paper-plan {linked-idea}` 或 Codex 的 `$paper-plan {linked-idea}`，或继续 ablation/robustness 实验
 
 #### 路径 B: PARTIALLY_SUPPORTED（部分支持）
 
@@ -172,7 +173,7 @@ llm-review MCP chat tool:
 
 3. **建议补充实验**：
    - 明确缺少什么证据
-   - 建议用 `/exp-design --linked-idea {linked-idea}` 设计补充实验
+   - 建议用 Claude Code 的 `/exp-design --linked-idea {linked-idea}` 或 Codex 的 `$exp-design --linked-idea {linked-idea}` 设计补充实验
    - 若 Review LLM 指出的 concern 可通过实验解决，具体建议实验方向
 
 #### 路径 C: NOT_SUPPORTED（实验否定 idea 的 hypothesis）
@@ -195,13 +196,13 @@ llm-review MCP chat tool:
 3. **建议下一步**：
    - 分析失败原因
    - 考虑 pivot（新 idea 解决同一 gap，避开已知失败原因）
-   - 建议 `/ideate` 生成替代方案
+   - 建议用 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 生成替代方案
 
 #### 路径 D: INCONCLUSIVE（结果不确定）
 
 1. **不修改 idea status**：证据不足以做判断
 
-2. **更新实验页面**：outcome 已为 inconclusive（/exp-run 设置）
+2. **更新实验页面**：outcome 已为 inconclusive（`/exp-run` / `$exp-run` 设置）
 
 3. **建议 debug**：
    - 数据问题？实现 bug？错误的 metric？
@@ -277,7 +278,7 @@ llm-review MCP chat tool:
 
 ## Constraints
 
-- **只处理 completed 实验**：status != completed 的实验拒绝处理，提示用 /exp-run 先完成。
+- **只处理 completed 实验**：status != completed 的实验拒绝处理，提示先用 Claude Code 的 `/exp-run` 或 Codex 的 `$exp-run` 完成。
 - **`linked_idea` 必填**：拒绝评判任何 `linked_idea` 为空的实验（新 schema 强制要求；如果遇到这类页面，那是 refactor 之前的遗留物，必须先手动修复）。
 - **审稿独立性**：严格遵循 cross-model-review.md，不向 Review LLM 发送 主 agent 的预判。
 - **`failure_reason` 必须具体**：not_supported 路径的 `failure_reason` 不能是空话（如 "实验失败"），必须写明具体原因。`transition --reason` 会拒绝空字符串。
@@ -289,12 +290,12 @@ llm-review MCP chat tool:
 ## Error Handling
 
 - **experiment 找不到**：提示用户检查 slug，列出 `wiki/experiments/` 中 status=completed 的候选。
-- **experiment 未完成**：提示 status，建议先运行 `/exp-run {slug}` 或 `/exp-run {slug} --check`。
-- **`linked_idea` 缺失**：拒绝继续；提示用户运行 `/edit` 设置实验的 `linked_idea`。
-- **linked idea 页面不存在**：报告 dangling reference；拒绝更新 —— 建议先用 `/edit` 或 `/ideate` 创建该 idea 页面。
+- **experiment 未完成**：提示 status，建议先运行 `/exp-run {slug}` / `$exp-run {slug}` 或 `/exp-run {slug} --check` / `$exp-run {slug} --check`。
+- **`linked_idea` 缺失**：拒绝继续；提示用户运行 Claude Code 的 `/edit` 或 Codex 的 `$edit` 设置实验的 `linked_idea`。
+- **linked idea 页面不存在**：报告 dangling reference；拒绝更新 —— 建议先用 `/edit` / `$edit` 或 `/ideate` / `$ideate` 创建该 idea 页面。
 - **Review LLM 不可用**：降级为 主 agent 单模型判决，在报告中标注「single-model verdict, cross-model verification unavailable」，建议用户稍后确认。
 - **idea 已被其他实验修改**：在应用 transition 前重新读取最新状态；不要把更高生命周期状态退回到更低。
-- **结果数据缺失**：若实验页面的 Results section 为空，提示用户先运行 `/exp-run {slug} --check`。
+- **结果数据缺失**：若实验页面的 Results section 为空，提示用户先运行 Claude Code 的 `/exp-run {slug} --check` 或 Codex 的 `$exp-run {slug} --check`。
 
 ## Dependencies
 
@@ -317,5 +318,5 @@ llm-review MCP chat tool:
 - `shared-references/cross-model-review.md` — Review LLM 独立性原则（必读）
 
 ### Called by
-- `/research` Stage 4（判决与迭代阶段）
+- `/research`（Claude Code）或 `$research`（Codex）Stage 4（判决与迭代阶段）
 - 用户手动调用

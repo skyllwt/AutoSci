@@ -348,7 +348,7 @@ llm-review MCP chat tool:
 
    ## Next Steps
    - 用 Claude Code 的 `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` 或 Codex 的 `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` 起草论文
-   - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
+   - 在 `/paper-compile` / `$paper-compile` 前解决 {verify_count} 个 [UNCONFIRMED] citations
    ```
 
 ## Constraints
@@ -366,8 +366,8 @@ llm-review MCP chat tool:
 ## Error Handling
 
 - **idea 状态不足**：若所有 ideas 均为 `proposed`，报错「ideas 尚未验证，建议先运行实验」
-- **无 experiment evidence**：报错「至少需要一个实验结果」，建议先运行 /exp-design + /exp-run
-- **wiki papers 不足**：若 citation plan 中 wiki 论文 < 5 篇，警告「相关工作覆盖不足，建议先 /ingest 更多论文」
+- **无 experiment evidence**：报错「至少需要一个实验结果」，建议先运行 Claude Code 的 `/exp-design` + `/exp-run` 或 Codex 的 `$exp-design` + `$exp-run`
+- **wiki papers 不足**：若 citation plan 中 wiki 论文 < 5 篇，警告「相关工作覆盖不足，建议先用 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 增加论文」
 - **page budget 超限**：自动将低优先级 section 移至 appendix 计划，报告调整
 - **Review LLM 不可用**：降级为 主 agent 自审，报告标注「single-model review — cross-model verification unavailable」
 - **BibTeX 获取失败**：标记 [UNCONFIRMED]，在 citation plan 报告中汇总
@@ -396,5 +396,5 @@ llm-review MCP chat tool:
 - `shared-references/citation-verification.md` — 引用获取和验证规则
 
 ### Called by
-- `/research` Stage 5（论文写作阶段）
+- `/research`（Claude Code）或 `$research`（Codex）Stage 5（论文写作阶段）
 - 用户手动调用

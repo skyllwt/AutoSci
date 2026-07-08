@@ -317,7 +317,7 @@ Additional Experiments (if applicable):
 - **concern 映射不到 idea 或 method（unmapped）**：标注 "unmapped"，仍然回应（基于论文内容而非 wiki 实体）
 - **Review LLM stress-test 不可用**：跳过 Step 5，在报告中标注 "stress-test skipped: Review LLM unavailable"
 - **evidence 严重不足**：若 >50% concerns 的 evidence 为 insufficient，警告用户并建议先补充实验
-- **wiki 为空**：警告 wiki 知识库为空，建议先运行 /ingest 填充 ideas、methods 与 experiments
+- **wiki 为空**：警告 wiki 知识库为空，建议先运行 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 填充 ideas、methods 与 experiments
 - **所有回应被 Review LLM 评为 1-2 分**：终止输出，报告需要重新分析，建议先补充实验
 
 ## Dependencies
@@ -340,5 +340,5 @@ Additional Experiments (if applicable):
 - `shared-references/cross-model-review.md` — Review LLM stress-test 独立性原则
 
 ### Suggested follow-up skills
-- `/exp-design` — 为 evidence 不足的 concerns 设计补充实验
-- `/paper-draft` — 准备修订版论文（基于 Paper Edits 清单）
+- `/exp-design`（Claude Code）或 `$exp-design`（Codex）— 为 evidence 不足的 concerns 设计补充实验
+- `/paper-draft`（Claude Code）或 `$paper-draft`（Codex）— 准备修订版论文（基于 Paper Edits 清单）

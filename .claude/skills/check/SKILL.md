@@ -3,10 +3,11 @@ name: check
 description: Scan the full wiki to detect health issues and produce a tiered fix-recommendation report (covers all entity types in runtime/schema/entities.yaml + graph consistency)
 ---
 
-# /check
+# /check / $check
 
 > Scans the full wiki to detect structural, link, field, and graph health issues, and generates a tiered fix-recommendation report.
 > Covers every entity type declared in `runtime/schema/entities.yaml` (papers, concepts, topics, people, ideas, experiments, methods, Summary, foundations), plus graph edge / citation consistency. Highlights include: idea novelty-score plausibility, idea failure-reason completeness, experiment `linked_idea` validity.
+> Manual: `/check` in Claude Code or `$check` in Codex.
 
 ## Inputs
 
@@ -180,7 +181,7 @@ python3 tools/research_wiki.py log wiki/ "check | report: N 🔴, M 🟡, K 🔵
 
 ## Error Handling
 
-- **wiki/ does not exist**: report error and suggest running `/init`
+- **wiki/ does not exist**: report error and suggest running `/init` in Claude Code or `$init` in Codex
 - **graph files do not exist**: skip the missing graph-file checks, note in report
 - **Partial directory missing**: skip checks for missing directories, list missing directories in report
 

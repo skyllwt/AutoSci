@@ -11,7 +11,7 @@ argument-hint: "[domain] [--add 'concept name']"
 
 ## Trigger
 
-Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
+Manual: `/prefill [domain]` in Claude Code or `$prefill [domain]` in Codex; `/prefill --add "concept name"` in Claude Code or `$prefill --add "concept name"` in Codex.
 
 ## Inputs
 
@@ -132,7 +132,7 @@ Print a grouped summary:
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-Remind the user that subsequent `/ingest` runs will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
+Remind the user that subsequent `/ingest` runs in Claude Code or `$ingest` runs in Codex will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
 
 ## Constraints
 

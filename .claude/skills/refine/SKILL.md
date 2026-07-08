@@ -8,7 +8,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 
 > General-purpose multi-round iterative improvement loop for any research artifact
 > (idea, proposal, experiment plan, paper draft).
-> Each round calls /review for structured feedback → parses actionable items → the primary agent fixes the artifact →
+> Each round calls `/review` in Claude Code or `$review` in Codex for structured feedback → parses actionable items → the primary agent fixes the artifact →
 > updates wiki entities → re-reviews, until the score reaches the target or the maximum rounds are exhausted.
 > Outputs an improvement history and the final review score.
 
@@ -19,8 +19,8 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
   - file path (e.g. `wiki/outputs/paper-draft-v1.md`)
 - `--max-rounds N` (optional, default 4): maximum iteration rounds
 - `--target-score N` (optional, default 8): target review score (1-10); stop when reached
-- `--difficulty` (optional, default `hard`): difficulty level passed to /review
-- `--focus` (optional): review focus passed to /review
+- `--difficulty` (optional, default `hard`): difficulty level passed to `/review` / `$review`
+- `--focus` (optional): review focus passed to `/review` / `$review`
 
 ## Outputs
 
@@ -40,7 +40,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 - `wiki/methods/*.md` — methods referenced by the review
 - `wiki/papers/*.md` — papers referenced by the review
 - `wiki/outputs/*.md` — if artifact is a paper draft or output
-- `wiki/graph/context_brief.md` — global context passed to /review
+- `wiki/graph/context_brief.md` — global context passed to `/review` / `$review`
 - `wiki/graph/open_questions.md` — check whether new gaps need recording
 
 ### Writes
@@ -80,11 +80,11 @@ Repeat the following steps until the termination condition is met:
 
 **Round N (N = 1, 2, ..., max-rounds):**
 
-#### 2a. Call /review
+#### 2a. Call `/review` / `$review`
 
 ```
-Skill: review
-Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
+Claude Code: /review "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
+Codex:       $review "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 ```
 
 Parse the review output and extract:
@@ -114,10 +114,10 @@ Classify and handle each actionable item:
 - → Edit the artifact file directly
 
 **Category B — Wiki knowledge gaps (suggest external operations):**
-- Idea novelty argument too thin → suggest running `/novelty` rerun
-- Method has no source_papers → flag for `/ingest` review
-- Missing related work citations → suggest running `/ingest` to add papers
-- Requires experimental validation → suggest running `/exp-run`
+- Idea novelty argument too thin → suggest running `/novelty` in Claude Code or `$novelty` in Codex
+- Method has no source_papers → flag for `/ingest` in Claude Code or `$ingest` in Codex
+- Missing related work citations → suggest running `/ingest` in Claude Code or `$ingest` in Codex to add papers
+- Requires experimental validation → suggest running `/exp-run` in Claude Code or `$exp-run` in Codex
 - → Record in `unresolved_issues`, list suggested operations in the report
 
 **Category C — Idea / method updates (the primary agent fixes wiki):**
@@ -168,7 +168,7 @@ After iteration ends, generate the REFINE_REPORT:
 | Round | Issue | Severity | Fix applied |
 |-------|-------|----------|-------------|
 | 1 | Method description too vague | major | Added specific algorithm steps |
-| 1 | Idea novelty argument too thin | major | Flagged [[idea-slug]] for `/novelty` rerun |
+| 1 | Idea novelty argument too thin | major | Flagged [[idea-slug]] for `/novelty` / `$novelty` rerun |
 | 2 | Missing ablation design | minor | Added ablation plan |
 
 ## Wiki Changes Made
@@ -202,13 +202,13 @@ python3 tools/research_wiki.py log wiki/ \
 - **Wiki modifications limited to review suggestions**: refine only modifies wiki entities explicitly recommended by the review; do not expand scope proactively
 - **Unresolved issues must be listed**: do not silently skip issues that cannot be resolved in the loop
 - **Preserve improvement history**: score_history and fixed_issues are recorded in full; do not discard intermediate state
-- **Pass review parameters through**: --difficulty and --focus are passed through to /review; maintain consistent review standards
+- **Pass review parameters through**: --difficulty and --focus are passed through to `/review` / `$review`; maintain consistent review standards
 - **Artifact updated in place**: fixes modify the original file directly; do not create copies
 
 ## Error Handling
 
 - **Artifact not found**: prompt user to check slug or path, list likely candidate pages
-- **/review call fails**: retry once; if still failing, terminate the loop and output the improvement history completed so far
+- **Review skill call fails**: retry once; if still failing, terminate the loop and output the improvement history completed so far
 - **Wiki write fails**: log the error, continue to the next round (wiki changes downgraded to unresolved)
 - **First round score already >= target-score**: terminate immediately, output report (no improvement needed)
 - **All issues are Category B/D**: cannot fix within the loop; terminate and output the unresolved issues list
@@ -221,8 +221,8 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge (if needed)
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 
-### Skills（via Skill tool）
-- `/review` — each round's review (core dependency)
+### Skills
+- `/review` (Claude Code) or `$review` (Codex) — each round's review (core dependency)
 
 ### Agent Runtime Capabilities
 - `Read` — read artifact and wiki pages

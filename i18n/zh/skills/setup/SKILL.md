@@ -252,7 +252,7 @@ for k in keys:
 
 - **`.env` 不存在**：提示用户 `setup.sh` 可能未运行，提供创建命令：
   ```bash
-  cp config/.env.example .env
+  cp .env.example .env
   ```
   然后继续配置流程。
 

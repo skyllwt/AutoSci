@@ -24,7 +24,7 @@ argument-hint: <question>
   - 或 `wiki/concepts/{slug}.md` — 若回答揭示了新的跨论文概念
   - 或追加到已有的 `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — 若回答为已有实体补充了新发现
   - 更新的 `wiki/graph/edges.jsonl`（crystallize 产生的关系）
-  - 更新的 `wiki/index.md` 和 `wiki/log.md`
+  - 更新的 `wiki/log.md`；仅在创建或编辑 schema entity 时更新 `wiki/index.md`，默认 `outputs/` note 不进入 index
 
 ## Wiki Interaction
 
@@ -46,9 +46,9 @@ argument-hint: <question>
 - `wiki/concepts/{slug}.md` — CREATE（新发现概念）或 EDIT（补充已有概念）
 - `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — EDIT（向已有页面追加新发现）
 - `wiki/graph/edges.jsonl` — APPEND（crystallize 产生的关系）
-- `wiki/graph/context_brief.md` — REBUILD（若 crystallize 创建了新页面）
-- `wiki/graph/open_questions.md` — REBUILD（若 crystallize 创建了新页面）
-- `wiki/index.md` — EDIT（若 crystallize 创建了新页面）
+- `wiki/graph/context_brief.md` — REBUILD（若 crystallize 改变了图关系或 schema entity）
+- `wiki/graph/open_questions.md` — REBUILD（若 crystallize 创建或编辑了 schema entity）
+- `wiki/index.md` — 仅在 crystallize 创建或编辑 schema entity 时用 `research_wiki.py rebuild-index` 重建；默认 `wiki/outputs/` note 不是 runtime entity index 的一部分
 - `wiki/log.md` — APPEND
 
 ### Graph edges created（仅 crystallize）
@@ -133,7 +133,7 @@ argument-hint: <question>
    ```
 
 **Case B — 创建新 concept：**
-1. 若回答揭示了新概念：按 CLAUDE.md concept 模板创建 `wiki/concepts/{slug}.md`
+1. 若回答揭示了新概念：按 `runtime/templates/concepts.md.tmpl` 创建 `wiki/concepts/{slug}.md`
 2. maturity: emerging
 3. key_papers: 从回答引用中提取
 4. 添加 graph edges（concept → papers）
@@ -149,7 +149,11 @@ argument-hint: <question>
 
 ### Step 6: 更新导航与图谱（仅 crystallize）
 
-1. **index.md**：在对应分类下追加新建页面条目
+1. **index.md**：若 crystallize 创建或编辑了 `papers/`、`concepts/`、`ideas/`、`methods/`、`topics/`、`people/`、`experiments/`、`benchmarks/`、`datasets/`、`foundations/` 或 `tools/`，用以下命令重建：
+   ```bash
+   python3 tools/research_wiki.py rebuild-index wiki/
+   ```
+   默认 `wiki/outputs/{query-slug}.md` 目标跳过此步；`outputs/` 通过输出文件、`derived_from` edges 和 `wiki/log.md` 追踪，不写入 `index.md`。
 2. **log.md**：
    ```bash
    python3 tools/research_wiki.py log wiki/ "ask | <question-summary> | crystallized: <target-path>"
@@ -203,8 +207,8 @@ argument-hint: <question>
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/research_wiki.py init wiki/` — 初始化 wiki（fallback）
 
-### Skills（via Skill tool）
-- `/ingest` — 若建议用户补充知识时引用
+### Skills
+- `/ingest`（Claude Code）或 `$ingest`（Codex）— 若建议用户补充知识时引用
 
 ### Shared References
 - `shared-references/citation-verification.md`（Phase 3 创建）

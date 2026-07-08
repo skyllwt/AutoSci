@@ -125,8 +125,9 @@ Scan all .tex files:
 
 **3c. [UNCONFIRMED] marker check**:
 ```bash
-# scan references.bib and all .tex files
-grep -rn "VERIFY" paper/
+# scan references.bib and all .tex files, including citation/key/ref integrity
+python3 tools/paper_compile_checks.py paper/ --json
+grep -rn "\\[UNCONFIRMED\\]\\|UNCONFIRMED_" paper/
 ```
 - If [UNCONFIRMED] markers exist: list each one; flag as **submission blocker**
 - Per citation-verification.md: [UNCONFIRMED] is a hard submission blocker
@@ -211,7 +212,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Error Handling
 
-- **main.tex not found**: error; suggest running /paper-draft first
+- **main.tex not found**: error; suggest running `/paper-draft` in Claude Code or `$paper-draft` in Codex first
 - **latexmk not installed**: error; provide installation command (`sudo apt install texlive-full` or `brew install --cask mactex`)
 - **Compilation failed and auto-fix unsuccessful**: output full error log + locate specific .tex file and line number
 - **pdfinfo/pdffonts not installed**: skip page count / font checks; annotate in report
@@ -222,6 +223,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ### Tools（via Bash）
 - `latexmk` — LaTeX compilation
+- `python3 tools/paper_compile_checks.py <paper-dir> --json` — deterministic local checklist checks ([UNCONFIRMED], TODO/FIXME, citations, inputs, figures, refs, abstract, anonymity heuristics)
 - `pdfinfo` — PDF page count check (poppler-utils)
 - `pdffonts` — font embedding check (poppler-utils)
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
@@ -240,5 +242,5 @@ python3 tools/research_wiki.py log wiki/ \
 - `shared-references/academic-writing.md` — venue page limit reference
 
 ### Called by
-- `/research` Stage 5 (paper compilation stage)
+- `/research` (Claude Code) or `$research` (Codex) Stage 5 (paper compilation stage)
 - Manual user invocation

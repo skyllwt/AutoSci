@@ -240,9 +240,9 @@ Then regenerate visualization artifacts (best-effort; visualize failure must not
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
-  || echo "WARN: visualize generate-obsidian-config failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-obsidian-config failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 ```
 
 Report separately:

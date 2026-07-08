@@ -318,7 +318,7 @@ Additional Experiments (if applicable):
 - **Concern cannot be mapped to an idea or method (unmapped)**: annotate as "unmapped"; still respond (based on paper content rather than wiki entity)
 - **Review LLM stress-test unavailable**: skip Step 5; annotate in report "stress-test skipped: Review LLM unavailable"
 - **Evidence severely insufficient**: if >50% of concerns have insufficient evidence, warn the user and suggest supplementing experiments first
-- **Wiki empty**: warn that wiki knowledge base is empty; suggest running /ingest to populate ideas, methods, and experiments
+- **Wiki empty**: warn that wiki knowledge base is empty; suggest running `/ingest` in Claude Code or `$ingest` in Codex to populate ideas, methods, and experiments
 - **All responses scored 1-2 by Review LLM**: halt output, report requires re-analysis, suggest supplementing experiments first
 
 ## Dependencies
@@ -341,5 +341,5 @@ Additional Experiments (if applicable):
 - `shared-references/cross-model-review.md` — Review LLM stress-test independence principle
 
 ### Suggested follow-up skills
-- `/exp-design` — design supplementary experiments for concerns with insufficient evidence
-- `/paper-draft` — prepare revised paper (based on Paper Edits checklist)
+- `/exp-design` (Claude Code) or `$exp-design` (Codex) — design supplementary experiments for concerns with insufficient evidence
+- `/paper-draft` (Claude Code) or `$paper-draft` (Codex) — prepare revised paper (based on Paper Edits checklist)

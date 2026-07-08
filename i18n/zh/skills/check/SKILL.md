@@ -3,10 +3,11 @@ name: check
 description: 扫描全 wiki 发现健康问题，生成分级修复建议报告（覆盖 runtime/schema/entities.yaml 中全部 entity 类型 + graph 一致性）
 ---
 
-# /check
+# /check / $check
 
 > 扫描全 wiki，发现结构、链接、字段、graph 的健康问题，生成分级修复建议。
 > 覆盖 `runtime/schema/entities.yaml` 中声明的所有 entity 类型（papers, concepts, topics, people, ideas, experiments, methods, Summary, foundations），以及 graph edge / citation 一致性。重点检查包括：idea novelty-score 合理性、idea 失败原因完整性、experiment `linked_idea` 有效性。
+> 手动：Claude Code 中 `/check`，或 Codex 中 `$check`。
 
 ## Inputs
 
@@ -180,7 +181,7 @@ python3 tools/research_wiki.py log wiki/ "check | report: N 🔴, M 🟡, K 🔵
 
 ## Error Handling
 
-- **wiki/ 不存在**：报错并建议运行 `/init`
+- **wiki/ 不存在**：报错并建议运行 Claude Code 的 `/init` 或 Codex 的 `$init`
 - **graph 文件不存在**：跳过缺失 graph 文件的检查，在报告中注明
 - **部分目录缺失**：跳过缺失目录的检查，在报告中列出缺失目录
 

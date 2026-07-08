@@ -58,7 +58,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 ## Workflow
 
-**前置**:确认 `paper/main.tex` 存在。否则报错:"先运行 /paper-draft"。
+**前置**:确认 `paper/main.tex` 存在。否则报错:"先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft`"。
 
 ### Step 0: 交互式 header 配置
 
@@ -630,12 +630,12 @@ python3 tools/research_wiki.py log wiki/ \
 - **40 词摘要**:按 poster_outline_prompt,每章正文段在加过渡句前不超过 40 词。
 - **强制去 AI 风格化**:按 `shared-references/academic-writing.md`。避开 "In this work" / "We propose" / "Our approach" 等签名开头,把 "leverage" 换成 "use","delve" 换成 "examine"。
 - **严格模板注入**:`tools/poster.py build` 仅注入到 `<div class="flow" id="flow">...</div>` 之间,不修改模板的 CSS 与 fit 算法。
-- **配图选择默认交互**:未传入 `--auto-figures` 也未传入 `--no-figures` 时,跑 Step 2.5 manifest + 询问流程。这些 flag 按 CLAUDE.md 规则 5 归用户所有 —— 不要替用户推断;不确定时,询问用户。
+- **配图选择默认交互**:未传入 `--auto-figures` 也未传入 `--no-figures` 时,跑 Step 2.5 manifest + 询问流程。这些面向用户的 flag 按共享仓库规则归用户所有 —— 不要替用户推断;不确定时,询问用户。
 - **wide 图无特殊布局**:任何图都在 `<section>` 内 inline 渲染。visual 节点上的 `wide` 字段仅作信息提示 —— 用来在 manifest 中显示 ⚠ 标记,让用户选别的图或跳过过宽/过高的图。未来的图像生成 skill 预期会在源头解决比例问题,产出适配海报的图。
 
 ## Error Handling
 
-- **`paper/main.tex` 不存在**:报错并提示 "先运行 /paper-draft 生成论文"。
+- **`paper/main.tex` 不存在**:报错并提示 "先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft` 生成论文"。
 - **`\input{sections/...}` 未找到章节**:列出搜索过的路径,提示检查 `main.tex` 是否使用了非标准的 section include。
 - **没有图片引用**:文本-only 章节继续渲染;在 POSTER_REPORT 中给出警告。
 - **`pdftoppm` 未安装**:PDF 图无法转 PNG;提示 `brew install poppler`(macOS)或 `apt install poppler-utils`(Linux)。海报仍能渲染但这些图会显示为 broken img。

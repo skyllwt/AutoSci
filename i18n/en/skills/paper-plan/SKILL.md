@@ -348,7 +348,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
    ## Next Steps
    - Draft the paper with `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Claude Code or `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Codex
-   - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
+   - Resolve {verify_count} [UNCONFIRMED] citations before `/paper-compile` / `$paper-compile`
    ```
 
 ## Constraints
@@ -366,8 +366,8 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 ## Error Handling
 
 - **Insufficient idea status**: if all ideas are `proposed`, error "ideas are unvalidated; run experiments first"
-- **No experiment evidence**: error "at least one experimental result is required"; suggest running /exp-design + /exp-run first
-- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider /ingest of more papers first"
+- **No experiment evidence**: error "at least one experimental result is required"; suggest running `/exp-design` + `/exp-run` in Claude Code or `$exp-design` + `$exp-run` in Codex first
+- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider `/ingest` in Claude Code or `$ingest` in Codex for more papers first"
 - **Page budget exceeded**: automatically move lower-priority sections to appendix plan; report the adjustment
 - **Review LLM unavailable**: fall back to the primary agent self-review; report annotated "single-model review — cross-model verification unavailable"
 - **BibTeX fetch failed**: mark [UNCONFIRMED]; summarize in the citation plan report
@@ -396,5 +396,5 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 - `shared-references/citation-verification.md` — citation fetch and verification rules
 
 ### Called by
-- `/research` Stage 5 (paper writing stage)
+- `/research` (Claude Code) or `$research` (Codex) Stage 5 (paper writing stage)
 - Manual user invocation

@@ -6,17 +6,17 @@ argument-hint: "--scope wiki|raw|log|checkpoints|all"
 
 # /reset
 
-> 按 scope 重置 wiki 到干净 scaffold。设计目的是开发迭代和 setup 失败恢复 — 不是日常操作。
+> 按 scope 重置 AutoSci 生成状态。设计目的是开发迭代和 setup 失败恢复 — 不是日常操作。
 
 ## Trigger
 
-手动：`/reset --scope wiki` / `--scope raw` / `--scope log` / `--scope checkpoints` / `--scope all`。可用逗号组合多个 scope：`--scope wiki,log`。
+手动：Claude Code 中 `/reset --scope wiki`，或 Codex 中 `$reset --scope wiki`。支持 scope：`wiki`、`raw`、`log`、`checkpoints`、`all`。可用逗号组合多个 scope：`--scope wiki,log`。
 
 ## Inputs
 
 - `--scope`（必填）：取值
   - `wiki` — 删除 `wiki/<entity>/` 与 `wiki/outputs/` 下所有 `*.md`，同时删除 `wiki/index.md`、`wiki/log.md` 和 `wiki/graph/` 下的文件。保留 `.gitkeep` 和 `wiki/CLAUDE.md`。
-  - `raw` — 删除 `raw/papers/`、`raw/discovered/`、`raw/tmp/`、`raw/notes/`、`raw/web/` 下所有条目（保留 `.gitkeep`）。
+  - `raw` — 删除 `raw/discovered/` 与 `raw/tmp/` 下的生成型条目（保留 `.gitkeep`）。保留用户拥有的 `raw/papers/`、`raw/notes/` 与 `raw/web/`。
   - `log` — 重置 `wiki/log.md` 为空模板。
   - `checkpoints` — 通过 `research_wiki.py checkpoint-clear` 清除批处理状态。
   - `all` — 以上全部。
@@ -30,12 +30,12 @@ argument-hint: "--scope wiki|raw|log|checkpoints|all"
 
 ### 读取
 - 所有 `wiki/<entity>/*.md`（用于枚举删除清单）。
-- `raw/<sub>/*`（用于枚举 raw 删除清单）。
+- `raw/discovered/*` 与 `raw/tmp/*`（用于枚举生成型 raw 删除清单）。
 
 ### 写入
 - 删除 `wiki/<entity>/*.md`（保留 `.gitkeep`）。
 - 重写 `wiki/index.md`、`wiki/graph/*`，可选地重写 `wiki/log.md`。
-- 删除 `raw/<sub>/*`（保留 `.gitkeep`）。
+- 删除生成型 `raw/discovered/*` 与 `raw/tmp/*`（保留 `.gitkeep`）。永不删除用户拥有的 `raw/papers/`、`raw/notes/` 或 `raw/web/`。
 
 ## Workflow
 
@@ -86,16 +86,16 @@ Deleted: N files
 Reset:   M files
 
 Next steps:
-- /init       — 从 raw/ 引导 wiki
-- /prefill    — 沉淀基础背景知识
-- /ingest     — 手动添加单个来源
+- Claude Code 的 /init 或 Codex 的 $init       — 从 raw/ 引导 wiki
+- Claude Code 的 /prefill 或 Codex 的 $prefill — 沉淀基础背景知识
+- Claude Code 的 /ingest 或 Codex 的 $ingest   — 手动添加单个来源
 ```
 
 ## Constraints
 
 - **破坏性操作前必须确认**：禁止在未展示计划并征得用户同意前调用 `--yes`。
 - **保留**：`.gitkeep` 占位、`wiki/CLAUDE.md`、`.claude/` 与 `.agents/`（skill 永不被触碰）。
-- **`raw/` 删除不可逆**：PDF 不在 git 中。执行 `raw` 或 `all` scope 前必须警告用户。
+- **用户 raw 永不删除**：`raw/papers/`、`raw/notes/` 与 `raw/web/` 对本 skill 只读，即使在 `raw` 或 `all` scope 下也是如此。helper 只清理生成型 `raw/discovered/` 与 `raw/tmp/`。
 - **`/reset` 不触碰** `tools/`、`mcp-servers/`、`i18n/`、`.env` 或 git 状态。
 - **scope 必填**：无默认行为（`/reset` 不带参数时提示用户选择 scope，而非猜测）。
 
@@ -108,6 +108,6 @@ Next steps:
 ## Dependencies
 
 ### 工具（通过 Bash）
-- `python3 tools/reset_wiki.py --scope <scope> [--yes] [--project-root .]` — 确定性破坏性辅助工具
+- `python3 tools/reset_wiki.py --scope <scope> [--yes] [--project-root .]` — 确定性破坏性辅助工具；`raw` scope 仅限生成型 `raw/discovered/` 与 `raw/tmp/`
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `reset_wiki.py` 在 `checkpoints` scope 下直接删除 `wiki/.checkpoints/*.json`(不走 CLI — `checkpoint-clear` 子命令需指定具体的 `task_id`,而 `/reset --scope checkpoints` 的语义是"全部清除")

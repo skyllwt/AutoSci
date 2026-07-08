@@ -214,13 +214,13 @@ llm-review MCP chat tool:
 ### Ideas / methods needing stronger support
 | Entity | Signal | Issue | Suggested action |
 |--------|--------|-------|------------------|
-| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run /novelty rerun |
-| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun /check |
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | 运行 Claude Code 的 `/novelty` 或 Codex 的 `$novelty` |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | 补充缺失论文后，再运行 Claude Code 的 `/check` 或 Codex 的 `$check` |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
 |-----|-----------|------------------|
-| {描述} | [[slug]] | /ingest, /exp-run, or /query |
+| {描述} | [[slug]] | Claude Code: `/ingest`、`/exp-run` 或 `/ask`; Codex: `$ingest`、`$exp-run` 或 `$ask` |
 
 ### Suggested wiki updates
 - `wiki/ideas/{slug}.md`: add risk factor from review
@@ -280,6 +280,6 @@ llm-review MCP chat tool:
 - `shared-references/cross-model-review.md` — 审稿独立性原则（必读）
 
 ### Called by
-- `/ideate` Phase 4（审查 top ideas）
-- `/refine` 每轮迭代（审查当前版本）
-- `/exp-design --review`（审查实验计划）
+- `/ideate`（Claude Code）或 `$ideate`（Codex）Phase 4（审查 top ideas）
+- `/refine`（Claude Code）或 `$refine`（Codex）每轮迭代（审查当前版本）
+- `/exp-design --review`（Claude Code）或 `$exp-design --review`（Codex）（审查实验计划）

@@ -7,8 +7,8 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 # /refine
 
 > 通用多轮迭代改进循环，适用于任何研究制品（idea、proposal、experiment plan、paper draft）。
-> 每轮调用 /review 获取结构化反馈 → 解析 actionable items → 主 agent 修复制品 → 更新 wiki 实体 →
-> 重新 /review，直到评分达到目标分数或达到最大轮次。
+> 每轮调用 Claude Code 的 `/review` 或 Codex 的 `$review` 获取结构化反馈 → 解析 actionable items → 主 agent 修复制品 → 更新 wiki 实体 →
+> 重新 `/review` / `$review`，直到评分达到目标分数或达到最大轮次。
 > 输出改进历史和最终 review 评分。
 
 ## Inputs
@@ -18,8 +18,8 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
   - 文件路径（如 `wiki/outputs/paper-draft-v1.md`）
 - `--max-rounds N`（可选，默认 4）：最大迭代轮次
 - `--target-score N`（可选，默认 8）：目标 review 评分（1-10），达到后停止
-- `--difficulty`（可选，默认 `hard`）：传递给 /review 的难度级别
-- `--focus`（可选）：传递给 /review 的审查焦点
+- `--difficulty`（可选，默认 `hard`）：传递给 `/review` / `$review` 的难度级别
+- `--focus`（可选）：传递给 `/review` / `$review` 的审查焦点
 
 ## Outputs
 
@@ -39,7 +39,7 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 - `wiki/methods/*.md` — review 引用的 methods
 - `wiki/papers/*.md` — review 引用的 papers
 - `wiki/outputs/*.md` — 若 artifact 是 paper draft 或 output
-- `wiki/graph/context_brief.md` — 传递给 /review 的全局上下文
+- `wiki/graph/context_brief.md` — 传递给 `/review` / `$review` 的全局上下文
 - `wiki/graph/open_questions.md` — 检查是否有新 gap 需要记录
 
 ### Writes
@@ -79,11 +79,11 @@ argument-hint: <artifact-slug-or-path> [--max-rounds N] [--target-score N] [--di
 
 **Round N（N = 1, 2, ..., max-rounds）：**
 
-#### 2a. 调用 /review
+#### 2a. 调用 `/review` / `$review`
 
 ```
-Skill: review
-Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
+Claude Code: /review "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
+Codex:       $review "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 ```
 
 解析 review 输出，提取：
@@ -113,10 +113,10 @@ Args: "<artifact-path-or-content>" --difficulty {difficulty} --focus {focus}
 - → 直接编辑 artifact 文件
 
 **Category B — wiki 知识缺口（建议外部操作）：**
-- idea 的 novelty 论证薄弱 → 建议重新运行 `/novelty`
-- method 缺少 source_papers → 标记给 `/ingest` 复查
-- 缺少相关工作引用 → 建议运行 `/ingest` 补充论文
-- 需要实验验证 → 建议运行 `/exp-run`
+- idea 的 novelty 论证薄弱 → 建议运行 Claude Code 的 `/novelty` 或 Codex 的 `$novelty`
+- method 缺少 source_papers → 标记给 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 复查
+- 缺少相关工作引用 → 建议运行 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 补充论文
+- 需要实验验证 → 建议运行 Claude Code 的 `/exp-run` 或 Codex 的 `$exp-run`
 - → 记录到 `unresolved_issues`，在报告中列出建议操作
 
 **Category C — idea / method 更新（主 agent 修复 wiki）：**
@@ -167,7 +167,7 @@ python3 tools/research_wiki.py rebuild-open-questions wiki/
 | Round | Issue | Severity | Fix applied |
 |-------|-------|----------|-------------|
 | 1 | 方法描述不够具体 | major | 补充了具体算法步骤 |
-| 1 | idea novelty 论证薄弱 | major | 已标记 [[idea-slug]] 重跑 `/novelty` |
+| 1 | idea novelty 论证薄弱 | major | 已标记 [[idea-slug]] 重跑 `/novelty` / `$novelty` |
 | 2 | 缺少 ablation 设计 | minor | 添加了 ablation 计划 |
 
 ## Wiki Changes Made
@@ -201,13 +201,13 @@ python3 tools/research_wiki.py log wiki/ \
 - **wiki 修改限于 review 建议**：refine 只修改 review 明确建议修改的 wiki 实体，不主动扩大修改范围
 - **unresolved issues 必须列出**：不能静默跳过无法在 loop 中解决的问题
 - **保留改进历史**：score_history 和 fixed_issues 完整记录，不丢弃中间状态
-- **review 参数透传**：--difficulty 和 --focus 透传给 /review，保持审查标准一致
+- **review 参数透传**：--difficulty 和 --focus 透传给 `/review` / `$review`，保持审查标准一致
 - **artifact 原地更新**：修复直接修改原始文件，不创建副本
 
 ## Error Handling
 
 - **artifact 找不到**：提示用户检查 slug 或路径，列出可能的候选页面
-- **/review 调用失败**：重试一次，若仍失败则终止 loop，输出已完成的改进历史
+- **review skill 调用失败**：重试一次，若仍失败则终止 loop，输出已完成的改进历史
 - **wiki 写入失败**：记录错误，继续下一轮（wiki 变更降级为 unresolved）
 - **首轮 score 已 >= target-score**：直接终止，输出报告（无需改进）
 - **所有 issues 都是 Category B/D**：无法在 loop 中修复，终止并输出 unresolved issues 列表
@@ -220,8 +220,8 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加 graph edge（若需要）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 
-### Skills（via Skill tool）
-- `/review` — 每轮审查（核心依赖）
+### Skills
+- `/review`（Claude Code）或 `$review`（Codex）— 每轮审查（核心依赖）
 
 ### Agent Runtime Capabilities
 - `Read` — 读取 artifact 和 wiki 页面

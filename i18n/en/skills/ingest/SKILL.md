@@ -211,10 +211,10 @@ When active, regenerate Canvas (best-effort; visualize failure must not fail `/i
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 ```
 
-`--obsidian` is not regenerated here — `wiki/.obsidian/graph.json` is project-level static config that only changes when `config/visualize.json` palette changes; run `/visualize --obsidian` manually for that case.
+`--obsidian` is not regenerated here — `wiki/.obsidian/graph.json` is project-level static config that only changes when `config/visualize.json` palette changes; run `/visualize --obsidian` in Claude Code or `$visualize --obsidian` in Codex manually for that case.
 
 ### Step 8: Report
 

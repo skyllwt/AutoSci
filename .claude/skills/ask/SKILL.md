@@ -25,7 +25,7 @@ argument-hint: <question>
   - or `wiki/concepts/{slug}.md` — if the answer reveals a new cross-paper concept
   - or appended to an existing `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — if the answer adds a finding to an existing entity
   - updated `wiki/graph/edges.jsonl` (relationships produced by crystallize)
-  - updated `wiki/index.md` and `wiki/log.md`
+  - updated `wiki/log.md`; update `wiki/index.md` only when creating or editing a schema entity, not for the default `outputs/` note
 
 ## Wiki Interaction
 
@@ -47,9 +47,9 @@ argument-hint: <question>
 - `wiki/concepts/{slug}.md` — CREATE (newly discovered concept) or EDIT (supplement existing concept)
 - `wiki/ideas/{slug}.md` / `wiki/methods/{slug}.md` / `wiki/outputs/{slug}.md` — EDIT (append finding to existing page)
 - `wiki/graph/edges.jsonl` — APPEND (relationships produced by crystallize)
-- `wiki/graph/context_brief.md` — REBUILD (if crystallize created new pages)
-- `wiki/graph/open_questions.md` — REBUILD (if crystallize created new pages)
-- `wiki/index.md` — EDIT (if crystallize created new pages)
+- `wiki/graph/context_brief.md` — REBUILD (if crystallize changed graph relationships or schema entities)
+- `wiki/graph/open_questions.md` — REBUILD (if crystallize created or edited schema entities)
+- `wiki/index.md` — REBUILD with `research_wiki.py rebuild-index` only if crystallize created or edited schema entities; the default `wiki/outputs/` note is not part of the runtime entity index
 - `wiki/log.md` — APPEND
 
 ### Graph edges created (crystallize only)
@@ -134,7 +134,7 @@ Choose the crystallize target based on answer content:
    ```
 
 **Case B — Create new concept:**
-1. If the answer reveals a new concept: create `wiki/concepts/{slug}.md` using the CLAUDE.md concept template
+1. If the answer reveals a new concept: create `wiki/concepts/{slug}.md` using `runtime/templates/concepts.md.tmpl`
 2. maturity: emerging
 3. key_papers: extracted from answer citations
 4. Add graph edges (concept → papers)
@@ -150,7 +150,11 @@ Choose the crystallize target based on answer content:
 
 ### Step 6: Update Navigation and Graph (crystallize only)
 
-1. **index.md**: append new page entries under the appropriate category
+1. **index.md**: if crystallize created or edited `papers/`, `concepts/`, `ideas/`, `methods/`, `topics/`, `people/`, `experiments/`, `benchmarks/`, `datasets/`, `foundations/`, or `tools/`, rebuild with:
+   ```bash
+   python3 tools/research_wiki.py rebuild-index wiki/
+   ```
+   Skip this for the default `wiki/outputs/{query-slug}.md` target; `outputs/` is tracked by the output file, `derived_from` edges, and `wiki/log.md`, not by `index.md`.
 2. **log.md**:
    ```bash
    python3 tools/research_wiki.py log wiki/ "ask | <question-summary> | crystallized: <target-path>"
@@ -204,8 +208,8 @@ Output a summary including:
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 - `python3 tools/research_wiki.py init wiki/` — initialize wiki (fallback)
 
-### Skills（via Skill tool）
-- `/ingest` — referenced when suggesting the user supplement knowledge
+### Skills
+- `/ingest` (Claude Code) or `$ingest` (Codex) — referenced when suggesting the user supplement knowledge
 
 ### Shared References
 - `shared-references/citation-verification.md` (created in Phase 3)

@@ -255,7 +255,7 @@ Configuration updated. Restart your coding agent for Review LLM changes to take 
 
 - **`.env` not found**: Inform the user that `setup.sh` was not run yet. Offer to create `.env` from `.env.example`:
   ```bash
-  cp config/.env.example .env
+  cp .env.example .env
   ```
   Then continue with configuration.
 

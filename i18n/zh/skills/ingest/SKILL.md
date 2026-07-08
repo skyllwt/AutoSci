@@ -211,10 +211,10 @@ INIT MODE 下整步跳过 —— 由上层 init workflow 在 batch 后统一处�
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 ```
 
-`--obsidian` 不在这里重新生成 —— `wiki/.obsidian/graph.json` 是项目级静态配置，只有在 `config/visualize.json` 调色板变化时才需要重写；那种情况下手动跑 `/visualize --obsidian`。
+`--obsidian` 不在这里重新生成 —— `wiki/.obsidian/graph.json` 是项目级静态配置，只有在 `config/visualize.json` 调色板变化时才需要重写；那种情况下手动跑 `/visualize --obsidian`（Claude Code）或 `$visualize --obsidian`（Codex）。
 
 ### Step 8: 汇报
 

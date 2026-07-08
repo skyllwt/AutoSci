@@ -68,7 +68,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
    - Sort by importance descending from index.md
    - Rank by tags and domain match
    - Cap at `--max-papers` papers
-5. **If candidate papers < 5**: warn "insufficient related papers; consider /ingest of more papers first"
+5. **If candidate papers < 5**: warn "insufficient related papers; consider `/ingest` in Claude Code or `$ingest` in Codex for more papers first"
 
 ### Step 2: Deep-Read Related Pages
 
@@ -178,7 +178,7 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 - **Only cite papers already in the wiki**: do not fabricate citations; every `\cite{}` or `[[slug]]` must correspond to a page in wiki/papers/
 - **Group by theme, not as a flat list**: each paragraph covers a research direction, not "Paper A did X. Paper B did Y."
 - **Every group must have a positioning sentence**: state the relationship to this work (at the end — difference or inheritance)
-- **Warn when candidate papers < 5**: prompt user to /ingest more papers first
+- **Warn when candidate papers < 5**: prompt user to run `/ingest` in Claude Code or `$ingest` in Codex for more papers first
 - **BibTeX follows citation-verification.md**: do not generate from LLM memory (--format latex only)
 - **De-AI polish is mandatory**: a polish pass must be applied after generation
 - **Archive to outputs/**: do not directly modify wiki papers/concepts/topics pages
@@ -186,7 +186,7 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 
 ## Error Handling
 
-- **Fewer than 3 wiki papers**: error; suggest /ingest of enough papers first
+- **Fewer than 3 wiki papers**: error; suggest `/ingest` in Claude Code or `$ingest` in Codex for enough papers first
 - **No matching papers**: broaden search scope (relax tag matching); if still none, error
 - **All BibTeX fetches failed** (latex format): use [UNCONFIRMED] placeholders; report count
 - **PAPER_PLAN format mismatch**: ignore plan's grouping suggestions; use automatic grouping
@@ -201,7 +201,7 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 - `python3 tools/fetch_s2.py search "<title>"` — BibTeX fallback (S2 search)
 
 ### MCP Servers
-- None (survey does not require Review LLM; use /review --focus writing for separate review)
+- None (survey does not require Review LLM; use `/review --focus writing` in Claude Code or `$review --focus writing` in Codex for separate review)
 
 ### Agent Runtime Capabilities
 - `Read` — read wiki pages
@@ -213,5 +213,5 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 - `shared-references/citation-verification.md` — BibTeX fetch and [UNCONFIRMED] protocol
 
 ### Called by
-- `/paper-draft` Step 3 (Related Work section can be delegated to this skill)
+- `/paper-draft` (Claude Code) or `$paper-draft` (Codex) Step 3 (Related Work section can be delegated to this skill)
 - Manual user invocation

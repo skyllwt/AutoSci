@@ -59,7 +59,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 ## Workflow
 
-**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run /paper-draft first."
+**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run `/paper-draft` in Claude Code or `$paper-draft` in Codex first."
 
 ### Step 0: Interactive header configuration
 
@@ -631,12 +631,12 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 - **40-word summary**: per the poster_outline_prompt, each section paragraph stays ≤ 40 words before transitions are added.
 - **De-AI polish is mandatory**: per `shared-references/academic-writing.md`. Avoid signature openings ("In this work", "We propose", "Our approach"), replace inflated verbs ("leverage" → "use", "delve" → "examine").
 - **Strict template injection**: `tools/poster.py build` only injects between `<div class="flow" id="flow">...</div>`; do not edit the template's CSS or JavaScript fit algorithm.
-- **Figure selection is interactive by default**: omitting both `--auto-figures` and `--no-figures` runs the Step 2.5 manifest + question flow. The flags are user-owned per CLAUDE.md rule 5 — do not infer them; ask if unsure which mode to use.
+- **Figure selection is interactive by default**: omitting both `--auto-figures` and `--no-figures` runs the Step 2.5 manifest + question flow. These user-facing flags are user-owned per the shared repository rules — do not infer them; ask if unsure which mode to use.
 - **No special layout for wide figures**: every figure renders inline within its `<section>`. The `wide` flag on visual nodes is informational only — used to surface the ⚠ marker in the manifest so the user can pick an alternative or skip a cramped figure. A future figure-generation skill is expected to solve the aspect-ratio problem upstream by producing poster-fit figures.
 
 ## Error Handling
 
-- **`paper/main.tex` not found**: error with "Run /paper-draft first to generate the paper."
+- **`paper/main.tex` not found**: error with "Run `/paper-draft` in Claude Code or `$paper-draft` in Codex first to generate the paper."
 - **No sections found in `\input{sections/...}`**: error with the list of files searched; suggest checking `main.tex` for non-standard section includes.
 - **No figures referenced**: continue with text-only sections; warn in POSTER_REPORT.
 - **`pdftoppm` not installed**: PDF figures fail to convert; warn and suggest `brew install poppler` (macOS) or `apt install poppler-utils` (Linux). The poster will still render but with broken image refs for those figures.

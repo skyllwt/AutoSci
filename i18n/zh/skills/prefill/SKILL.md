@@ -11,7 +11,7 @@ argument-hint: "[domain] [--add '概念名']"
 
 ## Trigger
 
-手动：`/prefill [domain]` 或 `/prefill --add "概念名"`。
+手动：Claude Code 中 `/prefill [domain]` 或 Codex 中 `$prefill [domain]`；Claude Code 中 `/prefill --add "概念名"` 或 Codex 中 `$prefill --add "概念名"`。
 
 ## Inputs
 
@@ -132,7 +132,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-提醒用户：后续 `/ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
+提醒用户：后续 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
 
 ## Constraints
 

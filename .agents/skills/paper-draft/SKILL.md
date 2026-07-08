@@ -272,7 +272,7 @@ Make final adjustments based on Review LLM feedback.
    - Sections written: {list}
    - De-AI polish: applied
    - Review LLM review: {yes/no, if yes: overall score}
-   - [UNCONFIRMED] citations: {count} (resolve before /paper-compile)
+   - [UNCONFIRMED] citations: {count} (resolve before `/paper-compile` / `$paper-compile`)
 
    ## Next Steps
    - Compile and verify with `/paper-compile paper/` in Claude Code or `$paper-compile paper/` in Codex
@@ -295,8 +295,8 @@ Make final adjustments based on Review LLM feedback.
 
 ## Error Handling
 
-- **PAPER_PLAN not found**: error; suggest running /paper-plan first
-- **PAPER_PLAN format incomplete**: list missing sections; suggest re-running /paper-plan
+- **PAPER_PLAN not found**: error; suggest running `/paper-plan` in Claude Code or `$paper-plan` in Codex first
+- **PAPER_PLAN format incomplete**: list missing sections; suggest re-running `/paper-plan` in Claude Code or `$paper-plan` in Codex
 - **Wiki page not found** (idea/experiment/method/paper referenced in plan does not exist): warn and skip that reference; annotate as missing
 - **Figure generation failed** (matplotlib error): output placeholder `% TODO: generate figure {name}`; continue with other sections
 - **All BibTeX fetches failed**: use [UNCONFIRMED] placeholders; report the count requiring manual handling in the terminal
@@ -326,5 +326,5 @@ Make final adjustments based on Review LLM feedback.
 - `shared-references/citation-verification.md` — BibTeX fetch workflow + [UNCONFIRMED] protocol
 
 ### Called by
-- `/research` Stage 5 (paper writing stage)
+- `/research` (Claude Code) or `$research` (Codex) Stage 5 (paper writing stage)
 - Manual user invocation

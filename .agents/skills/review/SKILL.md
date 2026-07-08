@@ -214,13 +214,13 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ### Ideas / methods needing stronger support
 | Entity | Signal | Issue | Suggested action |
 |--------|--------|-------|------------------|
-| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run /novelty rerun |
-| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun /check |
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run `/novelty` in Claude Code or `$novelty` in Codex |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun `/check` in Claude Code or `$check` in Codex |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
 |-----|-----------|------------------|
-| {description} | [[slug]] | /ingest, /exp-run, or /query |
+| {description} | [[slug]] | `/ingest`, `/exp-run`, or `/ask` in Claude Code; `$ingest`, `$exp-run`, or `$ask` in Codex |
 
 ### Suggested wiki updates
 - `wiki/ideas/{slug}.md`: add risk factor from review
@@ -280,6 +280,6 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 - `shared-references/cross-model-review.md` — reviewer independence principle (required reading)
 
 ### Called by
-- `/ideate` Phase 4 (review top ideas)
-- `/refine` each iteration round (review current version)
-- `/exp-design --review` (review experiment plan)
+- `/ideate` (Claude Code) or `$ideate` (Codex) Phase 4 (review top ideas)
+- `/refine` (Claude Code) or `$refine` (Codex) each iteration round (review current version)
+- `/exp-design --review` (Claude Code) or `$exp-design --review` (Codex) (review experiment plan)

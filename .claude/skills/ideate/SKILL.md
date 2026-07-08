@@ -80,7 +80,7 @@ Goal: build a comprehensive view of the target domain, including existing work, 
    - Read `wiki/topics/*.md` and `wiki/concepts/*.md`: collect bullet items under `## Open problems` (including `### Known gaps` and `### Methodological gaps`) → **gap candidates list**
    - If `direction` is specified, filter to the relevant subset
 
-2. **External search** (run in parallel using Agent tool):
+2. **External search** (parallel when the runtime has a reliable Agent/subagent tool; otherwise run the searches sequentially in the main workspace, which is the Codex-safe default):
    - **WebSearch**: search for recent 6-month papers and advances in the target direction (3–5 queries)
    - **Semantic Scholar**:
      ```bash
@@ -218,18 +218,18 @@ Goal: eliminate infeasible or insufficiently novel ideas, then deeply validate s
 
 (Skip if `--skip-validation`: proceed directly to Phase 4: Write to Wiki with default priority = 3 for all survivors.)
 
-1. **Call /novelty `--write`** (one at a time):
+1. **Call `/novelty` / `$novelty` with `--write`** (one at a time):
    ```
    For each surviving idea:
-   Skill: novelty
-   Args: "<idea-slug>" --write
+   Claude Code: /novelty "<idea-slug>" --write
+   Codex:       $novelty "<idea-slug>" --write
    ```
    The `--write` flag persists the resulting `novelty_score` (1–5) into the idea's frontmatter. Record the score for the IDEA_REPORT.
 
-2. **Call /review** (for top ideas):
+2. **Call `/review` / `$review`** (for top ideas):
    ```
-   Skill: review
-   Args: "<idea-full-description>" --difficulty hard --focus method
+   Claude Code: /review "<idea-full-description>" --difficulty hard --focus method
+   Codex:       $review "<idea-full-description>" --difficulty hard --focus method
    ```
    Record review score (1–10) and weaknesses
 
@@ -475,8 +475,8 @@ pilot_spec:
 User-selected surviving idea, after writing the Pilot Spec to `experiments/pilot/{slug}.yaml`:
 
 ```
-Skill: exp-pilot-run
-Args: "{idea-slug}"
+Claude Code: /exp-pilot-run "{idea-slug}"
+Codex:       $exp-pilot-run "{idea-slug}"
 ```
 
 `/exp-pilot-run` reads the Pilot Spec, writes pilot code to `experiments/pilot/code/{slug}/`, runs the experiment, and returns a PILOT_REPORT with:
@@ -488,8 +488,8 @@ Args: "{idea-slug}"
 After `/exp-pilot-run` returns the PILOT_REPORT, evaluate results and update the idea page (which already exists from Phase 4):
 
 ```
-Skill: exp-pilot-eval
-Args: "{idea-slug}"
+Claude Code: /exp-pilot-eval "{idea-slug}"
+Codex:       $exp-pilot-eval "{idea-slug}"
 ```
 
 `/exp-pilot-eval` reads the pilot results, applies the verdict logic (pass/fail/inconclusive with lenient thresholds — the purpose is to detect obvious failures, not measure final performance), and updates the idea page:
@@ -540,18 +540,18 @@ Args: "{idea-slug}"
 - `python3 tools/fetch_deepxiv.py brief <arxiv_id>` — fetch paper TLDR
 - `python3 tools/fetch_deepxiv.py trending --days 14` — trending paper trends
 
-### Skills（via Skill tool）
-- `/novelty` — Phase 3 deep novelty validation
-- `/review` — Phase 3 cross-model review
-- `/exp-pilot-run` — Phase 5 pilot experiment execution
-- `/exp-pilot-eval` — Phase 5 pilot result evaluation and idea page update
+### Skills
+- `/novelty` (Claude Code) or `$novelty` (Codex) — Phase 3 deep novelty validation
+- `/review` (Claude Code) or `$review` (Codex) — Phase 3 cross-model review
+- `/exp-pilot-run` (Claude Code) or `$exp-pilot-run` (Codex) — Phase 5 pilot experiment execution
+- `/exp-pilot-eval` (Claude Code) or `$exp-pilot-eval` (Codex) — Phase 5 pilot result evaluation and idea page update
 
 ### MCP Servers
 - `llm-review MCP chat tool` — Phase 2 Review LLM independent brainstorm
 
-### Agent Runtime Capabilities
-- `WebSearch` — Phase 1 external search, Phase 3 quick novelty screening, Phase 5 pilot validation
-- `Agent` tool — Phase 1 parallel search, Phase 2 parallel brainstorm
+### Runtime Capabilities
+- Web search — Phase 1 external search, Phase 3 quick novelty screening, Phase 5 pilot validation, using the current runtime's available web-search capability.
+- Optional Agent/subagent execution — accelerator for Phase 1 parallel search and Phase 2 parallel brainstorm only. If unavailable, or if subagent working-directory control is uncertain, run the same steps sequentially; this is the Codex-safe default.
 
 ### Shared References
 - `shared-references/cross-model-review.md` — Phase 2 Review LLM independence principle

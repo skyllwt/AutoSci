@@ -240,9 +240,9 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
-  || echo "WARN: visualize generate-obsidian-config failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-obsidian-config failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
 ```
 
 报告中必须分开列出：
@@ -284,7 +284,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - **单篇 ingest 失败**：写 checkpoint，跳过该篇，继续其他论文，并在最终报告中列出
 - **当前 checkout 处于 detached HEAD**：使用串行模式；若要走并行 worktree fan-out，则先停止并要求用户切换到或创建一个命名分支
 - **stash pop 失败**：保留 checkpoint metadata，并给出手动恢复提示
-- **可视化重生成失败**：警告并继续，绝不让 `/init` 失败。用户可单独跑 `/visualize --canvas` 排查，或直接通过 `python tools/serve.py` 浏览 SPA Graph 视图
+- **可视化重生成失败**：警告并继续，绝不让 `/init` / `$init` 失败。用户可单独跑 `/visualize --canvas` 或 `$visualize --canvas` 排查，或直接通过 `python tools/serve.py` 浏览 SPA Graph 视图
 
 ## Dependencies
 
@@ -313,7 +313,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 ### Skills
 
 - `/ingest` / `$ingest` — 串行模式下每步一篇论文，或并行模式下每个子代理一篇论文，均运行在 INIT MODE
-- `/visualize` — Step 6 fan-in 直接调用 `tools/visualize.py` 重新生成 Obsidian 颜色组与 Canvas（best-effort）；用户也可以稍后手动调用 `/visualize` 做 `--focus` 视图，或在改了 `config/visualize.json` 后重新渲染
+- `/visualize` / `$visualize` — Step 6 fan-in 直接调用 `tools/visualize.py` 重新生成 Obsidian 颜色组与 Canvas（best-effort）；用户也可以稍后手动调用 `/visualize` 或 `$visualize` 做 `--focus` 视图，或在改了 `config/visualize.json` 后重新渲染
 
 ### `init_discovery.py` 内部使用的外部 API
 

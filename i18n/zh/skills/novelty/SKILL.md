@@ -9,7 +9,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 > 对一个研究想法或方法进行多源 novelty 验证。搜索 WebSearch、Semantic Scholar、
 > wiki 内已有工作和 arXiv 最新预印本，然后由 Review LLM 交叉验证，输出 novelty 评分（1-5）、
 > 最相似已有工作、差异化要点和下一步建议。
-> 可独立使用，也被 /ideate Phase 4 调用。
+> 可独立使用，也可在 Phase 4 中由 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 调用。
 
 ## Inputs
 
@@ -64,7 +64,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 
 ### Step 2: 多源搜索
 
-并行执行以下搜索（使用 Agent tool 并发）：
+执行以下搜索。若 runtime 具备可靠的 Agent/subagent 支持，并且能显式控制工作目录，可以并行执行；否则在主工作区顺序运行。顺序执行是 Codex-safe 默认路径。
 
 **Source A — Web Search（5+ 查询）：**
 1. 直接查询：`"<method-name>" + "<task>"` 精确短语搜索
@@ -210,9 +210,9 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 ### MCP Servers
 - `llm-review MCP chat tool` — Review LLM 交叉验证（Step 3）
 
-### Agent Runtime Capabilities
-- `WebSearch` — 多查询 web 搜索（Step 2 Source A + D）
-- `Agent` tool — 并行执行多源搜索（Step 2）
+### Runtime Capabilities
+- Web search — 多查询 web 搜索（Step 2 Source A + D），使用当前 runtime 可用的 web-search 能力。
+- 可选 Agent/subagent 执行 — 仅作为多源搜索加速器。若不可用，或无法可靠控制工作目录，就在主工作区顺序执行同样的搜索；这是 Codex-safe 默认路径。
 
 ### Shared References
 - `shared-references/cross-model-review.md`（Phase 2 创建，Review LLM 独立性原则）

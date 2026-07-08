@@ -9,7 +9,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 > Verify the novelty of a research idea or method using multiple sources. Searches WebSearch,
 > Semantic Scholar, existing wiki work, and arXiv recent preprints, then Review LLM cross-verifies.
 > Outputs a novelty score (1-5), closest prior work, differentiation points, and next-step recommendations.
-> Can be used standalone or called by /ideate Phase 4.
+> Can be used standalone or called by `/ideate` in Claude Code or `$ideate` in Codex during Phase 4.
 
 ## Inputs
 
@@ -64,7 +64,10 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 
 ### Step 2: Multi-Source Search
 
-Execute the following searches in parallel (use Agent tool for concurrency):
+Execute the following searches. If the runtime has reliable Agent/subagent
+support with explicit working-directory control, parallelize them; otherwise
+run them sequentially in the main workspace. Sequential execution is the
+Codex-safe default.
 
 **Source A — Web Search (5+ queries):**
 1. Direct query: `"<method-name>" + "<task>"` — exact phrase search
@@ -210,9 +213,9 @@ Where `{N}` is the integer 1-5 from the composite scoring rules above. If `set-m
 ### MCP Servers
 - `llm-review MCP chat tool` — Review LLM cross-verify (Step 3)
 
-### Agent Runtime Capabilities
-- `WebSearch` — multi-query web search (Step 2 Sources A + D)
-- `Agent` tool — parallel execution of multi-source search (Step 2)
+### Runtime Capabilities
+- Web search — multi-query web search (Step 2 Sources A + D), using the current runtime's available web-search capability.
+- Optional Agent/subagent execution — accelerator for multi-source search only. If unavailable, or if working-directory control is uncertain, run the same searches sequentially in the main workspace; this is the Codex-safe default.
 
 ### Shared References
 - `shared-references/cross-model-review.md` (created in Phase 2, Review LLM independence principle)

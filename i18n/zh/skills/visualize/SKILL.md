@@ -10,6 +10,10 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 > 产出 Obsidian 图谱配置（按实体类型分色组）以及带类型标签边的精选 Canvas 视图。
 > 交互式网页探索请使用 SPA 的 Graph 视图（先跑 `tools/serve.py`，然后访问 `#/graph`）。
 
+## Trigger
+
+手动：Claude Code 中 `/visualize [flags]`，或 Codex 中 `$visualize [flags]`。
+
 ## Inputs
 
 - `--obsidian`（可选）：生成或更新 `.obsidian/graph.json`，按实体类型分色组
@@ -53,7 +57,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 ### Step 0: 确认图谱数据存在
 
-检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 `/ingest`。
+检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 Claude Code 的 `/ingest` 或 Codex 的 `$ingest`。
 
 ### Step 1: 生成 Obsidian 配置（`--obsidian` 或 `--all`）
 
@@ -140,13 +144,13 @@ Canvas 边 schema：
 
    退出码 `0` = 端口被占（服务已起 —— 跳过启动）。退出码 `1` = 端口空闲（需要启动）。
 
-2. 若端口空闲，用 **`Bash` tool 的 `run_in_background: true`** 后台启动（不要前台，前台会无限阻塞 skill）：
+2. 若端口空闲，使用当前 runtime 的后台命令机制启动服务（Claude Code：Bash 的 `run_in_background: true`；Codex：长跑 shell session 或外部调度器）。不要前台运行，否则会无限阻塞 skill。在 Codex managed sandbox 中，`tools/serve.py` 可能需要文档中的 network escalation rule：
 
    ```bash
    python3 tools/serve.py
    ```
 
-   不要用 `Agent` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `Bash` 进程归当前 agent 会话所有，活到会话结束。
+   不要用 Agent/subagent 包裹 —— subagent 不适合长跑服务，且 subagent 返回时服务可能跟着挂掉。后台进程归当前 agent 会话所有，活到会话结束。
 
 3. 把 URL 打印给用户：
 
@@ -217,7 +221,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 
 ## Error Handling
 
-- **没有图谱数据**：提醒用户先跑 `/ingest` 建立知识库
+- **没有图谱数据**：提醒用户先跑 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 建立知识库
 - **`config/visualize.json` 缺失**：报错，文件应当存在于 `config/visualize.json`
 - **`--focus` 节点找不到**：中止并打印 `Error: node "<node_id>" not found`；列出 5 个最相近的 slug 候选
 - **过滤后没有节点**：中止并汇总当前过滤器与可用类型

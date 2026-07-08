@@ -4,18 +4,19 @@ description: Experiment verdict gate — Review LLM independently judges results
 argument-hint: <experiment-slug> [--auto]
 ---
 
-# /exp-eval
+# /exp-eval / $exp-eval
 
 > Convert completed experiment results into wiki knowledge updates.
 > Review LLM acts as an impartial judge (following cross-model-review), independently evaluating how experimental results affect the linked idea's hypothesis.
 > Four verdict paths: supported → idea validated / partially_supported → supplementary experiments /
 > not_supported → idea failed / inconclusive → debug.
 > Auto-updates the linked idea's `status`, `failure_reason`, and graph edges.
+> Manual: `/exp-eval <experiment-slug>` in Claude Code or `$exp-eval <experiment-slug>` in Codex.
 
 ## Inputs
 
 - `experiment`: slug from `wiki/experiments/` (status must be `completed`)
-- `--auto` (optional): automatic mode — do not pause for user confirmation before wiki updates (used when called by /research)
+- `--auto` (optional): automatic mode — do not pause for user confirmation before wiki updates (used when called by `/research` / `$research`)
 
 ## Outputs
 
@@ -156,7 +157,7 @@ Record Review LLM's verdict.
      --type supports --evidence "{key_result}"
    ```
 
-3. **Suggest next steps**: `/paper-plan {linked-idea}` or continue ablation/robustness experiments
+3. **Suggest next steps**: `/paper-plan {linked-idea}` in Claude Code or `$paper-plan {linked-idea}` in Codex, or continue ablation/robustness experiments
 
 #### Path B: PARTIALLY_SUPPORTED (partial support)
 
@@ -172,7 +173,7 @@ Record Review LLM's verdict.
 
 3. **Suggest supplementary experiments**:
    - Specify what evidence is missing
-   - Suggest using `/exp-design --linked-idea {linked-idea}` to design supplementary experiments
+   - Suggest using `/exp-design --linked-idea {linked-idea}` in Claude Code or `$exp-design --linked-idea {linked-idea}` in Codex to design supplementary experiments
    - If Review LLM-flagged concerns are addressable by experiment, suggest concrete experiment direction
 
 #### Path C: NOT_SUPPORTED (experiment refutes the idea's hypothesis)
@@ -195,13 +196,13 @@ Record Review LLM's verdict.
 3. **Suggest next steps**:
    - Analyze the failure reason
    - Consider pivoting (new idea addressing the same gap while avoiding the known failure)
-   - Suggest `/ideate` to generate alternatives
+   - Suggest `/ideate` in Claude Code or `$ideate` in Codex to generate alternatives
 
 #### Path D: INCONCLUSIVE (results are uncertain)
 
 1. **Do not modify idea status**: insufficient evidence to make a judgment
 
-2. **Update experiment page**: outcome is already inconclusive (set by /exp-run)
+2. **Update experiment page**: outcome is already inconclusive (set by `/exp-run` / `$exp-run`)
 
 3. **Suggest debugging**:
    - Data issue? Implementation bug? Wrong metric?
@@ -277,7 +278,7 @@ Record Review LLM's verdict.
 
 ## Constraints
 
-- **Only process completed experiments**: experiments with status != completed are refused; prompt user to use /exp-run first.
+- **Only process completed experiments**: experiments with status != completed are refused; prompt user to use `/exp-run` in Claude Code or `$exp-run` in Codex first.
 - **`linked_idea` is mandatory**: refuse to evaluate any experiment whose `linked_idea` is empty (the new schema enforces this; if you encounter such a page it is a pre-refactor artifact and must be fixed manually).
 - **Reviewer independence**: strictly follow cross-model-review.md — do not send the primary agent's pre-judgment to Review LLM.
 - **`failure_reason` must be specific**: the not_supported path's `failure_reason` cannot be vague (e.g. "experiment failed") — must state the concrete reason. `transition --reason` rejects an empty string.
@@ -289,12 +290,12 @@ Record Review LLM's verdict.
 ## Error Handling
 
 - **Experiment not found**: prompt user to check slug, list candidates in `wiki/experiments/` with status=completed.
-- **Experiment not completed**: report status, suggest running `/exp-run {slug}` or `/exp-run {slug} --check`.
-- **`linked_idea` missing**: refuse to proceed; instruct the user to run `/edit` to set the experiment's `linked_idea`.
-- **Linked idea page does not exist**: report a dangling reference; refuse to update — recommend `/edit` or `/ideate` to create the idea page first.
+- **Experiment not completed**: report status, suggest running `/exp-run {slug}` / `$exp-run {slug}` or `/exp-run {slug} --check` / `$exp-run {slug} --check`.
+- **`linked_idea` missing**: refuse to proceed; instruct the user to run `/edit` in Claude Code or `$edit` in Codex to set the experiment's `linked_idea`.
+- **Linked idea page does not exist**: report a dangling reference; refuse to update — recommend `/edit` / `$edit` or `/ideate` / `$ideate` to create the idea page first.
 - **Review LLM unavailable**: fall back to the primary agent single-model verdict, note "single-model verdict, cross-model verification unavailable" in report, suggest user confirm later.
 - **Idea was modified by another experiment**: re-read the latest state before applying transitions; do not overwrite a more advanced lifecycle state with a lower one.
-- **Results data missing**: if the experiment page's Results section is empty, prompt user to run `/exp-run {slug} --check` first.
+- **Results data missing**: if the experiment page's Results section is empty, prompt user to run `/exp-run {slug} --check` in Claude Code or `$exp-run {slug} --check` in Codex first.
 
 ## Dependencies
 
@@ -317,5 +318,5 @@ Record Review LLM's verdict.
 - `shared-references/cross-model-review.md` — Review LLM independence principle (required reading)
 
 ### Called by
-- `/research` Stage 4 (verdict and iteration stage)
+- `/research` (Claude Code) or `$research` (Codex) Stage 4 (verdict and iteration stage)
 - User directly

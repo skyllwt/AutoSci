@@ -8,12 +8,12 @@ argument-hint: <idea-slug> [--auto]
 
 > Evaluate pilot experiment results and update the linked idea page.
 > Reads pilot results from `experiments/pilot/code/{slug}/results/`, applies verdict logic (pass/fail/inconclusive), and updates the idea's `pilot_result`, `failure_reason`, and `status` fields.
-> Called by `/ideate` Phase 5 after `/exp-pilot-run` completes.
+> Called by `/ideate` in Claude Code or `$ideate` in Codex after `/exp-pilot-run` / `$exp-pilot-run` completes.
 
 ## Inputs
 
 - `idea-slug`: slug of the idea whose pilot was just run
-- `--auto` (optional): automatic mode, no pause for user confirmation (used when called by `/research`)
+- `--auto` (optional): automatic mode, no pause for user confirmation (used when called by `/research` or `$research`)
 
 ## Outputs
 
@@ -36,7 +36,7 @@ argument-hint: <idea-slug> [--auto]
 - `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT file copy
 
 ### Graph edges created
-- None. Pilot evaluations do not create graph edges (those are for formal experiments via `/exp-eval`).
+- None. Pilot evaluations do not create graph edges (those are for formal experiments via `/exp-eval` or `$exp-eval`).
 
 ## Workflow
 
@@ -76,7 +76,7 @@ If verdict == `pass`:
 If verdict == `fail`:
 - Set `pilot_result`: `"fail — <specific failure>"`
 - Set `failure_reason`: `"[pilot] <specific failure description>"`
-  - The `[pilot]` prefix distinguishes pilot failures from `[filter]` eliminations (Phase 3) and post-experiment failures from `/exp-eval`
+  - The `[pilot]` prefix distinguishes pilot failures from `[filter]` eliminations (Phase 3) and post-experiment failures from `/exp-eval` / `$exp-eval`
 - Transition status to `failed`:
   ```bash
   python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "fail — <specific failure>"
@@ -122,7 +122,7 @@ If verdict == `inconclusive`:
    | ideas/{slug} | failure_reason | — | {new} | (only if failed) |
 
    ## Next Steps
-   - {if pass: proceed to /exp-design for full experiments}
+   - {if pass: proceed to `/exp-design` in Claude Code or `$exp-design` in Codex for full experiments}
    - {if fail: idea eliminated; review pilot log for details}
    - {if inconclusive: proceed to full experiment with caution}
    ```
@@ -132,21 +132,21 @@ If verdict == `inconclusive`:
 - **Only processes pilot-tested ideas**: results must exist in `experiments/pilot/code/{slug}/results/`
 - **failure_reason must be specific**: not vague "pilot failed" — include what failed and why
 - **Idea lifecycle is forward-only**: `proposed → failed` (cannot regress validated → failed)
-- **Does NOT create graph edges**: those are for formal experiments via `/exp-eval`
+- **Does NOT create graph edges**: those are for formal experiments via `/exp-eval` / `$exp-eval`
 - **Pilot pass threshold is intentionally low**: detect obvious failures, not measure final performance
 - **The `[pilot]` prefix is mandatory on failure_reason**: distinguishes from `[filter]` and post-experiment failures
 
 ## Error Handling
 
-- **Idea page not found**: report error, suggest running `/ideate` first
-- **Pilot results not found**: report error, suggest running `/exp-pilot-run` first
+- **Idea page not found**: report error, suggest running `/ideate` in Claude Code or `$ideate` in Codex first
+- **Pilot results not found**: report error, suggest running `/exp-pilot-run` in Claude Code or `$exp-pilot-run` in Codex first
 - **Idea already failed**: report current state, do not overwrite
 - **Idea already validated**: refuse to downgrade status, report warning
-- **Pilot Spec not found**: report error, suggest running `/ideate` first to generate the spec
+- **Pilot Spec not found**: report error, suggest running `/ideate` in Claude Code or `$ideate` in Codex first to generate the spec
 
 ## Dependencies
 
-### Skills (via Skill tool)
+### Skills
 - None
 
 ### Tools (via Bash)
@@ -160,5 +160,5 @@ If verdict == `inconclusive`:
 - `Bash` — execute research_wiki.py commands
 
 ### Called by
-- `/ideate` Phase 5
+- `/ideate` (Claude Code) or `$ideate` (Codex) Phase 5
 - User directly

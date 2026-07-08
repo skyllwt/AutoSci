@@ -216,7 +216,7 @@ This is the key difference from linear experiment design. After initial ablation
 ```
 iteration = 0
 while iteration < 2:
-    run ablation experiment (via /exp-run)
+    run ablation experiment (via `/exp-run` / `$exp-run`)
     classify each ablation factor based on results:
       - ESSENTIAL:   removing it causes major performance degradation (>10%)  → keep
       - CONTRIBUTING: removing it causes moderate degradation (3-10%)        → keep
@@ -318,14 +318,14 @@ Estimate total compute budget. Generate execution checklist with dependencies.
    {stage dependencies, estimated GPU-hours}
 
    ## Results
-   (to be filled after /exp-run)
+   (to be filled after `/exp-run` / `$exp-run`)
    ```
 
 2. **Create experiment wiki pages** — one page per experiment block (following `runtime/schema/entities.yaml` and `runtime/templates/experiments.md.tmpl`):
    ```bash
    python3 tools/research_wiki.py slug "<experiment-title>"
    ```
-   Create `wiki/experiments/{slug}.md` following `runtime/schema/entities.yaml::experiments` and `runtime/templates/experiments.md.tmpl` exactly — every frontmatter field below must be present even if empty, because `/exp-run` later uses `tools/research_wiki.py set-meta` to update them, and `set-meta` refuses to create fields that don't already exist:
+   Create `wiki/experiments/{slug}.md` following `runtime/schema/entities.yaml::experiments` and `runtime/templates/experiments.md.tmpl` exactly — every frontmatter field below must be present even if empty, because `/exp-run` / `$exp-run` later uses `tools/research_wiki.py set-meta` to update them, and `set-meta` refuses to create fields that don't already exist:
    ```yaml
    ---
    title: ""
@@ -341,14 +341,14 @@ Estimate total compute budget. Generate execution checklist with dependencies.
      framework: ""
    metrics: []
    baseline: ""
-   outcome: ""                  # empty until /exp-run Phase 4 — succeeded | failed | inconclusive
-   key_result: ""               # empty until /exp-run Phase 4
+   outcome: ""                  # empty until /exp-run / $exp-run Phase 4 — succeeded | failed | inconclusive
+   key_result: ""               # empty until /exp-run / $exp-run Phase 4
    date_planned: YYYY-MM-DD
-   date_completed: ""           # empty until /exp-run Phase 4
-   run_log: ""                  # empty until /exp-run Phase 2
-   started: ""                  # empty until /exp-run Phase 2 (ISO timestamp, set via set-meta)
-   estimated_hours: 0           # 0 until /exp-run Phase 2 (set via set-meta)
-   remote:                      # full block must exist so /exp-run --env remote can populate sub-fields via Edit
+   date_completed: ""           # empty until /exp-run / $exp-run Phase 4
+   run_log: ""                  # empty until /exp-run / $exp-run Phase 2
+   started: ""                  # empty until /exp-run / $exp-run Phase 2 (ISO timestamp, set via set-meta)
+   estimated_hours: 0           # 0 until /exp-run / $exp-run Phase 2 (set via set-meta)
+   remote:                      # full block must exist so /exp-run / $exp-run --env remote can populate sub-fields via Edit
      server: ""
      gpu: ""
      session: ""
@@ -363,40 +363,40 @@ Estimate total compute budget. Generate execution checklist with dependencies.
    - `## Objective` — which factors are being tested, what the ablation reveals about the method
    - `## Setup` — ablation matrix (factor combinations), model, dataset, hardware, hyperparameters
    - `## Procedure` — step-by-step: run each factor combination, collect metrics and intermediate quantities
-   - `## Results` (to be filled after /exp-run) — factor classification table: ESSENTIAL / CONTRIBUTING / MARGINAL / HARMFUL
-   - `## Analysis` (to be filled after /exp-run) — which factors to remove, iteration history
+   - `## Results` (to be filled after `/exp-run` / `$exp-run`) — factor classification table: ESSENTIAL / CONTRIBUTING / MARGINAL / HARMFUL
+   - `## Analysis` (to be filled after `/exp-run` / `$exp-run`) — which factors to remove, iteration history
    - `## Follow-up` — if MARGINAL/HARMFUL found: simplify method and re-run ablation (iteration 2); if all ESSENTIAL/CONTRIBUTING: proceed to main experiment
 
    **Sensitivity** (`tags: ["sensitivity"]`):
    - `## Objective` — which hyperparameters are being swept, what range is optimal
    - `## Setup` — sweep ranges and resolution, model, dataset, hardware
    - `## Procedure` — step-by-step: run subset first, narrow ranges, then full sweep
-   - `## Results` (to be filled after /exp-run) — best hyperparameter values, performance curves
-   - `## Analysis` (to be filled after /exp-run) — sensitivity patterns, recommended values for main experiment
+   - `## Results` (to be filled after `/exp-run` / `$exp-run`) — best hyperparameter values, performance curves
+   - `## Analysis` (to be filled after `/exp-run` / `$exp-run`) — sensitivity patterns, recommended values for main experiment
    - `## Follow-up` — pass best hparams to main experiment
 
    **Main** (`tags: ["main"]`):
    - `## Objective` — what this experiment proves about the linked idea vs baselines
    - `## Setup` — method vs all baselines, full benchmark, multi-seed (>=3), best hparams from sensitivity
    - `## Procedure` — step-by-step execution plan with explicit success criterion; collect intermediate quantities for deep analysis
-   - `## Results` (to be filled after /exp-run) — metric comparison table (method vs baselines), statistical significance
-   - `## Analysis` (to be filled after /exp-run) — why method works/fails, intermediate quantity analysis
+   - `## Results` (to be filled after `/exp-run` / `$exp-run`) — metric comparison table (method vs baselines), statistical significance
+   - `## Analysis` (to be filled after `/exp-run` / `$exp-run`) — why method works/fails, intermediate quantity analysis
    - `## Follow-up` — contingency plans: what to do if success / failure
 
    **Generalization** (`tags: ["generalization"]`, optional):
    - `## Objective` — what generalization claim is being tested
    - `## Setup` — different benchmark/dataset/setting from main experiment
    - `## Procedure` — run finalized method with best hparams on new setting
-   - `## Results` (to be filled after /exp-run) — performance on new setting vs main setting
-   - `## Analysis` (to be filled after /exp-run) — does the method generalize?
+   - `## Results` (to be filled after `/exp-run` / `$exp-run`) — performance on new setting vs main setting
+   - `## Analysis` (to be filled after `/exp-run` / `$exp-run`) — does the method generalize?
    - `## Follow-up` — if fails: identify which assumption breaks
 
    **Analysis** (`tags: ["analysis"]`):
    - `## Objective` — which intermediate quantities to analyze, what hypothesis they validate
    - `## Setup` — data sources (logs from main experiment), visualization specs
    - `## Procedure` — run analysis scripts, produce plots and diagnostic tables
-   - `## Results` (to be filled after /exp-run) — plots, tables, key observations
-   - `## Analysis` (to be filled after /exp-run) — do intermediate quantities confirm the method's hypothesis?
+   - `## Results` (to be filled after `/exp-run` / `$exp-run`) — plots, tables, key observations
+   - `## Analysis` (to be filled after `/exp-run` / `$exp-run`) — do intermediate quantities confirm the method's hypothesis?
    - `## Follow-up` — if hypothesis not confirmed: identify what went wrong
 
 3. **Add graph edges**:
@@ -487,9 +487,9 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 
 ## Dependencies
 
-### Skills (via Skill tool)
-- `/exp-run` — execute designed experiments
-- `/exp-pilot-eval` — prerequisite: pilot evaluation should complete before formal design
+### Skills
+- `/exp-run` (Claude Code) or `$exp-run` (Codex) — execute designed experiments
+- `/exp-pilot-eval` (Claude Code) or `$exp-pilot-eval` (Codex) — prerequisite: pilot evaluation should complete before formal design
 
 ### Tools (via Bash)
 - `python3 tools/research_wiki.py slug "<title>"` — generate slug
@@ -506,5 +506,5 @@ Estimate total compute budget. Generate execution checklist with dependencies.
 - interactive user prompt — method candidate selection
 
 ### Called by
-- `/ideate` (after pilot evaluation)
+- `/ideate` (Claude Code) or `$ideate` (Codex) after pilot evaluation
 - User directly
