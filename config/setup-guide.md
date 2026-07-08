@@ -71,8 +71,8 @@ paper summaries (TLDR), progressive reading, and trending paper detection.
 All skills still work; semantic search and TLDR features are unavailable.
 
 **How to get it** (choose one):
-- **Option A — Auto-register**: Claude Code can register a free token automatically.
-  Just say "auto-register" and it will call the registration API and save the token.
+- **Option A — Agent auto-register**: Claude Code or Codex can register a free token automatically.
+  Say "auto-register" during `/setup` or `$setup`; the agent will call the registration API and save the token.
 - **Option B — Manual**: Go to https://data.rag.ac.cn/register
 
 **Auto-registration details** (for Option A):

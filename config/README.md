@@ -21,7 +21,7 @@ or GitHub Actions secrets.
 Environment variables for API keys. Copy to project root:
 
 ```bash
-cp config/.env.example .env
+cp .env.example .env
 ```
 
 Then edit `.env` to add your API keys. See comments in the file for detailed instructions on each key.

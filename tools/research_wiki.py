@@ -14,8 +14,8 @@ Commands:
     log <wiki_root> "<message>"
 
     # Frontmatter operations
-    read-meta <path> [field]
-    set-meta <path> <field> <value> [--append]
+    read-meta <path> [field]                         # dotted fields allowed, e.g. remote.server
+    set-meta <path> <field> <value> [--append]       # dotted fields allowed, e.g. remote.server
 
     # Graph operations
     add-edge <wiki_root> --from <id> --to <id> --type <type> [--evidence "..."] [--confidence high|medium|low]
@@ -1671,7 +1671,7 @@ def transition(path: str, new_status: str, reason: str = "") -> None:
         for field, val in AUTO_FIELDS[auto_key].items():
             actual_val = today if val == "_today_" else val
             try:
-                content, _, _ = _update_frontmatter_field(content, field, actual_val)
+                content, _, _ = _update_frontmatter_field(content, field, actual_val, create=True)
                 auto_set.append(field)
             except ValueError:
                 pass  # Field doesn't exist, skip
@@ -1679,7 +1679,7 @@ def transition(path: str, new_status: str, reason: str = "") -> None:
     # Set failure_reason if transitioning idea to failed
     if entity_type == "ideas" and new_status == "failed" and reason:
         try:
-            content, _, _ = _update_frontmatter_field(content, "failure_reason", reason)
+            content, _, _ = _update_frontmatter_field(content, "failure_reason", reason, create=True)
             auto_set.append("failure_reason")
         except ValueError:
             pass
@@ -2278,6 +2278,19 @@ def _serialize_frontmatter(fm: dict) -> str:
     """
     lines: list[str] = []
 
+    def format_scalar(value) -> str:
+        if value is None or value == "":
+            return '""'
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (int, float)):
+            return str(value)
+        if isinstance(value, str):
+            if any(c in value for c in ":#{}[]&*!|>',\""):
+                return f'"{value}"'
+            return value
+        return str(value)
+
     for key, val in fm.items():
         if val is None or val == "":
             lines.append(f"{key}: \"\"")
@@ -2310,29 +2323,50 @@ def _serialize_frontmatter(fm: dict) -> str:
                         for dk, dv in item.items():
                             prefix = "  - " if first else "    "
                             first = False
-                            if isinstance(dv, str) and any(c in dv for c in ":#{}[]"):
-                                lines.append(f'{prefix}{dk}: "{dv}"')
-                            else:
-                                lines.append(f"{prefix}{dk}: {dv}")
+                            lines.append(f"{prefix}{dk}: {format_scalar(dv)}")
                     else:
                         lines.append(f"  - {item}")
         elif isinstance(val, dict):
             lines.append(f"{key}:")
             for dk, dv in val.items():
-                if isinstance(dv, str) and any(c in dv for c in ":#{}[]"):
-                    lines.append(f'  {dk}: "{dv}"')
-                else:
-                    lines.append(f"  {dk}: {dv}")
+                lines.append(f"  {dk}: {format_scalar(dv)}")
 
     return "\n".join(lines) + "\n"
 
 
+def _resolve_frontmatter_path(fm: dict, field: str, create: bool = False):
+    """Resolve a top-level or dotted frontmatter path.
+
+    Returns ``(container, leaf_key)`` so callers can update or read the value.
+    Missing fields are rejected by default; ``create`` only permits the final
+    top-level key for legacy callers that explicitly requested creation.
+    """
+    parts = [part for part in field.split(".") if part]
+    if not parts:
+        raise ValueError("Field path is empty")
+    if len(parts) == 1:
+        if parts[0] not in fm and not create:
+            raise ValueError(f"Field '{field}' not found in frontmatter")
+        return fm, parts[0]
+
+    current = fm
+    for part in parts[:-1]:
+        if not isinstance(current, dict) or part not in current:
+            raise ValueError(f"Field '{field}' not found in frontmatter")
+        current = current[part]
+    if not isinstance(current, dict) or parts[-1] not in current:
+        raise ValueError(f"Field '{field}' not found in frontmatter")
+    return current, parts[-1]
+
+
 def _update_frontmatter_field(content: str, field: str, value,
-                               append: bool = False) -> tuple[str, str, str]:
+                               append: bool = False,
+                               create: bool = False) -> tuple[str, str, str]:
     """Update a single field in a file's frontmatter text.
 
     Returns ``(new_content, old_value_str, new_value_str)``.
-    Raises ``ValueError`` if frontmatter or field not found.
+    Raises ``ValueError`` if frontmatter or field not found, unless ``create``
+    is true for a non-append update.
     """
     m = FRONTMATTER_RE.match(content)
     if not m:
@@ -2344,15 +2378,13 @@ def _update_frontmatter_field(content: str, field: str, value,
     # Parse existing frontmatter
     fm = _parse_yaml_block(fm_text)
 
-    if field not in fm and not append:
-        raise ValueError(f"Field '{field}' not found in frontmatter")
-
-    old_val = fm.get(field, "")
+    container, leaf = _resolve_frontmatter_path(fm, field, create=(create and not append))
+    old_val = container.get(leaf, "")
     old_str = json.dumps(old_val, ensure_ascii=False) if not isinstance(old_val, str) else old_val
 
     if append:
         # Append to list field
-        existing = fm.get(field, [])
+        existing = container.get(leaf, [])
         if isinstance(existing, list):
             if value not in existing:
                 existing.append(value)
@@ -2360,11 +2392,11 @@ def _update_frontmatter_field(content: str, field: str, value,
             existing = [existing, value]
         else:
             existing = [value]
-        fm[field] = existing
+        container[leaf] = existing
     else:
-        fm[field] = value
+        container[leaf] = value
 
-    new_val = fm[field]
+    new_val = container[leaf]
     new_str = json.dumps(new_val, ensure_ascii=False) if not isinstance(new_val, str) else new_val
 
     # Rebuild file
@@ -2393,11 +2425,13 @@ def read_meta(path: str, field: str | None = None) -> None:
     if field is None:
         print(json.dumps(fm, ensure_ascii=False, indent=2))
     else:
-        if field not in fm:
+        try:
+            container, leaf = _resolve_frontmatter_path(fm, field)
+        except ValueError:
             print(json.dumps({"status": "error",
                               "message": f"Field '{field}' not in frontmatter"}))
             sys.exit(1)
-        val = fm[field]
+        val = container[leaf]
         print(json.dumps(val, ensure_ascii=False))
 
 
@@ -2654,12 +2688,12 @@ def main():
     p.add_argument("message")
 
     # read-meta
-    p = sub.add_parser("read-meta", help="Read frontmatter field(s) as JSON")
+    p = sub.add_parser("read-meta", help="Read frontmatter field(s) as JSON; dotted fields allowed")
     p.add_argument("path", help="Path to .md file")
     p.add_argument("field", nargs="?", default=None, help="Specific field (omit for all)")
 
     # set-meta
-    p = sub.add_parser("set-meta", help="Set a frontmatter field")
+    p = sub.add_parser("set-meta", help="Set a frontmatter field; dotted fields allowed")
     p.add_argument("path")
     p.add_argument("field")
     p.add_argument("value")
@@ -2670,6 +2704,8 @@ def main():
     p = sub.add_parser("find", help="Search entities by frontmatter fields")
     p.add_argument("wiki_root")
     p.add_argument("entity_type", choices=ENTITY_DIRS)
+    p.add_argument("filters", nargs=argparse.REMAINDER,
+                   help="Optional filters as --field value pairs")
 
     # find-similar-concept
     p = sub.add_parser("find-similar-concept",
@@ -2800,8 +2836,7 @@ def main():
     elif args.command == "find":
         # Parse remaining args as --field value pairs
         filters: list[tuple[str, str]] = []
-        remaining = sys.argv[sys.argv.index("find") + 3:]  # skip find, wiki_root, entity_type
-        it = iter(remaining)
+        it = iter(args.filters)
         for arg in it:
             if arg.startswith("--"):
                 field_name = arg[2:]

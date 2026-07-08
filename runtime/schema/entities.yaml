@@ -96,7 +96,7 @@ ideas:
     date_resolved:      { type: date }
   lifecycle:
     transitions:
-      proposed:    [in_progress]
+      proposed:    [in_progress, failed]
       in_progress: [tested]
       tested:      [validated, failed]
 

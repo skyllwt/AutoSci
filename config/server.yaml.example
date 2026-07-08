@@ -4,7 +4,7 @@
 # Then fill in your server details below.
 #
 # Used by:  tools/remote.py (all SSH operations)
-#           /run-experiment --env remote
+#           /exp-run --env remote (Claude Code) or $exp-run --env remote (Codex)
 
 # --- Connection -----------------------------------------------------------
 

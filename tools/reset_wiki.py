@@ -5,7 +5,9 @@ Scopes:
     wiki         delete all .md content under wiki/<entity>/, wiki/outputs/,
                  wiki/index.md, wiki/log.md, and wiki/graph/ files.
                  Preserves .gitkeep and wiki/CLAUDE.md.
-    raw          delete all files under raw/<sub>/ except .gitkeep.
+    raw          delete generated files under raw/discovered/ and raw/tmp/
+                 except .gitkeep. User-owned raw/papers, raw/notes, and
+                 raw/web are never deleted by this helper.
     log          reset wiki/log.md to empty header.
     checkpoints  call `research_wiki.py checkpoint-clear` to drop batch state.
     all          all of the above.
@@ -29,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from runtime.loader import ENTITIES  # noqa: E402
 
 ENTITY_DIRS = list(ENTITIES.keys())
-RAW_SUBDIRS = ["papers", "discovered", "tmp", "notes", "web"]
+SKILL_WRITABLE_RAW_SUBDIRS = ["discovered", "tmp"]
 ALL_SCOPES = ["wiki", "raw", "log", "checkpoints"]
 
 INDEX_TEMPLATE = "# Wiki Index\n\n" + "\n".join(f"{e}:" for e in ENTITY_DIRS) + "\n"
@@ -71,9 +73,10 @@ def plan(project_root: Path, scopes: list[str]) -> dict:
                 p["delete_files"].append(f"wiki/graph/{gf}")
 
     if "raw" in scopes:
-        for sub in RAW_SUBDIRS:
+        for sub in SKILL_WRITABLE_RAW_SUBDIRS:
             for f in _list_raw(project_root / "raw" / sub):
                 p["delete_files"].append(str(f.relative_to(project_root)))
+        p["actions"].append("preserve user-owned raw/papers, raw/notes, and raw/web")
 
     if "log" in scopes and "wiki" not in scopes:
         p["reset_files"].append("wiki/log.md")
@@ -116,7 +119,7 @@ def execute(project_root: Path, scopes: list[str]) -> dict:
                     deleted += 1
 
     if "raw" in scopes:
-        for sub in RAW_SUBDIRS:
+        for sub in SKILL_WRITABLE_RAW_SUBDIRS:
             for f in _list_raw(project_root / "raw" / sub):
                 if f.is_dir():
                     shutil.rmtree(f)
