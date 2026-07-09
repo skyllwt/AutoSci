@@ -25,11 +25,11 @@ These external gates must pass with real credentials or disposable infrastructur
 
 | Gate | Current blocker | Pass evidence |
 |---|---|---|
-| GitHub Actions canary | `gh auth status -h github.com` reports an invalid `TomWhite-tgz` token | `mode=inform,recommender=codex` succeeds on the branch under test, and `mode=auto-ingest,recommender=codex` fails in `Validate recommender credentials` before prepare/recommend/commit |
-| Codex CI recommendation auth | `OPENAI_API_KEY` and `CODEX_ACCESS_TOKEN` are unset locally; CI secrets still need operator confirmation | The positive inform canary writes `llm-decisions.json` with provider `codex` and no wiki/raw writeback |
-| Semantic Scholar enrichment | `SEMANTIC_SCHOLAR_API_KEY` is unset locally; unauthenticated calls may rate-limit | `$discover` or `$daily-arxiv` L2 enrichment completes under escalation with S2 evidence and only scratch/checkpoint outputs |
-| DeepXiv enrichment | `DEEPXIV_TOKEN` is unset locally; previous escalated smoke reached DeepXiv but got invalid/expired token | `tools/fetch_deepxiv.py search ... --limit 1` succeeds under documented escalation and `$discover` / `$daily-arxiv` can use DeepXiv enrichment |
-| Review LLM | `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` are unset | A minimal `llm-review` call succeeds, then `$review`, `$novelty`, `$exp-eval`, `$paper-plan`, and daily-arxiv `recommender=review-llm` L2 paths run without fallback |
+| GitHub Actions canary | Negative canary passed on `migrate-codex`; positive `mode=inform,recommender=codex` still needs Codex CI auth secret confirmation | `mode=inform,recommender=codex` succeeds on the branch under test, and `mode=auto-ingest,recommender=codex` fails in `Validate recommender credentials` before prepare/recommend/commit |
+| Codex CI recommendation auth | `OPENAI_API_KEY` / `CODEX_ACCESS_TOKEN` CI secret still needs operator confirmation | The positive inform canary writes `llm-decisions.json` with provider `codex` and no wiki/raw writeback |
+| Semantic Scholar enrichment | Local L2 smoke now succeeds, but S2 can still return transient 429s | `$discover` or `$daily-arxiv` L2 enrichment completes under escalation with S2 evidence and only scratch/checkpoint outputs |
+| DeepXiv enrichment | Local L2 smoke now succeeds with the refreshed `DEEPXIV_TOKEN` | `tools/fetch_deepxiv.py search ... --limit 1` succeeds under documented escalation and `$discover` / `$daily-arxiv` can use DeepXiv enrichment |
+| Review LLM | `llm-review` Codex MCP now configured and stdio smoke-tested; current Codex session may need restart to expose the tool dynamically | A minimal `llm-review` call succeeds, then `$review`, `$novelty`, `$exp-eval`, `$paper-plan`, and daily-arxiv `recommender=review-llm` L2 paths run without fallback |
 | Remote/GPU experiments | Real SSH/GPU/screen environment is not validated in this workspace | `$exp-run --env remote`, `$exp-status --collect-ready`, `$exp-run --collect`, and `$research --start-from stage3-collect` complete on a disposable remote experiment without mutating user-owned raw |
 
 ## Smoke Levels
@@ -358,6 +358,24 @@ Expected note: active skill trees place shared reference files under
   remains a configuration blocker until `$setup` or manual `.env`/CI secret
   configuration provides all three values and a minimal Review LLM call
   succeeds.
+- 2026-07-09: Rechecked configured provider credentials without printing
+  secret values. `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, `LLM_API_KEY`,
+  `LLM_BASE_URL`, and `LLM_MODEL` are now loaded from the local environment.
+  `tools/fetch_deepxiv.py search "low rank adaptation" --limit 1` succeeded
+  under documented escalation. `tools/fetch_s2.py search "low rank adaptation"
+  1` initially hit a transient 429, waited once, then returned the LoRA paper
+  with S2 evidence. A real `$discover` L2 topic smoke against a temporary wiki
+  wrote only a `/tmp` checkpoint and returned two candidates (`LoRA`, `DoRA`)
+  from 39 gathered candidates.
+- 2026-07-09: Configured Codex MCP with `llm-review` and found the MCP server
+  could not start because the project root `requirements.txt` did not install
+  the server's `httpx` dependency. Added `httpx>=0.27,<1.0` to the root
+  requirements and setup verification, installed it into `.venv`, then verified
+  the MCP stdio server exposes `chat`, `chat-reply`, and `web_search`; a
+  minimal Review LLM `chat` returned the fixed sentinel
+  `AUTOSCI_LLM_REVIEW_SMOKE_OK`. Current already-running Codex sessions may
+  need restart before the newly configured MCP tools appear through tool
+  discovery.
 - 2026-07-08: Audited for skills that still lacked an explicit Codex invocation
   surface. The audit found `$check`, `$discover`, and `$exp-eval` source docs
   had no `$skill` entry points, while `$survey` and `$rebuttal` still had

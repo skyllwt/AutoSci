@@ -225,6 +225,7 @@ check_tool_import() {
 # Check real runtime dependencies first.
 check_python_snippet "PyMuPDF (fitz)" "import fitz"
 check_python_snippet "requests" "import requests"
+check_python_snippet "httpx" "import httpx"
 check_python_snippet "feedparser" "import feedparser"
 
 # Then check the current-stage tools with the same interpreter.

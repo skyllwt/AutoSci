@@ -27,9 +27,10 @@ jump to **Troubleshooting** when a run fails.
 3. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
    ```bash
    gh secret set SEMANTIC_SCHOLAR_API_KEY -b "$(grep ^SEMANTIC_SCHOLAR_API_KEY= .env | cut -d= -f2-)"
-   gh secret set DEEPXIV_TOKEN            -b "$(grep ^DEEPXIV_TOKEN= ~/.env       | cut -d= -f2-)"
+   gh secret set DEEPXIV_TOKEN            -b "$(grep ^DEEPXIV_TOKEN= .env            | cut -d= -f2-)"
    ```
-   `DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env` — the SDK auto-registers there.
+   `$setup` writes `DEEPXIV_TOKEN` to the project `.env`; `tools/_env.py` also
+   honors `~/.env` as an optional global fallback.
 
 4. **Run the daily-arxiv setup skill once** in your local checkout: `/daily-arxiv setup` in Claude Code, or `$daily-arxiv setup` in Codex for local configuration checks. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the agent skill, hand-add this under the `daily-arxiv:` job's `env:` block:
    ```yaml
@@ -176,7 +177,8 @@ claude_args: |
   printf '%s' "$TOKEN" | gh secret set CLAUDE_CODE_OAUTH_TOKEN
   unset TOKEN
   ```
-- **`DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env`.** Easy to miss when writing a mirror script.
+- **`DEEPXIV_TOKEN` may be in project `.env` or optional global `~/.env`.** `$setup`
+  writes the project `.env`; mirror whichever file contains the current token.
 - **Codex inform mode only.** `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` lets CI rank recommendations, but it does not enable CI auto-ingest. `mode=auto-ingest` with `recommender=codex` fails closed instead of silently falling back. Auto-ingest still requires the legacy Claude Code Action auth path until the unattended Codex `$ingest` plus push path is verified in GitHub Actions.
 - **`gh run watch --exit-status` returns 0 on cancellation, not just success.** Confirm with `gh run view <id> --json conclusion`.
 - **Job logs return HTTP 404 while the job is still running.** `gh api .../jobs/<id>/logs` only works after the job reaches a terminal state.

@@ -4,8 +4,8 @@ Loads environment variables from .env files so that API keys configured
 by the user are available even when Claude Code spawns a fresh shell.
 
 Load order (later files do NOT override earlier ones):
-  1. ~/.env          (global, e.g. DEEPXIV_TOKEN auto-registered here)
-  2. ./.env          (project-level, created by setup.sh)
+  1. ~/.env          (optional global defaults)
+  2. ./.env          (project-level, created by setup.sh and updated by $setup)
   3. os.environ      (always takes precedence — already-set vars are never overwritten)
 
 Usage in any tool:

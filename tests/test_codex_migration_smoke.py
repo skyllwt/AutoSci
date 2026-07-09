@@ -801,6 +801,7 @@ Original definition.
 
     def test_fetch_s2_rate_limit_retry_is_env_configurable(self) -> None:
         env = os.environ.copy()
+        env.pop("SEMANTIC_SCHOLAR_API_KEY", None)
         env["S2_MAX_RETRIES"] = "2"
         env["S2_RATE_LIMIT_WAIT_SECONDS"] = "0"
         probe = subprocess.run(
@@ -810,6 +811,7 @@ Original definition.
                 (
                     "import json, sys, types\n"
                     "sys.path.insert(0, 'tools')\n"
+                    "sys.modules['_env'] = types.ModuleType('_env')\n"
                     "sys.modules['_sandbox'] = types.ModuleType('_sandbox')\n"
                     "class Resp:\n"
                     "    status_code = 429\n"
@@ -3550,6 +3552,11 @@ out.write_text(
         self.assertIn("raw/ is read-only", check)
         self.assertIn("graph/ is read-only", check)
 
+        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+        setup_sh = (ROOT / "setup.sh").read_text(encoding="utf-8")
+        self.assertIn("httpx>=0.27,<1.0", requirements)
+        self.assertIn('check_python_snippet "httpx" "import httpx"', setup_sh)
+
     def test_setup_env_status_probe_is_read_only_and_redacts_values(self) -> None:
         with tempfile.TemporaryDirectory(prefix="autosci-setup-smoke.") as tmp:
             project = Path(tmp)
@@ -6096,9 +6103,9 @@ This paper is already in the wiki and should be filtered out.
 
     def test_smoke_matrix_records_review_llm_configuration_blocker(self) -> None:
         matrix = (ROOT / "docs/codex-smoke-test-matrix.md").read_text(encoding="utf-8")
-        self.assertIn("Review LLM configuration probe", matrix)
-        self.assertIn("`LLM_API_KEY`, `LLM_BASE_URL`, and", matrix)
-        self.assertIn("`LLM_MODEL` are all unset", matrix)
+        self.assertIn("llm-review` Codex MCP now configured", matrix)
+        self.assertIn("httpx", matrix)
+        self.assertIn("AUTOSCI_LLM_REVIEW_SMOKE_OK", matrix)
         self.assertIn("$review", matrix)
         self.assertIn("$refine", matrix)
         self.assertIn("$rebuttal", matrix)
@@ -6106,16 +6113,16 @@ This paper is already in the wiki and should be filtered out.
         self.assertIn("$exp-eval", matrix)
         self.assertIn("$paper-plan", matrix)
         self.assertIn("daily-arxiv `recommender=review-llm`", matrix)
-        self.assertIn("minimal Review LLM call", matrix)
+        self.assertIn("need restart", matrix)
 
     def test_smoke_matrix_records_network_provider_configuration_blocker(self) -> None:
         matrix = (ROOT / "docs/codex-smoke-test-matrix.md").read_text(encoding="utf-8")
-        self.assertIn("network-provider configuration", matrix)
-        self.assertIn("`SEMANTIC_SCHOLAR_API_KEY`,", matrix)
-        self.assertIn("`DEEPXIV_TOKEN`, `S2_MAX_RETRIES`, and", matrix)
-        self.assertIn("`S2_RATE_LIMIT_WAIT_SECONDS` are all", matrix)
-        self.assertIn("S2 calls use unauthenticated rate", matrix)
-        self.assertIn("DeepXiv has no usable configured token", matrix)
+        self.assertIn("Rechecked configured provider credentials", matrix)
+        self.assertIn("`SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, `LLM_API_KEY`", matrix)
+        self.assertIn('tools/fetch_deepxiv.py search "low rank adaptation" --limit 1` succeeded', matrix)
+        self.assertIn('tools/fetch_s2.py search "low rank adaptation"', matrix)
+        self.assertIn("transient 429", matrix)
+        self.assertIn("returned two candidates (`LoRA`, `DoRA`)", matrix)
         self.assertIn("$discover", matrix)
         self.assertIn("$daily-arxiv", matrix)
 
