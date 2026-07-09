@@ -8,8 +8,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
-[![Claude Code](https://img.shields.io/badge/Powered_by-Claude_Code-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
-[![Codex](https://img.shields.io/badge/Compatible_with-Codex-111111.svg)](https://developers.openai.com/codex)
+[![Claude Code](https://img.shields.io/badge/main-Claude_Code_stable-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
+[![Codex Preview](https://img.shields.io/badge/Codex-preview-111111.svg)](https://developers.openai.com/codex)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
 [![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
@@ -22,7 +22,31 @@
 
 > **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
 
-> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) is the **stable, lean** version. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)). Note that `paper` is a **research snapshot, not a finished product**: it's under active testing and iteration, and some capabilities described in the paper are still being implemented and refined.
+> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. This [`migrate-codex`](https://github.com/skyllwt/AutoSci/tree/migrate-codex) branch is the **official Codex Preview**: local Codex skills are available under `.agents/skills`, while Claude Code compatibility is preserved under `.claude/skills`. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
+
+### Codex Preview
+
+Try the Codex preview without changing your `main` checkout:
+
+```bash
+git clone -b migrate-codex https://github.com/skyllwt/AutoSci.git
+cd AutoSci
+./setup.sh --lang en
+codex
+# Then invoke: $init [your-research-topic]
+```
+
+Current boundary:
+
+| Area | Status |
+|---|---|
+| Local Codex skills | Preview supported via `.agents/skills` |
+| Claude Code skills | Still supported via `.claude/skills` |
+| Shared skill source | `i18n/<lang>/skills` regenerates both active skill trees |
+| Daily arXiv CI inform recommendations | Codex supported |
+| Daily arXiv CI auto-ingest/writeback | Still uses the legacy Claude Code Action path until unattended Codex writeback is verified |
+
+See [docs/codex-preview.md](docs/codex-preview.md) for the preview notes and known boundaries.
 
 ---
 
@@ -246,19 +270,18 @@ The following papers were generated end-to-end using AutoSci — from literature
 
 ---
 
-## Quick Start
+## Codex Preview Quick Start
 
 **Prerequisites:** Python 3.9+, Node.js 18+
 
 ```bash
-# 1. Clone
-git clone https://github.com/skyllwt/AutoSci.git
+# 1. Clone the Codex Preview branch
+git clone -b migrate-codex https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 
-# 2. Install a coding agent
-npm install -g @anthropic-ai/claude-code
-claude login
-# Or use Codex if that is your preferred coding agent.
+# 2. Install and sign in to Codex
+# Follow your Codex/OpenAI setup path, then verify:
+codex --version
 
 # 3. One-click setup
 chmod +x setup.sh && ./setup.sh        # Linux / macOS
@@ -270,12 +293,17 @@ chmod +x setup.sh && ./setup.sh        # Linux / macOS
 #    Optional: intent notes in raw/notes/, saved pages in raw/web/
 
 # 5. Build your research memory and start a project
-claude
-# Then type: /init [your-research-topic]
-
-# Or in Codex:
 codex
 # Then invoke: $init [your-research-topic]
+```
+
+Claude Code users can still use the same checkout:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude login
+claude
+# Then type: /init [your-research-topic]
 ```
 
 <details>
@@ -285,10 +313,13 @@ codex
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env                 # Edit to add API keys
-cp config/settings.local.json.example .claude/settings.local.json
 mkdir -p .agents/skills/shared-references
 cp -R i18n/en/skills/. .agents/skills/
 cp i18n/en/shared-references/*.md .agents/skills/shared-references/
+mkdir -p .claude/skills/shared-references
+cp -R i18n/en/skills/. .claude/skills/
+cp i18n/en/shared-references/*.md .claude/skills/shared-references/
+cp config/settings.local.json.example .claude/settings.local.json  # Claude Code compatibility
 ```
 
 </details>
@@ -301,10 +332,13 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env          # Edit to add API keys
-Copy-Item config\settings.local.json.example .claude\settings.local.json
 New-Item -ItemType Directory -Force .agents\skills\shared-references | Out-Null
 Copy-Item i18n\en\skills\* .agents\skills -Recurse -Force
 Copy-Item i18n\en\shared-references\*.md .agents\skills\shared-references -Force
+New-Item -ItemType Directory -Force .claude\skills\shared-references | Out-Null
+Copy-Item i18n\en\skills\* .claude\skills -Recurse -Force
+Copy-Item i18n\en\shared-references\*.md .claude\skills\shared-references -Force
+Copy-Item config\settings.local.json.example .claude\settings.local.json  # Claude Code compatibility
 ```
 
 Note: native Windows is supported for the local pipeline. Remote-GPU
