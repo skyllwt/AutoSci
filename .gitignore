@@ -111,3 +111,6 @@ wiki/graph-view.html
 # Obsidian "untitled canvas" debris (locale-aware: en + zh)
 **/Untitled*.canvas
 **/未命名*.canvas
+
+# Local remote-server configuration
+config/server.yaml

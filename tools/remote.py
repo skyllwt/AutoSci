@@ -565,6 +565,8 @@ def cmd_launch(cfg: dict, args: argparse.Namespace) -> None:
     """Launch a screen session on the remote server."""
     session_name = _validate_name(args.name)
     user_cmd = args.cmd
+    if not user_cmd.strip() or "\n" in user_cmd or "\r" in user_cmd:
+        _error("--cmd must be a non-empty single-line shell command")
     work_dir = cfg["work_dir"]
     q_work_dir = shlex.quote(work_dir)
 
@@ -594,7 +596,10 @@ def cmd_launch(cfg: dict, args: argparse.Namespace) -> None:
     inner_cmd = f"cd {q_work_dir}"
     if prefix:
         inner_cmd += f" && {prefix}"
-    inner_cmd += f" && {gpu_part}{shlex.quote(user_cmd)} 2>&1 | tee {q_log_file}"
+    # user_cmd is intentionally a shell command, not a single executable path:
+    # exp-run commonly passes commands like "bash experiments/code/x/run.sh".
+    # The full inner command is quoted once for the remote bash -c below.
+    inner_cmd += f" && {gpu_part}{user_cmd} 2>&1 | tee {q_log_file}"
 
     # Escape for SSH + screen
     escaped_inner = inner_cmd.replace("'", "'\\''")
@@ -722,8 +727,19 @@ def cmd_pull_results(cfg: dict, args: argparse.Namespace) -> None:
     if not remote_path.startswith("/"):
         remote_path = f"{work_dir}/{remote_path}"
 
-    # Ensure local directory exists
-    Path(local_path).mkdir(parents=True, exist_ok=True)
+    q_remote_path = shlex.quote(remote_path)
+    rc, stdout, stderr = run_ssh(
+        cfg,
+        f"if [ -d {q_remote_path} ]; then echo dir; "
+        f"elif [ -f {q_remote_path} ]; then echo file; "
+        "else echo missing; exit 2; fi",
+        timeout=15,
+    )
+    if rc != 0:
+        _error(f"Remote path not found or inaccessible: {remote_path}")
+    remote_kind = stdout.strip().splitlines()[-1] if stdout.strip() else "missing"
+    if remote_kind not in {"dir", "file"}:
+        _error(f"Remote path not found or inaccessible: {remote_path}")
 
     # Build rsync command
     transport = build_ssh_transport(cfg)
@@ -733,8 +749,19 @@ def cmd_pull_results(cfg: dict, args: argparse.Namespace) -> None:
     for pat in PULL_DEFAULT_EXCLUDE:
         cmd += [f"--exclude={pat}"]
 
-    src = f"{cfg['user']}@{cfg['host']}:{remote_path.rstrip('/')}/"
-    dst = local_path.rstrip("/") + "/"
+    if remote_kind == "dir":
+        Path(local_path).mkdir(parents=True, exist_ok=True)
+        src = f"{cfg['user']}@{cfg['host']}:{remote_path.rstrip('/')}/"
+        dst = local_path.rstrip("/") + "/"
+    else:
+        local_target = Path(local_path)
+        if str(local_path).endswith("/") or local_target.is_dir():
+            local_target.mkdir(parents=True, exist_ok=True)
+            dst = str(local_target) + "/"
+        else:
+            local_target.parent.mkdir(parents=True, exist_ok=True)
+            dst = str(local_target)
+        src = f"{cfg['user']}@{cfg['host']}:{remote_path}"
     cmd += [src, dst]
 
     try:
@@ -750,6 +777,7 @@ def cmd_pull_results(cfg: dict, args: argparse.Namespace) -> None:
         _ok({
             "host": cfg["host"],
             "remote_path": remote_path,
+            "remote_kind": remote_kind,
             "local_path": local_path,
             "files_transferred": file_count,
         })
