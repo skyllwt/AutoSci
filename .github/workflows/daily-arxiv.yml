@@ -49,7 +49,6 @@ jobs:
   daily-arxiv:
     runs-on: ubuntu-latest
     env:
-      CODEX_HOME: ${{ runner.temp }}/codex-home
       HAS_CODEX_AUTH: ${{ secrets.OPENAI_API_KEY != '' || secrets.CODEX_ACCESS_TOKEN != '' }}
       HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
@@ -224,6 +223,7 @@ jobs:
       - name: Authenticate Codex CLI
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
         env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CODEX_ACCESS_TOKEN: ${{ secrets.CODEX_ACCESS_TOKEN }}
         run: |
@@ -239,6 +239,7 @@ jobs:
       - name: Run Codex recommendation
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'codex' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH == 'true'))
         env:
+          CODEX_HOME: ${{ runner.temp }}/codex-home
           CODEX_MODEL: ${{ secrets.CODEX_MODEL }}
         run: |
           set -euo pipefail
