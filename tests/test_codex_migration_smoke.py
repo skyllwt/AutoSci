@@ -209,6 +209,28 @@ class CodexMigrationSmokeTests(unittest.TestCase):
         self.assertNotIn("python -m unittest", matrix)
         self.assertNotIn("python -m json.tool", matrix)
 
+    def test_smoke_matrix_lists_remaining_external_gates(self) -> None:
+        matrix = (ROOT / "docs/codex-smoke-test-matrix.md").read_text(encoding="utf-8")
+        self.assertIn("## Remaining External Gates", matrix)
+        required_gates = [
+            "GitHub Actions canary",
+            "Codex CI recommendation auth",
+            "Semantic Scholar enrichment",
+            "DeepXiv enrichment",
+            "Review LLM",
+            "Remote/GPU experiments",
+        ]
+        for gate in required_gates:
+            self.assertIn(gate, matrix)
+        self.assertIn("mode=inform,recommender=codex", matrix)
+        self.assertIn("mode=auto-ingest,recommender=codex", matrix)
+        self.assertIn("Validate recommender credentials", matrix)
+        self.assertIn("SEMANTIC_SCHOLAR_API_KEY", matrix)
+        self.assertIn("DEEPXIV_TOKEN", matrix)
+        self.assertIn("LLM_API_KEY", matrix)
+        self.assertIn("$exp-run --env remote", matrix)
+        self.assertIn("$research --start-from stage3-collect", matrix)
+
     def test_daily_arxiv_codex_schema_is_strict_and_inform_only(self) -> None:
         schema = json.loads((ROOT / ".github/codex/daily-arxiv-decisions.schema.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["properties"]["provider"]["const"], "codex")

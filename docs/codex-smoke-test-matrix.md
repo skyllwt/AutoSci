@@ -18,6 +18,20 @@ runs so Codex regressions can be found without accidentally mutating user data.
   GitHub Actions path still needs a dedicated disposable run before it should
   replace the legacy backend.
 
+## Remaining External Gates
+
+The local migration suite is not enough to mark the Codex migration complete.
+These external gates must pass with real credentials or disposable infrastructure:
+
+| Gate | Current blocker | Pass evidence |
+|---|---|---|
+| GitHub Actions canary | `gh auth status -h github.com` reports an invalid `TomWhite-tgz` token | `mode=inform,recommender=codex` succeeds on the branch under test, and `mode=auto-ingest,recommender=codex` fails in `Validate recommender credentials` before prepare/recommend/commit |
+| Codex CI recommendation auth | `OPENAI_API_KEY` and `CODEX_ACCESS_TOKEN` are unset locally; CI secrets still need operator confirmation | The positive inform canary writes `llm-decisions.json` with provider `codex` and no wiki/raw writeback |
+| Semantic Scholar enrichment | `SEMANTIC_SCHOLAR_API_KEY` is unset locally; unauthenticated calls may rate-limit | `$discover` or `$daily-arxiv` L2 enrichment completes under escalation with S2 evidence and only scratch/checkpoint outputs |
+| DeepXiv enrichment | `DEEPXIV_TOKEN` is unset locally; previous escalated smoke reached DeepXiv but got invalid/expired token | `tools/fetch_deepxiv.py search ... --limit 1` succeeds under documented escalation and `$discover` / `$daily-arxiv` can use DeepXiv enrichment |
+| Review LLM | `LLM_API_KEY`, `LLM_BASE_URL`, and `LLM_MODEL` are unset | A minimal `llm-review` call succeeds, then `$review`, `$novelty`, `$exp-eval`, `$paper-plan`, and daily-arxiv `recommender=review-llm` L2 paths run without fallback |
+| Remote/GPU experiments | Real SSH/GPU/screen environment is not validated in this workspace | `$exp-run --env remote`, `$exp-status --collect-ready`, `$exp-run --collect`, and `$research --start-from stage3-collect` complete on a disposable remote experiment without mutating user-owned raw |
+
 ## Smoke Levels
 
 | Level | Scope | Mutates repo? | Network? | Purpose |
