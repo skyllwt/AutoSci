@@ -75,7 +75,7 @@ and the matching prefix rule from the table below.
 `$PYTHON_BIN` is resolved by the skill as `.venv/bin/python` (or equivalent).
 The agent should expand it to the actual absolute path, e.g.:
 
-- `["/home/woden/Migrate/AutoSci/.venv/bin/python", "tools/discover.py"]`
+- `["/path/to/AutoSci/.venv/bin/python", "tools/discover.py"]`
 
 ### Responding to SANDBOX GATE
 

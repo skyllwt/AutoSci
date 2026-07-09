@@ -72,7 +72,7 @@ Semantic Scholar、DeepXiv、arXiv 或任何 HTTP API 的 tool, 会以 code 126 
 
 `$PYTHON_BIN` 由 skill 解析为 `.venv/bin/python`(或等价解释器)。Agent 应展开为实际绝对路径, 例如:
 
-- `["/home/woden/Migrate/AutoSci/.venv/bin/python", "tools/discover.py"]`
+- `["/path/to/AutoSci/.venv/bin/python", "tools/discover.py"]`
 
 ### 响应 SANDBOX GATE
 
