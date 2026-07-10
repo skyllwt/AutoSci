@@ -17,7 +17,21 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
    gh secret set CODEX_AUTH_JSON < ~/.codex/auth.json
    ```
    Treat this secret like a password. The workflow restores it only under
-   `$RUNNER_TEMP` and rejects account auth for non-private repositories.
+   `$RUNNER_TEMP`, runs `codex exec` directly, and rejects account auth for
+   non-private repositories.
+
+   GitHub-hosted scheduled runs also need a second secret,
+   `CODEX_AUTH_SECRET_SYNC_TOKEN`. Create a **fine-grained** GitHub personal
+   access token limited to this one private repository with only repository
+   **Secrets: Read and write** permission (GitHub grants mandatory metadata
+   read access). Store it with:
+   ```bash
+   gh secret set CODEX_AUTH_SECRET_SYNC_TOKEN
+   ```
+   The workflow uses this token only after Codex exits to replace
+   `CODEX_AUTH_JSON` with Codex's refreshed session. It never uploads the auth
+   file as an artifact. This is required for scheduled account-auth runs, not
+   for a one-off smoke dispatch.
 
    For Codex API-key auth:
    ```bash
@@ -75,7 +89,7 @@ The workflow's `permissions:` block needs `id-token: write` only for the Claude 
 
 ### `App token exchange failed: 401 - Claude Code is not installed on this repository`
 
-This only applies to `runtime=claude`. Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine. For Codex, dispatch with `-f runtime=codex` and configure either `CODEX_AUTH_JSON` in a private repository or `OPENAI_API_KEY`.
+This only applies to `runtime=claude`. Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine. For Codex, dispatch with `-f runtime=codex` and configure either `CODEX_AUTH_JSON` plus `CODEX_AUTH_SECRET_SYNC_TOKEN` for private GitHub-hosted schedules, or `OPENAI_API_KEY`.
 
 ### `runtime=codex-api requires the OPENAI_API_KEY repository secret`
 
@@ -98,6 +112,29 @@ gh secret set CODEX_AUTH_JSON < ~/.codex/auth.json
 
 This path only runs when GitHub reports the repository as private. Do not use
 it for public repositories, and do not print or commit `auth.json`.
+
+### `Scheduled codex-account runs ... require CODEX_AUTH_SECRET_SYNC_TOKEN`
+
+GitHub-hosted runners disappear at the end of each job. Codex can refresh a
+ChatGPT-managed login during a run, but the refreshed file must be saved for
+the next run. Create a fine-grained PAT restricted to this repository with
+only **Secrets: Read and write**, then store it as:
+
+```bash
+gh secret set CODEX_AUTH_SECRET_SYNC_TOKEN
+```
+
+The workflow serializes daily runs and uses this token only to update
+`CODEX_AUTH_JSON` after Codex exits. Treat both secrets as private-repository,
+trusted-branch credentials.
+
+### `Failed to read server info from .../autosci-codex-home/<run-id>.json`
+
+This indicates an older account-auth workflow attempted to use
+`openai/codex-action@v1` without an API key. That action starts an API-key
+Responses proxy and cannot use `auth.json` directly. Update to the current
+workflow: `codex-api` uses the action, while `codex-account` runs the Codex CLI
+against the temporary `auth.json`.
 
 ### Codex action completes, but `llm-decisions.json` is missing or invalid
 

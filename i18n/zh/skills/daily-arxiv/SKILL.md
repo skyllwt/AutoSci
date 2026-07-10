@@ -26,6 +26,8 @@ argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|codex-accoun
 - `--runtime auto|claude|codex|codex-account|codex-api|llm`：GitHub Actions
   的 decision runtime。在 private repo 中，`auto` 与 `codex` 优先使用
   `CODEX_AUTH_JSON` 的 coding-plan account auth，再使用 `OPENAI_API_KEY`。
+  GitHub-hosted runner 的定时 account auth 还需要
+  `CODEX_AUTH_SECRET_SYNC_TOKEN` 来保存刷新后的登录状态。
 - `--hours N`：拉取最近 N 小时论文；config/default 为 24。
 - `--categories <cat...>`：覆盖配置中的 arXiv 分类。
 - `--max-recommendations N`：digest 中最多展示的论文数；config/default 为 10。
@@ -53,11 +55,13 @@ argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|codex-accoun
    - 任何补丁之后，告诉用户改了什么，并提醒他们 commit。
 
 4. **Secrets 检查**：列出用户已配置了哪些 —— `CODEX_AUTH_JSON`、
-   `OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、
+   `CODEX_AUTH_SECRET_SYNC_TOKEN`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、
    `SEMANTIC_SCHOLAR_API_KEY`、`DEEPXIV_TOKEN`，以及可选的 SMTP secrets。
    `CODEX_AUTH_JSON` 是 coding-plan account credential，只允许用于 private
    repo；把本地 `~/.codex/auth.json` 的内容存为 repository secret，绝不打印
-   或 commit。`OPENAI_API_KEY` 仍是 API-key 替代路径，必须通过 Codex Action
+   或 commit。GitHub-hosted 定时运行还需要 `CODEX_AUTH_SECRET_SYNC_TOKEN`：
+   它是只限此 repo、仅有 `Secrets: Read and write` 权限的 fine-grained PAT，
+   仅用于在运行后保存 Codex 刷新的 auth 文件。`OPENAI_API_KEY` 仍是 API-key 替代路径，必须通过 Codex Action
    input 传递，不能设成 job-level environment variable。对任何缺失但必需的
    secret，给出他们需要的确切 `gh secret set` 命令。
 

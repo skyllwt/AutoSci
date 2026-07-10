@@ -42,7 +42,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: daily-arxiv-${{ github.ref }}
+  # ChatGPT-managed Codex auth may rotate during a run. Serialize all daily
+  # runs for this repository so two branches cannot write competing refreshes.
+  group: daily-arxiv-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -52,6 +54,7 @@ jobs:
       HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
       HAS_CODEX_API_AUTH: ${{ secrets.OPENAI_API_KEY != '' }}
       HAS_CODEX_ACCOUNT_AUTH: ${{ secrets.CODEX_AUTH_JSON != '' }}
+      HAS_CODEX_ACCOUNT_AUTH_SYNC: ${{ secrets.CODEX_AUTH_SECRET_SYNC_TOKEN != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
       REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
       # Repo secrets must be exposed as env vars here for the Python steps;
@@ -219,6 +222,13 @@ jobs:
                 echo "::error::runtime=codex-account is allowed only for private repositories."
                 exit 1
               fi
+              if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$HAS_CODEX_ACCOUNT_AUTH_SYNC" != "true" ]; then
+                echo "::error::Scheduled codex-account runs on GitHub-hosted runners require CODEX_AUTH_SECRET_SYNC_TOKEN so refreshed auth.json can be persisted."
+                exit 1
+              fi
+              if [ "$HAS_CODEX_ACCOUNT_AUTH_SYNC" != "true" ]; then
+                echo "::warning::CODEX_AUTH_SECRET_SYNC_TOKEN is unset. This manual account-auth run can smoke-test Codex, but any refreshed login will not persist."
+              fi
               ;;
             llm)
               if [ "$HAS_REVIEW_LLM" != "true" ]; then
@@ -302,6 +312,29 @@ jobs:
           target.chmod(0o600)
           PY
 
+      - name: Set up Codex CLI for account authentication
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Codex CLI for account authentication
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
+        run: npm install --global @openai/codex@latest
+
+      - name: Enable sandbox user namespaces for Codex account authentication
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
+        run: |
+          set -euo pipefail
+          current_userns="$(sysctl -n kernel.unprivileged_userns_clone 2>/dev/null || true)"
+          if [ -n "$current_userns" ] && [ "$current_userns" != "1" ]; then
+            sudo sysctl -w kernel.unprivileged_userns_clone=1
+          fi
+          current_apparmor="$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || true)"
+          if [ -n "$current_apparmor" ] && [ "$current_apparmor" != "0" ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+
       - name: Run Claude recommendation and optional ingest
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'claude'
         uses: anthropics/claude-code-action@v1
@@ -340,12 +373,11 @@ jobs:
             --max-turns 100
             --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
 
-      - name: Run Codex recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && (steps.runtime.outputs.runtime == 'codex-api' || steps.runtime.outputs.runtime == 'codex-account')
+      - name: Run Codex API recommendation and optional ingest
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-api'
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ steps.runtime.outputs.runtime == 'codex-api' && secrets.OPENAI_API_KEY || '' }}
-          codex-home: ${{ runner.temp }}/autosci-codex-home
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           prompt-file: .github/codex/daily-arxiv-prompt.md
           codex-args: >-
             --ephemeral
@@ -353,6 +385,46 @@ jobs:
           output-file: .daily-arxiv/run/llm-decisions.json
           sandbox: ${{ steps.resolve.outputs.mode == 'auto-ingest' && 'danger-full-access' || 'workspace-write' }}
           safety-strategy: drop-sudo
+
+      - name: Run Codex account recommendation and optional ingest
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
+        env:
+          CODEX_HOME: ${{ runner.temp }}/autosci-codex-home
+        run: |
+          set -euo pipefail
+          sandbox="workspace-write"
+          if [ "${DAILY_ARXIV_MODE}" = "auto-ingest" ]; then
+            sandbox="danger-full-access"
+          fi
+          codex exec \
+            --ephemeral \
+            --sandbox "$sandbox" \
+            --output-schema .github/codex/llm-decisions.schema.json \
+            --output-last-message "$DAILY_ARXIV_DECISIONS" \
+            - < .github/codex/daily-arxiv-prompt.md
+
+      - name: Persist refreshed Codex account authentication
+        if: ${{ always() && (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account' && secrets.CODEX_AUTH_SECRET_SYNC_TOKEN != '' }}
+        env:
+          CODEX_HOME: ${{ runner.temp }}/autosci-codex-home
+          GH_TOKEN: ${{ secrets.CODEX_AUTH_SECRET_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          auth_file="$CODEX_HOME/auth.json"
+          test -s "$auth_file"
+          python - "$auth_file" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          if payload.get("auth_mode") != "chatgpt":
+              raise SystemExit("Refusing to persist a non-ChatGPT Codex auth file.")
+          if not (payload.get("tokens") or {}).get("refresh_token"):
+              raise SystemExit("Refusing to persist Codex auth without a refresh token.")
+          PY
+          gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < "$auth_file"
+          echo "Persisted refreshed Codex account authentication." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Note selected fallback recommendation
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'fallback'

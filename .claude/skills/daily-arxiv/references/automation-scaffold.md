@@ -27,8 +27,9 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
   OpenAI-compatible LLM, and finally a tool-ranked fallback digest.
 - Set `runtime: codex` to let the workflow choose account auth before API-key
   auth. Use `runtime: codex-account` or `runtime: codex-api` to require one
-  path explicitly. Both use `openai/codex-action@v1` and the repository output
-  schema.
+  path explicitly. API-key auth uses `openai/codex-action@v1`; account auth
+  restores `auth.json` and runs `codex exec` directly with the repository
+  output schema.
 - Auto-ingest mode fails closed unless the selected runtime is Claude or
   Codex. The LLM and fallback runtimes are recommendation-only.
 - Auto-ingest commits only staged `wiki/` and `raw/discovered/` changes
@@ -49,6 +50,11 @@ Recommendation/ingest:
   contents of local `~/.codex/auth.json`. Only use it in a private repository;
   the workflow restores it under the runner temp directory and never commits
   it.
+- `CODEX_AUTH_SECRET_SYNC_TOKEN` — required for scheduled account-auth runs on
+  GitHub-hosted runners. It is a fine-grained GitHub PAT restricted to this
+  private repository with only `Secrets: Read and write`; after Codex exits,
+  the workflow uses it to persist the refreshed `CODEX_AUTH_JSON` for the next
+  run. Do not use this route in public repositories.
 - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — optional OpenAI-compatible LLM
   for `inform` recommendation when Claude Code is not available.
 - `LLM_FALLBACK_MODEL` — optional fallback for the OpenAI-compatible LLM.
@@ -96,7 +102,7 @@ Each workflow run uploads:
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- `llm-decisions.json` when the Claude Code Action ran
+- `llm-decisions.json` when an agent runtime ran
 - `digest.md`
 - `digest.json`
 
@@ -126,3 +132,6 @@ The Markdown digest is also appended to the GitHub Actions job summary.
   writeback to `/ingest` paths.
 - Account-auth Codex runs fail closed unless the repository visibility is
   `private`.
+- Scheduled account-auth runs fail closed without
+  `CODEX_AUTH_SECRET_SYNC_TOKEN`; manual smoke runs remain available without
+  it but cannot preserve a refreshed login.

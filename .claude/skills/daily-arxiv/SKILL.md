@@ -28,7 +28,8 @@ Load references only when needed:
 - `--runtime auto|claude|codex|codex-account|codex-api|llm`: decision runtime
   for GitHub Actions. In a private repo, `auto` and `codex` prefer
   coding-plan account auth via `CODEX_AUTH_JSON`, then API-key auth via
-  `OPENAI_API_KEY`.
+  `OPENAI_API_KEY`. Scheduled account auth on GitHub-hosted runners also
+  requires `CODEX_AUTH_SECRET_SYNC_TOKEN` to persist refreshed login state.
 - `--hours N`: pull papers from the last N hours; config/default is 24.
 - `--categories <cat...>`: override configured arXiv categories.
 - `--max-recommendations N`: maximum papers shown in the digest; config/default is 10.
@@ -55,13 +56,17 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing auth flags. Do not touch any other step.
    - After any patch, tell the user what was changed and remind them to commit.
 
-4. **Secrets check**: list which of `CODEX_AUTH_JSON`, `OPENAI_API_KEY`,
+4. **Secrets check**: list which of `CODEX_AUTH_JSON`,
+   `CODEX_AUTH_SECRET_SYNC_TOKEN`, `OPENAI_API_KEY`,
    `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`,
    `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets
    the user has configured. `CODEX_AUTH_JSON` is the coding-plan account
    credential and is allowed only in a private repository; store the contents
    of local `~/.codex/auth.json` as a repository secret and never print or
-   commit it. `OPENAI_API_KEY` remains the API-key alternative and must be
+   commit it. For a GitHub-hosted schedule, require
+   `CODEX_AUTH_SECRET_SYNC_TOKEN`: a fine-grained PAT restricted to this repo
+   with only `Secrets: Read and write`, used only to save Codex's refreshed
+   auth file after the run. `OPENAI_API_KEY` remains the API-key alternative and must be
    passed through the Codex Action input, not a job-level environment variable.
    Surface any missing-but-required secrets with the exact `gh secret set`
    command they need.

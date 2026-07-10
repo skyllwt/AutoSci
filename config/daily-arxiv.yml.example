@@ -10,9 +10,11 @@ mode: inform
 
 # CI decision runtime. `auto` preserves Claude-first compatibility, then uses
 # Codex account auth in a private repo when CODEX_AUTH_JSON is configured,
-# then OPENAI_API_KEY, then the inform-only LLM fallback. Set `codex` to let
-# the workflow choose account auth before API-key auth; use `codex-account` or
-# `codex-api` to require one path explicitly.
+# then OPENAI_API_KEY, then the inform-only LLM fallback. GitHub-hosted
+# scheduled account-auth runs also need CODEX_AUTH_SECRET_SYNC_TOKEN so the
+# refreshed login can be persisted. Set `codex` to let the workflow choose
+# account auth before API-key auth; use `codex-account` or `codex-api` to
+# require one path explicitly.
 runtime: auto
 
 # Fresh-paper window and source categories.

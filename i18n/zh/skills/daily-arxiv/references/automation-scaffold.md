@@ -22,8 +22,9 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
   `OPENAI_API_KEY` 时选择 Codex API-key auth；之后使用 inform-only 的
   OpenAI-compatible LLM，最后输出 tool-ranked fallback digest。
 - 将 `runtime: codex` 设为让 workflow 在 API key 前优先选择 account auth；用
-  `runtime: codex-account` 或 `runtime: codex-api` 可强制指定路径。两者都调用
-  `openai/codex-action@v1` 并使用仓库中的 schema 写出结构化 decision 文件。
+  `runtime: codex-account` 或 `runtime: codex-api` 可强制指定路径。API-key auth
+  调用 `openai/codex-action@v1`；account auth 恢复 `auth.json` 后直接运行
+  `codex exec`，并使用仓库中的 schema 写出结构化 decision 文件。
 - Auto-ingest mode 只有在选中的 runtime 是 Claude 或 Codex 时才允许；LLM
   和 fallback runtime 只能推荐，不能 ingest。
 - Auto-ingest 只提交 `/ingest` 产生并 staged 的 `wiki/` 和
@@ -42,6 +43,10 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
 - `CODEX_AUTH_JSON` — 可选的 coding-plan account credential，内容来自本地
   `~/.codex/auth.json`。只允许在 private repository 中使用；workflow 会把它
   恢复到 runner 临时目录，绝不 commit。
+- `CODEX_AUTH_SECRET_SYNC_TOKEN` — GitHub-hosted runner 上的定时 account-auth
+  运行需要。它是仅限这个 private repository、仅有 `Secrets: Read and write`
+  权限的 fine-grained GitHub PAT；Codex 退出后 workflow 用它保存刷新后的
+  `CODEX_AUTH_JSON`，供下次运行使用。不要在 public repository 使用此路径。
 - `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` — 可选的 OpenAI-compatible
   LLM，用于没有 Claude Code 时的 `inform` 推荐。
 - `LLM_FALLBACK_MODEL` — 可选的 OpenAI-compatible LLM fallback。
@@ -68,7 +73,7 @@ SMTP 发送：
 - `resolved-config.json`
 - `feed.json`
 - `recommendation-context.json`
-- Claude Code Action 运行时的 `llm-decisions.json`
+- 任一 agent runtime 运行时的 `llm-decisions.json`
 - `digest.md`
 - `digest.json`
 
@@ -97,3 +102,5 @@ Markdown digest 也会写入 GitHub Actions job summary。
   boundary 检查仍会把持久写回限制在 `/ingest` 所有的路径内。
 - Account-auth Codex 运行在 repository visibility 不是 `private` 时会
   fail closed。
+- 定时 account-auth 运行缺少 `CODEX_AUTH_SECRET_SYNC_TOKEN` 时会 fail closed；
+  手动 smoke run 不需要它，但无法保存刷新的登录状态。

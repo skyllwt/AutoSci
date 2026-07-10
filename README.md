@@ -106,7 +106,7 @@ Run `/discover --venue iclr --year 2024` (or any conference/year) and get a pers
 
 ### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
 
-Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Set `runtime: codex` to use Codex in CI; private repositories can use the coding-plan `CODEX_AUTH_JSON` secret, while `OPENAI_API_KEY` remains the API-key alternative. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks, while `inform` mode just notifies.
+Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Set `runtime: codex` to use Codex in CI; private repositories can use the coding-plan `CODEX_AUTH_JSON` secret plus `CODEX_AUTH_SECRET_SYNC_TOKEN` for GitHub-hosted schedules, while `OPENAI_API_KEY` remains the API-key alternative. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks, while `inform` mode just notifies.
 
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
@@ -318,6 +318,7 @@ and are best run from WSL2 or Linux/macOS.
 | `ANTHROPIC_API_KEY` | Claude Code only (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers Claude Code skills |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
 | `CODEX_AUTH_JSON` | Optional | Local `~/.codex/auth.json` | Coding-plan Codex runtime in a private GitHub repository |
+| `CODEX_AUTH_SECRET_SYNC_TOKEN` | Codex account schedules only | Fine-grained GitHub PAT with `Secrets: Read and write` on that one private repo | Persists Codex's refreshed account session between GitHub-hosted runs |
 | `OPENAI_API_KEY` | Optional | OpenAI API dashboard | GitHub Actions Codex runtime via `openai/codex-action@v1` |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
