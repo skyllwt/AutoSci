@@ -1,7 +1,7 @@
 ---
 name: daily-arxiv
 description: Run or manage the daily arXiv recommendation feed. Use for one-off fresh-paper recommendations, scheduled GitHub Actions setup/status/disable, email digests, runtime selection, and explicit high-confidence auto-ingest through /ingest.
-argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|llm] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
+argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|codex-account|codex-api|llm] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---
 
 # /daily-arxiv
@@ -25,9 +25,10 @@ Load references only when needed:
 ## Inputs
 
 - `--mode inform|auto-ingest`: default `inform`. Never infer `auto-ingest` from repo state.
-- `--runtime auto|claude|codex|llm`: decision runtime for GitHub Actions;
-  `auto` preserves Claude-first compatibility, then selects Codex when
-  `OPENAI_API_KEY` is configured.
+- `--runtime auto|claude|codex|codex-account|codex-api|llm`: decision runtime
+  for GitHub Actions. In a private repo, `auto` and `codex` prefer
+  coding-plan account auth via `CODEX_AUTH_JSON`, then API-key auth via
+  `OPENAI_API_KEY`.
 - `--hours N`: pull papers from the last N hours; config/default is 24.
 - `--categories <cat...>`: override configured arXiv categories.
 - `--max-recommendations N`: maximum papers shown in the digest; config/default is 10.
@@ -54,9 +55,18 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    - If the `env:` block doesn't exist at all (older workflow), insert it under the job with both lines plus the existing auth flags. Do not touch any other step.
    - After any patch, tell the user what was changed and remind them to commit.
 
-4. **Secrets check**: list which of `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets the user has configured. Use `gh secret list` when available; otherwise instruct the user to run it. `OPENAI_API_KEY` is required for `runtime: codex` and must be passed through the Codex Action input, not a job-level environment variable. Surface any missing-but-required secrets with the exact `gh secret set` command they need.
+4. **Secrets check**: list which of `CODEX_AUTH_JSON`, `OPENAI_API_KEY`,
+   `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`,
+   `SEMANTIC_SCHOLAR_API_KEY`, `DEEPXIV_TOKEN`, and the optional SMTP secrets
+   the user has configured. `CODEX_AUTH_JSON` is the coding-plan account
+   credential and is allowed only in a private repository; store the contents
+   of local `~/.codex/auth.json` as a repository secret and never print or
+   commit it. `OPENAI_API_KEY` remains the API-key alternative and must be
+   passed through the Codex Action input, not a job-level environment variable.
+   Surface any missing-but-required secrets with the exact `gh secret set`
+   command they need.
 
-5. **Summary**: report what was created, patched, and what the user still needs to do (set the selected runtime's secrets, install the Claude GitHub App only when using Claude, and verify with one `gh workflow run daily-arxiv.yml`).
+5. **Summary**: report what was created, patched, and what the user still needs to do (set the selected runtime's secrets, keep account-auth tests in a private repository, install the Claude GitHub App only when using Claude, and verify with one `gh workflow run daily-arxiv.yml`).
 
 ## Run Workflow
 
@@ -72,7 +82,12 @@ Triggered by `/daily-arxiv setup`. Idempotent — re-running on a healthy repo i
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. If mode is `auto-ingest`, only the Claude or Codex coding-agent runtime may choose `decision: ingest` + `confidence: high`. Obey `max_auto_ingest`, invoke `/ingest <arxiv-url>` sequentially using the selected runtime's skill syntax, and do not hand-write wiki or graph files. Third-party LLMs and the tool-ranked fallback are recommendation-only and must not auto-ingest.
+3. If mode is `auto-ingest`, only the Claude, Codex account, or Codex API
+   runtime may choose `decision: ingest` + `confidence: high`. Obey
+   `max_auto_ingest`, invoke `/ingest <arxiv-url>` sequentially using the
+   selected runtime's skill syntax, and do not hand-write wiki or graph files.
+   Third-party LLMs and the tool-ranked fallback are recommendation-only and
+   must not auto-ingest.
 
 4. Finalize the digest:
 

@@ -21,12 +21,14 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
 - Scheduled run: `17 0 * * *` UTC by default.
 - Manual dispatch may override runtime, mode, hours, categories, caps, and
   e-mail.
-- `runtime: auto` preserves Claude-first behavior, then selects the Codex
-  GitHub Action when `OPENAI_API_KEY` is configured, then the inform-only
+- `runtime: auto` preserves Claude-first behavior, then selects Codex account
+  auth in a private repository when `CODEX_AUTH_JSON` is configured, then
+  Codex API-key auth when `OPENAI_API_KEY` is configured, then the inform-only
   OpenAI-compatible LLM, and finally a tool-ranked fallback digest.
-- Set `runtime: codex` to make the Codex path explicit. It uses
-  `openai/codex-action@v1`, passes the API key through the action input, and
-  writes the structured decision file with the repository schema.
+- Set `runtime: codex` to let the workflow choose account auth before API-key
+  auth. Use `runtime: codex-account` or `runtime: codex-api` to require one
+  path explicitly. Both use `openai/codex-action@v1` and the repository output
+  schema.
 - Auto-ingest mode fails closed unless the selected runtime is Claude or
   Codex. The LLM and fallback runtimes are recommendation-only.
 - Auto-ingest commits only staged `wiki/` and `raw/discovered/` changes
@@ -43,6 +45,10 @@ Recommendation/ingest:
 - `OPENAI_API_KEY` — OpenAI API key passed to `openai/codex-action@v1` through
   its `openai-api-key` input. Do not expose it as a job-level environment
   variable.
+- `CODEX_AUTH_JSON` — optional coding-plan account credential containing the
+  contents of local `~/.codex/auth.json`. Only use it in a private repository;
+  the workflow restores it under the runner temp directory and never commits
+  it.
 - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — optional OpenAI-compatible LLM
   for `inform` recommendation when Claude Code is not available.
 - `LLM_FALLBACK_MODEL` — optional fallback for the OpenAI-compatible LLM.
@@ -118,3 +124,5 @@ The Markdown digest is also appended to the GitHub Actions job summary.
   isolated GitHub runner's broader sandbox because `/ingest` needs network
   access. The prompt and deterministic boundary check still restrict durable
   writeback to `/ingest` paths.
+- Account-auth Codex runs fail closed unless the repository visibility is
+  `private`.
