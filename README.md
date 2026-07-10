@@ -97,6 +97,11 @@ If you find AutoSci useful in your research, please [cite our paper](#citation).
 
 ## 🆕 What's New
 
+### 🛠️ 2026-07-10 · migrate-codex branch codex adaptation
+
+Ported the project from a Claude Code-first baseline to a Codex-adapted branch on top of `main`: standardized runtime-facing docs, aligned setup/sync behavior, and updated workflow expectations for Codex compatibility.  
+Key functional change in this cycle: `/research` no longer auto-implements bootstrap ingest logic on cold wiki; it now delegates bootstrap explicitly to `/init` / `$init` and proceeds only after bootstrap completion.
+
 ### 🛠️ 2026-05-19 · Experiment Overhaul
 
 A possible usage process：`/ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `/exp-design <idea-slug>`-> For each experimental block,recommended flow: `/exp-run <slug> [--env local|remote]` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.->`/exp-eval <experiment-slug>`
