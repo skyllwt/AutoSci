@@ -111,7 +111,7 @@ without seeing the primary agent's prior analysis, improving review quality.
 - `/paper-draft` — review each section
 - `/rebuttal` — stress-test rebuttal responses
 - `/refine` — review in multi-round improve cycle
-- `/daily-arxiv` — inform-mode recommendation in CI when the coding-agent runtime is unavailable
+- `/daily-arxiv` — scheduled recommendation and optional high-confidence auto-ingest through Claude or Codex; inform-only fallback when no coding-agent runtime is configured
 
 **Without these keys**: Skills skip the cross-model review step and proceed with
 single-agent analysis or deterministic fallback. Everything still works, but you

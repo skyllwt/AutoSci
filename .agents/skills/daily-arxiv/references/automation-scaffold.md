@@ -19,12 +19,16 @@ defaults. `/daily-arxiv setup` may copy `config/daily-arxiv.yml.example`.
 ## Workflow Behavior
 
 - Scheduled run: `17 0 * * *` UTC by default.
-- Manual dispatch may override mode, hours, categories, caps, and e-mail.
-- Inform mode prepares context, then uses the first available recommender:
-  Claude Code Action with `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`;
-  otherwise an OpenAI-compatible LLM via `LLM_API_KEY` / `LLM_BASE_URL` /
-  `LLM_MODEL`; otherwise a tool-ranked fallback digest.
-- Auto-ingest mode fails closed unless Claude Code Action auth is present.
+- Manual dispatch may override runtime, mode, hours, categories, caps, and
+  e-mail.
+- `runtime: auto` preserves Claude-first behavior, then selects the Codex
+  GitHub Action when `OPENAI_API_KEY` is configured, then the inform-only
+  OpenAI-compatible LLM, and finally a tool-ranked fallback digest.
+- Set `runtime: codex` to make the Codex path explicit. It uses
+  `openai/codex-action@v1`, passes the API key through the action input, and
+  writes the structured decision file with the repository schema.
+- Auto-ingest mode fails closed unless the selected runtime is Claude or
+  Codex. The LLM and fallback runtimes are recommendation-only.
 - Auto-ingest commits only staged `wiki/` and `raw/discovered/` changes
   produced by `/ingest`.
 
@@ -36,6 +40,9 @@ Recommendation/ingest:
 - `CLAUDE_CODE_OAUTH_TOKEN` — Claude Code OAuth auth for Pro/Max users; generate
   locally with `claude setup-token`. This is an alternative to
   `ANTHROPIC_API_KEY` for Claude Code Action.
+- `OPENAI_API_KEY` — OpenAI API key passed to `openai/codex-action@v1` through
+  its `openai-api-key` input. Do not expose it as a job-level environment
+  variable.
 - `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` — optional OpenAI-compatible LLM
   for `inform` recommendation when Claude Code is not available.
 - `LLM_FALLBACK_MODEL` — optional fallback for the OpenAI-compatible LLM.
@@ -106,3 +113,8 @@ The Markdown digest is also appended to the GitHub Actions job summary.
 - Empty feed or all duplicates: produce valid empty artifacts.
 - External API failures: continue with degraded notes.
 - Auto-ingest failures: preserve per-paper error and continue to final digest.
+- Agent write-boundary violations fail the run before any commit or push.
+- Codex inform runs use `workspace-write`; Codex auto-ingest runs use the
+  isolated GitHub runner's broader sandbox because `/ingest` needs network
+  access. The prompt and deterministic boundary check still restrict durable
+  writeback to `/ingest` paths.

@@ -8,6 +8,11 @@
 # LLM_API_KEY / LLM_BASE_URL / LLM_MODEL secrets.
 mode: inform
 
+# CI decision runtime. `auto` preserves Claude-first compatibility, then uses
+# Codex when OPENAI_API_KEY is configured, then the inform-only LLM fallback.
+# Set `codex` to make Codex the explicit scheduled runtime.
+runtime: auto
+
 # Fresh-paper window and source categories.
 hours: 24
 categories: [cs.LG, cs.CV, cs.CL, cs.AI, stat.ML]

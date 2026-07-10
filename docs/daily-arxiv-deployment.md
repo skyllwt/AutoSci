@@ -4,33 +4,47 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
 
 ## Setup
 
-1. **Pick an auth secret.** One of:
+1. **Pick the decision runtime.** Set `runtime: codex` in
+   `config/daily-arxiv.yml` for Codex, or leave `runtime: auto` to preserve
+   Claude-first behavior and fall back to Codex when Claude credentials are
+   absent. Manual dispatch can override this with `-f runtime=codex`.
+
+2. **Configure the selected agent auth.** For Codex:
+   ```bash
+   gh secret set OPENAI_API_KEY
+   ```
+   The workflow passes this secret only through
+   [`openai/codex-action@v1`](https://github.com/openai/codex-action)'s
+   `openai-api-key` input; do not add it to a job-level `env:` block.
+
+   For Claude, pick one of:
    - `ANTHROPIC_API_KEY` — pay-as-you-go API; quota is independent of any subscription.
    - `CLAUDE_CODE_OAUTH_TOKEN` — Pro/Max subscription quota; generate with `claude setup-token`.
 
    Set it once with `gh secret set <NAME>`. The workflow is happy with either.
 
-2. **Install the Claude Code GitHub App** on the repo at <https://github.com/apps/claude>. The auth secret alone is not enough; the action needs an app installation to exchange OIDC for a usable token.
+3. **Install the Claude Code GitHub App** on the repo at <https://github.com/apps/claude> only when using the Claude runtime. Codex uses the OpenAI API key and does not require the Claude App.
 
-3. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
+4. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
    ```bash
    gh secret set SEMANTIC_SCHOLAR_API_KEY -b "$(grep ^SEMANTIC_SCHOLAR_API_KEY= .env | cut -d= -f2-)"
    gh secret set DEEPXIV_TOKEN            -b "$(grep ^DEEPXIV_TOKEN= ~/.env       | cut -d= -f2-)"
    ```
    `DEEPXIV_TOKEN` lives in `~/.env`, not the project `.env` — the SDK auto-registers there.
 
-4. **Run `/daily-arxiv setup` once** in your local checkout. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the slash skill, hand-add this under the `daily-arxiv:` job's `env:` block:
+5. **Run `/daily-arxiv setup` once** in your local checkout. The skill auto-patches `.github/workflows/daily-arxiv.yml` to expose `SEMANTIC_SCHOLAR_API_KEY` and `DEEPXIV_TOKEN` to the Python prepare step (without these the secrets stay invisible to the runner and the daily run rate-limits out). Commit any resulting workflow change. If you can't run the slash skill, hand-add this under the `daily-arxiv:` job's `env:` block:
    ```yaml
    SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
    DEEPXIV_TOKEN:            ${{ secrets.DEEPXIV_TOKEN }}
    ```
 
-5. **SMTP secrets**, if `email.enabled: true` in `config/daily-arxiv.yml`:
+6. **SMTP secrets**, if `email.enabled: true` in `config/daily-arxiv.yml`:
    `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `DAILY_ARXIV_EMAIL_TO`.
 
-6. **Verify with one manual dispatch** before relying on the cron:
+7. **Verify with one manual dispatch** before relying on the cron. For the Codex inform path:
    ```bash
-   gh workflow run daily-arxiv.yml --ref main
+   gh workflow run daily-arxiv.yml --ref main \
+     -f runtime=codex -f mode=inform -f send_email=false
    gh run watch
    ```
 
@@ -39,7 +53,7 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
 - All workflow steps green.
 - `digest.md` artifact populated under **Strong Recommendations**.
 - E-mail digest in your inbox (if email is enabled).
-- *Either* a new commit on `main` titled `daily-arxiv auto-ingest`, *or* the step summary line "no wiki/raw changes were staged" — depending on whether any candidate cleared the high-confidence gate that day. Both are valid.
+- *Either* a new commit on `main` titled `daily-arxiv auto-ingest`, *or* the step summary line "no wiki/raw changes were detected" — depending on whether any candidate cleared the high-confidence gate that day. Both are valid.
 
 ## Troubleshooting
 
@@ -47,11 +61,30 @@ Match your failing-step error to a heading.
 
 ### `Could not fetch an OIDC token`
 
-The workflow's `permissions:` block must include `id-token: write`. Required because the action exchanges an OIDC token for a Claude Code app token.
+The workflow's `permissions:` block needs `id-token: write` only for the Claude runtime, because Claude's action exchanges an OIDC token for an app token. Codex authentication uses `OPENAI_API_KEY` through the Codex Action input.
 
 ### `App token exchange failed: 401 - Claude Code is not installed on this repository`
 
-Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine.
+This only applies to `runtime=claude`. Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine. For Codex, dispatch with `-f runtime=codex` and configure `OPENAI_API_KEY` instead.
+
+### `runtime=codex requires the OPENAI_API_KEY repository secret`
+
+Add the key with:
+
+```bash
+gh secret set OPENAI_API_KEY
+```
+
+Do not export it in the workflow's job-level environment. The Codex Action
+starts the API proxy and receives the key through `openai-api-key`.
+
+### Codex action completes, but `llm-decisions.json` is missing or invalid
+
+The Codex path requires the checked-in
+`.github/codex/llm-decisions.schema.json` and the action's structured-output
+configuration. Confirm that the checkout step runs first and that the
+Codex Action is not being skipped because `runtime` resolved to Claude or the
+inform-only LLM. The action output is uploaded as `llm-decisions.json`.
 
 ### `Authentication failed: Invalid or expired token`
 
@@ -71,11 +104,11 @@ Without these lines, the Python tool reads the env var as empty and runs in anon
 
 ### `Reached maximum number of turns (N)`
 
-`claude-code-action`'s `--max-turns` ceiling is too low for the work in one prompt. A single `/ingest` runs ~40–50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally.
+`claude-code-action`'s `--max-turns` ceiling is too low for the work in one prompt. A single `/ingest` runs ~40–50 tool calls; the decision step adds a handful more. The workflow currently uses `--max-turns 100`, which fits one paper. If `max_auto_ingest > 1`, raise it proportionally. The Codex Action has the corresponding non-interactive run limits from the installed Codex CLI; keep `max_auto_ingest` small and ingest sequentially.
 
 ### `fatal: Authentication failed for 'https://github.com/<owner>/<repo>.git/'` (exit 128)
 
-`actions/checkout@v4` installs an auth header in `.git/config`. The intervening `claude-code-action` step unsets it as cleanup, so the commit step's `git push` has no credentials. Re-embed the token in the remote URL before pushing:
+`actions/checkout@v4` installs an auth header in `.git/config`. An agent action may alter or clear it, so the commit step re-embeds the token in the remote URL before pushing:
 
 ```bash
 git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
@@ -86,13 +119,18 @@ The step also needs `GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` in its `env:` bl
 
 ### Pipeline finishes green, but no auto-ingest commit lands and no `wiki/papers/<slug>.md` is created
 
-The action's `--allowedTools` is missing `Skill` (and likely `TodoWrite` / `Agent`). Without `Skill`, Claude has no way to invoke the `/ingest` skill — but the prompt's structured output schema still gets filled in with `ingest_status: success`, so the failure is silent. Use:
+The Claude action's `--allowedTools` is missing `Skill` (and likely `TodoWrite` / `Agent`). Without `Skill`, Claude has no way to invoke the `/ingest` skill — but the prompt's structured output schema still gets filled in with `ingest_status: success`, so the failure is silent. Use:
 
 ```yaml
 claude_args: |
   --max-turns 100
   --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
 ```
+
+For Codex, the equivalent requirement is that the prompt invokes the repo's
+`$ingest` skill and that the run uses `runtime=codex` with `mode=auto-ingest`.
+The workflow rejects agent edits outside `.daily-arxiv/`, `wiki/`, and
+`raw/discovered/` before writeback.
 
 ## Common errors
 

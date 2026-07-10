@@ -16,12 +16,15 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
 ## Workflow Behavior
 
 - 默认定时：`17 0 * * *` UTC。
-- 手动 dispatch 可覆盖 mode、hours、categories、caps 和 e-mail。
-- Inform mode 准备 context，然后使用第一个可用 recommender：
-  带 `ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN` 的 Claude Code Action；
-  否则使用 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` 对应的
-  OpenAI-compatible LLM；否则输出 tool-ranked fallback digest。
-- Auto-ingest mode 缺少 Claude Code Action auth 时 fail closed。
+- 手动 dispatch 可覆盖 runtime、mode、hours、categories、caps 和 e-mail。
+- `runtime: auto` 保持 Claude 优先；如果配置了 `OPENAI_API_KEY`，则选择
+  Codex GitHub Action；再否则使用 inform-only 的 OpenAI-compatible LLM，最后
+  输出 tool-ranked fallback digest。
+- 将 `runtime: codex` 设为显式使用 Codex。它调用
+  `openai/codex-action@v1`，通过 action input 传递 API key，并使用仓库中的
+  schema 写出结构化 decision 文件。
+- Auto-ingest mode 只有在选中的 runtime 是 Claude 或 Codex 时才允许；LLM
+  和 fallback runtime 只能推荐，不能 ingest。
 - Auto-ingest 只提交 `/ingest` 产生并 staged 的 `wiki/` 和
   `raw/discovered/` 变更。
 
@@ -32,11 +35,16 @@ skill 相同的 pipeline；它不定义这个功能的用户入口。
 - `ANTHROPIC_API_KEY` — Claude Code Action 的直接 Anthropic API auth。
 - `CLAUDE_CODE_OAUTH_TOKEN` — Pro/Max 用户的 Claude Code OAuth auth；在本地
   通过 `claude setup-token` 生成。它是 `ANTHROPIC_API_KEY` 的替代方案。
+- `OPENAI_API_KEY` — 通过 `openai-api-key` input 传给
+  `openai/codex-action@v1` 的 OpenAI API key。不要把它暴露为 job-level
+  environment variable。
 - `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` — 可选的 OpenAI-compatible
   LLM，用于没有 Claude Code 时的 `inform` 推荐。
 - `LLM_FALLBACK_MODEL` — 可选的 OpenAI-compatible LLM fallback。
-- `SEMANTIC_SCHOLAR_API_KEY` — 可选，提高 S2 rate limit。
-- `DEEPXIV_TOKEN` — 可选，启用 DeepXiv enrichment。
+- `SEMANTIC_SCHOLAR_API_KEY` — daily-cadence pipeline 需要；否则 S2 匿名
+  rate limit 可能让 prepare 超时。
+- `DEEPXIV_TOKEN` — daily-cadence pipeline 需要；否则 DeepXiv enrichment
+  会退化到匿名请求并可能触发限流。
 
 SMTP 发送：
 
@@ -79,3 +87,7 @@ Markdown digest 也会写入 GitHub Actions job summary。
 - 空 feed 或全部重复：生成合法空 artifacts。
 - 外部 API 失败：继续运行，并保留 degraded notes。
 - Auto-ingest 失败：保留逐论文 error，并继续生成最终 digest。
+- Agent 越过 write boundary 时，在 commit/push 之前直接失败。
+- Codex inform 使用 `workspace-write`；Codex auto-ingest 使用隔离的 GitHub
+  runner 上更宽的 sandbox，因为 `/ingest` 需要网络访问。prompt 与确定性
+  boundary 检查仍会把持久写回限制在 `/ingest` 所有的路径内。

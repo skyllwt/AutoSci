@@ -93,6 +93,7 @@ STOPWORDS = {
 DEFAULT_CATEGORIES = ["cs.LG", "cs.CV", "cs.CL", "cs.AI", "stat.ML"]
 DEFAULT_CONFIG: dict[str, Any] = {
     "mode": "inform",
+    "runtime": "auto",
     "hours": 24,
     "categories": DEFAULT_CATEGORIES,
     "max_recommendations": 10,
@@ -304,6 +305,11 @@ def load_config(path: Path | None, overrides: dict[str, Any] | None = None) -> t
     if cfg["mode"] not in {"inform", "auto-ingest"}:
         notes.append(f"Unknown mode {cfg['mode']!r}; falling back to inform.")
         cfg["mode"] = "inform"
+
+    cfg["runtime"] = str(cfg.get("runtime") or "auto")
+    if cfg["runtime"] not in {"auto", "claude", "codex", "llm"}:
+        notes.append(f"Unknown runtime {cfg['runtime']!r}; falling back to auto.")
+        cfg["runtime"] = "auto"
 
     categories = _split_categories(cfg.get("categories"))
     cfg["categories"] = categories or DEFAULT_CATEGORIES
@@ -1368,7 +1374,7 @@ def build_digest(feed_path: Path, wiki_root: Path, max_items: int) -> dict[str, 
 
 def _overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
     overrides: dict[str, Any] = {}
-    for key in ("mode", "hours", "max_recommendations", "max_auto_ingest"):
+    for key in ("mode", "runtime", "hours", "max_recommendations", "max_auto_ingest"):
         value = getattr(args, key, None)
         if value is not None:
             overrides[key] = value
@@ -1468,6 +1474,11 @@ def cmd_digest(args: argparse.Namespace) -> None:
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", type=Path, default=Path("config/daily-arxiv.yml"), help="Daily arXiv config path")
     parser.add_argument("--mode", choices=["inform", "auto-ingest"], help="Override action mode")
+    parser.add_argument(
+        "--runtime",
+        choices=["auto", "claude", "codex", "llm"],
+        help="Override the GitHub Actions decision runtime",
+    )
     parser.add_argument("--hours", type=int, help="Override lookback window")
     parser.add_argument("--categories", nargs="*", help="Override arXiv categories")
     parser.add_argument("--max-recommendations", type=int, help="Override digest recommendation cap")

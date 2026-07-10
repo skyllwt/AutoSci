@@ -106,7 +106,7 @@ Run `/discover --venue iclr --year 2024` (or any conference/year) and get a pers
 
 ### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
 
-Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks; `inform` mode just notifies.
+Run `/daily-arxiv` for a one-off pass, or `/daily-arxiv setup` to schedule the same pipeline in GitHub Actions. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Set `runtime: codex` plus the `OPENAI_API_KEY` repository secret to use Codex in CI; explicit `--mode auto-ingest` calls `/ingest` for high-confidence picks, while `inform` mode just notifies.
 
 ### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
 
@@ -317,6 +317,7 @@ and are best run from WSL2 or Linux/macOS.
 | Agent runtime auth | **Yes** | Claude Code: `claude login`; Codex: sign in through Codex | Powers the interactive coding-agent skills |
 | `ANTHROPIC_API_KEY` | Claude Code only (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers Claude Code skills |
 | `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions Claude Code auth for Pro/Max users |
+| `OPENAI_API_KEY` | Optional | OpenAI API dashboard | GitHub Actions Codex runtime via `openai/codex-action@v1` |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
 | `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
