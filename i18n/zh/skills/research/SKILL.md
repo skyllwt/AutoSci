@@ -7,7 +7,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 > 端到端研究编排器，将所有 skill 组合为完整的研究流程。
 > Stage 0 (Bootstrap) + 5 个 Stage + 2 个 Human Gate，覆盖从空 wiki 到论文提交的全流程。
-> **零摩擦入口**：wiki 为空时自动触发 Bootstrap（搜索 + auto-ingest 5 篇论文），无需手动 /init。
+> **零摩擦入口**：wiki 处于冷启动时，`/research` 在 Stage 0 暂停，需显式运行 `/init` / `$init` 进行 Bootstrap 后再继续。
 > 每个 Gate 和 Stage 保存进度到 `wiki/outputs/pipeline-progress.md`，支持跨 session 恢复。
 >
 > **Stage 3 为非阻塞设计**：实验部署后立即返回（`--auto` 模式自动设置 CronCreate 每 30 分钟监控），
@@ -138,32 +138,23 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    ```
    保存返回的 JSON 到内存变量 `maturity_before`。
 
-### Stage 0: Bootstrap（wiki 为空时自动触发）
+### Stage 0: Bootstrap（冷启动 handoff 路径）
 
-**触发条件**：运行 `python3 tools/research_wiki.py maturity wiki/ --json`，若 `level == "cold"` 且 `papers < 3`：自动进入 Bootstrap。否则跳过，直接进入 Stage 1。
+**触发条件**：运行 `python3 tools/research_wiki.py maturity wiki/ --json`，若 `level == "cold"` 且 `papers < 3`：触发 `/init` / `$init` handoff 流程；否则跳过，直接进入 Stage 1。
 
 1. **初始化 wiki 结构**（若未初始化）：
    ```bash
    python3 tools/research_wiki.py init wiki/
    ```
 
-2. **搜索相关论文**（使用 Agent tool 并行 3 路搜索）：
-   - DeepXiv：`python3 tools/fetch_deepxiv.py search "{direction}" --mode hybrid --limit 20`
-   - Semantic Scholar：`python3 tools/fetch_s2.py search "{direction}" --limit 20`
-   - arXiv：`python3 tools/fetch_arxiv.py`（使用 direction 关键词）
-   - 若 DeepXiv 不可用：跳过，仅使用 S2 + arXiv
-
-3. **合并排名 & 选取 top 5**：
-   - 按 arxiv_id 去重
-   - 排序优先级：DeepXiv relevance score > S2 citation count > recency
-   - 取 top 5 篇（5 = cold→warm 最低门槛）
-
-4. **逐一 auto-ingest**：
+2. **交给 `/init` / `$init`**：
    ```
-   Skill: ingest
-   Args: "{arxiv_url_or_path}"
+   Skill: init
+   Args: "{direction}"
    ```
-   每篇 ingest 后输出进度：`[{i}/5] Ingested: {paper_title}`
+   `/research` 不应重复实现 bootstrap 的搜索 / 排名 / auto-ingest 逻辑。
+
+3. **等待 `/init` 完成**（或在交互流程中征得用户确认）后进入 Stage 1。
 
 5. **重建派生数据**：
    ```bash
@@ -171,7 +162,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    python3 tools/research_wiki.py rebuild-open-questions wiki/
    ```
 
-6. **Bootstrap 报告**：
+6. **Bootstrap 报告**（`/init` 完成后）：
    ```bash
    python3 tools/research_wiki.py maturity wiki/ --json
    ```
@@ -186,7 +177,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 7. **日志 + 进度更新**：
    ```bash
    python3 tools/research_wiki.py log wiki/ \
-     "research | stage0-bootstrap | auto-ingested {N} papers | maturity: {level}"
+     "research | stage0-bootstrap | init-handoff-complete | maturity: {level}"
    python3 tools/research_wiki.py set-meta \
      wiki/outputs/pipeline-progress.md current_stage stage1
    ```
@@ -513,14 +504,14 @@ python3 tools/research_wiki.py log wiki/ \
 - **所有实验 collect 失败（其他非 baseline）**：进入 Stage 4 评估（以失败为证据）
 - **Gate 用户选择 stop**：保存进度到 pipeline-progress，生成部分报告
 - **RESEARCH_BRIEF.md 格式错误**：降级为纯文本 direction，忽略结构化字段
-- **wiki 为空（无 papers/concepts）**：自动触发 Stage 0 Bootstrap（搜索 + auto-ingest 5 篇论文）
+- **wiki 为空（无 papers/concepts）**：先触发 Stage 0 handoff，要求执行 `/init` / `$init` 再进入 Stage 1
 - **迭代后 idea 证据仍不足**：在报告中标注 "idea evidence insufficient after max iterations"，由用户决定是否继续
 - **用户选择查看状态（自动恢复检测 [3]）**：调用 `/exp-status --pipeline {slug}` 后退出，不继续执行新流水线
 
 ## Dependencies
 
 ### Skills（via Skill tool）
-- `/ingest` — Stage 0 Bootstrap auto-ingest
+- `/init` — Stage 0 Bootstrap handoff
 - `/ideate` — Stage 1 idea 发现
 - `/exp-design` — Stage 2 实验设计
 - `/exp-run` — Stage 3a（deploy 模式）和 Stage 3c（--collect 模式）
@@ -537,9 +528,6 @@ python3 tools/research_wiki.py log wiki/ \
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/research_wiki.py maturity wiki/ --json` — 检查 wiki 成熟度（Stage 0 触发条件 + Growth Report）
 - `python3 tools/research_wiki.py init wiki/` — 初始化 wiki 结构（Stage 0）
-- `python3 tools/fetch_deepxiv.py search "{query}" --mode hybrid --limit 20` — DeepXiv 语义搜索（Stage 0）
-- `python3 tools/fetch_s2.py search "{query}" --limit 20` — Semantic Scholar 搜索（Stage 0）
-- `python3 tools/fetch_arxiv.py` — arXiv RSS 搜索（Stage 0）
 
 ### MCP Servers
 - 无直接 MCP 调用 — 所有 Review LLM 交互通过子 skill 间接使用

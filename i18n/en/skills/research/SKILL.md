@@ -7,7 +7,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 > End-to-end research orchestrator that composes all skills into a complete research workflow.
 > Stage 0 (Bootstrap) + 5 Stages + 2 Human Gates, covering the full pipeline from empty wiki to paper submission.
-> **Zero-friction entry**: if the wiki is empty, Bootstrap is triggered automatically (search + auto-ingest 5 papers); no need to run /init manually.
+> **Zero-friction entry**: if the wiki is cold, research pauses at Stage 0 and requires explicit bootstrap via `/init` / `$init` before continuing.
 > Every Gate and Stage saves progress to `wiki/outputs/pipeline-progress.md`, supporting cross-session recovery.
 >
 > **Stage 3 is non-blocking**: experiments are deployed and control returns immediately (`--auto` mode automatically sets up a CronCreate to monitor every 30 minutes).
@@ -138,32 +138,23 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    ```
    Save returned JSON to memory variable `maturity_before`.
 
-### Stage 0: Bootstrap (triggered automatically when wiki is empty)
+### Stage 0: Bootstrap (cold wiki handoff path)
 
-**Trigger condition**: run `python3 tools/research_wiki.py maturity wiki/ --json`. If `level == "cold"` and `papers < 3`: enter Bootstrap automatically. Otherwise skip and proceed to Stage 1.
+**Trigger condition**: run `python3 tools/research_wiki.py maturity wiki/ --json`. If `level == "cold"` and `papers < 3`: stop Stage 0 and hand off to `/init` / `$init`. Otherwise skip and proceed to Stage 1.
 
 1. **Initialize wiki structure** (if not yet initialized):
    ```bash
    python3 tools/research_wiki.py init wiki/
    ```
 
-2. **Search for relevant papers** (use Agent tool with 3 parallel searches):
-   - DeepXiv: `python3 tools/fetch_deepxiv.py search "{direction}" --mode hybrid --limit 20`
-   - Semantic Scholar: `python3 tools/fetch_s2.py search "{direction}" --limit 20`
-   - arXiv: `python3 tools/fetch_arxiv.py` (using direction keywords)
-   - If DeepXiv is unavailable: skip; use only S2 + arXiv
-
-3. **Merge, rank, and select top 5**:
-   - Deduplicate by arxiv_id
-   - Ranking priority: DeepXiv relevance score > S2 citation count > recency
-   - Select top 5 (5 = minimum threshold for cold→warm)
-
-4. **Auto-ingest each paper**:
+2. **Defer to `/init` / `$init`**:
+   ```bash
+   Skill: init
+   Args: "{direction}"
    ```
-   Skill: ingest
-   Args: "{arxiv_url_or_path}"
-   ```
-   Output progress after each ingest: `[{i}/5] Ingested: {paper_title}`
+   In `/research`, Stage 0 should not duplicate the init logic and should not claim to auto-ingest papers on its own.
+
+3. **Wait for `/init` completion** (or user confirmation in interactive flow) before continuing.
 
 5. **Rebuild derived data**:
    ```bash
@@ -177,16 +168,16 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    ```
    Output to terminal:
    ```
-   Bootstrap complete:
+   Bootstrap handoff complete:
    Papers: {N} | Concepts: {K} | Methods: {Mt} | Edges: {E}
    Maturity: cold → {new_level}
-   Proceeding to Stage 1: Idea Discovery...
+   Proceeding to Stage 1: Idea Discovery after init completion...
    ```
 
 7. **Log + update progress**:
    ```bash
    python3 tools/research_wiki.py log wiki/ \
-     "research | stage0-bootstrap | auto-ingested {N} papers | maturity: {level}"
+     "research | stage0-bootstrap | init-handoff-complete | maturity: {level}"
    python3 tools/research_wiki.py set-meta \
      wiki/outputs/pipeline-progress.md current_stage stage1
    ```
@@ -513,14 +504,14 @@ Update pipeline-progress: status: completed
 - **All experiment collects fail (non-baseline)**: proceed to Stage 4 evaluation (treat failures as evidence)
 - **Gate user selects stop**: save progress to pipeline-progress; generate partial report
 - **RESEARCH_BRIEF.md malformed**: fall back to plain-text direction; ignore structured fields
-- **Wiki empty (no papers/concepts)**: auto-trigger Stage 0 Bootstrap (search + auto-ingest 5 papers)
+- **Wiki empty (no papers/concepts)**: trigger Stage 0 handoff path; require explicit `/init`/`$init` bootstrap before Stage 1
 - **Idea evidence still insufficient after iteration**: annotate report with "idea evidence insufficient after max iterations"; let user decide whether to continue
 - **User selects view status (auto-recovery detection [3])**: call `/exp-status --pipeline {slug}` then exit without starting a new pipeline
 
 ## Dependencies
 
 ### Skills（via Skill tool）
-- `/ingest` — Stage 0 Bootstrap auto-ingest
+- `/init` — Stage 0 bootstrap handoff
 - `/ideate` — Stage 1 idea discovery
 - `/exp-design` — Stage 2 experiment design
 - `/exp-run` — Stage 3a (deploy mode) and Stage 3c (--collect mode)
@@ -537,9 +528,6 @@ Update pipeline-progress: status: completed
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 - `python3 tools/research_wiki.py maturity wiki/ --json` — check wiki maturity (Stage 0 trigger + Growth Report)
 - `python3 tools/research_wiki.py init wiki/` — initialize wiki structure (Stage 0)
-- `python3 tools/fetch_deepxiv.py search "{query}" --mode hybrid --limit 20` — DeepXiv semantic search (Stage 0)
-- `python3 tools/fetch_s2.py search "{query}" --limit 20` — Semantic Scholar search (Stage 0)
-- `python3 tools/fetch_arxiv.py` — arXiv RSS search (Stage 0)
 
 ### MCP Servers
 - None directly — all Review LLM interactions are used indirectly via sub-skills
