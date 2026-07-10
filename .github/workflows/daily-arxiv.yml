@@ -404,7 +404,7 @@ jobs:
             - < .github/codex/daily-arxiv-prompt.md
 
       - name: Persist refreshed Codex account authentication
-        if: ${{ always() && (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account' && secrets.CODEX_AUTH_SECRET_SYNC_TOKEN != '' }}
+        if: ${{ always() && (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account' && env.HAS_CODEX_ACCOUNT_AUTH_SYNC == 'true' }}
         env:
           CODEX_HOME: ${{ runner.temp }}/autosci-codex-home
           GH_TOKEN: ${{ secrets.CODEX_AUTH_SECRET_SYNC_TOKEN }}
