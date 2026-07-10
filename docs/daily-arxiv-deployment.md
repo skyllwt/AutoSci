@@ -6,10 +6,20 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
 
 1. **Pick the decision runtime.** Set `runtime: codex` in
    `config/daily-arxiv.yml` for Codex, or leave `runtime: auto` to preserve
-   Claude-first behavior and fall back to Codex when Claude credentials are
-   absent. Manual dispatch can override this with `-f runtime=codex`.
+   Claude-first behavior. In a private repository, either mode prefers
+   coding-plan account auth when `CODEX_AUTH_JSON` is configured, then falls
+   back to API-key auth. Use `runtime: codex-account` or `runtime: codex-api`
+   to require one path explicitly.
 
-2. **Configure the selected agent auth.** For Codex:
+2. **Configure the selected agent auth.** For a coding-plan account in this
+   private repository, store the local Codex auth file as a repository secret:
+   ```bash
+   gh secret set CODEX_AUTH_JSON < ~/.codex/auth.json
+   ```
+   Treat this secret like a password. The workflow restores it only under
+   `$RUNNER_TEMP` and rejects account auth for non-private repositories.
+
+   For Codex API-key auth:
    ```bash
    gh secret set OPENAI_API_KEY
    ```
@@ -23,7 +33,7 @@ This page is the operator's manual for running the daily arXiv pipeline on GitHu
 
    Set it once with `gh secret set <NAME>`. The workflow is happy with either.
 
-3. **Install the Claude Code GitHub App** on the repo at <https://github.com/apps/claude> only when using the Claude runtime. Codex uses the OpenAI API key and does not require the Claude App.
+3. **Install the Claude Code GitHub App** on the repo at <https://github.com/apps/claude> only when using the Claude runtime. Codex does not require the Claude App.
 
 4. **Mirror API keys to repo secrets.** These are required for the daily-cadence pipeline (anonymous-tier rate limits time the run out, they don't just slow it down):
    ```bash
@@ -61,13 +71,13 @@ Match your failing-step error to a heading.
 
 ### `Could not fetch an OIDC token`
 
-The workflow's `permissions:` block needs `id-token: write` only for the Claude runtime, because Claude's action exchanges an OIDC token for an app token. Codex authentication uses `OPENAI_API_KEY` through the Codex Action input.
+The workflow's `permissions:` block needs `id-token: write` only for the Claude runtime, because Claude's action exchanges an OIDC token for an app token. Codex account auth uses `CODEX_AUTH_JSON`; Codex API auth uses `OPENAI_API_KEY` through the Codex Action input.
 
 ### `App token exchange failed: 401 - Claude Code is not installed on this repository`
 
-This only applies to `runtime=claude`. Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine. For Codex, dispatch with `-f runtime=codex` and configure `OPENAI_API_KEY` instead.
+This only applies to `runtime=claude`. Install the Claude Code GitHub App on the repository: <https://github.com/apps/claude>. Selecting "Only select repositories" and adding just this repo is fine. For Codex, dispatch with `-f runtime=codex` and configure either `CODEX_AUTH_JSON` in a private repository or `OPENAI_API_KEY`.
 
-### `runtime=codex requires the OPENAI_API_KEY repository secret`
+### `runtime=codex-api requires the OPENAI_API_KEY repository secret`
 
 Add the key with:
 
@@ -77,6 +87,17 @@ gh secret set OPENAI_API_KEY
 
 Do not export it in the workflow's job-level environment. The Codex Action
 starts the API proxy and receives the key through `openai-api-key`.
+
+### `runtime=codex-account requires the CODEX_AUTH_JSON repository secret`
+
+Create it from the local coding-plan login:
+
+```bash
+gh secret set CODEX_AUTH_JSON < ~/.codex/auth.json
+```
+
+This path only runs when GitHub reports the repository as private. Do not use
+it for public repositories, and do not print or commit `auth.json`.
 
 ### Codex action completes, but `llm-decisions.json` is missing or invalid
 

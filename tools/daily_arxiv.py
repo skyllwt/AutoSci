@@ -307,7 +307,7 @@ def load_config(path: Path | None, overrides: dict[str, Any] | None = None) -> t
         cfg["mode"] = "inform"
 
     cfg["runtime"] = str(cfg.get("runtime") or "auto")
-    if cfg["runtime"] not in {"auto", "claude", "codex", "llm"}:
+    if cfg["runtime"] not in {"auto", "claude", "codex", "codex-api", "codex-account", "llm"}:
         notes.append(f"Unknown runtime {cfg['runtime']!r}; falling back to auto.")
         cfg["runtime"] = "auto"
 
@@ -1476,7 +1476,7 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mode", choices=["inform", "auto-ingest"], help="Override action mode")
     parser.add_argument(
         "--runtime",
-        choices=["auto", "claude", "codex", "llm"],
+        choices=["auto", "claude", "codex", "codex-api", "codex-account", "llm"],
         help="Override the GitHub Actions decision runtime",
     )
     parser.add_argument("--hours", type=int, help="Override lookback window")

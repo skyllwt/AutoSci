@@ -10,7 +10,7 @@ on:
         required: false
         default: ""
       runtime:
-        description: "decision runtime: auto, claude, codex, or llm"
+        description: "decision runtime: auto, claude, codex, codex-account, codex-api, or llm"
         required: false
         default: ""
       hours:
@@ -50,8 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-      HAS_CODEX_AUTH: ${{ secrets.OPENAI_API_KEY != '' }}
+      HAS_CODEX_API_AUTH: ${{ secrets.OPENAI_API_KEY != '' }}
+      HAS_CODEX_ACCOUNT_AUTH: ${{ secrets.CODEX_AUTH_JSON != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
+      REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
       # Repo secrets must be exposed as env vars here for the Python steps;
       # otherwise S2/DeepXiv calls run anonymous and hit rate-limit walls.
       SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
@@ -155,22 +157,31 @@ jobs:
           case "$requested" in
             auto)
               # Keep existing Claude-first behavior when both agent secrets
-              # are present; Codex-only repos select the Codex path.
+              # are present. A private repo may use coding-plan account auth.
               if [ "$HAS_CLAUDE_CODE_AUTH" = "true" ]; then
                 runtime="claude"
-              elif [ "$HAS_CODEX_AUTH" = "true" ]; then
-                runtime="codex"
+              elif [ "$HAS_CODEX_ACCOUNT_AUTH" = "true" ] && [ "$REPOSITORY_VISIBILITY" = "private" ]; then
+                runtime="codex-account"
+              elif [ "$HAS_CODEX_API_AUTH" = "true" ]; then
+                runtime="codex-api"
               elif [ "$HAS_REVIEW_LLM" = "true" ]; then
                 runtime="llm"
               else
                 runtime="fallback"
               fi
               ;;
-            claude|codex|llm)
+            codex)
+              if [ "$HAS_CODEX_ACCOUNT_AUTH" = "true" ] && [ "$REPOSITORY_VISIBILITY" = "private" ]; then
+                runtime="codex-account"
+              else
+                runtime="codex-api"
+              fi
+              ;;
+            claude|codex-api|codex-account|llm)
               runtime="$requested"
               ;;
             *)
-              echo "::error::Unknown daily-arxiv runtime '$requested'; use auto, claude, codex, or llm."
+              echo "::error::Unknown daily-arxiv runtime '$requested'; use auto, claude, codex, codex-account, codex-api, or llm."
               exit 1
               ;;
           esac
@@ -193,9 +204,19 @@ jobs:
                 exit 1
               fi
               ;;
-            codex)
-              if [ "$HAS_CODEX_AUTH" != "true" ]; then
-                echo "::error::runtime=codex requires the OPENAI_API_KEY repository secret."
+            codex-api)
+              if [ "$HAS_CODEX_API_AUTH" != "true" ]; then
+                echo "::error::runtime=codex-api requires the OPENAI_API_KEY repository secret."
+                exit 1
+              fi
+              ;;
+            codex-account)
+              if [ "$HAS_CODEX_ACCOUNT_AUTH" != "true" ]; then
+                echo "::error::runtime=codex-account requires the CODEX_AUTH_JSON repository secret."
+                exit 1
+              fi
+              if [ "$REPOSITORY_VISIBILITY" != "private" ]; then
+                echo "::error::runtime=codex-account is allowed only for private repositories."
                 exit 1
               fi
               ;;
@@ -207,8 +228,8 @@ jobs:
               ;;
           esac
 
-          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$DAILY_ARXIV_RUNTIME" != "claude" ] && [ "$DAILY_ARXIV_RUNTIME" != "codex" ]; then
-            echo "::error::mode=auto-ingest requires runtime=claude or runtime=codex; recommendation-only runtimes cannot invoke /ingest."
+          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$DAILY_ARXIV_RUNTIME" != "claude" ] && [ "$DAILY_ARXIV_RUNTIME" != "codex-api" ] && [ "$DAILY_ARXIV_RUNTIME" != "codex-account" ]; then
+            echo "::error::mode=auto-ingest requires runtime=claude, codex-api, or codex-account; recommendation-only runtimes cannot invoke /ingest."
             exit 1
           fi
 
@@ -259,6 +280,28 @@ jobs:
           )
           PY
 
+      - name: Configure Codex account authentication
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$CODEX_AUTH_JSON"
+          codex_home="$RUNNER_TEMP/autosci-codex-home"
+          mkdir -p "$codex_home"
+          chmod 700 "$codex_home"
+          CODEX_HOME="$codex_home" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          raw = os.environ["CODEX_AUTH_JSON"]
+          json.loads(raw)
+          target = Path(os.environ["CODEX_HOME"]) / "auth.json"
+          target.write_text(raw, encoding="utf-8")
+          target.chmod(0o600)
+          PY
+
       - name: Run Claude recommendation and optional ingest
         if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'claude'
         uses: anthropics/claude-code-action@v1
@@ -298,10 +341,11 @@ jobs:
             --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
 
       - name: Run Codex recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex'
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && (steps.runtime.outputs.runtime == 'codex-api' || steps.runtime.outputs.runtime == 'codex-account')
         uses: openai/codex-action@v1
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-api-key: ${{ steps.runtime.outputs.runtime == 'codex-api' && secrets.OPENAI_API_KEY || '' }}
+          codex-home: ${{ runner.temp }}/autosci-codex-home
           prompt-file: .github/codex/daily-arxiv-prompt.md
           codex-args: >-
             --ephemeral

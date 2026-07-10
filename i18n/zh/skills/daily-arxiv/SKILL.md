@@ -1,7 +1,7 @@
 ---
 name: daily-arxiv
 description: 运行或管理每日 arXiv 推荐 feed。用于手动获取新论文推荐、配置/检查/停用 GitHub Actions 定时任务、邮件 digest、选择 runtime，以及显式高置信 auto-ingest。
-argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|llm] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
+argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|codex-account|codex-api|llm] [--mode inform|auto-ingest] [--hours 24] [--categories <cat...>] [--max-recommendations 10] [--max-auto-ingest 1] [--send-email true|false]"
 ---
 
 # /daily-arxiv
@@ -23,8 +23,9 @@ argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|llm] [--mode
 ## Inputs
 
 - `--mode inform|auto-ingest`：默认 `inform`。不要从 repo 状态推断 `auto-ingest`。
-- `--runtime auto|claude|codex|llm`：GitHub Actions 的 decision runtime；`auto`
-  保持 Claude 优先兼容行为，之后在配置 `OPENAI_API_KEY` 时选择 Codex。
+- `--runtime auto|claude|codex|codex-account|codex-api|llm`：GitHub Actions
+  的 decision runtime。在 private repo 中，`auto` 与 `codex` 优先使用
+  `CODEX_AUTH_JSON` 的 coding-plan account auth，再使用 `OPENAI_API_KEY`。
 - `--hours N`：拉取最近 N 小时论文；config/default 为 24。
 - `--categories <cat...>`：覆盖配置中的 arXiv 分类。
 - `--max-recommendations N`：digest 中最多展示的论文数；config/default 为 10。
@@ -51,9 +52,16 @@ argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|llm] [--mode
    - 如果 `env:` 块根本不存在（较旧的 workflow），在该 job 下插入它，包含这两行以及已有的 auth 标志。不要改动任何其他 step。
    - 任何补丁之后，告诉用户改了什么，并提醒他们 commit。
 
-4. **Secrets 检查**：列出用户已配置了哪些 —— `OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、`SEMANTIC_SCHOLAR_API_KEY`、`DEEPXIV_TOKEN`，以及可选的 SMTP secrets。可用时用 `gh secret list`；否则指导用户自己运行。`runtime: codex` 需要 `OPENAI_API_KEY`，且必须通过 Codex Action input 传递，不能设成 job-level environment variable。对任何缺失但必需的 secret，给出他们需要的确切 `gh secret set` 命令。
+4. **Secrets 检查**：列出用户已配置了哪些 —— `CODEX_AUTH_JSON`、
+   `OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 或 `CLAUDE_CODE_OAUTH_TOKEN`、
+   `SEMANTIC_SCHOLAR_API_KEY`、`DEEPXIV_TOKEN`，以及可选的 SMTP secrets。
+   `CODEX_AUTH_JSON` 是 coding-plan account credential，只允许用于 private
+   repo；把本地 `~/.codex/auth.json` 的内容存为 repository secret，绝不打印
+   或 commit。`OPENAI_API_KEY` 仍是 API-key 替代路径，必须通过 Codex Action
+   input 传递，不能设成 job-level environment variable。对任何缺失但必需的
+   secret，给出他们需要的确切 `gh secret set` 命令。
 
-5. **Summary**：汇报创建了什么、打了什么补丁，以及用户还需要做什么（按选中的 runtime 设置 secrets；只有 Claude runtime 需要安装 Claude GitHub App；用一次 `gh workflow run daily-arxiv.yml` 验证）。
+5. **Summary**：汇报创建了什么、打了什么补丁，以及用户还需要做什么（按选中的 runtime 设置 secrets；account-auth 测试必须在 private repo 中；只有 Claude runtime 需要安装 Claude GitHub App；用一次 `gh workflow run daily-arxiv.yml` 验证）。
 
 ## Run Workflow
 
@@ -69,7 +77,11 @@ argument-hint: "[setup|status|disable] [--runtime auto|claude|codex|llm] [--mode
    python3 tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/recommendation-context.json --out .daily-arxiv/run/llm-decisions.json
    ```
 
-3. 如果 mode 是 `auto-ingest`，只有 Claude 或 Codex coding-agent runtime 可以选择 `decision: ingest` 且 `confidence: high`。遵守 `max_auto_ingest`，使用选中 runtime 的 skill 语法按顺序调用 `/ingest <arxiv-url>`，不要手写 wiki 或 graph 文件。第三方 LLM 与 tool-ranked fallback 只用于推荐，不能 auto-ingest。
+3. 如果 mode 是 `auto-ingest`，只有 Claude、Codex account 或 Codex API
+   runtime 可以选择 `decision: ingest` 且 `confidence: high`。遵守
+   `max_auto_ingest`，使用选中 runtime 的 skill 语法按顺序调用
+   `/ingest <arxiv-url>`，不要手写 wiki 或 graph 文件。第三方 LLM 与
+   tool-ranked fallback 只用于推荐，不能 auto-ingest。
 
 4. 生成 digest：
 

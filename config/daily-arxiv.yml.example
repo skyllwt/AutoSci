@@ -9,8 +9,10 @@
 mode: inform
 
 # CI decision runtime. `auto` preserves Claude-first compatibility, then uses
-# Codex when OPENAI_API_KEY is configured, then the inform-only LLM fallback.
-# Set `codex` to make Codex the explicit scheduled runtime.
+# Codex account auth in a private repo when CODEX_AUTH_JSON is configured,
+# then OPENAI_API_KEY, then the inform-only LLM fallback. Set `codex` to let
+# the workflow choose account auth before API-key auth; use `codex-account` or
+# `codex-api` to require one path explicitly.
 runtime: auto
 
 # Fresh-paper window and source categories.
