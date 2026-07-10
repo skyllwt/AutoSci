@@ -32,6 +32,9 @@ Decision rules:
 6. Keep borderline candidates as `maybe`; missing or degraded enrichment is
    not evidence for ingestion.
 
+Always include both `ingest_status` and `ingest_error`: use `null` for either
+field when it does not apply (including both fields in `inform` mode).
+
 The repository's AGENTS.md and the daily-arxiv skill are authoritative for
 path ownership and runtime conventions. Do not edit files outside the
 `.daily-arxiv/` scratch area during inform runs, or outside the durable paths

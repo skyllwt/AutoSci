@@ -28,8 +28,8 @@
             "type": "array",
             "items": { "type": "string" }
           },
-          "ingest_status": { "type": "string" },
-          "ingest_error": { "type": "string" }
+          "ingest_status": { "type": ["string", "null"] },
+          "ingest_error": { "type": ["string", "null"] }
         },
         "required": [
           "arxiv_id",
@@ -38,7 +38,9 @@
           "score",
           "rationale",
           "wiki_connections",
-          "signals_used"
+          "signals_used",
+          "ingest_status",
+          "ingest_error"
         ]
       }
     }
