@@ -4,9 +4,9 @@ description: 从 PAPER_PLAN 起草 LaTeX 论文：逐 section 从 wiki 取材撰
 argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 ---
 
-# /paper-draft
+# $paper-draft
 
-> 从 /paper-plan 生成的 PAPER_PLAN.md 起草完整 LaTeX 论文。
+> 从 $paper-plan 生成的 PAPER_PLAN.md 起草完整 LaTeX 论文。
 > 逐 section 撰写：每个 section 从 wiki 读取 ideas/methods/experiments/papers/concepts 取材，
 > 生成 LaTeX + figures + tables。BibTeX 从 DBLP/CrossRef 获取（遵循 citation-verification），
 > 完成后执行 de-AI polish（遵循 academic-writing）。
@@ -272,12 +272,12 @@ llm-review MCP chat tool:
    - Sections written: {list}
    - De-AI polish: applied
    - Review LLM review: {yes/no, if yes: overall score}
-   - [UNCONFIRMED] citations: {count}（在 `/paper-compile` / `$paper-compile` 前解决）
+   - [UNCONFIRMED] citations: {count}（在 `$paper-compile` / `$paper-compile` 前解决）
 
    ## Next Steps
-   - 用 Claude Code 的 `/paper-compile paper/` 或 Codex 的 `$paper-compile paper/` 编译并检查
+   - 用 Codex 的 `$paper-compile paper/` 或 Codex 的 `$paper-compile paper/` 编译并检查
    - Resolve [UNCONFIRMED] citations manually
-   - 用 Claude Code 的 `/refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 继续润色
+   - 用 Codex 的 `$refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 继续润色
    ```
 
 ## Constraints
@@ -295,8 +295,8 @@ llm-review MCP chat tool:
 
 ## Error Handling
 
-- **PAPER_PLAN 找不到**：报错，建议先运行 Claude Code 的 `/paper-plan` 或 Codex 的 `$paper-plan`
-- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 Claude Code 的 `/paper-plan` 或 Codex 的 `$paper-plan`
+- **PAPER_PLAN 找不到**：报错，建议先运行 Codex 的 `$paper-plan` 或 Codex 的 `$paper-plan`
+- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 Codex 的 `$paper-plan` 或 Codex 的 `$paper-plan`
 - **wiki 页面找不到**（plan 引用的 idea/experiment/method/paper 不存在）：警告并跳过该引用，标注缺失
 - **figure 生成失败**（matplotlib 错误）：输出占位符 `% TODO: generate figure {name}`，继续其他 section
 - **BibTeX 全部获取失败**：使用 [UNCONFIRMED] 占位，在终端报告需要手动处理的数量
@@ -326,5 +326,5 @@ llm-review MCP chat tool:
 - `shared-references/citation-verification.md` — BibTeX 获取流程 + [UNCONFIRMED] 协议
 
 ### Called by
-- `/research`（Claude Code）或 `$research`（Codex）Stage 5（论文写作阶段）
+- `$research`（Codex）或 `$research`（Codex）Stage 5（论文写作阶段）
 - 用户手动调用

@@ -4,16 +4,16 @@ description: 预实验结果评估 — 读取预实验结果，应用成功标�
 argument-hint: <idea-slug> [--auto]
 ---
 
-# /exp-pilot-eval
+# $exp-pilot-eval
 
 > 评估预实验结果并更新关联的 idea 页面。
 > 从 `experiments/pilot/code/{slug}/results/` 读取预实验结果，应用判定逻辑（pass/fail/inconclusive），更新 idea 的 `pilot_result`、`failure_reason` 和 `status` 字段。
-> 由 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 在 `/exp-pilot-run` / `$exp-pilot-run` 完成后调用。
+> 由 Codex 的 `$ideate` 或 Codex 的 `$ideate` 在 `$exp-pilot-run` / `$exp-pilot-run` 完成后调用。
 
 ## Inputs
 
 - `idea-slug`：刚完成预实验的 idea 的 slug
-- `--auto`（可选）：自动模式，不暂停等待用户确认（由 `/research` 或 `$research` 调用时使用）
+- `--auto`（可选）：自动模式，不暂停等待用户确认（由 `$research` 或 `$research` 调用时使用）
 
 ## Outputs
 
@@ -36,7 +36,7 @@ argument-hint: <idea-slug> [--auto]
 - `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本
 
 ### Graph edges created
-- 无。预实验评估不创建 graph edges（正式实验的 edges 由 `/exp-eval` / `$exp-eval` 创建）。
+- 无。预实验评估不创建 graph edges（正式实验的 edges 由 `$exp-eval` / `$exp-eval` 创建）。
 
 ## Workflow
 
@@ -76,7 +76,7 @@ argument-hint: <idea-slug> [--auto]
 若 verdict == `fail`：
 - 设置 `pilot_result`：`"fail — <具体失败>"`
 - 设置 `failure_reason`：`"[pilot] <具体失败描述>"`
-  - `[pilot]` 前缀区分于 Phase 3 的 `[filter]` 淘汰和 `/exp-eval` / `$exp-eval` 的实验后失败
+  - `[pilot]` 前缀区分于 Phase 3 的 `[filter]` 淘汰和 `$exp-eval` / `$exp-eval` 的实验后失败
 - 将 status 转为 `failed`：
   ```bash
   python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "fail — <具体失败>"
@@ -122,7 +122,7 @@ argument-hint: <idea-slug> [--auto]
    | ideas/{slug} | failure_reason | — | {new} | (only if failed) |
 
    ## Next Steps
-   - {if pass: 用 Claude Code 的 `/exp-design` 或 Codex 的 `$exp-design` 进入完整实验设计}
+   - {if pass: 用 Codex 的 `$exp-design` 或 Codex 的 `$exp-design` 进入完整实验设计}
    - {if fail: idea eliminated; review pilot log for details}
    - {if inconclusive: proceed to full experiment with caution}
    ```
@@ -132,17 +132,17 @@ argument-hint: <idea-slug> [--auto]
 - **只处理已预实验的 ideas**：结果必须存在于 `experiments/pilot/code/{slug}/results/`
 - **failure_reason 必须具体**：不能是模糊的 "pilot failed" — 需包含什么失败了以及为什么
 - **Idea 生命周期只向前**：`proposed → failed`（不能从 validated 退回 failed）
-- **不创建 graph edges**：正式实验的 edges 由 `/exp-eval` / `$exp-eval` 创建
+- **不创建 graph edges**：正式实验的 edges 由 `$exp-eval` / `$exp-eval` 创建
 - **Pass 阈值故意宽松**：检测明显失败，而非衡量最终性能
 - **`[pilot]` 前缀在 failure_reason 中必须存在**：区分于 `[filter]` 和实验后失败
 
 ## Error Handling
 
-- **Idea 页面找不到**：报告错误，建议先运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate`
-- **预实验结果找不到**：报告错误，建议先运行 Claude Code 的 `/exp-pilot-run` 或 Codex 的 `$exp-pilot-run`
+- **Idea 页面找不到**：报告错误，建议先运行 Codex 的 `$ideate` 或 Codex 的 `$ideate`
+- **预实验结果找不到**：报告错误，建议先运行 Codex 的 `$exp-pilot-run` 或 Codex 的 `$exp-pilot-run`
 - **Idea 已经 failed**：报告当前状态，不覆盖
 - **Idea 已经 validated**：拒绝降级 status，报告警告
-- **Pilot Spec 找不到**：报告错误，建议先运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 生成 spec
+- **Pilot Spec 找不到**：报告错误，建议先运行 Codex 的 `$ideate` 或 Codex 的 `$ideate` 生成 spec
 
 ## Dependencies
 
@@ -160,5 +160,5 @@ argument-hint: <idea-slug> [--auto]
 - `Bash` — 执行 research_wiki.py 命令
 
 ### Called by
-- `/ideate`（Claude Code）或 `$ideate`（Codex）Phase 5
+- `$ideate`（Codex）或 `$ideate`（Codex）Phase 5
 - 用户手动调用

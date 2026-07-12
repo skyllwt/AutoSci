@@ -4,7 +4,7 @@ description: 生成并更新可视化产物 —— Obsidian 图谱配置与 Canv
 argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
-# /visualize
+# $visualize
 
 > 为 AutoSci 知识图谱生成可视化产物。
 > 产出 Obsidian 图谱配置（按实体类型分色组）以及带类型标签边的精选 Canvas 视图。
@@ -12,7 +12,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 ## Trigger
 
-手动：Claude Code 中 `/visualize [flags]`，或 Codex 中 `$visualize [flags]`。
+手动：Codex 中 `$visualize [flags]`，或 Codex 中 `$visualize [flags]`。
 
 ## Inputs
 
@@ -57,7 +57,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 ### Step 0: 确认图谱数据存在
 
-检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 Claude Code 的 `/ingest` 或 Codex 的 `$ingest`。
+检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 Codex 的 `$ingest` 或 Codex 的 `$ingest`。
 
 ### Step 1: 生成 Obsidian 配置（`--obsidian` 或 `--all`）
 
@@ -144,7 +144,7 @@ Canvas 边 schema：
 
    退出码 `0` = 端口被占（服务已起 —— 跳过启动）。退出码 `1` = 端口空闲（需要启动）。
 
-2. 若端口空闲，使用当前 runtime 的后台命令机制启动服务（Claude Code：Bash 的 `run_in_background: true`；Codex：长跑 shell session 或外部调度器）。不要前台运行，否则会无限阻塞 skill。在 Codex managed sandbox 中，`tools/serve.py` 可能需要文档中的 network escalation rule：
+2. 若端口空闲，使用当前 runtime 的后台命令机制启动服务（Codex：Bash 的 `run_in_background: true`；Codex：长跑 shell session 或外部调度器）。不要前台运行，否则会无限阻塞 skill。在 Codex managed sandbox 中，`tools/serve.py` 可能需要文档中的 network escalation rule：
 
    ```bash
    python3 tools/serve.py
@@ -158,7 +158,7 @@ Canvas 边 schema：
    SPA Graph view: http://127.0.0.1:8765/#/graph
    ```
 
-SPA Graph 视图（`app/modules/graph.js`）是真正的 ES module，包含与原单文件生成器一样的 Cytoscape + 力导向布局 + 过滤器 + BFS 搜索，并集成了双击跳转到 SPA Reader 视图的能力。`/visualize` 不再重新生成 `wiki/graph-view.html`。
+SPA Graph 视图（`app/modules/graph.js`）是真正的 ES module，包含与原单文件生成器一样的 Cytoscape + 力导向布局 + 过滤器 + BFS 搜索，并集成了双击跳转到 SPA Reader 视图的能力。`$visualize` 不再重新生成 `wiki/graph-view.html`。
 
 ### Step 4: 打印推荐
 
@@ -177,7 +177,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 标准日志格式：
 
 ```markdown
-## [YYYY-MM-DD] /visualize | <format> — <n> nodes, <m> edges<focus-note>
+## [YYYY-MM-DD] $visualize | <format> — <n> nodes, <m> edges<focus-note>
 ```
 
 `<focus-note>` 在使用 `--focus` 时为 ` (focus: <node_id>, depth <N>)`，否则为空。
@@ -217,11 +217,11 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 - `.obsidian/app.json` 仅在缺失时创建（尊重用户自定义）
 - Canvas 文件每次运行重生成（幂等覆盖）
 - 不依赖外部 Python 包（仅用 stdlib）
-- `wiki/.obsidian/` 与 `wiki/canvases/` 都是已 gitignore 的本地产物；source of truth 是 `config/visualize.json` + `wiki/graph/`。`/init` Step 6 与直接调用 `/visualize` 都会幂等地重生成它们 —— 永远不要 commit 它们。
+- `wiki/.obsidian/` 与 `wiki/canvases/` 都是已 gitignore 的本地产物；source of truth 是 `config/visualize.json` + `wiki/graph/`。`$init` Step 6 与直接调用 `$visualize` 都会幂等地重生成它们 —— 永远不要 commit 它们。
 
 ## Error Handling
 
-- **没有图谱数据**：提醒用户先跑 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 建立知识库
+- **没有图谱数据**：提醒用户先跑 Codex 的 `$ingest` 或 Codex 的 `$ingest` 建立知识库
 - **`config/visualize.json` 缺失**：报错，文件应当存在于 `config/visualize.json`
 - **`--focus` 节点找不到**：中止并打印 `Error: node "<node_id>" not found`；列出 5 个最相近的 slug 候选
 - **过滤后没有节点**：中止并汇总当前过滤器与可用类型

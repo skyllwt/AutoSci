@@ -1,12 +1,12 @@
-# /discover ranking 信号
+# $discover ranking 信号
 
-确定性 ranking 住在 `tools/discover.py`，本文件记录它权衡什么、以及**为什么与 `/init` 不同**，防止后续修改不小心把二者收敛到一起。
+确定性 ranking 住在 `tools/discover.py`，本文件记录它权衡什么、以及**为什么与 `$init` 不同**，防止后续修改不小心把二者收敛到一起。
 
 ## Anchor 模式的三个候选通道
 
 anchor 模式每个 anchor 默认从 **三个** S2 通道抓取，因为任何单通道都有其特征偏差：
 
-- **`recommend`**（S2 语义推荐端点）—— 返回语义相似论文，但端点明显偏向最新工作。单用它会退化成 "这个 topic 附近的最新论文"，与 `/daily-arxiv` 严重重合。
+- **`recommend`**（S2 语义推荐端点）—— 返回语义相似论文，但端点明显偏向最新工作。单用它会退化成 "这个 topic 附近的最新论文"，与 `$daily-arxiv` 严重重合。
 - **`references`**（anchor 引用的论文）—— 暴露 anchor 站在其肩膀上的**老 canonical 工作**，是文献综述通道。
 - **`citations`**（引用 anchor 的论文）—— 暴露在 anchor 之上的**高影响后续工作**。
 
@@ -48,13 +48,13 @@ Paper Copilot normalization 不能丢掉来源中明确存在、会影响相关�
 
 ## discovery **不**打分的东西
 
-这里是 `/discover` 有意与 `/init` planner（`tools/init_discovery.py`）分道扬镳之处：
+这里是 `$discover` 有意与 `$init` planner（`tools/init_discovery.py`）分道扬镳之处：
 
-- **不偏 survey**。`/init` 偏爱 survey/review 论文，因为空白 wiki 需要它们做 anchor 覆盖。`/discover` 被调用时用户通常已熟悉领域（anchor 模式）或在探索中（topic 模式），很少还需要再一篇 survey；把 survey 抬到新工作之前只会制造噪音。
-- **不给 "older canonical anchor" 加 bonus**。`/init` bootstrap 模式会抬升一篇老的高被引论文以拓宽覆盖面。`/discover` 的用户通常想要前瞻性的推荐，而不是再做一次基础面 anchor。
-- **不读 notes/web priority terms**。`/init` 会读 `raw/notes/` 与 `raw/web/` 抽取用户意图。`/discover` 不读 —— 它的输入是显式的（anchor、topic 或 wiki 状态）。
+- **不偏 survey**。`$init` 偏爱 survey$review 论文，因为空白 wiki 需要它们做 anchor 覆盖。`$discover` 被调用时用户通常已熟悉领域（anchor 模式）或在探索中（topic 模式），很少还需要再一篇 survey；把 survey 抬到新工作之前只会制造噪音。
+- **不给 "older canonical anchor" 加 bonus**。`$init` bootstrap 模式会抬升一篇老的高被引论文以拓宽覆盖面。`$discover` 的用户通常想要前瞻性的推荐，而不是再做一次基础面 anchor。
+- **不读 notes/web priority terms**。`$init` 会读 `raw/notes/` 与 `raw/web/` 抽取用户意图。`$discover` 不读 —— 它的输入是显式的（anchor、topic 或 wiki 状态）。
 
-如果将来出现一个看起来 `/init` 和 `/discover` 可以共享的 ranking 信号，**优先保持两份实现**，而不是抽出共享 scorer。目标确实不同，共享 scorer 会迫使其中一方妥协。
+如果将来出现一个看起来 `$init` 和 `$discover` 可以共享的 ranking 信号，**优先保持两份实现**，而不是抽出共享 scorer。目标确实不同，共享 scorer 会迫使其中一方妥协。
 
 ## S2 endpoint 的字段限制
 
@@ -65,4 +65,4 @@ Paper Copilot normalization 不能丢掉来源中明确存在、会影响相关�
 
 不要把两套字段集合回一套 —— 上述三个端点确实会拒绝嵌套形式，已用线上探测确认。
 
-实际影响（anchor 模式）：只从 `references` / `citations` / `recommend` 通道进来的候选，rationale 里不带 `hIndex` 与 `tldr`。topic 模式的候选（通过 `/paper/search`）两者都带。理论上对每个候选再 `fetch_s2.paper(arxiv_id)` 一次可以补齐缺的，但 discovery 工具有意不做 —— 这会把每次运行的成本乘以 (shortlist_size × latency)，只为了让 rationale 看起来更丰富一点。用户选中某个候选去 `/ingest` 时再 enrich 就够了。
+实际影响（anchor 模式）：只从 `references` / `citations` / `recommend` 通道进来的候选，rationale 里不带 `hIndex` 与 `tldr`。topic 模式的候选（通过 `/paper/search`）两者都带。理论上对每个候选再 `fetch_s2.paper(arxiv_id)` 一次可以补齐缺的，但 discovery 工具有意不做 —— 这会把每次运行的成本乘以 (shortlist_size × latency)，只为了让 rationale 看起来更丰富一点。用户选中某个候选去 `$ingest` 时再 enrich 就够了。

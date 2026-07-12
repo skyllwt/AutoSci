@@ -4,18 +4,18 @@ description: Reset wiki state to a clean scaffold by scope (wiki / raw / log / c
 argument-hint: "--scope wiki|raw|log|checkpoints|all"
 ---
 
-# /reset
+# $reset
 
 > Resets generated AutoSci state by scope. Designed for development iteration and recovery after a failed setup — not a routine operation.
 
 ## Trigger
 
-Manual: `/reset --scope wiki` in Claude Code or `$reset --scope wiki` in Codex. Supported scopes are `wiki`, `raw`, `log`, `checkpoints`, and `all`. Multiple scopes may be combined comma-separated: `--scope wiki,log`.
+Manual: `$reset --scope wiki` in Codex or `$reset --scope wiki` in Codex. Supported scopes are `wiki`, `raw`, `log`, `checkpoints`, and `all`. Multiple scopes may be combined comma-separated: `--scope wiki,log`.
 
 ## Inputs
 
 - `--scope` *(required)*: one of
-  - `wiki` — delete every `*.md` under `wiki/<entity>/` and `wiki/outputs/`, plus `wiki/index.md`, `wiki/log.md`, and `wiki/graph/` files. Preserves `.gitkeep` and `wiki/CLAUDE.md`.
+  - `wiki` — delete every `*.md` under `wiki/<entity>/` and `wiki/outputs/`, plus `wiki/index.md`, `wiki/log.md`, and `wiki/graph/` files. Preserves `.gitkeep` and `wiki/AGENTS.md`.
   - `raw` — delete generated entries under `raw/discovered/` and `raw/tmp/` (except `.gitkeep`). Preserve user-owned `raw/papers/`, `raw/notes/`, and `raw/web/`.
   - `log` — reset `wiki/log.md` to the empty header.
   - `checkpoints` — clear batch state via `research_wiki.py checkpoint-clear`.
@@ -57,7 +57,7 @@ Print the plan summary and ask for explicit confirmation:
 About to delete N files and reset M files. Continue? [y/N]
 ```
 
-If the user says no, exit. **Never proceed without explicit approval** — `/reset` is destructive and `raw/` deletions are not tracked by git.
+If the user says no, exit. **Never proceed without explicit approval** — `$reset` is destructive and `raw/` deletions are not tracked by git.
 
 ### Step 3: Execute
 
@@ -86,23 +86,23 @@ Deleted: N files
 Reset:   M files
 
 Next steps:
-- /init in Claude Code or $init in Codex       — bootstrap wiki from raw/
-- /prefill in Claude Code or $prefill in Codex — seed foundational background
-- /ingest in Claude Code or $ingest in Codex   — add a single source manually
+- $init in Codex or $init in Codex       — bootstrap wiki from raw/
+- $prefill in Codex or $prefill in Codex — seed foundational background
+- $ingest in Codex or $ingest in Codex   — add a single source manually
 ```
 
 ## Constraints
 
 - **Confirm before destructive action**: never call `--yes` without showing the plan and asking the user.
-- **Preserves**: `.gitkeep` placeholders, `wiki/CLAUDE.md`, `.claude/`, and `.agents/` (skills are never touched).
+- **Preserves**: `.gitkeep` placeholders, `wiki/AGENTS.md`, `.agents/`, and `.agents/` (skills are never touched).
 - **User-owned raw is never deleted**: `raw/papers/`, `raw/notes/`, and `raw/web/` are read-only to this skill even under `raw` or `all` scope. The helper clears only generated `raw/discovered/` and `raw/tmp/`.
-- **`/reset` does not touch `tools/`, `mcp-servers/`, `i18n/`, `.env`, or git state.**
-- **Scope is required**: no default action (`/reset` with no flag prompts for scope rather than guessing).
+- **`$reset` does not touch `tools/`, `mcp-servers/`, `i18n/`, `.env`, or git state.**
+- **Scope is required**: no default action (`$reset` with no flag prompts for scope rather than guessing).
 
 ## Error Handling
 
 - **Unknown scope**: print valid scopes and exit nonzero.
-- **Missing wiki directory**: report and suggest running `/init`.
+- **Missing wiki directory**: report and suggest running `$init`.
 - **`checkpoint-clear` failure**: log a warning but do not fail other scopes.
 
 ## Dependencies
@@ -110,4 +110,4 @@ Next steps:
 ### Tools (via Bash)
 - `python3 tools/reset_wiki.py --scope <scope> [--yes] [--project-root .]` — deterministic destructive helper; `raw` scope is limited to generated `raw/discovered/` and `raw/tmp/`
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
-- `reset_wiki.py` clears `wiki/.checkpoints/*.json` directly for `checkpoints` scope (no CLI dispatch — the `checkpoint-clear` subcommand requires a specific `task_id`, while `/reset --scope checkpoints` semantics is "clear everything")
+- `reset_wiki.py` clears `wiki/.checkpoints/*.json` directly for `checkpoints` scope (no CLI dispatch — the `checkpoint-clear` subcommand requires a specific `task_id`, while `$reset --scope checkpoints` semantics is "clear everything")

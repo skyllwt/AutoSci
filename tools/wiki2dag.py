@@ -707,7 +707,7 @@ def _extract_authors(
     Precedence (first non-empty wins):
       1. `paper/.author_display.txt` — paper-level metadata that survives
          across /poster runs and other output skills. Lets the user answer
-         once and never be re-prompted. Future /paper-draft is expected to
+         once and never be re-prompted. Future $paper-draft is expected to
          seed this file during the writing stage.
       2. `\\author{...}` from main.tex — the canonical paper authors. Often
          empty for double-blind submissions, in which case we fall through.

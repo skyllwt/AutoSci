@@ -1,6 +1,6 @@
 # Daily arXiv Recommendation and Ingest Policy
 
-`/daily-arxiv` is LLM-first: deterministic tools build an evidence packet, then
+`$daily-arxiv` is LLM-first: deterministic tools build an evidence packet, then
 the skill judges relevance and action. The tool ranking is only a sorting aid.
 
 ## Pipeline
@@ -11,7 +11,7 @@ the skill judges relevance and action. The tool ranking is only a sorting aid.
    questions, recent log entries, and optional profile preferences.
 4. Enrich candidates with available Semantic Scholar and DeepXiv evidence.
 5. Let the LLM assign final decisions and rationales.
-6. Notify by digest and, only when explicitly allowed, call `/ingest`.
+6. Notify by digest and, only when explicitly allowed, call `$ingest`.
 
 ## Evidence
 
@@ -61,20 +61,20 @@ or available credentials. The user/config/workflow input must choose it.
 
 ## Auto-Ingest Guardrails
 
-- `/ingest` owns all paper incorporation. `/daily-arxiv` must not hand-write
+- `$ingest` owns all paper incorporation. `$daily-arxiv` must not hand-write
   paper pages, concepts, methods, people, graph files, or index entries.
-- Invoke `/ingest` sequentially; parallel ingest is out of scope.
+- Invoke `$ingest` sequentially; parallel ingest is out of scope.
 - Preserve failures in `llm-decisions.json` and the final digest via
   `ingest_status` or `ingest_error`.
-- Commit only changes produced by `/ingest`, normally under `wiki/` and
+- Commit only changes produced by `$ingest`, normally under `wiki/` and
   `raw/discovered/`. Because those roots are ignored as per-user data in the
   template repository, auto-ingest writeback must force-stage exactly those
   allowed roots (`git add -f wiki raw/discovered`) rather than broadening the
   commit scope.
 - Borderline candidates stay `maybe`; do not ingest medium/low confidence items.
 
-## Relationship to `/discover`
+## Relationship to `$discover`
 
-`/discover` answers user-driven "what should I read next?" requests from
-anchors, topics, or wiki state and never ingests. `/daily-arxiv` starts from a
+`$discover` answers user-driven "what should I read next?" requests from
+anchors, topics, or wiki state and never ingests. `$daily-arxiv` starts from a
 time-window stream of new arXiv papers and may notify or explicitly ingest.

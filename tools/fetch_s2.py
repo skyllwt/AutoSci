@@ -122,7 +122,7 @@ def citations(arxiv_id: str, limit: int = 100) -> list[dict]:
     the envelope's `isInfluential` field — S2's per-edge signal for whether this
     specific citation substantively built on the anchor (not just a name-check).
     The key is underscore-prefixed so existing key-based consumers
-    (`init_discovery.py`, `/ingest`) ignore it without change.
+    (`init_discovery.py`, `$ingest`) ignore it without change.
     """
     data = _get(f"/paper/ARXIV:{_bare_arxiv_id(arxiv_id)}/citations", {
         "limit": limit,

@@ -4,22 +4,22 @@ description: Build a ranked shortlist of candidate papers (anchor-driven, topic-
 argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str> | --from-wiki | --venue <slug> --year <int>) [--limit N]"
 ---
 
-# /discover / $discover
+# $discover / $discover
 
-> Produce a ranked shortlist of paper candidates from one of four seed modes. Surface them to the user (or to the calling skill) with rationales. Never auto-ingest — `/discover` / `$discover` is a proposal stage, `/ingest` / `$ingest` is the action stage.
-> Manual: `/discover [flags]` in Claude Code or `$discover [flags]` in Codex.
+> Produce a ranked shortlist of paper candidates from one of four seed modes. Surface them to the user (or to the calling skill) with rationales. Never auto-ingest — `$discover` / `$discover` is a proposal stage, `$ingest` / `$ingest` is the action stage.
+> Manual: `$discover [flags]` in Codex or `$discover [flags]` in Codex.
 
 Use these local references on demand:
 
 - `references/seed-modes.md` — when to pick anchor / topic / wiki / venue mode and how to translate the user's phrasing into one
-- `references/ranking-signals.md` — what `tools/discover.py` scores on and why discovery does **not** share `/init`'s survey preference
+- `references/ranking-signals.md` — what `tools/discover.py` scores on and why discovery does **not** share `$init`'s survey preference
 - `references/wiki-dedup.md` — how candidates are filtered against `wiki/papers/` and what to do with matches
 
 ## Inputs
 
-- `--anchor <id>` (repeatable): one or more anchor paper IDs (arXiv IDs preferred; S2 paperIds also accepted). Drives the **anchor mode** — the primary use case, including the post-`/ingest` / `$ingest` "what to read next" flow.
+- `--anchor <id>` (repeatable): one or more anchor paper IDs (arXiv IDs preferred; S2 paperIds also accepted). Drives the **anchor mode** — the primary use case, including the post-`$ingest` / `$ingest` "what to read next" flow.
 - `--negative <id>` (repeatable, optional): IDs to push recommendations away from. Only meaningful with `--anchor`.
-- `--topic "<str>"`: a topic / query string. Drives the **topic mode** — lighter alternative to `/init`'s planner.
+- `--topic "<str>"`: a topic / query string. Drives the **topic mode** — lighter alternative to `$init`'s planner.
 - `--from-wiki`: derive seeds automatically from the wiki's most recently modified papers. Drives the **wiki mode**.
 - `--venue <slug>` + `--year <int>`: venue slug and year (e.g. `neurips` `2024`). Drives the **venue mode** — ranks papers from that venue/year by relevance to the existing wiki.
 - `--limit N` (optional, default 10): max shortlist size.
@@ -32,7 +32,7 @@ Exactly one of `--anchor`, `--topic`, `--from-wiki`, or `--venue` must be given.
 - a human-readable markdown summary printed to the user with rationale per candidate
 - `wiki/log.md` — one append line via `tools/research_wiki.py log` for anchor/topic/wiki runs only
 
-`/discover` / `$discover` does not write anywhere else in `wiki/` and does not touch `raw/`. `from-venue` is stricter: it does not write to `wiki/` at all, including `wiki/log.md`. Whether to actually pull a candidate into the wiki is the caller's decision (a follow-up `/ingest` / `$ingest`).
+`$discover` / `$discover` does not write anywhere else in `wiki/` and does not touch `raw/`. `from-venue` is stricter: it does not write to `wiki/` at all, including `wiki/log.md`. Whether to actually pull a candidate into the wiki is the caller's decision (a follow-up `$ingest` / `$ingest`).
 
 ## Wiki Interaction
 
@@ -49,7 +49,7 @@ Exactly one of `--anchor`, `--topic`, `--from-wiki`, or `--venue` must be given.
 
 ### Graph edges created
 
-- none. Graph mutations belong to `/ingest` / `$ingest`, not `/discover` / `$discover`.
+- none. Graph mutations belong to `$ingest` / `$ingest`, not `$discover` / `$discover`.
 
 ## Workflow
 
@@ -70,7 +70,7 @@ export PYTHON_BIN
 
 Translate the user's request into exactly one of `from-anchors`, `from-topic`, `from-wiki`, or `from-venue`. The decision rule lives in `references/seed-modes.md`; the short version:
 
-- the user named one or more specific papers, or this is a post-`/ingest` / `$ingest` `--discover` follow-up → **anchors**
+- the user named one or more specific papers, or this is a post-`$ingest` / `$ingest` `--discover` follow-up → **anchors**
 - the user gave a topic / direction / keywords → **topic**
 - the user asked open-ended "what should I read next" with no anchor and no topic → **wiki**
 - the user asked for papers from a specific venue and year → **venue**
@@ -97,7 +97,7 @@ Or for topic / wiki modes:
 "$PYTHON_BIN" tools/discover.py from-wiki --wiki-root wiki --limit 10 --output-checkpoint .checkpoints/ --markdown
 ```
 
-Anchor (and wiki) mode run three S2 channels per anchor by default — `recommend` + `references` + `citations`. This is what makes `/discover` meaningfully different from `/daily-arxiv`: references surface older canonical work the anchor built on, citations surface high-impact follow-ups. Pass `--no-citation-expand` only if API cost forces the narrower recommend-only path; the quality regression is sharp.
+Anchor (and wiki) mode run three S2 channels per anchor by default — `recommend` + `references` + `citations`. This is what makes `$discover` meaningfully different from `$daily-arxiv`: references surface older canonical work the anchor built on, citations surface high-impact follow-ups. Pass `--no-citation-expand` only if API cost forces the narrower recommend-only path; the quality regression is sharp.
 
 The tool handles candidate gathering, wiki dedup, ranking, and writes the checkpoint. Always pass `--wiki-root wiki` so already-ingested papers are filtered out — surfacing duplicates wastes the user's review time.
 
@@ -114,7 +114,7 @@ Show the markdown output to the user. For each candidate, the user needs enough 
 Append a short "next step" hint:
 
 ```
-To ingest a candidate: /ingest https://arxiv.org/abs/<arxiv-id>
+To ingest a candidate: $ingest https://arxiv.org/abs/<arxiv-id>
 Codex: $ingest https://arxiv.org/abs/<arxiv-id>
 ```
 
@@ -130,24 +130,24 @@ Skip this step for `from-venue`; venue discovery must not write to `wiki/` or `r
 
 ## Internal Callers
 
-`/discover` / `$discover` is designed to be invoked both by users (manually) and by other skills (as a subroutine).
+`$discover` / `$discover` is designed to be invoked both by users (manually) and by other skills (as a subroutine).
 
-### From `/ingest --discover` / `$ingest --discover`
+### From `$ingest --discover` / `$ingest --discover`
 
-When `/ingest` / `$ingest` is invoked with the optional `--discover` flag (default off), it calls `/discover` / `$discover` after the final report, with the just-ingested paper's arXiv ID as the single anchor. The shortlist is appended to the ingest report under a "Related papers you may want to ingest next" heading. `/ingest` / `$ingest` never auto-ingests anything from this list.
+When `$ingest` / `$ingest` is invoked with the optional `--discover` flag (default off), it calls `$discover` / `$discover` after the final report, with the just-ingested paper's arXiv ID as the single anchor. The shortlist is appended to the ingest report under a "Related papers you may want to ingest next" heading. `$ingest` / `$ingest` never auto-ingests anything from this list.
 
-### From `/init` / `$init`
+### From `$init` / `$init`
 
-`/init` / `$init` does not call `/discover` / `$discover`. The init planner (`tools/init_discovery.py plan`) has its own scoring that favors surveys, broad coverage, and seed anchors — appropriate for bootstrapping a wiki. `/discover` / `$discover` ranking is intentionally different (no survey preference; weights anchor similarity and influential citations) and would dilute the init shortlist if substituted in. Keep them separate.
+`$init` / `$init` does not call `$discover` / `$discover`. The init planner (`tools/init_discovery.py plan`) has its own scoring that favors surveys, broad coverage, and seed anchors — appropriate for bootstrapping a wiki. `$discover` / `$discover` ranking is intentionally different (no survey preference; weights anchor similarity and influential citations) and would dilute the init shortlist if substituted in. Keep them separate.
 
 ## Constraints
 
-- **Never auto-ingest**: `/discover` / `$discover` returns a shortlist and stops. Even when called by `/ingest --discover` / `$ingest --discover`, the caller surfaces results and the user decides what to ingest.
-- **No content writes to `wiki/`**: paper pages, concepts, methods, graph edges all belong to `/ingest` / `$ingest`. Anchor/topic/wiki runs may append `wiki/log.md`; `from-venue` must not write to `wiki/` at all.
-- **No writes to `raw/`**: `/discover` / `$discover` does not download papers. The user runs `/ingest <arxiv-url>` in Claude Code or `$ingest <arxiv-url>` in Codex afterwards if they want a candidate.
+- **Never auto-ingest**: `$discover` / `$discover` returns a shortlist and stops. Even when called by `$ingest --discover` / `$ingest --discover`, the caller surfaces results and the user decides what to ingest.
+- **No content writes to `wiki/`**: paper pages, concepts, methods, graph edges all belong to `$ingest` / `$ingest`. Anchor/topic/wiki runs may append `wiki/log.md`; `from-venue` must not write to `wiki/` at all.
+- **No writes to `raw/`**: `$discover` / `$discover` does not download papers. The user runs `$ingest <arxiv-url>` in Codex or `$ingest <arxiv-url>` in Codex afterwards if they want a candidate.
 - **Always dedupe against the wiki**: pass `--wiki-root wiki` so the shortlist contains only papers not yet in the wiki. Surfacing duplicates is the most common low-quality failure mode.
-- **Ranking is discovery-specific**: do not import or duplicate `tools/init_discovery.py`'s scoring helpers. The two skills have different objectives — `/init` / `$init` wants broad foundational coverage; `/discover` / `$discover` wants relevant *next reads*. See `references/ranking-signals.md`.
-- **Three-channel anchor gather**: by default, anchor mode pulls from S2 `recommend` + `references` + `citations` per anchor. Removing the citation channels (via `--no-citation-expand`) collapses the result into a recency-biased semantic cluster that overlaps heavily with `/daily-arxiv`. Keep all three on unless API cost is a hard constraint. See `references/ranking-signals.md`.
+- **Ranking is discovery-specific**: do not import or duplicate `tools/init_discovery.py`'s scoring helpers. The two skills have different objectives — `$init` / `$init` wants broad foundational coverage; `$discover` / `$discover` wants relevant *next reads*. See `references/ranking-signals.md`.
+- **Three-channel anchor gather**: by default, anchor mode pulls from S2 `recommend` + `references` + `citations` per anchor. Removing the citation channels (via `--no-citation-expand`) collapses the result into a recency-biased semantic cluster that overlaps heavily with `$daily-arxiv`. Keep all three on unless API cost is a hard constraint. See `references/ranking-signals.md`.
 - **Some S2 endpoints have a flatter field set**: `/citations`, `/references`, and `/recommendations/*` reject nested selectors — no `authors.hIndex`, no `tldr`. `/paper/{id}` and `/paper/search` do accept them, so topic-mode candidates carry full enrichment; anchor-mode candidates that entered only via citations/references/recommend do not. That is a real API constraint, not a bug.
 - **Rate limits apply**: each anchor in anchor mode costs up to three S2 calls (recommend + references + citations). Default per-anchor limit is 50 for recs and 30 each for references/citations. Multi-anchor runs multiply accordingly; with an API key (1 req/sec) a 3-anchor run takes ~10 seconds.
 
@@ -172,8 +172,8 @@ When `/ingest` / `$ingest` is invoked with the optional `--discover` flag (defau
 
 ### Skills
 
-- `/ingest` (Claude Code) or `$ingest` (Codex) — caller via `--discover` flag; also the action the user takes on a chosen candidate
-- `/init` (Claude Code) or `$init` (Codex) — independent planner; does not call `/discover` / `$discover`
+- `$ingest` (Codex) or `$ingest` (Codex) — caller via `--discover` flag; also the action the user takes on a chosen candidate
+- `$init` (Codex) or `$init` (Codex) — independent planner; does not call `$discover` / `$discover`
 
 ### External APIs
 

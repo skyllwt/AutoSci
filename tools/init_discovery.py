@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source preparation + discovery planner for /init.
+"""Source preparation + discovery planner for $init.
 
 Usage:
     python3 tools/init_discovery.py prepare --raw-root raw --pdf-titles-json .checkpoints/init-pdf-titles.json --output-manifest .checkpoints/init-prepare.json
@@ -1652,7 +1652,7 @@ def _load_source_manifest(path: Path) -> dict[str, Any]:
 
 
 def build_ingest_handoff(source_manifest: dict[str, Any], mode: str = "serial") -> dict[str, Any]:
-    """Build ordered, runtime-neutral ingest handoff tasks for /init.
+    """Build ordered, runtime-neutral ingest handoff tasks for $init.
 
     The output is intentionally simple so an agent can execute the batch without
     re-interpreting the source manifest shape. It does not execute ingest.
@@ -1690,7 +1690,6 @@ def build_ingest_handoff(source_manifest: dict[str, Any], mode: str = "serial") 
             "commit_after_ingest": mode == "parallel",
             "active_ingest_skill": {
                 "codex": ".agents/skills/ingest/SKILL.md",
-                "claude_code": ".claude/skills/ingest/SKILL.md",
             },
             "instructions": (
                 f"Load the active ingest skill, run ingest for exactly this relative path in {init_mode}, "
@@ -1740,7 +1739,7 @@ def main() -> None:
     p_prepare.add_argument("--pdf-titles-json")
     p_prepare.add_argument("--output-manifest", required=True)
 
-    p_plan = sub.add_parser("plan", help="Build a deterministic discovery plan for /init")
+    p_plan = sub.add_parser("plan", help="Build a deterministic discovery plan for $init")
     p_plan.add_argument("--topic", default="")
     p_plan.add_argument("--mode", default="auto", choices=["auto", "seeded", "bootstrap"])
     p_plan.add_argument("--raw-root", default="raw")

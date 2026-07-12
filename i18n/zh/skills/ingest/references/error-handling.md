@@ -1,6 +1,6 @@
-# /ingest 错误处理
+# $ingest 错误处理
 
-某个步骤失败时打开此参考。`/ingest` 倾向于优雅降级：记录发生了什么、继续能继续的部分、在最终报告里把缺口暴露给用户。
+某个步骤失败时打开此参考。`$ingest` 倾向于优雅降级：记录发生了什么、继续能继续的部分、在最终报告里把缺口暴露给用户。
 
 ## 来源解析
 
@@ -29,7 +29,7 @@
 "$PYTHON_BIN" tools/research_wiki.py init wiki/
 ```
 
-然后重跑 `/ingest`。不得在未初始化的 wiki 里创建页面；`index.md` 与 `graph/` 脚手架必须先就位。
+然后重跑 `$ingest`。不得在未初始化的 wiki 里创建页面；`index.md` 与 `graph/` 脚手架必须先就位。
 
 ## ingest 过程中的部分失败
 
@@ -37,7 +37,7 @@
 
 - 不得回滚已成功的写入
 - 通过 `tools/research_wiki.py log` 追加一条日志，说明哪些步骤完成、哪些未完成
-- 在用户报告中暴露未完成的步骤，让用户通过 `/edit` 或 `/check --fix` 收尾
+- 在用户报告中暴露未完成的步骤，让用户通过 `$edit` 或 `$check --fix` 收尾
 - INIT MODE SERIAL 下，每篇论文结束后不要 commit；成功变更留在主工作区，由上层 init workflow 在 batch 后统一 finalize
 - INIT MODE PARALLEL 下，若 ingest 成功完成，必须在退出前于 worktree 内 commit（见 `references/init-mode.md`）
 - 若 ingest 部分失败，**不要**隐藏或 commit 含糊的不完整状态；让上层 init workflow 报告恢复点
@@ -56,4 +56,4 @@
 - reference list 无法解析（跳过 Step 5；论文 ingest 主体仍可完成）
 - 单个 concept / method 去重调用偶发失败（重试一次；仍失败就跳过该候选并记录）
 
-核心原则：保留了一个 well-shaped 论文页面的部分 ingest，比什么都没写的干净 abort 更有用。部分状态可以通过 `/check` 与 `/edit` 恢复；丢失的部分状态则不可恢复。
+核心原则：保留了一个 well-shaped 论文页面的部分 ingest，比什么都没写的干净 abort 更有用。部分状态可以通过 `$check` 与 `$edit` 恢复；丢失的部分状态则不可恢复。

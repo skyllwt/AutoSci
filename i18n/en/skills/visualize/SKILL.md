@@ -4,7 +4,7 @@ description: Generate and update visualization artifacts — Obsidian graph conf
 argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
-# /visualize
+# $visualize
 
 > Generate visualization artifacts for the AutoSci knowledge graph.
 > Produces Obsidian graph config (color groups by entity type) and curated
@@ -13,7 +13,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 ## Trigger
 
-Manual: `/visualize [flags]` in Claude Code or `$visualize [flags]` in Codex.
+Manual: `$visualize [flags]` in Codex or `$visualize [flags]` in Codex.
 
 ## Inputs
 
@@ -62,7 +62,7 @@ Set `WIKI_ROOT=wiki/`.
 ### Step 0: Verify graph data exists
 
 Check that `wiki/graph/edges.jsonl` exists and is non-empty. If empty, report that no graph data
-exists yet and suggest running `/ingest` in Claude Code or `$ingest` in Codex first.
+exists yet and suggest running `$ingest` in Codex or `$ingest` in Codex first.
 
 ### Step 1: Generate Obsidian config (--obsidian or --all)
 
@@ -169,7 +169,7 @@ manually.
    `1` = port free (need to start).
 
 2. If the port is free, start the server in the background using the current
-   runtime's background command mechanism (Claude Code: Bash with
+   runtime's background command mechanism (Codex: Bash with
    `run_in_background: true`; Codex: a long-running shell session or an
    external scheduler). Do not run it in the foreground because that would
    block the skill indefinitely. In Codex's managed sandbox, `tools/serve.py`
@@ -193,7 +193,7 @@ manually.
 The SPA Graph view (`app/modules/graph.js`) is a real ES module with
 the same Cytoscape + force layout + filters + BFS search as the old
 single-page generator, plus integrated double-click navigation to the
-SPA Reader view. `/visualize` no longer regenerates `wiki/graph-view.html`.
+SPA Reader view. `$visualize` no longer regenerates `wiki/graph-view.html`.
 
 ### Step 4: Print recommendations
 
@@ -212,7 +212,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [list of artifa
 Standard log format:
 
 ```markdown
-## [YYYY-MM-DD] /visualize | <format> — <n> nodes, <m> edges<focus-note>
+## [YYYY-MM-DD] $visualize | <format> — <n> nodes, <m> edges<focus-note>
 ```
 
 Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used, or empty otherwise.
@@ -252,11 +252,11 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 - `.obsidian/app.json` is created only if missing (respect user customizations)
 - Canvas files are regenerated on each run (idempotent overwrite)
 - No external Python dependencies required (stdlib only)
-- `wiki/.obsidian/` and `wiki/canvases/` are gitignored as local-only artifacts; the source of truth is `config/visualize.json` + `wiki/graph/`. `/init` Step 6 and direct `/visualize` invocations regenerate them deterministically — never commit them.
+- `wiki/.obsidian/` and `wiki/canvases/` are gitignored as local-only artifacts; the source of truth is `config/visualize.json` + `wiki/graph/`. `$init` Step 6 and direct `$visualize` invocations regenerate them deterministically — never commit them.
 
 ## Error Handling
 
-- **No graph data**: inform user to run `/ingest` in Claude Code or `$ingest` in Codex first to build the knowledge base
+- **No graph data**: inform user to run `$ingest` in Codex or `$ingest` in Codex first to build the knowledge base
 - **config/visualize.json missing**: report error, file should exist at `config/visualize.json`
 - **--focus node not found**: abort with `Error: node "<node_id>" not found`; list 5 closest slug matches
 - **No nodes after filtering**: abort with summary of filters applied and types available

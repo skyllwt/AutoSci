@@ -4,13 +4,13 @@ description: 预实验执行 — 读取 Pilot Spec YAML，撰写预实验代码�
 argument-hint: <idea-slug> [--env local|remote]
 ---
 
-# /exp-pilot-run
+# $exp-pilot-run
 
 > 执行由 Pilot Spec YAML 文件描述的预实验。
 > 从 `experiments/pilot/{slug}.yaml` 读取 spec，撰写预实验代码，在运行前通过用户检查门控，并返回原始结果给调用者。
 > **用户检查门控**：准备或修改预实验代码后，在部署或运行前必须向用户展示代码路径与实验配置，请用户检查并明确批准。若用户要求修改，先修正并重复该门控，再启动运行。
 > 支持 **local**（本地 GPU）和 **remote**（通过 `tools/remote.py` SSH 部署）两种模式。
-> 不修改任何 wiki 页面。不判定 pass/fail — 结果由 Claude Code 的 `/exp-pilot-eval` 或 Codex 的 `$exp-pilot-eval` 评估。
+> 不修改任何 wiki 页面。不判定 pass/fail — 结果由 Codex 的 `$exp-pilot-eval` 或 Codex 的 `$exp-pilot-eval` 评估。
 
 ## Inputs
 
@@ -31,7 +31,7 @@ argument-hint: <idea-slug> [--env local|remote]
 ## Wiki Interaction
 
 ### Reads
-- `experiments/pilot/{slug}.yaml` — Pilot Spec（所有配置）。如果缺失，报告错误并建议先运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 生成；不要在本 skill 中创建 spec。
+- `experiments/pilot/{slug}.yaml` — Pilot Spec（所有配置）。如果缺失，报告错误并建议先运行 Codex 的 `$ideate` 或 Codex 的 `$ideate` 生成；不要在本 skill 中创建 spec。
 - `wiki/papers/*.md` — 相关论文的方法描述（实现参考）
 
 ### Writes
@@ -55,14 +55,14 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: 准备**
 
 1. **读取 Pilot Spec**：
-   如果 `experiments/pilot/{slug}.yaml` 缺失，报告错误并建议先运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 生成。不要在这里合成或创建 Pilot Spec；`/exp-pilot-run` / `$exp-pilot-run` 只执行已有 spec。
+   如果 `experiments/pilot/{slug}.yaml` 缺失，报告错误并建议先运行 Codex 的 `$ideate` 或 Codex 的 `$ideate` 生成。不要在这里合成或创建 Pilot Spec；`$exp-pilot-run` / `$exp-pilot-run` 只执行已有 spec。
    - 加载 `experiments/pilot/{slug}.yaml`
    - YAML 有 `pilot_spec:` 根键；所有字段嵌套在其下
    - 验证 `pilot_spec:` 下必填字段存在：`implementation`、`setup`、`metrics`、`baseline`、`success_criterion`
    - 从 `pilot_spec:` 提取：repo、entry_point、modifications、files_to_create、setup（model, dataset, hardware, framework, batch_size, max_steps, learning_rate, seeds, other_hparams）、metrics、baseline、success_criterion、hypothesis、approach_sketch
 
 2. **加载实现上下文**：
-   - 使用 `pilot_spec.hypothesis` 和 `pilot_spec.approach_sketch` 作为主要实现指南（idea 页面由 `/ideate` / `$ideate` Phase 4 在预实验之前写入）
+   - 使用 `pilot_spec.hypothesis` 和 `pilot_spec.approach_sketch` 作为主要实现指南（idea 页面由 `$ideate` / `$ideate` Phase 4 在预实验之前写入）
    - 读取相关论文的方法描述（算法细节，来自 `wiki/papers/` 若存在）
    - 读取源论文 repo 获取基础代码参考
 
@@ -219,15 +219,15 @@ argument-hint: <idea-slug> [--env local|remote]
    - {运行期间检测到的异常列表，或"无"}
 
    ## Next Steps
-   - 进入 Claude Code 的 `/exp-pilot-eval` 或 Codex 的 `$exp-pilot-eval` 进行判定评估和 wiki 更新
+   - 进入 Codex 的 `$exp-pilot-eval` 或 Codex 的 `$exp-pilot-eval` 进行判定评估和 wiki 更新
    ```
 
-7. **返回**原始结果和关键指标给调用者（如 `/ideate` / `$ideate` Phase 5）。**不修改任何 wiki 页面** — 预实验结果由 `/exp-pilot-eval` / `$exp-pilot-eval` 评估，不由本 skill 负责。
+7. **返回**原始结果和关键指标给调用者（如 `$ideate` / `$ideate` Phase 5）。**不修改任何 wiki 页面** — 预实验结果由 `$exp-pilot-eval` / `$exp-pilot-eval` 评估，不由本 skill 负责。
 
 ## Constraints
 
 - **不需要 wiki 实验页面**：从 `experiments/pilot/{slug}.yaml` 读取配置
-- **不写入 wiki 页面**：结果返回给调用者；idea 页面更新由 `/exp-pilot-eval` / `$exp-pilot-eval` 负责
+- **不写入 wiki 页面**：结果返回给调用者；idea 页面更新由 `$exp-pilot-eval` / `$exp-pilot-eval` 负责
 - **代码统一写入 `experiments/pilot/code/{slug}/`**：不写到项目根目录或其他位置
 - **结果文件必须保存**：所有预实验结果以 JSON 格式保存在 `experiments/pilot/code/{slug}/results/seed_{N}.json`
 - **多 seed 结果取均值**：报告 mean ± std，不报告单次运行
@@ -237,8 +237,8 @@ argument-hint: <idea-slug> [--env local|remote]
 
 ## Error Handling
 
-- **Pilot Spec 找不到**：报告错误，建议先运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 生成 spec
-- **Pilot Spec 缺少字段**：报告缺失的必填字段，建议重新运行 Claude Code 的 `/ideate` 或 Codex 的 `$ideate`
+- **Pilot Spec 找不到**：报告错误，建议先运行 Codex 的 `$ideate` 或 Codex 的 `$ideate` 生成 spec
+- **Pilot Spec 缺少字段**：报告缺失的必填字段，建议重新运行 Codex 的 `$ideate` 或 Codex 的 `$ideate`
 - **GPU 不可用**：报告错误，建议等待 GPU 释放
 - **sanity check 失败**：详细报告错误信息，尝试修复一次，重试前必须重复用户检查门控；仍失败则报告错误并停止
 - **结果文件缺失**：报告错误 "未产生结果文件（运行可能已崩溃）"
@@ -266,5 +266,5 @@ argument-hint: <idea-slug> [--env local|remote]
 - `Bash` — 执行预实验代码、监控进程
 
 ### Called by
-- `/ideate`（Claude Code）或 `$ideate`（Codex）Phase 5
+- `$ideate`（Codex）或 `$ideate`（Codex）Phase 5
 - 用户手动调用

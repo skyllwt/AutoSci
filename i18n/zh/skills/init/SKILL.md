@@ -4,7 +4,7 @@ description: 基于用户素材与可选外部发现搭建 AutoSci，并通过 C
 argument-hint: "[topic] [--no-introduction]"
 ---
 
-# /init
+# $init
 
 > 从 `raw/` 搭建 wiki：先做确定性 prepare，再跑 planner-guided discovery；`raw/notes/` 与 `raw/web/` 可种下 provisional scaffold；论文消化走 batch ingest。Codex 默认在主工作区串行 ingest；只有 runtime 能可靠控制子代理工作目录时，才使用并行 worktree 路径。
 
@@ -46,12 +46,12 @@ argument-hint: "[topic] [--no-introduction]"
 
 ### Graph edges created
 
-- `/init` 本身只在 provisional 页面需要时写入少量 scaffold 级别的 edges
-- 论文驱动的 edges 全部委托给 `/ingest`
+- `$init` 本身只在 provisional 页面需要时写入少量 scaffold 级别的 edges
+- 论文驱动的 edges 全部委托给 `$ingest`
 
 ## Workflow
 
-**前置条件**：当前目录为项目根，且包含 `wiki/`、`raw/`、`tools/`。设 `WIKI_ROOT=wiki/`。先解析一次 `PYTHON_BIN`，并在整个 `/init` 流程里复用它，确保运行时使用与 `setup.sh` 安装依赖时相同的解释器：
+**前置条件**：当前目录为项目根，且包含 `wiki/`、`raw/`、`tools/`。设 `WIKI_ROOT=wiki/`。先解析一次 `PYTHON_BIN`，并在整个 `$init` 流程里复用它，确保运行时使用与 `setup.sh` 安装依赖时相同的解释器：
 
 ```bash
 # 通过 git 找到项目根，让 worktree 中的 subagent 也能定位 .venv。
@@ -95,9 +95,9 @@ export PYTHON_BIN
 - 如果 agent 已经提供了 PDF 标题，就把这个标题当作 prepared manifest 的 authoritative title；抓取源码里提取出的标题只能作为经过清洗后的 fallback metadata，不能反过来覆盖 agent 标题
 - prepare 阶段不得把 PDF metadata 或正文文本当作 arXiv-ID hint
 - metadata 或 filename 中的标题最多只是 provisional display label，不能当作可信 identity，也不能作为标题检索输入
-- notes/web 保持原始来源路径，`/init` 在 planning 阶段直接读取
+- notes/web 保持原始来源路径，`$init` 在 planning 阶段直接读取
 - 本地论文若存在 usable 的 prepared 结果，其 `canonical_ingest_path` 必须指向 `raw/tmp/`；否则回退到原始 `raw/papers/...`
-- decode / 标题恢复 / arXiv 源码抓取失败时记录 warning，而不是中止 `/init`
+- decode / 标题恢复 / arXiv 源码抓取失败时记录 warning，而不是中止 `$init`
 - prepare 的细化决策树与来源优先级见 `references/prepare-and-discovery.md`
 
 ### Step 3: 生成 discovery plan、裁剪最终论文集，并写出 source manifest
@@ -131,7 +131,7 @@ export PYTHON_BIN
 "$PYTHON_BIN" tools/init_discovery.py handoff --sources-json .checkpoints/init-sources.json --mode serial --output-json .checkpoints/init-handoff.json
 ```
 
-- `/init` 下载的论文只允许写入 `raw/discovered/`，绝不写入 `raw/papers/`
+- `$init` 下载的论文只允许写入 `raw/discovered/`，绝不写入 `raw/papers/`
 - 若某篇候选已经由 prepared local source 覆盖，则禁止重复抓取
 - `.checkpoints/init-sources.json` 是下游 ingest 顺序的唯一真相源
 - `.checkpoints/init-handoff.json` 是 Step 5 的直接执行列表；遵守其中的 `tasks[*].canonical_ingest_path`、`tasks[*].init_mode` 与 `tasks[*].active_ingest_skill`
@@ -146,15 +146,15 @@ export PYTHON_BIN
 - 每个 notes/web 派生页面都必须在 frontmatter 后立即写入这一行：
 
 ```markdown
-Provisional note: seeded from raw/notes or raw/web during /init; pending validation from ingested papers.
+Provisional note: seeded from raw/notes or raw/web during $init; pending validation from ingested papers.
 ```
 
 - `topics/`：方向被明确提到或反复出现时创建
 - `ideas/`：用户明确提出或强烈暗示研究方向 / 假设时创建
 - `concepts/`：技术机制在 notes/web 中反复出现，或在 notes/web 与最终论文集中各出现至少一次时创建
-- `methods/`：除非用户在 notes/web 中显式命名了一项可复用、可被引用的 method，否则 `/init` 不创建 `methods/`；把论文中的 method 推升为可复用 method 实体是 ingest 的职责
-- `/prefill` 只是可选背景预填充，不属于 `/init`
-- `/init` 不得直接创建 `people/` 页面，也不得自动创建 foundations
+- `methods/`：除非用户在 notes/web 中显式命名了一项可复用、可被引用的 method，否则 `$init` 不创建 `methods/`；把论文中的 method 推升为可复用 method 实体是 ingest 的职责
+- `$prefill` 只是可选背景预填充，不属于 `$init`
+- `$init` 不得直接创建 `people/` 页面，也不得自动创建 foundations
 
 ### Step 5: Batch paper ingest 编排
 
@@ -166,7 +166,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 模式选择：
 
 - **Codex 默认**：在主工作区串行 ingest。只要 runtime 不能保证隔离的子代理工作目录、每篇论文独立 commit 与 fan-in merge 控制，就使用这一路径。
-- **并行 worktree 模式**：仅当 runtime 能为每篇论文创建一个子代理、显式指定 `$WT_PATH` 工作目录，并在之后 merge 已提交的 worktree branch 时使用。这仍是 Claude Code 兼容的快速路径。
+- **并行 worktree 模式**：仅当 runtime 能为每篇论文创建一个子代理、显式指定 `$WT_PATH` 工作目录，并在之后 merge 已提交的 worktree branch 时使用。这仍是 Codex 兼容的快速路径。
 - 不确定时选择串行。正确、可恢复的 ingest 优先于并行速度。
 
 串行 INIT MODE 合同（Codex-safe 默认）：
@@ -196,10 +196,10 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - fan-out 前先 stash 无关脏文件，再把 `stash_ref`、`base_branch`、`base_commit` 写入 checkpoint metadata
 - fan-out 前必须先提交刚创建的 scaffold 与 init manifests，确保 `BASE_COMMIT` 真的包含后续子代理要继承的页面、manifest 与 handoff metadata
 - 创建 worktree 前先验证 `.gitattributes` 对 `wiki/log.md`、`wiki/graph/edges.jsonl`、`wiki/graph/citations.jsonl`、`wiki/index.md` 使用了 `merge=union`
-- `/init` 的 worktree 模式必须运行在一个命名分支上，不能处于 detached HEAD
+- `$init` 的 worktree 模式必须运行在一个命名分支上，不能处于 detached HEAD
 - 每个 worktree 都必须从 `BASE_COMMIT` 拉出，而不是复用已经签出的 `BASE_BRANCH`
 - 子代理 prompt 只能使用**相对路径**，且子代理的 shell 工作目录必须是 worktree 路径（`$WT_PATH`），不能是主仓库根目录
-- 只对一个 handoff 进来的 source path 执行 `/ingest`，不得绕过 `/ingest`
+- 只对一个 handoff 进来的 source path 执行 `$ingest`，不得绕过 `$ingest`
 - 在 INIT MODE 下，必须原样消费 handoff 给它的 canonical path
 - 跳过 `fetch_s2.py citations`
 - 跳过 `fetch_s2.py references`
@@ -229,20 +229,20 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
-接着通过 Semantic Scholar 回填 `cites` 边 —— `fetch_s2.py references` 在 INIT MODE 的每篇论文 ingest 中被跳过，必须在此处串行补回。best-effort：S2 故障不可阻塞 `/init`。
+接着通过 Semantic Scholar 回填 `cites` 边 —— `fetch_s2.py references` 在 INIT MODE 的每篇论文 ingest 中被跳过，必须在此处串行补回。best-effort：S2 故障不可阻塞 `$init`。
 
 ```bash
 "$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/ \
   || echo "WARN: citation backfill failed or partial; check stderr above" >&2
 ```
 
-随后重新生成可视化产物（best-effort；visualize 失败不可阻塞 `/init`）。`generate-obsidian-config` 会从 `config/visualize.json` 重写 `wiki/.obsidian/graph.json`，让按实体类型的 colorGroups 与运行时配置保持同步 —— Obsidian 的图谱视图在 `colorGroups` 为空时显示为无色节点，所以这一步保证图谱在每次重建后仍然可读。交互式网页 Graph 视图是 SPA 的 `#/graph` 路由（由 `tools/serve.py` 服务）；本阶段不生成单独的 HTML 文件。
+随后重新生成可视化产物（best-effort；visualize 失败不可阻塞 `$init`）。`generate-obsidian-config` 会从 `config/visualize.json` 重写 `wiki/.obsidian/graph.json`，让按实体类型的 colorGroups 与运行时配置保持同步 —— Obsidian 的图谱视图在 `colorGroups` 为空时显示为无色节点，所以这一步保证图谱在每次重建后仍然可读。交互式网页 Graph 视图是 SPA 的 `#/graph` 路由（由 `tools/serve.py` 服务）；本阶段不生成单独的 HTML 文件。
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
-  || echo "WARN: visualize generate-obsidian-config failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
+  || echo "WARN: visualize generate-obsidian-config failed; run $visualize in Codex or \$visualize in Codex manually" >&2
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize in Claude Code or \$visualize in Codex manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run $visualize in Codex or \$visualize in Codex manually" >&2
 ```
 
 报告中必须分开列出：
@@ -261,11 +261,11 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 
 - 不得仅根据仓库状态推断 `--no-introduction`。只有当用户明确要求禁用外部发现时，才可使用它。
 - `raw/papers/`、`raw/notes/`、`raw/web/` 是用户自有输入
-- `raw/tmp/` 与 `raw/discovered/` 是生成型 handoff 区；直接本地 `/ingest` 也可以在 `raw/tmp/` 下准备可复用的 local sidecar
-- `/init` 只能把外部论文写到 `raw/discovered/`；`/init` 与直接本地 `/ingest` 可以把生成的 prepared local source 写到 `raw/tmp/`
-- `/prefill` 是可选背景预填充，不属于 `/init`
-- 只有 `/prefill` 可以自动创建 foundations
-- `/init` 不得直接创建 `people/` 页面
+- `raw/tmp/` 与 `raw/discovered/` 是生成型 handoff 区；直接本地 `$ingest` 也可以在 `raw/tmp/` 下准备可复用的 local sidecar
+- `$init` 只能把外部论文写到 `raw/discovered/`；`$init` 与直接本地 `$ingest` 可以把生成的 prepared local source 写到 `raw/tmp/`
+- `$prefill` 是可选背景预填充，不属于 `$init`
+- 只有 `$prefill` 可以自动创建 foundations
+- `$init` 不得直接创建 `people/` 页面
 - notes/web 派生页面必须包含上面的 exact provisional notice
 - 对 concept 合并与 method 抽取，论文证据永远高于 notes/web
 - 所有论文 ingest 必须通过 ingest workflow 执行；Codex 默认使用串行 INIT MODE，除非已有可靠的子代理/worktree 路径
@@ -284,7 +284,7 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 - **单篇 ingest 失败**：写 checkpoint，跳过该篇，继续其他论文，并在最终报告中列出
 - **当前 checkout 处于 detached HEAD**：使用串行模式；若要走并行 worktree fan-out，则先停止并要求用户切换到或创建一个命名分支
 - **stash pop 失败**：保留 checkpoint metadata，并给出手动恢复提示
-- **可视化重生成失败**：警告并继续，绝不让 `/init` / `$init` 失败。用户可单独跑 `/visualize --canvas` 或 `$visualize --canvas` 排查，或直接通过 `python tools/serve.py` 浏览 SPA Graph 视图
+- **可视化重生成失败**：警告并继续，绝不让 `$init` / `$init` 失败。用户可单独跑 `$visualize --canvas` 或 `$visualize --canvas` 排查，或直接通过 `python tools/serve.py` 浏览 SPA Graph 视图
 
 ## Dependencies
 
@@ -312,8 +312,8 @@ Provisional note: seeded from raw/notes or raw/web during /init; pending validat
 
 ### Skills
 
-- `/ingest` / `$ingest` — 串行模式下每步一篇论文，或并行模式下每个子代理一篇论文，均运行在 INIT MODE
-- `/visualize` / `$visualize` — Step 6 fan-in 直接调用 `tools/visualize.py` 重新生成 Obsidian 颜色组与 Canvas（best-effort）；用户也可以稍后手动调用 `/visualize` 或 `$visualize` 做 `--focus` 视图，或在改了 `config/visualize.json` 后重新渲染
+- `$ingest` / `$ingest` — 串行模式下每步一篇论文，或并行模式下每个子代理一篇论文，均运行在 INIT MODE
+- `$visualize` / `$visualize` — Step 6 fan-in 直接调用 `tools/visualize.py` 重新生成 Obsidian 颜色组与 Canvas（best-effort）；用户也可以稍后手动调用 `$visualize` 或 `$visualize` 做 `--focus` 视图，或在改了 `config/visualize.json` 后重新渲染
 
 ### `init_discovery.py` 内部使用的外部 API
 

@@ -19,7 +19,7 @@ import {
 
 // Entity hex colors. MUST stay in sync with config/visualize.json's
 // entity_colors block — both the SPA and tools/visualize.py read those
-// colors. Future cleanup: serve config/visualize.json from a /api/visualize-
+// colors. Future cleanup: serve config/visualize.json from a /api$visualize-
 // config endpoint and drop this local copy. For now, paste-sync.
 //
 // Trio (papers / concepts / methods) is tuned for high mutual hue contrast:
@@ -122,7 +122,7 @@ export async function viewGraph(mount) {
   const allEdges = [...(payload.edges || []), ...(payload.citations || [])];
   if (allEdges.length === 0) {
     document.getElementById("cy").innerHTML =
-      `<div class="graph-empty">No graph data yet — run <code>/ingest</code> in Claude Code or <code>$ingest</code> in Codex first.</div>`;
+      `<div class="graph-empty">No graph data yet — run <code>$ingest</code> in Codex or <code>$ingest</code> in Codex first.</div>`;
     return;
   }
 
@@ -634,7 +634,7 @@ function buildFilters(graph) {
   };
 
   // Render canonical groups first, then leftovers (e.g. an edge type added
-  // by /ingest that isn't yet listed in config/visualize.json).
+  // by $ingest that isn't yet listed in config/visualize.json).
   const openByDefault = new Set([
     "Citations", "Paper relations", "Paper → Concept", "Method genealogy",
   ]);

@@ -369,32 +369,32 @@ function renderIntentButtons(type, slug, fm) {
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="exp-design"
                           data-context='{"linked_idea":"${esc(slug)}"}'
-                          title="Design experiments for this idea">/exp-design</button>`);
+                          title="Design experiments for this idea">$exp-design</button>`);
   }
   if (type === "concepts") {
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="ideate"
                           data-context='{"from_concept":"${esc(slug)}"}'
-                          title="Generate research ideas around this concept">/ideate</button>`);
+                          title="Generate research ideas around this concept">$ideate</button>`);
   }
   if (type === "topics") {
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="ideate"
                           data-context='{"from_topic":"${esc(slug)}"}'
-                          title="Generate research ideas under this topic">/ideate</button>`);
+                          title="Generate research ideas under this topic">$ideate</button>`);
   }
   if (type === "papers") {
     const anchor = (fm && fm.arxiv) ? fm.arxiv : slug;
     buttons.push(`<button type="button" class="ghost-mini intent-btn"
                           data-skill="discover"
                           data-context='{"anchor":"${esc(anchor)}"}'
-                          title="Find papers related to this one">/discover</button>`);
+                          title="Find papers related to this one">$discover</button>`);
   }
-  // /edit is universal — it edits the current entity
+  // $edit is universal — it edits the current entity
   buttons.push(`<button type="button" class="ghost-mini intent-btn"
                         data-skill="edit"
                         data-context='{"type":"${esc(type)}","slug":"${esc(slug)}"}'
-                        title="Edit this entity in natural language via /edit">/edit</button>`);
+                        title="Edit this entity in natural language via $edit">$edit</button>`);
   return buttons.join("");
 }
 

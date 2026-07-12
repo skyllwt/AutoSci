@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Discovery tool — assemble a ranked shortlist of candidate papers.
 
-This is the deterministic core behind the /discover skill. It produces a
+This is the deterministic core behind the $discover skill. It produces a
 recommendation shortlist from one of four seed modes:
 
-    from-anchors  — given one or more anchor paper IDs (post-/ingest case)
-    from-topic    — given a topic/query string (lighter alternative to /init)
+    from-anchors  — given one or more anchor paper IDs (post-$ingest case)
+    from-topic    — given a topic/query string (lighter alternative to $init)
     from-wiki     — derive anchors from the wiki's most recent papers
     from-venue    — papers from a specific venue/year, ranked by wiki relevance
 
@@ -861,7 +861,7 @@ def _gather_from_anchors(
       - citations:  what cites the anchor — surfaces high-impact follow-ups
 
     Without references/citations, anchor mode collapses into "recent papers
-    near the topic", which overlaps with /daily-arxiv. With them, anchor mode
+    near the topic", which overlaps with $daily-arxiv. With them, anchor mode
     becomes a genuine literature-graph walk from the anchor.
     """
     candidates: list[dict[str, Any]] = []

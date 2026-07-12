@@ -1,7 +1,7 @@
 # AutoSci Codex Preview
 
 AutoSci now has an official Codex Preview on the `migrate-codex` branch.
-The stable `main` branch remains the Claude Code version while the Codex path
+The stable `main` branch remains the Codex version while the Codex path
 is validated with real users.
 
 ## Try It
@@ -19,16 +19,16 @@ codex
 - Repo-scoped Codex skills are available under `.agents/skills`.
 - Skills are invoked in Codex with `$setup`, `$init`, `$ingest`, `$research`,
   and the other skill names listed in the README.
-- Claude Code compatibility is preserved under `.claude/skills`.
+- Codex compatibility is preserved under `.agents/skills`.
 - English and Chinese skill sources remain centralized in `i18n/<lang>/skills`;
   setup regenerates both active skill trees.
 - Local Codex workflows have smoke coverage for setup, init, ingest, discover,
-  ask/check, experiment helpers, writing helpers, visualization, and paper tools.
+  ask$check, experiment helpers, writing helpers, visualization, and paper tools.
 - Daily arXiv CI `inform` recommendations can use Codex CLI credentials.
 
 ## Known Boundaries
 
-- GitHub Actions `daily-arxiv --mode auto-ingest` still uses the legacy Claude
+- GitHub Actions `daily-arxiv --mode auto-ingest` still uses the legacy the primary model
   Code Action path until unattended Codex ingest and push writeback are verified.
 - Some networked tools require Codex sandbox escalation, as documented in
   `AGENTS.md`.
@@ -73,9 +73,9 @@ codex
 Status:
 
 - Local Codex skills are available under `.agents/skills`.
-- Claude Code compatibility is preserved under `.claude/skills`.
+- Codex compatibility is preserved under `.agents/skills`.
 - Shared skill sources remain under `i18n/<lang>/skills`.
 - Daily arXiv CI `inform` recommendations can use Codex.
-- CI `auto-ingest` still uses the legacy Claude Code Action path until
+- CI `auto-ingest` still uses the legacy Codex Action path until
   unattended Codex writeback is verified.
 ~~~

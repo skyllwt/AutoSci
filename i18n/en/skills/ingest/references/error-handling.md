@@ -1,6 +1,6 @@
-# /ingest Error Handling
+# $ingest Error Handling
 
-Open this reference when a step fails. `/ingest` prefers to degrade gracefully: record what happened, continue with what remains, and surface the gap in the final report.
+Open this reference when a step fails. `$ingest` prefers to degrade gracefully: record what happened, continue with what remains, and surface the gap in the final report.
 
 ## Source parsing
 
@@ -29,7 +29,7 @@ If `wiki/` is missing or empty, run:
 "$PYTHON_BIN" tools/research_wiki.py init wiki/
 ```
 
-Then retry `/ingest`. Do not attempt to create pages in a non-initialized wiki; `index.md` and `graph/` scaffolding must exist first.
+Then retry `$ingest`. Do not attempt to create pages in a non-initialized wiki; `index.md` and `graph/` scaffolding must exist first.
 
 ## Partial failure mid-ingest
 
@@ -37,7 +37,7 @@ If an ingest fails after some writes have landed (paper page written, but concep
 
 - do not roll back the writes that succeeded
 - append a log entry via `tools/research_wiki.py log` describing which steps completed and which are incomplete
-- surface the incomplete steps in the user report so the user can run `/edit` or `/check --fix` to finish the job
+- surface the incomplete steps in the user report so the user can run `$edit` or `$check --fix` to finish the job
 - in INIT MODE SERIAL, do not commit after each paper; leave successful changes in the main workspace for the parent init workflow to finalize after the batch
 - in INIT MODE PARALLEL, if the ingest completed successfully, commit inside the worktree before exiting (see `references/init-mode.md`)
 - if the ingest partially failed, do **not** hide or commit ambiguous incomplete state; let the parent init workflow report the recovery point
@@ -56,4 +56,4 @@ Continue with a warning when:
 - the reference list cannot be parsed (skip step 5; paper ingest still works)
 - a single concept or method dedup call fails transiently (retry once; if it still fails, skip that candidate and note it)
 
-The guiding principle: a partial ingest that preserves a well-shaped paper page is more useful than a clean abort that leaves the wiki unchanged. Partial state is recoverable via `/check` and `/edit`. Lost partial state is not.
+The guiding principle: a partial ingest that preserves a well-shaped paper page is more useful than a clean abort that leaves the wiki unchanged. Partial state is recoverable via `$check` and `$edit`. Lost partial state is not.

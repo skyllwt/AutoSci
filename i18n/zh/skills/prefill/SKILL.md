@@ -4,14 +4,14 @@ description: 用领域基础知识填充 wiki/foundations/，避免后续 ingest
 argument-hint: "[domain] [--add '概念名']"
 ---
 
-# /prefill
+# $prefill
 
 > 将领域基础知识（奠基性方法、common practice、标准架构）作为**终端**页面沉淀到 `wiki/foundations/`。
 > Foundations 设计上**单向**：其他页面可以链接到 foundation，foundation 不写反向链接。
 
 ## Trigger
 
-手动：Claude Code 中 `/prefill [domain]` 或 Codex 中 `$prefill [domain]`；Claude Code 中 `/prefill --add "概念名"` 或 Codex 中 `$prefill --add "概念名"`。
+手动：Codex 中 `$prefill [domain]` 或 Codex 中 `$prefill [domain]`；Codex 中 `$prefill --add "概念名"` 或 Codex 中 `$prefill --add "概念名"`。
 
 ## Inputs
 
@@ -132,7 +132,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-提醒用户：后续 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
+提醒用户：后续 Codex 的 `$ingest` 或 Codex 的 `$ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
 
 ## Constraints
 

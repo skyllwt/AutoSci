@@ -4,12 +4,12 @@ description: Multi-source novelty verification — WebSearch + Semantic Scholar 
 argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 ---
 
-# /novelty
+# $novelty
 
 > Verify the novelty of a research idea or method using multiple sources. Searches WebSearch,
 > Semantic Scholar, existing wiki work, and arXiv recent preprints, then Review LLM cross-verifies.
 > Outputs a novelty score (1-5), closest prior work, differentiation points, and next-step recommendations.
-> Can be used standalone or called by `/ideate` in Claude Code or `$ideate` in Codex during Phase 4.
+> Can be used standalone or called by `$ideate` in Codex or `$ideate` in Codex during Phase 4.
 
 ## Inputs
 
@@ -19,7 +19,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
   - paper title or arXiv URL (check novelty of that paper's method)
 - `--quick`: fast mode, skip Review LLM cross-verify (Step 3), search only
 - `--verbose`: output full search results, not just summaries
-- `--write` (optional, default **off**): persist the resulting `novelty_score` to the target's frontmatter. **Only takes effect when `target` is an idea slug** (i.e. `wiki/ideas/{slug}.md` exists). Free-text targets and paper-novelty checks remain read-only regardless of this flag. Treat as a user-owned flag — `/ideate` Phase 4 sets it explicitly when calling `/novelty`; do not infer it from repo state.
+- `--write` (optional, default **off**): persist the resulting `novelty_score` to the target's frontmatter. **Only takes effect when `target` is an idea slug** (i.e. `wiki/ideas/{slug}.md` exists). Free-text targets and paper-novelty checks remain read-only regardless of this flag. Treat as a user-owned flag — `$ideate` Phase 4 sets it explicitly when calling `$novelty`; do not infer it from repo state.
 
 ## Outputs
 

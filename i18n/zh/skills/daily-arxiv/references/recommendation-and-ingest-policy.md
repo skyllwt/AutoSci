@@ -1,6 +1,6 @@
 # Daily arXiv Recommendation and Ingest Policy
 
-`/daily-arxiv` 是 LLM-first：确定性工具先构建 evidence packet，
+`$daily-arxiv` 是 LLM-first：确定性工具先构建 evidence packet，
 再由 skill 判断相关性和动作。工具分数只用于排序，不是最终决策。
 
 ## Pipeline
@@ -11,7 +11,7 @@
    和可选 profile 偏好构建 wiki profile。
 4. 用可用的 Semantic Scholar 和 DeepXiv evidence 增强候选。
 5. 由 LLM 给出最终 decisions 和 rationales。
-6. 通过 digest 通知；只有显式允许时才调用 `/ingest`。
+6. 通过 digest 通知；只有显式允许时才调用 `$ingest`。
 
 ## Evidence
 
@@ -60,19 +60,19 @@ OpenAI-compatible 第三方 LLM 只支持 `inform` mode，通过
 
 ## Auto-Ingest Guardrails
 
-- `/ingest` 负责所有论文纳入。`/daily-arxiv` 不得手写 paper pages、
+- `$ingest` 负责所有论文纳入。`$daily-arxiv` 不得手写 paper pages、
   concepts、methods、people、graph files 或 index entries。
-- 顺序调用 `/ingest`；parallel ingest 不在 scope 内。
+- 顺序调用 `$ingest`；parallel ingest 不在 scope 内。
 - 通过 `ingest_status` 或 `ingest_error` 在 `llm-decisions.json` 和最终
   digest 中保留失败信息。
-- 只提交 `/ingest` 产生的变更，通常位于 `wiki/` 和 `raw/discovered/`。这两个
+- 只提交 `$ingest` 产生的变更，通常位于 `wiki/` 和 `raw/discovered/`。这两个
   root 在模板仓库中作为 per-user data 被 ignore；auto-ingest 写回必须只强制
   stage 这些允许的 root（`git add -f wiki raw/discovered`），而不是扩大 commit
   范围。
 - 边界候选保留为 `maybe`；不要 ingest medium/low confidence 项。
 
-## Relationship to `/discover`
+## Relationship to `$discover`
 
-`/discover` 回答用户主动提出的 “what should I read next?”，来源可以是
-anchors、topic 或 wiki 状态，并且永不 ingest。`/daily-arxiv` 从一个新的
+`$discover` 回答用户主动提出的 “what should I read next?”，来源可以是
+anchors、topic 或 wiki 状态，并且永不 ingest。`$daily-arxiv` 从一个新的
 arXiv 时间窗口出发，可通知，也可在显式配置下 ingest。

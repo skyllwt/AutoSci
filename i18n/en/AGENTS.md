@@ -2,19 +2,18 @@
 
 Edit `i18n/en/AGENTS.md`, not the active copy at root. Run `./setup.sh --lang en` to sync.
 
-`CLAUDE.md` is the Claude Code companion file. Keep shared repository rules equivalent between `AGENTS.md` and `CLAUDE.md` unless a rule is specific to one agent runtime.
+`AGENTS.md` is the Codex project-instructions file.
 
 ## Agent Surfaces
 
-- Claude Code skills live in `.claude/skills` and are invoked as slash commands such as `/init` and `/ingest`.
 - Codex skills live in `.agents/skills` and are invoked with `$init`, `$ingest`, or from Codex `/skills`.
-- The source for both active skill trees is `i18n/<lang>/skills`. When changing a workflow, edit the localized source files, keep English and Chinese copies aligned, then run setup to regenerate active files.
+- The source for the active skill tree is `i18n/<lang>/skills`. When changing a workflow, edit the localized source files, keep English and Chinese copies aligned, then run setup to regenerate active files.
 - Codex requires each `SKILL.md` frontmatter to include both `name` and `description`; keep that metadata when adding or editing skills.
 
 ## Repository Layout
 
 - `wiki/` - product surface. `index.md` is the catalog; `log.md` is append-only; subdirs per entity kind; `wiki/graph/` is auto-generated.
-- `runtime/` - contract source (schema + policy + templates). Read `runtime/CLAUDE.md` before changing any rule; despite the filename, it is the shared runtime contract.
+- `runtime/` - contract source (schema + policy + templates). Read `runtime/AGENTS.md` before changing any rule; despite the filename, it is the shared runtime contract.
 - `raw/` - user-owned `{papers,notes,web}/` (read-only) + skill-writable `discovered/`, `tmp/`.
 - `tools/` - Python helpers (`research_wiki.py` is the wiki engine; `lint.py` is the validator).
 
@@ -42,7 +41,7 @@ Wikilinks: `[[slug]]`. Slugs are lowercase, hyphen-separated, no spaces.
 | Forward -> reverse link rules | `runtime/schema/xref.yaml` |
 | Slug rule, ownership, edge storage location | `runtime/schema/conventions.yaml` |
 | Field/edge write permissions per skill | `runtime/policy/writers.yaml` |
-| Changing the contract / regen | `runtime/CLAUDE.md` |
+| Changing the contract / regen | `runtime/AGENTS.md` |
 
 ## Python Environment
 
@@ -93,5 +92,5 @@ When a tool exits with code 126 and prints "SANDBOX GATE":
 ## Review Guidelines
 
 - Treat loss or mutation of user-owned `raw/`, `wiki/`, `.env`, and generated experiment outputs as high severity.
-- Check that changes keep `.claude/skills`, `.agents/skills`, and `i18n/<lang>/skills` synchronized when workflow instructions move.
+- Check that changes keep `.agents/skills` and `i18n/<lang>/skills` synchronized when workflow instructions move.
 - Prefer deterministic tool changes in `tools/` over duplicating logic inside skill prompts.

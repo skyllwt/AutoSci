@@ -1,12 +1,12 @@
-# /ingest PDF Preprocessing
+# $ingest PDF Preprocessing
 
-Open this reference when `/ingest` receives a local `.pdf` and needs to convert it into a prepared `.tex` before ingest can proceed. Skip it in INIT MODE — `/init` already ran an equivalent batch preprocessing pass and handed off a canonical path.
+Open this reference when `$ingest` receives a local `.pdf` and needs to convert it into a prepared `.tex` before ingest can proceed. Skip it in INIT MODE — `$init` already ran an equivalent batch preprocessing pass and handed off a canonical path.
 
 ## Why preprocessing exists
 
-A PDF on its own is a poor ingest source: text extraction quality varies, equations and captions are easy to miss, and the reference list is often unreliable. When the paper is on arXiv we can do much better by resolving it to an arXiv ID and fetching the original TeX source. If no arXiv source is available we still normalize the PDF into a synthetic `.tex` so the rest of `/ingest` works from one uniform input shape.
+A PDF on its own is a poor ingest source: text extraction quality varies, equations and captions are easy to miss, and the reference list is often unreliable. When the paper is on arXiv we can do much better by resolving it to an arXiv ID and fetching the original TeX source. If no arXiv source is available we still normalize the PDF into a synthetic `.tex` so the rest of `$ingest` works from one uniform input shape.
 
-This mirrors the pipeline `tools/init_discovery.py prepare` runs internally when `/init` batch-processes local PDFs. You are doing the same thing for a single paper, inline.
+This mirrors the pipeline `tools/init_discovery.py prepare` runs internally when `$init` batch-processes local PDFs. You are doing the same thing for a single paper, inline.
 
 ## Recovery order
 
@@ -42,7 +42,7 @@ Once you have the title and/or arXiv ID (possibly both empty), run:
 - Pass `--arxiv-id` only when the agent read it off the page. Filename-embedded IDs are picked up automatically.
 - Omit both flags when neither is confident. The helper will fall back cleanly.
 
-The helper writes a prepared entry under `raw/tmp/` and prints a JSON record with `prepared_path`, `title`, `arxiv_id`, and any warnings. Use `prepared_path` as the source for the rest of `/ingest`.
+The helper writes a prepared entry under `raw/tmp/` and prints a JSON record with `prepared_path`, `title`, `arxiv_id`, and any warnings. Use `prepared_path` as the source for the rest of `$ingest`.
 
 ## Title authority
 

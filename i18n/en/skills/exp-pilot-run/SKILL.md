@@ -4,13 +4,13 @@ description: Pilot experiment execution — read Pilot Spec YAML, write pilot co
 argument-hint: <idea-slug> [--env local|remote]
 ---
 
-# /exp-pilot-run
+# $exp-pilot-run
 
 > Execute a pilot experiment described by a Pilot Spec YAML file.
 > Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, passes a user inspection gate before execution, and returns raw results to the caller.
 > **User inspection gate**: after preparing or modifying pilot code, but before deployment or execution, present the code paths and experiment configuration for user inspection. The user must explicitly approve the run. If they request changes, revise and repeat the gate before launching.
 > Supports **local** (direct GPU) and **remote** (SSH deployment via `tools/remote.py`) modes.
-> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval` in Claude Code or `$exp-pilot-eval` in Codex.
+> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `$exp-pilot-eval` in Codex or `$exp-pilot-eval` in Codex.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ argument-hint: <idea-slug> [--env local|remote]
 ## Wiki Interaction
 
 ### Reads
-- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration). If it is missing, report the error and suggest running `/ideate` in Claude Code or `$ideate` in Codex to generate it first; do not create a spec in this skill.
+- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration). If it is missing, report the error and suggest running `$ideate` in Codex or `$ideate` in Codex to generate it first; do not create a spec in this skill.
 - `wiki/papers/*.md` — related papers' method descriptions (implementation reference)
 
 ### Writes
@@ -55,14 +55,14 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: Prepare**
 
 1. **Read Pilot Spec**:
-   If `experiments/pilot/{slug}.yaml` is missing, report the error and suggest running `/ideate` in Claude Code or `$ideate` in Codex to generate it first. Do not synthesize or create a Pilot Spec here; `/exp-pilot-run` / `$exp-pilot-run` executes an existing spec.
+   If `experiments/pilot/{slug}.yaml` is missing, report the error and suggest running `$ideate` in Codex or `$ideate` in Codex to generate it first. Do not synthesize or create a Pilot Spec here; `$exp-pilot-run` / `$exp-pilot-run` executes an existing spec.
    - Load `experiments/pilot/{slug}.yaml`
    - The YAML has a `pilot_spec:` root key; all fields below are nested under it
    - Validate required fields exist under `pilot_spec:`: `implementation`, `setup`, `metrics`, `baseline`, `success_criterion`
    - Extract from `pilot_spec:`: repo, entry_point, modifications, files_to_create, setup (model, dataset, hardware, framework, batch_size, max_steps, learning_rate, seeds, other_hparams), metrics, baseline, success_criterion, hypothesis, approach_sketch
 
 2. **Load implementation context**:
-   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `/ideate` / `$ideate` Phase 4, before pilot)
+   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `$ideate` / `$ideate` Phase 4, before pilot)
    - Read related papers' method descriptions for algorithm details (from `wiki/papers/` if they exist)
    - Read source paper repo for base code reference
 
@@ -219,15 +219,15 @@ Possible reference paths for the preliminary experiment code:
    - {list of anomalies detected during run, or "None"}
 
    ## Next Steps
-   - Proceed to `/exp-pilot-eval` in Claude Code or `$exp-pilot-eval` in Codex for verdict assessment and wiki update
+   - Proceed to `$exp-pilot-eval` in Codex or `$exp-pilot-eval` in Codex for verdict assessment and wiki update
    ```
 
-7. **Return** the raw results and key metrics to the caller (e.g., `/ideate` / `$ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `/exp-pilot-eval` / `$exp-pilot-eval`, not by this skill.
+7. **Return** the raw results and key metrics to the caller (e.g., `$ideate` / `$ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `$exp-pilot-eval` / `$exp-pilot-eval`, not by this skill.
 
 ## Constraints
 
 - **Does not require a wiki experiment page**: reads from `experiments/pilot/{slug}.yaml` instead
-- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `/exp-pilot-eval` / `$exp-pilot-eval`
+- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `$exp-pilot-eval` / `$exp-pilot-eval`
 - **Code goes in `experiments/pilot/code/{slug}/`**: do not write to project root or any other location
 - **Results must be saved**: all pilot results saved as JSON in `experiments/pilot/code/{slug}/results/seed_{N}.json`
 - **Multi-seed results use mean ± std**: report mean ± std, not single-run results
@@ -237,8 +237,8 @@ Possible reference paths for the preliminary experiment code:
 
 ## Error Handling
 
-- **Pilot Spec not found**: report error, suggest running `/ideate` in Claude Code or `$ideate` in Codex first to generate the spec
-- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `/ideate` in Claude Code or `$ideate` in Codex
+- **Pilot Spec not found**: report error, suggest running `$ideate` in Codex or `$ideate` in Codex first to generate the spec
+- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `$ideate` in Codex or `$ideate` in Codex
 - **GPU unavailable**: report error, suggest waiting for GPU to free up
 - **Sanity check fails**: report detailed error, attempt one fix, repeat the user inspection gate before retrying, and if it still fails report error and stop
 - **Result files missing**: report error "no result files produced (run may have crashed)"
@@ -266,5 +266,5 @@ Possible reference paths for the preliminary experiment code:
 - `Bash` — execute pilot code, monitor processes
 
 ### Called by
-- `/ideate` (Claude Code) or `$ideate` (Codex) Phase 5
+- `$ideate` (Codex) or `$ideate` (Codex) Phase 5
 - User directly

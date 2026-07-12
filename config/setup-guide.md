@@ -1,6 +1,6 @@
 # AutoSci — Configuration Guide
 
-> This file is read by the setup skill (`/setup` in Claude Code, `$setup` in Codex)
+> This file is read by the setup skill (`$setup` in Codex, `$setup` in Codex)
 > to guide users through API key configuration.
 > It describes each optional key: what it does, which skills use it, how to get it,
 > and what happens when it is not set.
@@ -30,14 +30,14 @@ directly into `.env` using the Edit tool.
 reference graphs, author metadata, and keyword search.
 
 **Which skills use it**:
-- `/ingest` — citation count, importance scoring for ingested papers
-- `/init` — discover related papers by topic and citation chain
-- `/novelty` — keyword search to find prior work
-- `/ideate` — find high-citation papers in a research area
-- `/daily-arxiv` — enrich arXiv papers with citation data
+- `$ingest` — citation count, importance scoring for ingested papers
+- `$init` — discover related papers by topic and citation chain
+- `$novelty` — keyword search to find prior work
+- `$ideate` — find high-citation papers in a research area
+- `$daily-arxiv` — enrich arXiv papers with citation data
 
 **Without this key**: All skills still work, but S2 API calls are rate-limited to
-1 request per 3 seconds (vs. 1 per second with a key). For large `/init` runs with
+1 request per 3 seconds (vs. 1 per second with a key). For large `$init` runs with
 many papers, this can add 10–20 minutes.
 
 **How to get it**:
@@ -61,18 +61,18 @@ many papers, this can add 10–20 minutes.
 paper summaries (TLDR), progressive reading, and trending paper detection.
 
 **Which skills use it**:
-- `/daily-arxiv` — trending papers, TLDR for scoring
-- `/novelty` — semantic search to find similar work
-- `/ideate` — landscape scan, trending papers
-- `/ingest` — TLDR, paper structure analysis
-- `/init` — semantic paper discovery
+- `$daily-arxiv` — trending papers, TLDR for scoring
+- `$novelty` — semantic search to find similar work
+- `$ideate` — landscape scan, trending papers
+- `$ingest` — TLDR, paper structure analysis
+- `$init` — semantic paper discovery
 
 **Without this key**: Skills fall back to arXiv RSS + Semantic Scholar only.
 All skills still work; semantic search and TLDR features are unavailable.
 
 **How to get it** (choose one):
-- **Option A — Agent auto-register**: Claude Code or Codex can register a free token automatically.
-  Say "auto-register" during `/setup` or `$setup`; the agent will call the registration API and save the token.
+- **Option A — Agent auto-register**: Codex can register a free token automatically.
+  Say "auto-register" during `$setup` or `$setup`; the agent will call the registration API and save the token.
 - **Option B — Manual**: Go to https://data.rag.ac.cn/register
 
 **Auto-registration details** (for Option A):
@@ -102,20 +102,20 @@ adversarial cross-model review. The reviewer independently critiques research ar
 without seeing the primary agent's prior analysis, improving review quality.
 
 **Which skills use it**:
-- `/review` — general-purpose cross-model review
-- `/novelty` — second-opinion on novelty assessment
-- `/ideate` — dual-model brainstorm + independent filter
-- `/exp-eval` — verdict gate on experiment results
-- `/exp-design` — review experiment plan
-- `/paper-plan` — review paper outline (mandatory gate)
-- `/paper-draft` — review each section
-- `/rebuttal` — stress-test rebuttal responses
-- `/refine` — review in multi-round improve cycle
-- `/daily-arxiv` — inform-mode recommendation in CI when the coding-agent runtime is unavailable
+- `$review` — general-purpose cross-model review
+- `$novelty` — second-opinion on novelty assessment
+- `$ideate` — dual-model brainstorm + independent filter
+- `$exp-eval` — verdict gate on experiment results
+- `$exp-design` — review experiment plan
+- `$paper-plan` — review paper outline (mandatory gate)
+- `$paper-draft` — review each section
+- `$rebuttal` — stress-test rebuttal responses
+- `$refine` — review in multi-round improve cycle
+- `$daily-arxiv` — inform-mode recommendation in CI when the coding-agent runtime is unavailable
 
 **Without these keys**: Skills skip the cross-model review step and proceed with
 single-agent analysis or deterministic fallback. Everything still works, but you
-lose the independent second-opinion. The `/review` skill will note that
+lose the independent second-opinion. The `$review` skill will note that
 cross-model review is unavailable.
 
 **Works with any OpenAI-compatible API**:
@@ -151,7 +151,7 @@ The value of cross-model review comes from genuine independence.
 | Required? | No |
 | Default | `cs.LG,cs.CV,cs.CL,cs.AI,stat.ML` |
 
-**What it does**: Controls which arXiv subject categories `/daily-arxiv` monitors.
+**What it does**: Controls which arXiv subject categories `$daily-arxiv` monitors.
 
 **Format**: Comma-separated category codes. Full list: https://arxiv.org/category_taxonomy
 

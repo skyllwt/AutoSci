@@ -19,7 +19,7 @@ Read endpoints (Cache-Control: no-store):
   GET   /api/events              -> SSE stream of `change` events (see below)
 
 Write endpoints (loopback-only; every successful write appends a
-"## [date] frontend | <verb> <subject>" line to wiki/log.md so /check
+"## [date] frontend | <verb> <subject>" line to wiki/log.md so $check
 and other skills can distinguish SPA-originated edits):
   PATCH /api/entities/{type}/{slug}   body {field, value, append?}
                                        -> research_wiki.py set-meta
@@ -38,7 +38,7 @@ and other skills can distinguish SPA-originated edits):
                                        skill ∈ {ingest, ask, edit, check,
                                                 ideate, discover, exp-design}
                                        -> {skill, command, codex_command,
-                                           doc_url, codex_doc_url, message}
+                                           codex_doc_url, message}
 
 Skill-intent boundary
 ---------------------
@@ -48,7 +48,7 @@ results that diverge from the skill's actual behavior. So every UI button
 that wants a skill posts to /api/intent/{skill}; the backend assembles
 the right agent command (filling in slug/arxiv-id/etc. from page
 context) and returns it. The SPA opens a copy-to-clipboard modal with the
-command. The user pastes it into Claude Code or Codex. The boundary is explicit
+command. The user pastes it into Codex. The boundary is explicit
 in the API surface itself — no silent skill faking.
 
 Live reload (SSE)
@@ -115,8 +115,8 @@ FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$", re.DOTALL)
 ENTITY_PATH_RE = re.compile(
     r"^/api/entities/([^/]+)(?:/([^/]+)(?:/(raw))?)?/?$"
 )
-# /api/checkpoints/discover               -> list
-# /api/checkpoints/discover/<name>        -> read one
+# /api/checkpoints$discover               -> list
+# /api/checkpoints$discover/<name>        -> read one
 # `name` must match the discover-* prefix; further validated against the
 # filesystem so we never read anything outside .checkpoints/.
 CHECKPOINT_NAME_RE = re.compile(r"^discover-[A-Za-z0-9._-]+\.json$")
@@ -412,11 +412,11 @@ class WikiHandler(SimpleHTTPRequestHandler):
         if path == "/api/lint":
             self._handle_lint(fix=False)
             return
-        if path == "/api/checkpoints/discover":
+        if path == "/api/checkpoints$discover":
             self._handle_checkpoints_list()
             return
-        if path.startswith("/api/checkpoints/discover/"):
-            name = path[len("/api/checkpoints/discover/"):]
+        if path.startswith("/api/checkpoints$discover/"):
+            name = path[len("/api/checkpoints$discover/"):]
             self._handle_checkpoint_read(name)
             return
         if path == "/api/graph":
@@ -772,11 +772,10 @@ class WikiHandler(SimpleHTTPRequestHandler):
     #
     # These return ready-to-paste agent command strings. They do NOT
     # execute the skill (the SPA has no LLM session). The frontend shows
-    # the command in a copy-to-clipboard modal; user pastes into Claude Code
-    # or Codex.
+    # the command in a copy-to-clipboard modal; user pastes it into Codex.
 
     INTENT_DEFAULT_MESSAGE = (
-        "Run this in Claude Code or Codex. The SPA cannot orchestrate "
+        "Run this in Codex. The SPA cannot orchestrate "
         "agent skills — skills require an LLM session."
     )
 
@@ -800,10 +799,8 @@ class WikiHandler(SimpleHTTPRequestHandler):
             return
         out = b(body)
         out.setdefault("skill", skill)
-        out.setdefault("doc_url", f".claude/skills/{skill}/SKILL.md")
         out.setdefault("codex_doc_url", f".agents/skills/{skill}/SKILL.md")
-        if "codex_command" not in out and out.get("command", "").startswith("/"):
-            out["codex_command"] = "$" + out["command"][1:]
+        out.setdefault("codex_command", out.get("command", ""))
         out.setdefault("message", self.INTENT_DEFAULT_MESSAGE)
         self._send_json(out)
 
@@ -811,20 +808,20 @@ class WikiHandler(SimpleHTTPRequestHandler):
     def _intent_ingest(body: dict) -> dict:
         path = (body.get("path") or "").strip()
         if path:
-            return {"command": f"/ingest {path}"}
+            return {"command": f"$ingest {path}"}
         return {
-            "command": "/ingest <local-path-or-arXiv-URL>",
+            "command": "$ingest <local-path-or-arXiv-URL>",
             "message": ("Replace <local-path-or-arXiv-URL> with a "
                         ".pdf path, .tex path, or arXiv link, then run in "
-                        "Claude Code or Codex."),
+                        "Codex."),
         }
 
     @staticmethod
     def _intent_ask(body: dict) -> dict:
         q = (body.get("question") or "").strip()
         if q:
-            return {"command": f"/ask {q}"}
-        return {"command": "/ask <your-question>"}
+            return {"command": f"$ask {q}"}
+        return {"command": "$ask <your-question>"}
 
     @staticmethod
     def _intent_edit(body: dict) -> dict:
@@ -832,18 +829,18 @@ class WikiHandler(SimpleHTTPRequestHandler):
         slug = (body.get("slug") or "").strip()
         etype = (body.get("type") or "").strip()
         if intent:
-            return {"command": f"/edit {intent}"}
+            return {"command": f"$edit {intent}"}
         if etype and slug:
             return {
-                "command": f"/edit <natural-language-edit-for-{etype}/{slug}>",
+                "command": f"$edit <natural-language-edit-for-{etype}/{slug}>",
                 "message": ("Replace the placeholder with what you want to "
                             f"change on {etype}/{slug} in plain English."),
             }
-        return {"command": "/edit <natural-language-intent>"}
+        return {"command": "$edit <natural-language-intent>"}
 
     @staticmethod
     def _intent_check(body: dict) -> dict:
-        return {"command": "/check"}
+        return {"command": "$check"}
 
     @staticmethod
     def _intent_ideate(body: dict) -> dict:
@@ -851,15 +848,15 @@ class WikiHandler(SimpleHTTPRequestHandler):
         # under the matching key. Only one is honoured per call.
         from_concept = (body.get("from_concept") or "").strip()
         if from_concept:
-            return {"command": f"/ideate --from-concept {from_concept}"}
+            return {"command": f"$ideate --from-concept {from_concept}"}
         from_topic = (body.get("from_topic") or "").strip()
         if from_topic:
-            return {"command": f"/ideate --from-topic {from_topic}"}
-        return {"command": "/ideate"}
+            return {"command": f"$ideate --from-topic {from_topic}"}
+        return {"command": "$ideate"}
 
     @staticmethod
     def _intent_discover(body: dict) -> dict:
-        # /discover has four seed modes (see the active discover/SKILL.md).
+        # $discover has four seed modes (see the active discover/SKILL.md).
         # Priority when multiple fields are present: anchor > topic > venue/year
         # > from-wiki. `--limit` is universal and tacks on at the end.
         anchor = (body.get("anchor") or "").strip()
@@ -878,20 +875,20 @@ class WikiHandler(SimpleHTTPRequestHandler):
             return f" --limit {limit}"
 
         if anchor:
-            return {"command": f"/discover --anchor {anchor}{_limit_suffix()}"}
+            return {"command": f"$discover --anchor {anchor}{_limit_suffix()}"}
         if topic:
             # Quote the topic so multi-word phrases survive shell tokenisation.
-            return {"command": f'/discover --topic "{topic}"{_limit_suffix()}'}
+            return {"command": f'$discover --topic "{topic}"{_limit_suffix()}'}
         if venue and year:
-            return {"command": f"/discover --venue {venue} --year {year}{_limit_suffix()}"}
+            return {"command": f"$discover --venue {venue} --year {year}{_limit_suffix()}"}
         if venue or year:
             return {
-                "command": "/discover --venue <slug> --year <int>",
+                "command": "$discover --venue <slug> --year <int>",
                 "message": "Venue mode needs both --venue and --year.",
             }
         # Nothing supplied → derive from current wiki state.
         return {
-            "command": f"/discover --from-wiki{_limit_suffix()}",
+            "command": f"$discover --from-wiki{_limit_suffix()}",
             "message": ("from-wiki mode mines your current papers/concepts/"
                         "open-questions to suggest what to read next — good "
                         "default when you don't have a specific anchor."),
@@ -901,15 +898,15 @@ class WikiHandler(SimpleHTTPRequestHandler):
     def _intent_exp_design(body: dict) -> dict:
         idea = (body.get("linked_idea") or "").strip()
         if idea:
-            return {"command": f"/exp-design --linked-idea {idea}"}
+            return {"command": f"$exp-design --linked-idea {idea}"}
         return {
-            "command": "/exp-design --linked-idea <idea-slug>",
+            "command": "$exp-design --linked-idea <idea-slug>",
             "message": "Run from an idea page or pass --linked-idea explicitly.",
         }
 
     # --- /api/lint and /api/lint/fix ----------------------------------------
     #
-    # `tools/lint.py` is the deterministic core of `/check`. It already
+    # `tools/lint.py` is the deterministic core of `$check`. It already
     # supports `--json` and `--fix` (with `--dry-run` for preview). Exposing
     # it here lets the SPA show lint results inline without going through
     # the intent → copy → paste → coding-agent round trip.
@@ -931,10 +928,10 @@ class WikiHandler(SimpleHTTPRequestHandler):
             _audit_log("POST lint --fix")
         self._send_raw(stdout, content_type="application/json; charset=utf-8")
 
-    # --- /api/checkpoints/discover ------------------------------------------
+    # --- /api/checkpoints$discover ------------------------------------------
     #
-    # `/discover` writes `.checkpoints/discover-{seed}-{date}.json`. The SPA
-    # cannot re-run `/discover` (LLM-bound), but it CAN browse already-written
+    # `$discover` writes `.checkpoints/discover-{seed}-{date}.json`. The SPA
+    # cannot re-run `$discover` (LLM-bound), but it CAN browse already-written
     # checkpoints so the user can pick which candidates to ingest. List +
     # read are both safe read-only operations on a local-only directory.
 

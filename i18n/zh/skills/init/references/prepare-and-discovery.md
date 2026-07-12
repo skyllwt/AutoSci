@@ -1,6 +1,6 @@
-# /init Prepare And Discovery
+# $init Prepare And Discovery
 
-当 `/init` 需要 prepare 本地输入、选择最终论文集、或写出 `.checkpoints/init-sources.json` 时，打开此参考文件。
+当 `$init` 需要 prepare 本地输入、选择最终论文集、或写出 `.checkpoints/init-sources.json` 时，打开此参考文件。
 
 ## Prepare 流程
 
@@ -17,7 +17,7 @@
 ## 来源优先级
 
 - 本地来源优先级：原始本地 `.tex` > archive 解出的源码 `.tex` 或抓取到的 arXiv 源码目录 > 由 PDF 生成的 synthetic `.tex` > 原始 `.pdf`。
-- notes/web 保持原始来源路径，`/init` 在 planning 阶段直接读取。
+- notes/web 保持原始来源路径，`$init` 在 planning 阶段直接读取。
 - 如果 handoff 进来的来源已经在 `raw/tmp/` 或 `raw/discovered/` 下，就把它视为 canonical path，不要再复制进 `raw/papers/`。
 - 本地论文若存在 prepared 结果，其 `canonical_ingest_path` 必须指向 `raw/tmp/`；否则回退到原始 `raw/papers/...`。
 
@@ -36,7 +36,7 @@
 "$PYTHON_BIN" tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id <candidate-id> --id <candidate-id>
 ```
 
-- `/init` 下载的论文只允许写入 `raw/discovered/`，绝不写入 `raw/papers/`。
+- `$init` 下载的论文只允许写入 `raw/discovered/`，绝不写入 `raw/papers/`。
 - 若某篇候选已经由 prepared local source 覆盖，则禁止重复抓取。
 
 然后生成执行 handoff：

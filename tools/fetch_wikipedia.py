@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch summary and section content from Wikipedia for /prefill.
+"""Fetch summary and section content from Wikipedia for $prefill.
 
 Uses the MediaWiki action=parse API exclusively (the REST mobile-sections
 endpoint is deprecated). All output is JSON on stdout.

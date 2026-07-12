@@ -105,7 +105,7 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
 def slugify(title: str) -> str:
     """Generate a kebab-case slug from a paper/concept title.
 
-    Rules (from product CLAUDE.md):
+    Rules (from product AGENTS.md):
       - All lowercase, hyphen-separated, no spaces
       - Extract meaningful keywords from title, drop stop words
       - Keep first 5-6 keywords for reasonable length
@@ -790,7 +790,7 @@ def dedup_citations(wiki_root: str) -> None:
 
 def _is_linked_worktree() -> bool:
     # Linked worktrees have distinct --git-dir and --git-common-dir; the primary
-    # checkout has them equal. Used to block graph rebuilds from /init subagents:
+    # checkout has them equal. Used to block graph rebuilds from $init subagents:
     # their worktree rebuilds collide on merge with the orchestrator's final one.
     try:
         git_dir = subprocess.run(
@@ -810,7 +810,7 @@ def _refuse_in_linked_worktree(cmd: str) -> None:
     if _is_linked_worktree():
         print(
             f"error: {cmd} is not permitted inside a linked git worktree.\n"
-            "Graph rebuilds must run from the primary checkout; the /init "
+            "Graph rebuilds must run from the primary checkout; the $init "
             "orchestrator rebuilds once after all subagent merges. See "
             "init/SKILL.md INIT MODE.",
             file=sys.stderr,
@@ -962,13 +962,13 @@ def find_entities(wiki_root: str, entity_type: str,
 #
 # It is deterministic (no LLM) and uses only token-level matching, but it is
 # tuned for high recall — the LLM caller does the final semantic judgment
-# from a small ranked list. Designed to be invoked from /ingest BEFORE any
+# from a small ranked list. Designed to be invoked from $ingest BEFORE any
 # concept is created, to prevent the "subagent A and subagent B both create
 # textual-gradient-descent under different slugs" failure mode.
 #
-# find-similar-concept ALSO scans wiki/foundations/ so that /ingest cannot
+# find-similar-concept ALSO scans wiki/foundations/ so that $ingest cannot
 # accidentally create a concept that duplicates an existing foundation page
-# (foundations are seeded by /prefill with their own title + aliases). A
+# (foundations are seeded by $prefill with their own title + aliases). A
 # foundation hit is marked with entity_type="foundation" in the output so the
 # caller can route to "reference instead of create" rather than merging.
 #
@@ -1886,24 +1886,24 @@ def rebuild_index(wiki_root: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Topic backfill (post-merge sweep for /init INIT MODE)
+# Topic backfill (post-merge sweep for $init INIT MODE)
 # ---------------------------------------------------------------------------
 
 def topic_backfill(wiki_root: str) -> None:
     """Append matching papers to each topic's seminal_works / SOTA tracker.
 
-    Re-implements the deterministic half of /ingest Step 5 Part B in a
-    post-merge sweep. /init's INIT MODE tells subagents to skip topic updates
+    Re-implements the deterministic half of $ingest Step 5 Part B in a
+    post-merge sweep. $init's INIT MODE tells subagents to skip topic updates
     so parallel ingest doesn't conflict on shared topic files; this command
     is what finally repairs them after Phase B merges complete.
 
-    Matching rule (matches /ingest Part B):
+    Matching rule (matches $ingest Part B):
       - paper.tags ∩ topic.tags must be non-empty
       - importance >= 4 → append `- [[paper-slug]]` to ## Seminal works
       - importance < 4  → append `- [[paper-slug]]` to ## SOTA tracker
       - existing entries are detected and skipped (idempotent)
 
-    NOT handled here (deferred to a later /ingest or /edit pass):
+    NOT handled here (deferred to a later $ingest or $edit pass):
       - topic.key_people backfill (requires "is the author a key figure"
         judgment, which is fuzzy and not safe to automate)
       - topic.tags inference (topics that have no tags get no matches)
@@ -2080,7 +2080,7 @@ def _append_lines_to_section(fpath: Path, heading: str,
 def append_log(wiki_root: str, message: str) -> None:
     """Append a timestamped entry to log.md.
 
-    Format matches product CLAUDE.md spec:
+    Format matches product AGENTS.md spec:
       ## [YYYY-MM-DD] skill | action | details
     """
     log_path = Path(wiki_root) / "log.md"
@@ -2549,7 +2549,7 @@ def checkpoint_set_meta(wiki_root: str, task_id: str, key: str, value: str) -> N
 
     Creates the checkpoint file if it does not exist. Preserves the existing
     completed/failed lists. Designed for small pieces of cross-step state
-    like the `/init` stash ref that must survive an interrupted run.
+    like the `$init` stash ref that must survive an interrupted run.
     """
     data = _checkpoint_read(wiki_root, task_id)
     data["metadata"][key] = value
@@ -2767,7 +2767,7 @@ def main():
 
     # topic-backfill
     p = sub.add_parser("topic-backfill",
-                       help="Append matching papers to topic seminal_works / SOTA tracker (post-merge sweep for /init)")
+                       help="Append matching papers to topic seminal_works / SOTA tracker (post-merge sweep for $init)")
     p.add_argument("wiki_root")
 
     # checkpoint-save

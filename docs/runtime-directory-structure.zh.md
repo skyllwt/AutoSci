@@ -1,10 +1,10 @@
 # 运行时目录图
 
-> 按需读取的仓库布局参考。主 `CLAUDE.md` 只保留需要常驻上下文的 schema 与约束。
+> 按需读取的仓库布局参考。主 `AGENTS.md` 只保留需要常驻上下文的 schema 与约束。
 
 ```text
 wiki/
-├── CLAUDE.md          ← runtime schema
+├── AGENTS.md          ← runtime schema
 ├── index.md           ← 内容目录（YAML）
 ├── log.md             ← 时序日志（append-only）
 ├── papers/            ← 论文结构化摘要
@@ -25,13 +25,13 @@ wiki/
 
 raw/
 ├── papers/            ← 用户自有 .tex / .pdf 来源
-├── discovered/        ← /init 与 /daily-arxiv 抓取的外部论文
-├── tmp/               ← /init 与直接本地 /ingest 生成的本地预处理来源
+├── discovered/        ← $init 与 $daily-arxiv 抓取的外部论文
+├── tmp/               ← $init 与直接本地 $ingest 生成的本地预处理来源
 ├── notes/             ← 用户自有 .md 笔记
 └── web/               ← 用户自有 HTML / Markdown
 
 config/
-├── server.yaml        ← 远程 GPU 服务器配置（可选，/exp-run --env remote 时需要）
+├── server.yaml        ← 远程 GPU 服务器配置（可选，$exp-run --env remote 时需要）
 ├── server.yaml.example
 ├── .env.example
 └── settings.local.json.example
@@ -41,5 +41,5 @@ config/
 
 - `raw/papers/`、`raw/notes/`、`raw/web/` 是用户自有输入。
 - `raw/discovered/` 用于外部抓取论文，不是用户随手放文件的目录。
-- `raw/tmp/` 是 `/init` 与直接本地 `/ingest` 的生成型中间状态。
+- `raw/tmp/` 是 `$init` 与直接本地 `$ingest` 的生成型中间状态。
 - `graph/` 是派生目录，只能通过 `tools/research_wiki.py` 维护。

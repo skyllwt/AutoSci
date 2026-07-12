@@ -4,13 +4,13 @@ description: 通用跨模型审查：Review LLM 对任意研究制品进行独�
 argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---
 
-# /review
+# $review
 
 > 对任意研究制品（idea、proposal、experiment plan、paper draft、method）进行跨模型审查。
 > 使用 Review LLM 作为独立审稿人，输出结构化评分、可操作的改进建议，以及与 wiki 实体的映射
 > （哪些 ideas/methods 需要加强，哪些 gaps 被发现）。
 > 支持三种难度级别（standard / hard / adversarial）和四种审查焦点。
-> 可独立使用，也被 /ideate、/refine、/exp-design 调用。
+> 可独立使用，也被 $ideate、$refine、$exp-design 调用。
 
 ## Inputs
 
@@ -55,7 +55,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 ### Writes
 - **无**。Review 是只读查询操作。
-  - 审查结果输出到终端，由用户或调用方（如 /refine）决定是否应用。
+  - 审查结果输出到终端，由用户或调用方（如 $refine）决定是否应用。
 
 ### Graph edges created
 - **无**。
@@ -214,13 +214,13 @@ llm-review MCP chat tool:
 ### Ideas / methods needing stronger support
 | Entity | Signal | Issue | Suggested action |
 |--------|--------|-------|------------------|
-| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | 运行 Claude Code 的 `/novelty` 或 Codex 的 `$novelty` |
-| [[method-slug]] | source_papers sparse | Missing source paper backing | 补充缺失论文后，再运行 Claude Code 的 `/check` 或 Codex 的 `$check` |
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | 运行 Codex 的 `$novelty` 或 Codex 的 `$novelty` |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | 补充缺失论文后，再运行 Codex 的 `$check` 或 Codex 的 `$check` |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
 |-----|-----------|------------------|
-| {描述} | [[slug]] | Claude Code: `/ingest`、`/exp-run` 或 `/ask`; Codex: `$ingest`、`$exp-run` 或 `$ask` |
+| {描述} | [[slug]] | Codex: `$ingest`、`$exp-run` 或 `$ask`; Codex: `$ingest`、`$exp-run` 或 `$ask` |
 
 ### Suggested wiki updates
 - `wiki/ideas/{slug}.md`: add risk factor from review
@@ -246,7 +246,7 @@ llm-review MCP chat tool:
 ## Constraints
 
 - **审稿独立性**：严格遵循 `shared-references/cross-model-review.md`，不向 Review LLM 泄露 主 agent 的预判
-- **不修改 wiki**：review 只输出建议，不直接修改任何 wiki 页面。wiki 修改由调用方（如 /refine）执行
+- **不修改 wiki**：review 只输出建议，不直接修改任何 wiki 页面。wiki 修改由调用方（如 $refine）执行
 - **score 必须有 justification**：不接受没有理由的分数
 - **weakness 必须有 fix**：每个 weakness 必须附带具体的、可操作的修复建议，不接受空洞批评
 - **entity-level mapping 必须**：输出必须包含 Wiki Entity Mapping 部分，将 review 发现映射到具体 wiki 实体（ideas、methods 等）
@@ -280,6 +280,6 @@ llm-review MCP chat tool:
 - `shared-references/cross-model-review.md` — 审稿独立性原则（必读）
 
 ### Called by
-- `/ideate`（Claude Code）或 `$ideate`（Codex）Phase 4（审查 top ideas）
-- `/refine`（Claude Code）或 `$refine`（Codex）每轮迭代（审查当前版本）
-- `/exp-design --review`（Claude Code）或 `$exp-design --review`（Codex）（审查实验计划）
+- `$ideate`（Codex）或 `$ideate`（Codex）Phase 4（审查 top ideas）
+- `$refine`（Codex）或 `$refine`（Codex）每轮迭代（审查当前版本）
+- `$exp-design --review`（Codex）或 `$exp-design --review`（Codex）（审查实验计划）

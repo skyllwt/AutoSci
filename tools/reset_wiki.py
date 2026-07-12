@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Reset wiki state to a clean scaffold (used by /reset skill).
+"""Reset wiki state to a clean scaffold (used by $reset skill).
 
 Scopes:
     wiki         delete all .md content under wiki/<entity>/, wiki/outputs/,
                  wiki/index.md, wiki/log.md, and wiki/graph/ files.
-                 Preserves .gitkeep and wiki/CLAUDE.md.
+                 Preserves .gitkeep and wiki/AGENTS.md.
     raw          delete generated files under raw/discovered/ and raw/tmp/
                  except .gitkeep. User-owned raw/papers, raw/notes, and
                  raw/web are never deleted by this helper.
@@ -52,7 +52,7 @@ def _list_raw(directory: Path) -> list[Path]:
 
 
 def plan(project_root: Path, scopes: list[str]) -> dict:
-    """Return a structured plan of what will be deleted/reset."""
+    """Return a structured plan of what will be deleted$reset."""
     p: dict = {"scopes": scopes, "delete_files": [], "reset_files": [], "actions": []}
     wiki = project_root / "wiki"
 

@@ -2,19 +2,18 @@
 
 编辑 `i18n/zh/AGENTS.md`, 不要改根目录下的副本。运行 `./setup.sh --lang zh` 同步。
 
-`CLAUDE.md` 是 Claude Code 的配套说明文件。除非规则只针对某一个 agent runtime, 否则要让 `AGENTS.md` 与 `CLAUDE.md` 中的共享仓库规则保持一致。
+`AGENTS.md` 是 Codex 的项目说明文件。
 
 ## Agent 入口
 
-- Claude Code skills 位于 `.claude/skills`, 以 `/init`、`/ingest` 等 slash command 调用。
 - Codex skills 位于 `.agents/skills`, 以 `$init`、`$ingest` 或 Codex `/skills` 调用。
-- 两个 active skill tree 的源文件都在 `i18n/<lang>/skills`。修改 workflow 时, 先改本地化源文件, 保持中英文一致, 再运行 setup 重新生成 active files。
+- active skill tree 的源文件在 `i18n/<lang>/skills`。修改 workflow 时, 先改本地化源文件, 保持中英文一致, 再运行 setup 重新生成 active files。
 - Codex 要求每个 `SKILL.md` frontmatter 同时包含 `name` 和 `description`; 新增或编辑 skill 时必须保留这些 metadata。
 
 ## 仓库布局
 
 - `wiki/` - 产物面。`index.md` 是目录; `log.md` 是 append-only; 每类实体一个子目录; `wiki/graph/` 自动生成。
-- `runtime/` - 契约源(schema + policy + templates)。修改任何规则前先读 `runtime/CLAUDE.md`; 虽然文件名含 Claude, 它是共享 runtime contract。
+- `runtime/` - 契约源(schema + policy + templates)。修改任何规则前先读 `runtime/AGENTS.md`; 虽然文件名含 the primary model, 它是共享 runtime contract。
 - `raw/` - 用户自有 `{papers,notes,web}/`(只读) + skill 可写的 `discovered/`、`tmp/`。
 - `tools/` - Python 助手(`research_wiki.py` 是 wiki 引擎, `lint.py` 是校验器)。
 
@@ -42,7 +41,7 @@ Wikilink: `[[slug]]`。slug 全小写、连字符分隔、无空格。
 | 正向 -> 反向链接规则 | `runtime/schema/xref.yaml` |
 | slug 规则、ownership、edge 存储位置 | `runtime/schema/conventions.yaml` |
 | 各 skill 对字段/边的写权限 | `runtime/policy/writers.yaml` |
-| 改契约本身 / 重新 regen | `runtime/CLAUDE.md` |
+| 改契约本身 / 重新 regen | `runtime/AGENTS.md` |
 
 ## Python 环境
 
@@ -88,5 +87,5 @@ Semantic Scholar、DeepXiv、arXiv 或任何 HTTP API 的 tool, 会以 code 126 
 ## Review 指南
 
 - 把用户自有的 `raw/`、`wiki/`、`.env` 和生成的实验输出丢失或被误改视为高严重度问题。
-- workflow instruction 改动时, 检查 `.claude/skills`、`.agents/skills` 与 `i18n/<lang>/skills` 是否同步。
+- workflow instruction 改动时, 检查 `.agents/skills` 与 `i18n/<lang>/skills` 是否同步。
 - 优先把确定性逻辑放在 `tools/`, 不要在 skill prompt 中复制实现逻辑。

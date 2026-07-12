@@ -1030,7 +1030,7 @@ def format_markdown(payload: dict[str, Any]) -> str:
         elif not auto_ingest.get("selected"):
             lines.append("Auto-ingest is enabled, but no high-confidence candidates passed the guard.")
         else:
-            lines.append(f"Selected for `/ingest` (cap {auto_ingest.get('cap', 0)}):")
+            lines.append(f"Selected for `$ingest` (cap {auto_ingest.get('cap', 0)}):")
             for item in auto_ingest["selected"]:
                 lines.append(f"- [{item.get('arxiv_id')}]({item.get('arxiv_url')}) — {item.get('title')}")
         lines.append("")

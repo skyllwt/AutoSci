@@ -4,13 +4,13 @@ description: 根据用户要求更新 wiki 内容，或在不修改用户 raw so
 argument-hint: "[request]"
 ---
 
-# /edit
+# $edit
 
 > 根据用户要求更新 wiki 内容，或准备生成型 raw 输入。用户拥有的 raw sources 保持只读。
 
 ## 触发
 
-用户手动：Claude Code 中 `/edit <用户要求>`，或 Codex 中 `$edit <用户要求>`。
+用户手动：Codex 中 `$edit <用户要求>`，或 Codex 中 `$edit <用户要求>`。
 
 ## 输入
 
@@ -42,7 +42,7 @@ argument-hint: "[request]"
 
 ### STEP 2: 执行更新
 
-1. 生成型 raw 输入后续可通过 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 纳入 wiki
+1. 生成型 raw 输入后续可通过 Codex 的 `$ingest` 或 Codex 的 `$ingest` 纳入 wiki
 2. 直接 wiki 修改：按用户指令更新特定页面的特定字段/内容
 3. 写正向链接时同步写反向链接
 

@@ -226,9 +226,9 @@ def check_orphan_pages(wiki_dir: Path, pages: dict[str, Path],
     """Find pages with zero incoming links.
 
     Foundations are NOT exempt: under correct usage every foundation should
-    receive an inward link from at least one paper or concept (via /ingest
-    dedup). An orphan foundation is a real signal — either /prefill seeded
-    background that no paper references, or /ingest is failing to dedup
+    receive an inward link from at least one paper or concept (via $ingest
+    dedup). An orphan foundation is a real signal — either $prefill seeded
+    background that no paper references, or $ingest is failing to dedup
     against it. Orphan is 🔵 (informational), so this stays as a soft hint.
     """
     issues = []
@@ -556,7 +556,7 @@ def check_graph_edges(wiki_dir: Path, pages: dict[str, Path]) -> list[LintIssue]
                                     f"Unknown edge type: {edge_type}"))
         elif edge_type:
             # Endpoint-aware semantic edge checks. Legacy edge types stay readable
-            # but get migration warnings on old /ingest-shaped endpoints.
+            # but get migration warnings on old $ingest-shaped endpoints.
             if not edge_endpoint_matches(edge_type, from_kind, to_kind):
                 expected_from = edge_expected_endpoint(edge_type, "from")
                 expected_to = edge_expected_endpoint(edge_type, "to")

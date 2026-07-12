@@ -58,7 +58,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 ## Workflow
 
-**前置**:确认 `paper/main.tex` 存在。否则报错:"先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft`"。
+**前置**:确认 `paper/main.tex` 存在。否则报错:"先运行 Codex 的 `$paper-draft` 或 Codex 的 `$paper-draft`"。
 
 ### Step 0: 交互式 header 配置
 
@@ -70,7 +70,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
    1. 传入 `--authors STR` flag → 用它,不问也不持久化。
    2. 传入 `--anonymous` flag → 强制 "Anonymous",不问也不持久化。
-   3. `paper/.author_display.txt` 存在 → 用文件内容,不问。这是"问一次,以后复用"的缓存。未来 `/paper-draft` 会在写作阶段填这个文件;在那之前,`/poster` Step 0 维护它(见下)。
+   3. `paper/.author_display.txt` 存在 → 用文件内容,不问。这是"问一次,以后复用"的缓存。未来 `$paper-draft` 会在写作阶段填这个文件;在那之前,`/poster` Step 0 维护它(见下)。
    4. dag.json 根节点 `content` (来自 `main.tex` 的 `\author{...}`) 非空且不是字面 "Anonymous" → 用它,不问。
    5. **否则(匿名稿且没有缓存的 display name)**:问用户。
 
@@ -624,7 +624,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 - **不修改 `paper/` 源文件**:本 skill 对 LaTeX 源(`main.tex`、`sections/*.tex`、`figures/`、`references.bib`、`math_commands.tex`)只读。`paper/` 下允许写入的只有:(a) `paper/.author_display.txt`(Step 0 作者缓存);(b) `paper/figures/_tikz_<sec>_<label>.png`(Step 1 的 TikZ 光栅化缓存,见 Step 1 "TikZ 图")。`_tikz_` 前缀标识它们是从 `paper/sections/*.tex` 派生的产物;删除安全(下次运行重建)。其它输出全部写到 `poster/`。
 - **不创建 wiki 实体或图边**:海报是展示产物,不进知识图。
-- **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `/paper-compile`。
+- **复用已编译图**:不重新执行 `paper/figures/plot_*.py`,用户已运行过 `$paper-compile`。
 - **遵循 `--anonymous`**:开启时,作者在 `dag.json` 与海报 header 中都写为 "Anonymous"。
 - **章节数上限**:硬上限 6 个章节,保证 1400×900 下可读。章节按 Step 2.5 的优先级表选;论文章节数超过上限时,Related Work / Background / Appendix 优先被丢弃。
 - **40 词摘要**:按 poster_outline_prompt,每章正文段在加过渡句前不超过 40 词。
@@ -635,7 +635,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Error Handling
 
-- **`paper/main.tex` 不存在**:报错并提示 "先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft` 生成论文"。
+- **`paper/main.tex` 不存在**:报错并提示 "先运行 Codex 的 `$paper-draft` 或 Codex 的 `$paper-draft` 生成论文"。
 - **`\input{sections/...}` 未找到章节**:列出搜索过的路径,提示检查 `main.tex` 是否使用了非标准的 section include。
 - **没有图片引用**:文本-only 章节继续渲染;在 POSTER_REPORT 中给出警告。
 - **`pdftoppm` 未安装**:PDF 图无法转 PNG;提示 `brew install poppler`(macOS)或 `apt install poppler-utils`(Linux)。海报仍能渲染但这些图会显示为 broken img。
@@ -680,4 +680,4 @@ python3 tools/research_wiki.py log wiki/ \
 
 ### Called by
 - 用户手动调用
-- 未来:`/research` Stage 5b(`/paper-compile` 之后)
+- 未来:`$research` Stage 5b(`$paper-compile` 之后)

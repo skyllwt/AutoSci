@@ -4,7 +4,7 @@ description: 多阶段研究 idea 生成管道：景观扫描 → 双模型脑�
 argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation] [--skip-pilot] [--auto]"
 ---
 
-# /ideate
+# $ideate
 
 > 基于 wiki 知识库和外部搜索，通过 5 阶段管道生成高质量研究 idea。
 > Phase 1 扫描研究景观（wiki + WebSearch + S2），Phase 2 双模型脑暴（主 agent + Review LLM 独立生成），
@@ -15,9 +15,9 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 - `direction`（可选）：研究方向、关键词或具体问题描述。若不指定，则从 open_questions.md 自动选择最有价值的方向。
 - `--max-ideas N`（可选，默认 3）：最终写入 wiki 的 idea 数量上限
-- `--skip-validation`：跳过 Phase 3 步骤 2 深度验证（跳过 /novelty 和 /review，快速模式仅做初步筛选）
+- `--skip-validation`：跳过 Phase 3 步骤 2 深度验证（跳过 $novelty 和 $review，快速模式仅做初步筛选）
 - `--skip-pilot`：跳过 Phase 5 预实验（快速模式，仅做 Phase 1-4）
-- `--auto`：全自动模式，不暂停等待用户确认（用于 /research 调用）
+- `--auto`：全自动模式，不暂停等待用户确认（用于 $research 调用）
 
 ## Outputs
 
@@ -123,7 +123,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
      | 路径 | 名称 | 读取的 wiki 字段 | 产出形态 |
      |------|------|------------------|----------|
-     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic/research 描述直接设计" |
+     | A | 景观驱动 (Landscape-driven) | `direction` + Phase 1 景观报告（不依赖已有方法） | "基于 topic$research 描述直接设计" |
      | B | 增量改进 (Incremental) | `wiki/methods/*.md` 中的 `method.limitations` | "在方法 M 上修复局限 L" |
      | C | 有机融合 (Combination) | 同 topic 下两个 method 的 `tradeoff_profile`（`wiki/methods/*.md`） | "组合 M1 + M2 的优势" |
      | D | 共性盲点 (Innovation) | 同 topic 下 N 个 method 的 `assumptions` 交集（`wiki/methods/*.md`） | "打破共有假设 P" |
@@ -152,7 +152,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic/research description" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic$research description" |
        | B | Incremental | method.limitations | "Fix limitation L in method M" |
        | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
        | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
@@ -218,17 +218,17 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 （跳过时：直接进入 Phase 4: 写入 Wiki，所有幸存 ideas 默认 priority = 3）
 
-1. **调用 `/novelty` / `$novelty` 的 `--write`**（逐个执行）：
+1. **调用 `$novelty` / `$novelty` 的 `--write`**（逐个执行）：
    ```
    对每个幸存 idea：
-   Claude Code: /novelty "<idea-slug>" --write
+   Codex: $novelty "<idea-slug>" --write
    Codex:       $novelty "<idea-slug>" --write
    ```
    `--write` 标志会把得到的 `novelty_score`（1-5）写入 idea frontmatter。记录该分数用于 IDEA_REPORT。
 
-2. **调用 `/review` / `$review`**（对 top ideas）：
+2. **调用 `$review` / `$review`**（对 top ideas）：
    ```
-   Claude Code: /review "<idea-full-description>" --difficulty hard --focus method
+   Codex: $review "<idea-full-description>" --difficulty hard --focus method
    Codex:       $review "<idea-full-description>" --difficulty hard --focus method
    ```
    记录 review score（1-10）和 weaknesses
@@ -265,18 +265,18 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    origin_gaps: []           # [[concept-slug]] 或 [[topic-slug]] 列表 — 该 idea 针对的 concept / topic
    tags: []                  # 2-5 个主题标签（从 origin_gaps / direction 继承）
    target_venue: ""          # NeurIPS / ICLR / ICML / ACL / COLM — 未定时留空
-   novelty_score: ""         # 1-5 — Phase 3 中 深度验证 由 /novelty --write 写入；否则留空
+   novelty_score: ""         # 1-5 — Phase 3 中 深度验证 由 $novelty --write 写入；否则留空
    priority: 3               # 1-5 — 见下方 Priority 计算
-   pilot_result: ""          # 留空；预实验在 Phase 5 运行，结果由 /exp-pilot-eval 填入。
-   linked_experiments: []    # 留空，由 /exp-design 创建 experiment 后填写
+   pilot_result: ""          # 留空；预实验在 Phase 5 运行，结果由 $exp-pilot-eval 填入。
+   linked_experiments: []    # 留空，由 $exp-design 创建 experiment 后填写
    date_proposed: YYYY-MM-DD
    date_resolved: ""         # 留空，validated/failed 时填写
    ---
    ```
 
    **Priority 计算**（把 Phase 3 验证信号映射到 1-5 分）：
-   - 若 `--skip-validation`：默认 `priority = 3`（跳过 novelty/review 评分）
-   - 否则从 `novelty_score`（/novelty 给出的 1-5）开始
+   - 若 `--skip-validation`：默认 `priority = 3`（跳过 novelty$review 评分）
+   - 否则从 `novelty_score`（$novelty 给出的 1-5）开始
    - `+1` 若 `gap_alignment_bonus > 0`（直接命中 gap_map 条目）
    - `-1` 若 `review_score <= 4`（major issues 降权）
    - Clamp 到 `[1, 5]`
@@ -293,19 +293,19 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    3-5 句描述提出的方法。任何借用现有工作的组件用 `[[paper-slug]]`、`[[method-slug]]` 或 `[[concept-slug]]` 标注。
 
    ## Novelty argument
-   为何该 idea 真正新颖 —— /novelty 找到的最相近 prior work 是哪一项，差异维度在哪里。一段简短文字。
+   为何该 idea 真正新颖 —— $novelty 找到的最相近 prior work 是哪一项，差异维度在哪里。一段简短文字。
 
    ## Target venue
    计划投稿目标（如 NeurIPS 2026 / ICLR / ICML / ACL / COLM）。仍在打磨范围的 idea 可留空。
 
    ## Risks
-   可行性评级（high/medium/low）+ top 2-3 风险。包含 /review 揭示的主要弱点。
+   可行性评级（high/medium/low）+ top 2-3 风险。包含 $review 揭示的主要弱点。
 
    ## Pilot results
-   （留空 — 由 /exp-pilot-run和/exp-pilot-eval 后填写）
+   （留空 — 由 $exp-pilot-run和$exp-pilot-eval 后填写）
 
    ## Lessons learned
-   （留空 — 由 /exp-eval 在 idea 达到终态后填写）
+   （留空 — 由 $exp-eval 在 idea 达到终态后填写）
    ```
 
 2. **写入被淘汰的 ideas**（status: failed）：
@@ -313,7 +313,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
    - `status: failed`
    - `priority: 1`（被淘汰的 ideas 永远不会阻塞更高优先级的工作）
    - `date_resolved: YYYY-MM-DD`（今天）
-   - `failure_reason: "[filter] <具体淘汰原因>"` — `[filter]` 前缀区分 Phase 3 筛选淘汰与 /exp-eval 的实验后失败。预实验失败（Phase 5）由 `/exp-pilot-eval` 直接写入已有的 idea 页面。
+   - `failure_reason: "[filter] <具体淘汰原因>"` — `[filter]` 前缀区分 Phase 3 筛选淘汰与 $exp-eval 的实验后失败。预实验失败（Phase 5）由 `$exp-pilot-eval` 直接写入已有的 idea 页面。
    - `## Motivation` 和 `## Hypothesis` 仍需填写（供未来 banlist 匹配）；`## Approach sketch` 可简略；`## Expected outcome` 和 `## Risks` 可说明淘汰原因
    - 这些 failed ideas 成为未来 ideate 的 banlist
 
@@ -369,8 +369,8 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
    ## Suggested Next Steps
    - If --skip-pilot is not specified, run the pilot experiment for further screening.
-   - 用 Claude Code 的 `/exp-design {top-idea-slug}` 或 Codex 的 `$exp-design {top-idea-slug}` 设计实验
-   - 投入时间前，用 Claude Code 的 `/novelty` 或 Codex 的 `$novelty` 检查任一 idea 的 novelty
+   - 用 Codex 的 `$exp-design {top-idea-slug}` 或 Codex 的 `$exp-design {top-idea-slug}` 设计实验
+   - 投入时间前，用 Codex 的 `$novelty` 或 Codex 的 `$novelty` 检查任一 idea 的 novelty
 
    ## Wiki Growth
    | Metric | Before | After | Delta |
@@ -396,7 +396,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 | 路径 | 预实验方式 |
 |------|-----------|
-| A (景观驱动) | 基于 topic/research 描述直接实现提出的方法。在小规模 benchmark 上运行，验证 idea 可行且产生非退化输出。与简单 baseline 对比。 |
+| A (景观驱动) | 基于 topic$research 描述直接实现提出的方法。在小规模 benchmark 上运行，验证 idea 可行且产生非退化输出。与简单 baseline 对比。 |
 | B (增量改进) | 从原方法的论文 repo 出发，应用提出的修复并运行最小评估。与原方法对比验证局限是否被解决。 |
 | C (有机融合) | 实现 M1 + M2 的组合版本。在小规模 benchmark 上运行，检查性能/成本 tradeoff 是否达到预期平衡（不被纯 M1 或纯 M2 支配）。 |
 | D (共性盲点) | 在新设定下（共有假设 P 被打破时）运行现有方法。验证它们确实失败或退化，确认 gap 真实存在。 |
@@ -404,7 +404,7 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 **Pilot Spec — 结构化输出**（GPU 资源充足时**可并行执行多个预实验**）：
 
-写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `/exp-design` 实验页面供 `/exp-run` 消费）。包含以下字段：
+写预实验代码前，为用户选择的idea 生成结构化 Pilot Spec 块并写入 `experiments/pilot/{slug}.yaml`。此 spec 是预实验代码生成的契约（类比 `$exp-design` 实验页面供 `$exp-run` 消费）。包含以下字段：
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -447,29 +447,29 @@ pilot_spec:
 - **对比**：始终包含 baseline（路径 A 用简单默认 baseline，路径 B 用原方法，路径 C 用纯 M1/M2，路径 D 用现有方法，路径 E 用目标领域 SOTA）
 - **success_criterion**：必须是量化可判定的条件
 
-**通过 `/exp-pilot-run` 运行预实验**：
+**通过 `$exp-pilot-run` 运行预实验**：
 
 用户选择的幸存 idea 写入 Pilot Spec 到 `experiments/pilot/{slug}.yaml` 后：
 
 ```
-Claude Code: /exp-pilot-run "{idea-slug}"
+Codex: $exp-pilot-run "{idea-slug}"
 Codex:       $exp-pilot-run "{idea-slug}"
 ```
 
-`/exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
+`$exp-pilot-run` 读取 Pilot Spec，写入预实验代码到 `experiments/pilot/code/{slug}/`，运行实验，返回 PILOT_REPORT：
 - **Results**：指标值 vs baseline（mean ± std）
 - **Details**：完成步数、运行时间、日志路径
 
-**通过 `/exp-pilot-eval` 评估预实验结果**：
+**通过 `$exp-pilot-eval` 评估预实验结果**：
 
-`/exp-pilot-run` 返回 PILOT_REPORT 后，评估结果并更新 idea 页面（已在 Phase 4 创建）：
+`$exp-pilot-run` 返回 PILOT_REPORT 后，评估结果并更新 idea 页面（已在 Phase 4 创建）：
 
 ```
-Claude Code: /exp-pilot-eval "{idea-slug}"
+Codex: $exp-pilot-eval "{idea-slug}"
 Codex:       $exp-pilot-eval "{idea-slug}"
 ```
 
-`/exp-pilot-eval` 读取预实验结果，应用判定逻辑（宽松阈值——目的是检测明显失败，非衡量最终性能），更新 idea 页面：
+`$exp-pilot-eval` 读取预实验结果，应用判定逻辑（宽松阈值——目的是检测明显失败，非衡量最终性能），更新 idea 页面：
 - **Pass**：设置 `pilot_result: "pass — ..."`，status 不变
 - **Fail**：设置 `failure_reason: "[pilot] ..."`，status 转为 `failed`，同时设置`pilot_result: "fail — ..."`
 - **Inconclusive**：设置 `pilot_result: "inconclusive — needs full experiment"`，status 不变
@@ -495,12 +495,12 @@ Codex:       $exp-pilot-eval "{idea-slug}"
 - **Semantic Scholar API 不可用**：跳过 S2 搜索，依赖 DeepXiv + WebSearch 补偿
 - **DeepXiv API 不可用**：跳过 DeepXiv 搜索和 trending，依赖 S2 + WebSearch（回退到原有行为）
 - **Review LLM 不可用**：Phase 2 仅用 primary agent 生成（无双模型多样性，在报告中标注）
-- **/novelty 失败**：Phase 3 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
-- **/review / $review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动运行 Claude Code 的 `/review` 或 Codex 的 `$review`
+- **$novelty 失败**：Phase 3 中单个 idea 的 novelty 失败时，标注「novelty unverified」继续
+- **$review / $review 失败**：Phase 3 中 review 失败时，标注「unreviewed」继续，建议用户手动运行 Codex 的 `$review` 或 Codex 的 `$review`
 - **预实验失败**：标记为 failed 并在 failure_reason 中加 `[pilot]` 前缀，其余 ideas 继续
 - **所有预实验都失败**：idea 页面已存在（Phase 4 已写入），报告建议用户查看预实验日志并调整方案
 - **slug 冲突**：若 wiki/ideas/ 中已存在相同 slug，追加数字后缀（如 `sparse-lora-v2`）
-- **所有 ideas 都被淘汰**：仍写入 wiki（status: failed），报告中建议用户扩大搜索方向，或用 Claude Code 的 `/ingest` / Codex 的 `$ingest` 增加论文
+- **所有 ideas 都被淘汰**：仍写入 wiki（status: failed），报告中建议用户扩大搜索方向，或用 Codex 的 `$ingest` / Codex 的 `$ingest` 增加论文
 
 ## Dependencies
 
@@ -517,10 +517,10 @@ Codex:       $exp-pilot-eval "{idea-slug}"
 - `python3 tools/fetch_deepxiv.py trending --days 14` — 热门论文趋势
 
 ### Skills
-- `/novelty`（Claude Code）或 `$novelty`（Codex）— Phase 3 深度 novelty 验证
-- `/review`（Claude Code）或 `$review`（Codex）— Phase 3 跨模型审查
-- `/exp-pilot-run`（Claude Code）或 `$exp-pilot-run`（Codex）— Phase 5 预实验执行
-- `/exp-pilot-eval`（Claude Code）或 `$exp-pilot-eval`（Codex）— Phase 5 预实验结果评估与 idea 页面更新
+- `$novelty`（Codex）或 `$novelty`（Codex）— Phase 3 深度 novelty 验证
+- `$review`（Codex）或 `$review`（Codex）— Phase 3 跨模型审查
+- `$exp-pilot-run`（Codex）或 `$exp-pilot-run`（Codex）— Phase 5 预实验执行
+- `$exp-pilot-eval`（Codex）或 `$exp-pilot-eval`（Codex）— Phase 5 预实验结果评估与 idea 页面更新
 
 ### MCP Servers
 - `llm-review MCP chat tool` — Phase 2 Review LLM 独立脑暴

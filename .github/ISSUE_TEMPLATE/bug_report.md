@@ -10,7 +10,7 @@ A clear description of the bug.
 
 ## Steps to Reproduce
 
-1. Run `/skill_name ...` in Claude Code or `$skill_name ...` in Codex
+1. Run `$skill_name ...` in Codex
 2. ...
 3. See error
 
@@ -26,12 +26,12 @@ What actually happened. Include error messages or logs if available.
 
 - **OS**: (e.g., Ubuntu 22.04, macOS 14)
 - **Python**: (e.g., 3.11)
-- **Agent runtime/version**: (e.g., `claude --version` or `codex --version`)
+- **Agent runtime/version**: (e.g., `codex --version`)
 - **Language**: (en / zh)
 
 ## Skill
 
-Which skill triggered the bug? (e.g., `/ingest` in Claude Code or `$ingest` in Codex)
+Which skill triggered the bug? (e.g., `$ingest` in Codex)
 
 ## Logs
 

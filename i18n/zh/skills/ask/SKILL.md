@@ -4,7 +4,7 @@ description: 对 wiki 提问，综合检索相关页面后回答，好的回答�
 argument-hint: <question>
 ---
 
-# /ask
+# $ask
 
 > 对 wiki 知识库提问。LLM 读取 context_brief.md 获取全局上下文，检索相关页面，
 > 综合回答并附带引用。好的回答可以 crystallize 回 wiki——写入 outputs/、创建新的
@@ -192,7 +192,7 @@ argument-hint: <question>
 ## Error Handling
 
 - **context_brief.md 不存在**：运行 `python3 tools/research_wiki.py rebuild-context-brief wiki/` 重建后重试
-- **wiki 为空**：告知用户先运行 `/init` 或 `/ingest` 建立知识基础
+- **wiki 为空**：告知用户先运行 `$init` 或 `$ingest` 建立知识基础
 - **无相关页面匹配**：坦诚告知 wiki 中无相关内容，建议搜索和 ingest 方向
 - **crystallize slug 冲突**：追加数字后缀（如 `query-result-2`）
 - **index.md 不存在**：运行 `python3 tools/research_wiki.py init wiki/` 初始化后重试
@@ -208,7 +208,7 @@ argument-hint: <question>
 - `python3 tools/research_wiki.py init wiki/` — 初始化 wiki（fallback）
 
 ### Skills
-- `/ingest`（Claude Code）或 `$ingest`（Codex）— 若建议用户补充知识时引用
+- `$ingest`（Codex）或 `$ingest`（Codex）— 若建议用户补充知识时引用
 
 ### Shared References
 - `shared-references/citation-verification.md`（Phase 3 创建）

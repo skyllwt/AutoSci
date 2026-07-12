@@ -1,4 +1,4 @@
-# /ingest INIT MODE and Batch Safety
+# $ingest INIT MODE and Batch Safety
 
 Open this reference when ingest is invoked by the init workflow, or any time you need to understand what batch ingests may be doing to shared files.
 
@@ -8,11 +8,11 @@ INIT MODE is active for any ingest invocation whose source path originates from 
 
 In INIT MODE:
 
-- the source is always a `canonical_ingest_path` already prepared by `/init` (a `raw/tmp/...` path for user-owned papers, or a `raw/discovered/...` path for introduced papers)
+- the source is always a `canonical_ingest_path` already prepared by `$init` (a `raw/tmp/...` path for user-owned papers, or a `raw/discovered/...` path for introduced papers)
 - `raw/` is strictly read-only — do not write to `raw/tmp/`, `raw/discovered/`, or anywhere else under `raw/`
 - `fetch_s2.py citations <arxiv-id>` and `fetch_s2.py references <arxiv-id>` are **skipped** — the parent init workflow does a unified citation sweep after the batch
 - `rebuild-context-brief` and `rebuild-open-questions` are **skipped** — the parent runs them once after all papers are ingested
-- conflict-prone topic writes are **skipped** — multiple batch ingests may touch the same topic. Let the parent handle topic updates after the batch, or defer them to `/edit`.
+- conflict-prone topic writes are **skipped** — multiple batch ingests may touch the same topic. Let the parent handle topic updates after the batch, or defer them to `$edit`.
 - **skip reverse-link edits to existing pages** — do not append `key_papers` to an existing concept page, do not append to `## Key papers` or `## Related` of an existing paper page, and do not append to an existing people page. Record the relationship via `tools/research_wiki.py add-edge` instead. The parent init workflow rebuilds these backlinks after the batch.
 
 Everything else — paper page creation, concept dedup via `find-similar-concept` and method dedup via manual scan of `wiki/methods/`, people page creation, paper `## Related` links, graph edges for concept/method/foundation — still runs per paper.
@@ -58,6 +58,6 @@ In INIT MODE PARALLEL, ingest **must** commit its work inside the worktree befor
 - stage every file you created or modified under `wiki/`
 - before committing, run `git branch --show-current` and verify the branch name is the worktree branch (contains `init-`), not the base branch. If you are on the base branch, stop and report instead of committing
 - run `git commit -m "ingest: <paper-title>"` (or a similarly descriptive message)
-- do not push; the parent `/init` will merge the branch during fan-in
+- do not push; the parent `$init` will merge the branch during fan-in
 
 In INIT MODE SERIAL, do **not** commit. If the ingest fails part-way through (partial failure), do not hide the incomplete state; stop when cleanup is ambiguous and let the parent init workflow report the recovery point.

@@ -4,10 +4,10 @@ description: LaTeX 编译 → PDF：latexmk 编译 + 自动修复 + 页数/匿�
 argument-hint: "[paper-dir] [--fix] [--checklist]"
 ---
 
-# /paper-compile
+# $paper-compile
 
 > 编译 LaTeX 论文为 PDF，自动修复常见错误，验证提交要求。
-> 输入 paper/ 目录（由 `/paper-draft` / `$paper-draft` 生成），执行 latexmk 编译，
+> 输入 paper/ 目录（由 `$paper-draft` / `$paper-draft` 生成），执行 latexmk 编译，
 > 解析错误并尝试自动修复（缺失包、引用未定义、figure 路径），
 > 验证页数限制、匿名合规、字体嵌入、[UNCONFIRMED] 标记清除。
 > 生成提交清单。
@@ -190,7 +190,7 @@ pdffonts paper/main.pdf
 
 ## Next Steps
 - {specific actions to resolve blocking issues}
-- 用 Claude Code 的 `/refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 做最终润色
+- 用 Codex 的 `$refine paper/main.tex --focus writing` 或 Codex 的 `$refine paper/main.tex --focus writing` 做最终润色
 - Manual review of anonymous compliance
 ```
 
@@ -212,7 +212,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Error Handling
 
-- **main.tex 不存在**：报错，建议先运行 Claude Code 的 `/paper-draft` 或 Codex 的 `$paper-draft`
+- **main.tex 不存在**：报错，建议先运行 Codex 的 `$paper-draft` 或 Codex 的 `$paper-draft`
 - **latexmk 未安装**：报错，提供安装命令（`sudo apt install texlive-full` 或 `brew install --cask mactex`）
 - **编译失败且无法自动修复**：输出完整错误日志 + 定位到具体 .tex 文件和行号
 - **pdfinfo/pdffonts 未安装**：跳过页数/字体检查，在报告中标注
@@ -242,5 +242,5 @@ python3 tools/research_wiki.py log wiki/ \
 - `shared-references/academic-writing.md` — venue 页数限制参考
 
 ### Called by
-- `/research`（Claude Code）或 `$research`（Codex）Stage 5（论文编译阶段）
+- `$research`（Codex）或 `$research`（Codex）Stage 5（论文编译阶段）
 - 用户手动调用

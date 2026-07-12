@@ -4,7 +4,7 @@ description: Multi-phase research idea generation pipeline: landscape scan → d
 argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation] [--skip-pilot] [--auto]"
 ---
 
-# /ideate
+# $ideate
 
 > Generates high-quality research ideas through a 5-phase pipeline, grounded in the wiki knowledge base and external search.
 > Phase 1 scans the research landscape (wiki + WebSearch + S2), Phase 2 runs a dual-model brainstorm (the primary agent + Review LLM independently),
@@ -15,9 +15,9 @@ argument-hint: "[research-direction-or-topic] [--max-ideas N] [--skip-validation
 
 - `direction` (optional): research direction, keywords, or specific problem description. If omitted, automatically selects the most valuable direction from open_questions.md.
 - `--max-ideas N` (optional, default 3): maximum number of ideas to write to the wiki
-- `--skip-validation`: skip Phase 3 Step 2 deep validation (skip /novelty and /review; fast mode: first-pass filter only)
+- `--skip-validation`: skip Phase 3 Step 2 deep validation (skip $novelty and $review; fast mode: first-pass filter only)
 - `--skip-pilot`: skip Phase 5 pilot experiments (fast mode: Phase 1–4 only)
-- `--auto`: fully automatic mode, no pause for user confirmation (used when called by /research)
+- `--auto`: fully automatic mode, no pause for user confirmation (used when called by $research)
 
 ## Outputs
 
@@ -123,7 +123,7 @@ Goal: generate ideas independently with the primary agent and Review LLM, exploi
 
      | Path | Name | Wiki input to read | Output form |
      |------|------|--------------------|-------------|
-     | A | Landscape-driven | `direction` + landscape report from Phase 1 (no dependency on existing methods) | "Design directly from topic/research description" |
+     | A | Landscape-driven | `direction` + landscape report from Phase 1 (no dependency on existing methods) | "Design directly from topic$research description" |
      | B | Incremental | `method.limitations` in `wiki/methods/*.md` | "Fix limitation L in method M" |
      | C | Combination | `tradeoff_profile` of two methods under the same topic in `wiki/methods/*.md` | "Combine strengths of M1 + M2" |
      | D | Innovation | Intersection of `assumptions` across N methods under the same topic in `wiki/methods/*.md` | "Break shared assumption P" |
@@ -152,7 +152,7 @@ Goal: generate ideas independently with the primary agent and Review LLM, exploi
 
        | Path | Name | Wiki input | Output form |
        |------|------|------------|-------------|
-       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic/research description" |
+       | A | Landscape-driven | direction + landscape report (no dependency on existing methods) | "Design directly from topic$research description" |
        | B | Incremental | method.limitations | "Fix limitation L in method M" |
        | C | Combination | tradeoff_profile of two methods under same topic | "Combine strengths of M1 + M2" |
        | D | Innovation | Intersection of assumptions across N methods under same topic | "Break shared assumption P" |
@@ -218,17 +218,17 @@ Goal: eliminate infeasible or insufficiently novel ideas, then deeply validate s
 
 (Skip if `--skip-validation`: proceed directly to Phase 4: Write to Wiki with default priority = 3 for all survivors.)
 
-1. **Call `/novelty` / `$novelty` with `--write`** (one at a time):
+1. **Call `$novelty` / `$novelty` with `--write`** (one at a time):
    ```
    For each surviving idea:
-   Claude Code: /novelty "<idea-slug>" --write
+   Codex: $novelty "<idea-slug>" --write
    Codex:       $novelty "<idea-slug>" --write
    ```
    The `--write` flag persists the resulting `novelty_score` (1–5) into the idea's frontmatter. Record the score for the IDEA_REPORT.
 
-2. **Call `/review` / `$review`** (for top ideas):
+2. **Call `$review` / `$review`** (for top ideas):
    ```
-   Claude Code: /review "<idea-full-description>" --difficulty hard --focus method
+   Codex: $review "<idea-full-description>" --difficulty hard --focus method
    Codex:       $review "<idea-full-description>" --difficulty hard --focus method
    ```
    Record review score (1–10) and weaknesses
@@ -265,19 +265,19 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    origin_gaps: []           # [[concept-slug]] or [[topic-slug]] list — concepts/topics this idea targets
    tags: []                  # 2-5 topic tags (inherit from origin_gaps / direction)
    target_venue: ""          # NeurIPS / ICLR / ICML / ACL / COLM — leave empty if undecided
-   novelty_score: ""         # 1-5 — written by /novelty --write in Phase 3 Deep Validation; leave empty otherwise
+   novelty_score: ""         # 1-5 — written by $novelty --write in Phase 3 Deep Validation; leave empty otherwise
    priority: 3               # 1-5 — see Priority computation below
-   pilot_result: ""          # Leave blank; pilots run in Phase 5, results filled in by /exp-pilot-eval after.
+   pilot_result: ""          # Leave blank; pilots run in Phase 5, results filled in by $exp-pilot-eval after.
    failure_reason: ""        # empty for proposed ideas
-   linked_experiments: []    # empty until /exp-design creates experiments
+   linked_experiments: []    # empty until $exp-design creates experiments
    date_proposed: YYYY-MM-DD
    date_resolved: ""         # empty until validated/failed
    ---
    ```
 
    **Priority computation** (maps Phase 3 validation signals into the 1-5 scale):
-   - If `--skip-validation`: default `priority = 3` (skip novelty/review scoring)
-   - Otherwise start from `novelty_score` (1-5 from /novelty)
+   - If `--skip-validation`: default `priority = 3` (skip novelty$review scoring)
+   - Otherwise start from `novelty_score` (1-5 from $novelty)
    - `+1` if `gap_alignment_bonus > 0` (directly targets a gap_map entry)
    - `-1` if `review_score <= 4` (major issues downgrade)
    - Clamp to `[1, 5]`
@@ -294,19 +294,19 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    3-5 sentences on the proposed method. Reference `[[paper-slug]]`, `[[method-slug]]`, or `[[concept-slug]]` for any component borrowed from existing work.
 
    ## Novelty argument
-   Why this idea is genuinely new — what closest prior work (from /novelty) it differs from, and on which axis. One short paragraph.
+   Why this idea is genuinely new — what closest prior work (from $novelty) it differs from, and on which axis. One short paragraph.
 
    ## Target venue
    The intended publication target (e.g. NeurIPS 2026 / ICLR / ICML / ACL / COLM). May be left blank for ideas still being scoped.
 
    ## Risks
-   Feasibility rating (high/medium/low) + top 2-3 risks. Include the main weaknesses surfaced by /review.
+   Feasibility rating (high/medium/low) + top 2-3 risks. Include the main weaknesses surfaced by $review.
 
    ## Pilot results
-   Leave blank; filled in by /exp-pilot-eval in Phase 5.
+   Leave blank; filled in by $exp-pilot-eval in Phase 5.
 
    ## Lessons learned
-   (empty — filled by /exp-eval after the idea reaches a terminal status)
+   (empty — filled by $exp-eval after the idea reaches a terminal status)
    ```
 
 2. **Write eliminated ideas** (status: failed):
@@ -314,7 +314,7 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
    - `status: failed`
    - `priority: 1` (eliminated ideas never block higher-priority work)
    - `date_resolved: YYYY-MM-DD` (today)
-   - `failure_reason: "[filter] <specific elimination reason>"` — the `[filter]` prefix distinguishes Phase 3 filter eliminations from post-experiment failures from /exp-eval. Example: `"[filter] highly similar published work exists: <paper-title>"`. Pilot failures (Phase 5) are handled by `/exp-pilot-eval` which writes `[pilot]` failure_reason directly to the existing idea page.
+   - `failure_reason: "[filter] <specific elimination reason>"` — the `[filter]` prefix distinguishes Phase 3 filter eliminations from post-experiment failures from $exp-eval. Example: `"[filter] highly similar published work exists: <paper-title>"`. Pilot failures (Phase 5) are handled by `$exp-pilot-eval` which writes `[pilot]` failure_reason directly to the existing idea page.
    - Body `## Motivation` and `## Hypothesis` should still be filled (so future banlist matching has content); `## Approach sketch` may be brief; `## Expected outcome` and `## Risks` can note why the idea was eliminated
    - These failed ideas become the banlist for future ideate runs
 
@@ -370,8 +370,8 @@ Write the validated ideas to the wiki (including eliminated ideas, with their el
 
    ## Suggested Next Steps
    - If --skip-pilot is not specified, run the pilot experiment for further screening.
-   - Design experiments with `/exp-design {top-idea-slug}` in Claude Code or `$exp-design {top-idea-slug}` in Codex
-   - Run novelty checks with `/novelty` in Claude Code or `$novelty` in Codex before investing time
+   - Design experiments with `$exp-design {top-idea-slug}` in Codex or `$exp-design {top-idea-slug}` in Codex
+   - Run novelty checks with `$novelty` in Codex or `$novelty` in Codex before investing time
 
    ## Wiki Growth
    | Metric | Before | After | Delta |
@@ -396,7 +396,7 @@ Objective: Conduct lightweight pre-experiments on **user-selected** surviving id
 
 | Path | Pilot approach |
 |------|---------------|
-| A (Landscape-driven) | Implement the proposed method directly from the topic/research description. Run on a small benchmark to verify the idea is feasible and produces non-degenerate output. Compare against a simple baseline. |
+| A (Landscape-driven) | Implement the proposed method directly from the topic$research description. Run on a small benchmark to verify the idea is feasible and produces non-degenerate output. Compare against a simple baseline. |
 | B (Incremental) | Start from the original method's paper repo; apply the proposed fix and run a minimal evaluation. Compare against the original method to verify the limitation is addressed. |
 | C (Combination) | Implement the combined version of M1 + M2. Run on a small benchmark to check whether the performance/cost tradeoff reaches the expected balance (not dominated by either pure M1 or M2). |
 | D (Innovation) | Run existing methods under the new setting (where the shared assumption P is broken). Verify that they indeed fail or degrade, confirming the gap is real. |
@@ -404,7 +404,7 @@ Objective: Conduct lightweight pre-experiments on **user-selected** surviving id
 
 **Pilot Spec — structured output for each idea**:(**Multiple pilot experiments can be executed in parallel** when GPU resources are sufficient.)
 
-Before writing pilot code, generate a structured Pilot Spec block per idea selected by the user and write it to `experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `/exp-design` experiment pages guide `/exp-run`). Include the following fields:
+Before writing pilot code, generate a structured Pilot Spec block per idea selected by the user and write it to `experiments/pilot/{slug}.yaml`. This spec is the contract that guides pilot code generation (analogous to how `$exp-design` experiment pages guide `$exp-run`). Include the following fields:
 
 ```yaml
 # Pilot Spec for: {idea-slug}
@@ -470,29 +470,29 @@ pilot_spec:
 - **Comparison**: always include a baseline (the original method for path A, pure M1/M2 for path B, existing methods for path C, target-domain SOTA for path D)
 - **Success criterion**: must be quantitative and checkable in the Pilot Spec
 
-**Run pilots via `/exp-pilot-run`**:
+**Run pilots via `$exp-pilot-run`**:
 
 User-selected surviving idea, after writing the Pilot Spec to `experiments/pilot/{slug}.yaml`:
 
 ```
-Claude Code: /exp-pilot-run "{idea-slug}"
+Codex: $exp-pilot-run "{idea-slug}"
 Codex:       $exp-pilot-run "{idea-slug}"
 ```
 
-`/exp-pilot-run` reads the Pilot Spec, writes pilot code to `experiments/pilot/code/{slug}/`, runs the experiment, and returns a PILOT_REPORT with:
+`$exp-pilot-run` reads the Pilot Spec, writes pilot code to `experiments/pilot/code/{slug}/`, runs the experiment, and returns a PILOT_REPORT with:
 - **Results**: metric values vs baseline (mean ± std)
 - **Details**: steps completed, runtime, log path
 
-**Evaluate pilot results via `/exp-pilot-eval`**:
+**Evaluate pilot results via `$exp-pilot-eval`**:
 
-After `/exp-pilot-run` returns the PILOT_REPORT, evaluate results and update the idea page (which already exists from Phase 4):
+After `$exp-pilot-run` returns the PILOT_REPORT, evaluate results and update the idea page (which already exists from Phase 4):
 
 ```
-Claude Code: /exp-pilot-eval "{idea-slug}"
+Codex: $exp-pilot-eval "{idea-slug}"
 Codex:       $exp-pilot-eval "{idea-slug}"
 ```
 
-`/exp-pilot-eval` reads the pilot results, applies the verdict logic (pass/fail/inconclusive with lenient thresholds — the purpose is to detect obvious failures, not measure final performance), and updates the idea page:
+`$exp-pilot-eval` reads the pilot results, applies the verdict logic (pass/fail/inconclusive with lenient thresholds — the purpose is to detect obvious failures, not measure final performance), and updates the idea page:
 - **Pass**: sets `pilot_result: "pass — ..."`, status unchanged
 - **Fail**: sets `failure_reason: "[pilot] ..."`, transitions status to `failed`.Meanwhile set pilot_result: "fail — ..."
 - **Inconclusive**: sets `pilot_result: "inconclusive — needs full experiment"`, status unchanged
@@ -519,12 +519,12 @@ Codex:       $exp-pilot-eval "{idea-slug}"
 - **Semantic Scholar API unavailable**: skip S2 search, rely on DeepXiv + WebSearch for compensation
 - **DeepXiv API unavailable**: skip DeepXiv search and trending, fall back to S2 + WebSearch (original behavior)
 - **Review LLM unavailable**: Phase 2 uses the primary agent only (no dual-model diversity, noted in report)
-- **/novelty fails**: if novelty fails for a single idea in Phase 3, mark "novelty unverified" and continue
-- **/review fails**: if review fails in Phase 3, mark "unreviewed" and continue; recommend user manually runs /review
+- **$novelty fails**: if novelty fails for a single idea in Phase 3, mark "novelty unverified" and continue
+- **$review fails**: if review fails in Phase 3, mark "unreviewed" and continue; recommend user manually runs $review
 - **Pilot fails for an idea**: mark as failed with `[pilot]` prefix in failure_reason; remaining ideas continue
 - **All pilots fail**: idea pages already exist (written in Phase 4); report recommends user review pilot logs and adjust approach
 - **Slug conflict**: if the same slug already exists in wiki/ideas/, append a numeric suffix (e.g. `sparse-lora-v2`)
-- **All ideas eliminated**: still write to wiki (status: failed); report recommends user broaden the search direction or /ingest more papers
+- **All ideas eliminated**: still write to wiki (status: failed); report recommends user broaden the search direction or $ingest more papers
 
 ## Dependencies
 
@@ -541,10 +541,10 @@ Codex:       $exp-pilot-eval "{idea-slug}"
 - `python3 tools/fetch_deepxiv.py trending --days 14` — trending paper trends
 
 ### Skills
-- `/novelty` (Claude Code) or `$novelty` (Codex) — Phase 3 deep novelty validation
-- `/review` (Claude Code) or `$review` (Codex) — Phase 3 cross-model review
-- `/exp-pilot-run` (Claude Code) or `$exp-pilot-run` (Codex) — Phase 5 pilot experiment execution
-- `/exp-pilot-eval` (Claude Code) or `$exp-pilot-eval` (Codex) — Phase 5 pilot result evaluation and idea page update
+- `$novelty` (Codex) or `$novelty` (Codex) — Phase 3 deep novelty validation
+- `$review` (Codex) or `$review` (Codex) — Phase 3 cross-model review
+- `$exp-pilot-run` (Codex) or `$exp-pilot-run` (Codex) — Phase 5 pilot experiment execution
+- `$exp-pilot-eval` (Codex) or `$exp-pilot-eval` (Codex) — Phase 5 pilot result evaluation and idea page update
 
 ### MCP Servers
 - `llm-review MCP chat tool` — Phase 2 Review LLM independent brainstorm

@@ -1,6 +1,6 @@
-# /init Planner Policy
+# $init Planner Policy
 
-当 `/init` 需要读取 `.checkpoints/init-plan.json`、裁剪 shortlist、或解释 planner 的 warning / error 时，打开此参考文件。
+当 `$init` 需要读取 `.checkpoints/init-plan.json`、裁剪 shortlist、或解释 planner 的 warning / error 时，打开此参考文件。
 
 ## 行为策略
 

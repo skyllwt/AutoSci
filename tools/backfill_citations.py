@@ -2,7 +2,7 @@
 """One-shot backfill: populate wiki/graph/citations.jsonl for all already-ingested
 papers.
 
-The bootstrap `/init` workflow skips per-paper `fetch_s2.py references` in
+The bootstrap `$init` workflow skips per-paper `fetch_s2.py references` in
 INIT MODE so batch ingest can avoid redundant network calls and conflicting
 writes. This script walks every paper in `wiki/papers/`, fetches references
 from Semantic Scholar once after the batch, and uses

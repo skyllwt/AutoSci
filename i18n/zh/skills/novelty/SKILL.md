@@ -4,12 +4,12 @@ description: 多源 novelty 验证：WebSearch + Semantic Scholar + wiki + Revie
 argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 ---
 
-# /novelty
+# $novelty
 
 > 对一个研究想法或方法进行多源 novelty 验证。搜索 WebSearch、Semantic Scholar、
 > wiki 内已有工作和 arXiv 最新预印本，然后由 Review LLM 交叉验证，输出 novelty 评分（1-5）、
 > 最相似已有工作、差异化要点和下一步建议。
-> 可独立使用，也可在 Phase 4 中由 Claude Code 的 `/ideate` 或 Codex 的 `$ideate` 调用。
+> 可独立使用，也可在 Phase 4 中由 Codex 的 `$ideate` 或 Codex 的 `$ideate` 调用。
 
 ## Inputs
 
@@ -19,7 +19,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
   - 论文标题或 arXiv URL（检查该论文方法的 novelty）
 - `--quick`：快速模式，跳过 Review LLM cross-verify（Step 3），仅做搜索
 - `--verbose`：输出完整搜索结果，不仅是摘要
-- `--write`（可选，默认 **关闭**）：把得到的 `novelty_score` 持久化到 target frontmatter。**仅当 `target` 是 idea slug**（即 `wiki/ideas/{slug}.md` 存在）时生效。自由文本 target 与论文 novelty 检查无论是否带此 flag 都保持只读。视为用户可见参数 —— `/ideate` Phase 4 调用 `/novelty` 时显式传入；不得仅根据仓库状态推断。
+- `--write`（可选，默认 **关闭**）：把得到的 `novelty_score` 持久化到 target frontmatter。**仅当 `target` 是 idea slug**（即 `wiki/ideas/{slug}.md` 存在）时生效。自由文本 target 与论文 novelty 检查无论是否带此 flag 都保持只读。视为用户可见参数 —— `$ideate` Phase 4 调用 `$novelty` 时显式传入；不得仅根据仓库状态推断。
 
 ## Outputs
 

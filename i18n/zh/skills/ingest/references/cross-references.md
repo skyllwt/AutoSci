@@ -1,10 +1,10 @@
-# /ingest 交叉引用
+# $ingest 交叉引用
 
 在任何 wiki 页面上写链接时，打开此参考。每一条正向链接都有反向义务（指向 foundation 的除外）。下表是合同。
 
 ## 正向 → 反向义务
 
-对应根 `CLAUDE.md`（"Cross-Reference 规则"）中的矩阵，裁剪到 `/ingest` 实际写入的 edge：
+对应根 `AGENTS.md`（"Cross-Reference 规则"）中的矩阵，裁剪到 `$ingest` 实际写入的 edge：
 
 | 正向操作（你在页面 A 上写什么） | 必须同步的反向操作（在同一 turn 里你在页面 B 上写什么） |
 |--------------------------------|--------------------------------------------------------|
@@ -15,16 +15,16 @@
 | `methods/M` 写 `parent_methods: [[method-N]]` | `methods/N` 的 `child_methods` 追加 `M`（反之亦然） |
 | 任意页面写 `[[foundation-X]]` | **不写反向链接** —— foundation 是终端节点 |
 
-写了正向却没写反向，是 `/check` 报 `missing-field` 的最常见来源。把两边放在同一 turn 内做，整类错误就被消灭。
+写了正向却没写反向，是 `$check` 报 `missing-field` 的最常见来源。把两边放在同一 turn 内做，整类错误就被消灭。
 
 ## Foundation 是终端节点
 
-`/ingest` 不得修改 foundation 页面。没有 `key_papers` 字段，也没有任何形式的反向引用。一篇论文链到 foundation，只留下两处痕迹：
+`$ingest` 不得修改 foundation 页面。没有 `key_papers` 字段，也没有任何形式的反向引用。一篇论文链到 foundation，只留下两处痕迹：
 
 - 论文页面 `## Related` 中的 `[[foundation-slug]]`
 - `wiki/graph/edges.jsonl` 中一条 `paper → foundation`、type 为 `derived_from` 的 edge
 
-foundation 仅由 `/prefill` 创建。`/ingest` 永远不新建 foundation —— 即便某个 concept 候选看起来像是 foundational 却没有匹配。这种情况下，走普通 concept 路径（必要时新建 concept 页面），让用户日后需要时自行 seed foundation。
+foundation 仅由 `$prefill` 创建。`$ingest` 永远不新建 foundation —— 即便某个 concept 候选看起来像是 foundational 却没有匹配。这种情况下，走普通 concept 路径（必要时新建 concept 页面），让用户日后需要时自行 seed foundation。
 
 ## paper-to-concept 语义 edge
 
@@ -70,7 +70,7 @@ survey 关系由 `papers.contribution_type` 包含 `survey` 派生。
 
 ## 正反两侧原子写入
 
-`/ingest` 写的每一条链接，反向都应在同一 turn 内落地。具体做法：
+`$ingest` 写的每一条链接，反向都应在同一 turn 内落地。具体做法：
 
 1. 决定建立此链接。
 2. 在源页面写正向条目。
@@ -78,8 +78,8 @@ survey 关系由 `papers.contribution_type` 包含 `survey` 派生。
 4. 若该链接对应一条 semantic graph edge（paper↔concept、paper↔paper、paper→foundation），通过 `tools/research_wiki.py add-edge` 写出。
 5. 若一条 paper reference 能解析到已有 paper 页面，通过 `tools/research_wiki.py add-citation` 写出 bibliographic 记录。
 
-这种做法让 `/check` 下一轮不会报半吊子链接。也让回滚变简单：若某篇论文 ingest 被中止，直接撤销该论文的编辑就能把两侧同时撤销。
+这种做法让 `$check` 下一轮不会报半吊子链接。也让回滚变简单：若某篇论文 ingest 被中止，直接撤销该论文的编辑就能把两侧同时撤销。
 
-## `/ingest` 在此处不做的检查
+## `$ingest` 在此处不做的检查
 
-`/ingest` 边写边写反向链接，但不会审计 wiki 中既有链接是否仍有反向。那是全图审计，属于 `/check`。不要在 ingest 过程中全量读 `wiki/` 去查已有的反向缺失 —— 时间与 token 成本都不小，而且与 `/check` 做重复工作。
+`$ingest` 边写边写反向链接，但不会审计 wiki 中既有链接是否仍有反向。那是全图审计，属于 `$check`。不要在 ingest 过程中全量读 `wiki/` 去查已有的反向缺失 —— 时间与 token 成本都不小，而且与 `$check` 做重复工作。

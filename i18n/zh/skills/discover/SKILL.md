@@ -4,22 +4,22 @@ description: 基于 anchor 论文、topic 关键词或当前 wiki 状态，产�
 argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str> | --from-wiki | --venue <slug> --year <int>) [--limit N]"
 ---
 
-# /discover / $discover
+# $discover / $discover
 
-> 从四种 seed 模式之一产出一份排好序的候选论文 shortlist，附带每条候选的 rationale，呈现给用户或调用方 skill。`/discover` / `$discover` 绝不自动 ingest —— 它只负责提出候选，实际动作由 `/ingest` / `$ingest` 负责。
-> 手动：Claude Code 中 `/discover [flags]`，或 Codex 中 `$discover [flags]`。
+> 从四种 seed 模式之一产出一份排好序的候选论文 shortlist，附带每条候选的 rationale，呈现给用户或调用方 skill。`$discover` / `$discover` 绝不自动 ingest —— 它只负责提出候选，实际动作由 `$ingest` / `$ingest` 负责。
+> 手动：Codex 中 `$discover [flags]`，或 Codex 中 `$discover [flags]`。
 
 按需打开下列本地参考文件：
 
 - `references/seed-modes.md` —— 如何把用户的措辞映射到 anchor / topic / wiki / venue 模式，以及四者的选择规则
-- `references/ranking-signals.md` —— `tools/discover.py` 的打分依据，以及为什么 discovery 不共享 `/init` 的 survey 偏好
+- `references/ranking-signals.md` —— `tools/discover.py` 的打分依据，以及为什么 discovery 不共享 `$init` 的 survey 偏好
 - `references/wiki-dedup.md` —— 候选如何被过滤掉已 ingest 的论文，以及 dedup 边界
 
 ## Inputs
 
-- `--anchor <id>`（可重复）：一或多个 anchor 论文 ID（优先 arXiv ID，也接受 S2 paperId）。驱动 **anchor 模式** —— 主要使用场景，包括 `/ingest` / `$ingest` 后的 "接下来该读什么"。
+- `--anchor <id>`（可重复）：一或多个 anchor 论文 ID（优先 arXiv ID，也接受 S2 paperId）。驱动 **anchor 模式** —— 主要使用场景，包括 `$ingest` / `$ingest` 后的 "接下来该读什么"。
 - `--negative <id>`（可重复，可选）：希望推开的论文 ID。只在配合 `--anchor` 时有意义。
-- `--topic "<str>"`：topic / query 字符串。驱动 **topic 模式** —— 相对 `/init` planner 更轻量的替代。
+- `--topic "<str>"`：topic / query 字符串。驱动 **topic 模式** —— 相对 `$init` planner 更轻量的替代。
 - `--from-wiki`：自动从 wiki 最近修改过的论文页派生 seed。驱动 **wiki 模式**。
 - `--venue <slug>` + `--year <int>`：会议/venue 缩写与年份（如 `neurips` `2024`）。驱动 **venue 模式** —— 从该 venue/year 的论文列表中按与现有 wiki 的相关性排序。
 - `--limit N`（可选，默认 10）：shortlist 最大长度。
@@ -32,7 +32,7 @@ argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str>
 - 给用户的 markdown 摘要，包含每条候选的 rationale
 - `wiki/log.md` —— 仅 anchor/topic/wiki 运行通过 `tools/research_wiki.py log` 追加一行
 
-`/discover` / `$discover` 除了 `log.md` 外不向 `wiki/` 写入任何内容，也不触碰 `raw/`。`from-venue` 更严格：它完全不写 `wiki/`，包括 `wiki/log.md`。是否把候选拉进 wiki 是调用方的决定（之后的 `/ingest` / `$ingest`）。
+`$discover` / `$discover` 除了 `log.md` 外不向 `wiki/` 写入任何内容，也不触碰 `raw/`。`from-venue` 更严格：它完全不写 `wiki/`，包括 `wiki/log.md`。是否把候选拉进 wiki 是调用方的决定（之后的 `$ingest` / `$ingest`）。
 
 ## Wiki Interaction
 
@@ -49,7 +49,7 @@ argument-hint: "(--anchor <id> [--anchor <id>] [--negative <id>] | --topic <str>
 
 ### Graph edges created
 
-- 无。图变更属于 `/ingest` / `$ingest`，不属于 `/discover` / `$discover`。
+- 无。图变更属于 `$ingest` / `$ingest`，不属于 `$discover` / `$discover`。
 
 ## Workflow
 
@@ -70,7 +70,7 @@ export PYTHON_BIN
 
 把用户请求映射到 `from-anchors`、`from-topic`、`from-wiki` 或 `from-venue` 之一。决策规则见 `references/seed-modes.md`，简版：
 
-- 用户指明了一或多篇具体论文，或者这是 `/ingest --discover` / `$ingest --discover` 的后续 → **anchors**
+- 用户指明了一或多篇具体论文，或者这是 `$ingest --discover` / `$ingest --discover` 的后续 → **anchors**
 - 用户给的是 topic / 方向 / 关键词 → **topic**
 - 用户问开放式 "接下来读什么"，没有 anchor 也没有 topic → **wiki**
 - 用户要求某个具体会议和年份的论文 → **venue**
@@ -97,7 +97,7 @@ venue 模式下必须传 `--wiki-root`，以便工具根据现有内容计算相
 "$PYTHON_BIN" tools/discover.py from-wiki --wiki-root wiki --limit 10 --output-checkpoint .checkpoints/ --markdown
 ```
 
-anchor（与 wiki）模式每个 anchor 默认跑三个 S2 通道 —— `recommend` + `references` + `citations`。这正是 `/discover` 明显区别于 `/daily-arxiv` 的关键：references 带进 anchor 站在其肩膀上的 canonical 老论文，citations 带进高影响后续工作。只有在 API 成本成为硬约束时才考虑 `--no-citation-expand` 退回到只跑 recommend —— 质量退化会很明显。
+anchor（与 wiki）模式每个 anchor 默认跑三个 S2 通道 —— `recommend` + `references` + `citations`。这正是 `$discover` 明显区别于 `$daily-arxiv` 的关键：references 带进 anchor 站在其肩膀上的 canonical 老论文，citations 带进高影响后续工作。只有在 API 成本成为硬约束时才考虑 `--no-citation-expand` 退回到只跑 recommend —— 质量退化会很明显。
 
 工具内部处理候选抓取、wiki dedup、ranking，并写 checkpoint。始终传 `--wiki-root wiki`，否则已 ingest 论文会继续出现在 shortlist 中，浪费用户 review 时间。
 
@@ -114,7 +114,7 @@ topic 模式下若 S2 不可用，工具会继续用可用的通道产出；检�
 最后附一行 "next step" 提示：
 
 ```
-如需 ingest：/ingest https://arxiv.org/abs/<arxiv-id>
+如需 ingest：$ingest https://arxiv.org/abs/<arxiv-id>
 Codex: $ingest https://arxiv.org/abs/<arxiv-id>
 ```
 
@@ -130,24 +130,24 @@ Codex: $ingest https://arxiv.org/abs/<arxiv-id>
 
 ## Internal Callers
 
-`/discover` / `$discover` 既供用户手动调用，也供其他 skill 作为子例程调用。
+`$discover` / `$discover` 既供用户手动调用，也供其他 skill 作为子例程调用。
 
-### 来自 `/ingest --discover` / `$ingest --discover`
+### 来自 `$ingest --discover` / `$ingest --discover`
 
-`/ingest` / `$ingest` 支持可选的 `--discover` flag（默认关闭）。开启时，ingest workflow 在最终 report 之后以刚 ingest 论文的 arXiv ID 作为单 anchor 调用 `/discover` / `$discover`，并把 shortlist 以 "接下来可能想 ingest 的相关论文" 段落附在 report 里。`/ingest` / `$ingest` 不会从这份列表自动 ingest 任何东西。
+`$ingest` / `$ingest` 支持可选的 `--discover` flag（默认关闭）。开启时，ingest workflow 在最终 report 之后以刚 ingest 论文的 arXiv ID 作为单 anchor 调用 `$discover` / `$discover`，并把 shortlist 以 "接下来可能想 ingest 的相关论文" 段落附在 report 里。`$ingest` / `$ingest` 不会从这份列表自动 ingest 任何东西。
 
-### 来自 `/init` / `$init`
+### 来自 `$init` / `$init`
 
-`/init` / `$init` **不调用** `/discover` / `$discover`。init planner（`tools/init_discovery.py plan`）有自己的打分策略，偏爱 survey、广覆盖、seed anchor —— 适合 bootstrap 场景。`/discover` / `$discover` 的 ranking 有意不同（不偏 survey；以 anchor 相似度 + influential citations 为主），替换进 init shortlist 会稀释质量。两者保持独立。
+`$init` / `$init` **不调用** `$discover` / `$discover`。init planner（`tools/init_discovery.py plan`）有自己的打分策略，偏爱 survey、广覆盖、seed anchor —— 适合 bootstrap 场景。`$discover` / `$discover` 的 ranking 有意不同（不偏 survey；以 anchor 相似度 + influential citations 为主），替换进 init shortlist 会稀释质量。两者保持独立。
 
 ## Constraints
 
-- **不自动 ingest**：`/discover` / `$discover` 产出 shortlist 就结束。即便被 `/ingest --discover` / `$ingest --discover` 调用，调用方也只是呈现结果，最终 ingest 由用户决定。
-- **不向 `wiki/` 写内容**：paper 页、concept、method、graph edge 全都属于 `/ingest` / `$ingest`。anchor/topic/wiki 运行可以追加 `wiki/log.md`；`from-venue` 完全不能写 `wiki/`。
-- **不写 `raw/`**：`/discover` / `$discover` 不下载论文。用户选定某个候选后，再手动用 Claude Code 的 `/ingest <arxiv-url>` 或 Codex 的 `$ingest <arxiv-url>`。
+- **不自动 ingest**：`$discover` / `$discover` 产出 shortlist 就结束。即便被 `$ingest --discover` / `$ingest --discover` 调用，调用方也只是呈现结果，最终 ingest 由用户决定。
+- **不向 `wiki/` 写内容**：paper 页、concept、method、graph edge 全都属于 `$ingest` / `$ingest`。anchor/topic/wiki 运行可以追加 `wiki/log.md`；`from-venue` 完全不能写 `wiki/`。
+- **不写 `raw/`**：`$discover` / `$discover` 不下载论文。用户选定某个候选后，再手动用 Codex 的 `$ingest <arxiv-url>` 或 Codex 的 `$ingest <arxiv-url>`。
 - **始终对 wiki 做 dedup**：必须传 `--wiki-root wiki`，否则已 ingest 论文会污染 shortlist，这是最常见的低质量失败模式。
-- **ranking 是 discovery 专属**：不要复用或复制 `tools/init_discovery.py` 的打分函数。两者目标不同 —— `/init` / `$init` 要宽覆盖与基础面；`/discover` / `$discover` 要相关的 *next reads*。见 `references/ranking-signals.md`。
-- **三通道 anchor 抓取**：anchor 模式默认对每个 anchor 同时跑 S2 `recommend` + `references` + `citations`。砍掉 citation 通道（`--no-citation-expand`）会让结果退化为偏最新的语义聚类，和 `/daily-arxiv` 严重重合。除非 API 成本成为硬约束，否则保留三个通道。见 `references/ranking-signals.md`。
+- **ranking 是 discovery 专属**：不要复用或复制 `tools/init_discovery.py` 的打分函数。两者目标不同 —— `$init` / `$init` 要宽覆盖与基础面；`$discover` / `$discover` 要相关的 *next reads*。见 `references/ranking-signals.md`。
+- **三通道 anchor 抓取**：anchor 模式默认对每个 anchor 同时跑 S2 `recommend` + `references` + `citations`。砍掉 citation 通道（`--no-citation-expand`）会让结果退化为偏最新的语义聚类，和 `$daily-arxiv` 严重重合。除非 API 成本成为硬约束，否则保留三个通道。见 `references/ranking-signals.md`。
 - **部分 S2 endpoint 字段较扁平**：`/citations`、`/references`、`/recommendations/*` 拒绝嵌套 selector —— 没有 `authors.hIndex`，没有 `tldr`。`/paper/{id}` 和 `/paper/search` 接受，所以 topic 模式的候选带完整 enrichment；anchor 模式下只从 citations/references/recommend 进来的候选没有。这是 S2 的真实约束，不是 bug。
 - **rate limit**：anchor 模式每个 anchor 最多三次 S2 调用（recommend + references + citations）。默认 recs 每 anchor 拉 50 条、references/citations 各 30 条。多 anchor 时调用量成倍增长；有 API key（1 req/sec）时三 anchor 约 10 秒。
 
@@ -156,7 +156,7 @@ Codex: $ingest https://arxiv.org/abs/<arxiv-id>
 - **所有 seed 通道都失败**：明确报错、不写 shortlist，也不记录成功日志。
 - **S2 不可用但 DeepXiv 可用（topic 模式）**：仅用 DeepXiv 继续；在 report 中注明 degraded。
 - **S2 对某个 anchor 返回零推荐**：保留其他 anchor 的结果继续；若所有 anchor 都返回零，视为整体失败。
-- **`--from-wiki` 找不到可用 anchor**（`wiki/papers/` 为空或全部缺少 `arxiv_id`）：告诉用户 wiki 过于稀疏，建议改用 topic 模式（或跑 `/init`）。
+- **`--from-wiki` 找不到可用 anchor**（`wiki/papers/` 为空或全部缺少 `arxiv_id`）：告诉用户 wiki 过于稀疏，建议改用 topic 模式（或跑 `$init`）。
 - **`from-venue` wiki 过于稀疏**（从 wiki 提取到的有效词太少）：明确报错，建议先 ingest 一些论文或改用 topic 模式。venue 模式依赖现有 wiki 内容计算相关性，没有内容时排名将失去意义。
 - **anchor ID 非法或未知**：S2 会返回 404；在 report 中暴露该坏 ID，并用剩余 anchor 继续。
 
@@ -172,8 +172,8 @@ Codex: $ingest https://arxiv.org/abs/<arxiv-id>
 
 ### Skills
 
-- `/ingest`（Claude Code）或 `$ingest`（Codex）—— 通过 `--discover` flag 调用；也是用户对选中候选执行的动作
-- `/init`（Claude Code）或 `$init`（Codex）—— 独立 planner，不调用 `/discover` / `$discover`
+- `$ingest`（Codex）或 `$ingest`（Codex）—— 通过 `--discover` flag 调用；也是用户对选中候选执行的动作
+- `$init`（Codex）或 `$init`（Codex）—— 独立 planner，不调用 `$discover` / `$discover`
 
 ### External APIs
 

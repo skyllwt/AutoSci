@@ -4,13 +4,13 @@ description: Update wiki content or prepare generated raw inputs per user reques
 argument-hint: "[request]"
 ---
 
-# /edit
+# $edit
 
 > Update wiki content or prepare generated raw inputs per user request. User-owned raw sources remain read-only.
 
 ## Trigger
 
-User manual: `/edit <user request>` in Claude Code or `$edit <user request>` in Codex.
+User manual: `$edit <user request>` in Codex or `$edit <user request>` in Codex.
 
 ## Inputs
 
@@ -42,7 +42,7 @@ Updated wiki files, `index.md`, `log.md`, and optionally generated helper files 
 
 ### STEP 2: Execute Updates
 
-1. Generated raw inputs can later be incorporated into the wiki via `/ingest` in Claude Code or `$ingest` in Codex.
+1. Generated raw inputs can later be incorporated into the wiki via `$ingest` in Codex or `$ingest` in Codex.
 2. Direct wiki modifications: update the specified fields/content in specific pages per user instructions
 3. When writing forward links, simultaneously write reverse links
 

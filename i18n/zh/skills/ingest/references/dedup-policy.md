@@ -1,17 +1,17 @@
-# /ingest 去重策略
+# $ingest 去重策略
 
 准备新建或更新一个 concept、method 或 foundation 链接前，打开此参考。
 
 ## 心智模型
 
-一个健康的 ΩmegaWiki 里，concept 与 method 的数量远少于 paper。每个 concept 由许多深化或扩展它的 paper 共享；每个 method 由许多复用或扩展它的 paper 共享。如果 `/ingest` 默认为每篇论文都新建 concept / method，wiki 会迅速沦为一堆近似重复的页面 —— 综述生成、gap 检测、idea novelty、citation 推理全部会被这种噪声破坏。
+一个健康的 ΩmegaWiki 里，concept 与 method 的数量远少于 paper。每个 concept 由许多深化或扩展它的 paper 共享；每个 method 由许多复用或扩展它的 paper 共享。如果 `$ingest` 默认为每篇论文都新建 concept / method，wiki 会迅速沦为一堆近似重复的页面 —— 综述生成、gap 检测、idea novelty、citation 推理全部会被这种噪声破坏。
 
 默认动作是**合并**。例外才是**新建**，并且每次新建都必须有清晰的理由。
 
 ## 何时打开此参考
 
-- `/ingest` Step 4：识别论文引入或扩展的 concept 时。
-- `/ingest` Step 4：识别论文引入的 method（命名、可复用、可被引用）时。
+- `$ingest` Step 4：识别论文引入或扩展的 concept 时。
+- `$ingest` Step 4：识别论文引入的 method（命名、可复用、可被引用）时。
 - 任何想"为保险起见"新建 concept / method 却没先查重的时刻。
 
 ## 强制工具调用
@@ -49,7 +49,7 @@ method 把 "score" 替换为人工判断：同名 + 同机制 ⇒ 合并（追�
 - importance ≥ 4：最多 **3** 个新 concept、**2** 个新 method
 - foundation link 不计入。
 
-后续候选若会超过上限，就合并到最接近的已有条目 —— 即使其分数低于通常的合并阈值。若确实没有可安全合并的候选，就整体跳过该实体 —— `/check` 会在后续扫描里把缺口暴露出来，用户可决定是否 `/edit` 补齐。
+后续候选若会超过上限，就合并到最接近的已有条目 —— 即使其分数低于通常的合并阈值。若确实没有可安全合并的候选，就整体跳过该实体 —— `$check` 会在后续扫描里把缺口暴露出来，用户可决定是否 `$edit` 补齐。
 
 ## 只做形状检查，不做语义审计
 
@@ -60,9 +60,9 @@ method 把 "score" 替换为人工判断：同名 + 同机制 ⇒ 合并（追�
 - method：`type` ∈ {`architecture`, `training`, `inference`, `evaluation`, `data`, `benchmark`, `system`, `optimization`, `prompting`, `protocol`, `other`}
 - YAML 可解析
 
-该检查能避免 `/check` 下一轮把明显残缺的页面全部捞出。超出这个范围的一切 —— 反向链接对称性、concept 的 `linked_ideas` 是否被对向引用、method 的 `parent_methods` 链是否一致 —— 属于 `/check`。把这些审计搬进 `/ingest` 只会拖慢 skill 并与 `/check` 做重复工作。
+该检查能避免 `$check` 下一轮把明显残缺的页面全部捞出。超出这个范围的一切 —— 反向链接对称性、concept 的 `linked_ideas` 是否被对向引用、method 的 `parent_methods` 链是否一致 —— 属于 `$check`。把这些审计搬进 `$ingest` 只会拖慢 skill 并与 `$check` 做重复工作。
 
-## `/check` 负责的、`/ingest` 不负责的
+## `$check` 负责的、`$ingest` 不负责的
 
 - 跨实体反向链接对称性（A 链接到 B ⇒ B 是否链回 A）
 - dangling node 检测（被引用但缺失的页面，或存在但不可达的页面）
@@ -70,4 +70,4 @@ method 把 "score" 替换为人工判断：同名 + 同机制 ⇒ 合并（追�
 - edge 类型合法性与 edge 去重
 - 上述一切的分级修复建议
 
-你可以信任 `/check` 去发现这些并产出修复报告。`/ingest` 聚焦在**写入点**做出 well-shaped 的实体与正确的正向/反向链接即可。
+你可以信任 `$check` 去发现这些并产出修复报告。`$ingest` 聚焦在**写入点**做出 well-shaped 的实体与正确的正向/反向链接即可。

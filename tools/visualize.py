@@ -8,7 +8,7 @@ The standalone-HTML graph explorer was retired in favour of the SPA Graph
 view at app/modules/graph.js (served via tools/serve.py). Cytoscape +
 force layout + filters + BFS now live there as a real ES module.
 
-Called by /visualize skill via: python3 tools/visualize.py <command> [args]
+Called by $visualize skill via: python3 tools/visualize.py <command> [args]
 
 Commands:
     generate-obsidian-config <wiki_root>
@@ -503,7 +503,7 @@ def cmd_generate_canvas(wiki_root: str, focus: str | None = None,
     metadata = load_page_metadata(wiki_root)
 
     if not edges and not citations:
-        print("No graph data found. Run /ingest in Claude Code or $ingest in Codex first.", file=sys.stderr)
+        print("No graph data found. Run $ingest in Codex or $ingest in Codex first.", file=sys.stderr)
         sys.exit(1)
 
     all_edges = edges + citations

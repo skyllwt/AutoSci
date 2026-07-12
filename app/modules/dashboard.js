@@ -179,7 +179,7 @@ function renderMaturity(m) {
     if (papers < MATURITY_WARM.papers) need.push(`<strong>${MATURITY_WARM.papers - papers}</strong> more paper(s)`);
     if (ideas < MATURITY_WARM.ideas)   need.push(`<strong>${MATURITY_WARM.ideas - ideas}</strong> more idea(s)`);
     const ideateHint = (papers >= MATURITY_WARM.papers && ideas < MATURITY_WARM.ideas)
-      ? ` — try <code>/ideate</code>` : "";
+      ? ` — try <code>$ideate</code>` : "";
     nextHint = `To reach <strong>warm</strong>: ${need.join(" and ")}${ideateHint}.`;
   } else if (level === "warm") {
     if (papers < MATURITY_HOT.papers) need.push(`<strong>${MATURITY_HOT.papers - papers}</strong> more paper(s)`);
@@ -272,7 +272,7 @@ function renderMethodsByType(methods) {
     return `
       <section class="dash-card half">
         <h3>Methods by type <span class="muted small">(0)</span></h3>
-        <p class="muted">No method pages yet. <code>/ingest</code> creates them when a paper introduces a reusable, namable method.</p>
+        <p class="muted">No method pages yet. <code>$ingest</code> creates them when a paper introduces a reusable, namable method.</p>
       </section>
     `;
   }
@@ -306,7 +306,7 @@ function renderExperimentsTable(exps) {
     return `
       <section class="dash-card">
         <h3>Experiments <span class="muted small">(0)</span></h3>
-        <p class="muted">No experiments yet. Use <code>/exp-design</code> in Claude Code to plan one.</p>
+        <p class="muted">No experiments yet. Use <code>$exp-design</code> in Codex to plan one.</p>
       </section>
     `;
   }
@@ -337,7 +337,7 @@ function renderIdeasPipeline(ideas) {
     return `
       <section class="dash-card">
         <h3>Ideas pipeline <span class="muted small">(0)</span></h3>
-        <p class="muted">No ideas captured yet. Use <code>/ideate</code> in Claude Code to generate from gaps.</p>
+        <p class="muted">No ideas captured yet. Use <code>$ideate</code> in Codex to generate from gaps.</p>
       </section>
     `;
   }
@@ -406,8 +406,8 @@ function skillSlug(s) {
 // --- 9. Quick actions strip (Phase 5/6: interactive helpers) ---------------
 //
 // Click flow per skill:
-//   /check     -> fetch /api/lint, render inline lint card (mechanical, no LLM)
-//   /discover  -> render checkpoint browser inline (peek at past ranked runs)
+//   $check     -> fetch /api/lint, render inline lint card (mechanical, no LLM)
+//   $discover  -> render checkpoint browser inline (peek at past ranked runs)
 //   others     -> open the intent form with a per-skill schema, then show the
 //                 generated agent command in the existing copy-to-clipboard
 //                 modal. The schemas mirror the keys each intent builder in
@@ -420,7 +420,7 @@ const QUICK_ACTIONS = [
   { skill: "edit",       desc: "Edit wiki content with intent parsing" },
   { skill: "check",      desc: "Run wiki lint inline (no LLM needed)" },
   { skill: "ideate",     desc: "Generate research ideas from open questions" },
-  { skill: "discover",   desc: "Browse ranked candidate papers from past /discover" },
+  { skill: "discover",   desc: "Browse ranked candidate papers from past $discover" },
   { skill: "exp-design", desc: "Plan an experiment for a linked idea" },
 ];
 
@@ -460,9 +460,9 @@ function renderQuickActions() {
     <section class="dash-card">
       <h3>Quick actions <span class="muted small">(interactive helpers)</span></h3>
       <p class="muted small">
-        <code>/check</code> and <code>/discover</code> run inline below
+        <code>$check</code> and <code>$discover</code> run inline below
         (mechanical, no LLM). The other five open a parameter form, then
-        produce ready-to-paste commands for Claude Code and Codex.
+        produce ready-to-paste commands for Codex and Codex.
       </p>
       <div class="action-grid">${cards}</div>
       <div id="quick-action-result" class="quick-action-result" aria-live="polite"></div>
@@ -489,7 +489,7 @@ function wireQuickActions() {
   });
 }
 
-// --- /check inline lint card ------------------------------------------------
+// --- $check inline lint card ------------------------------------------------
 
 async function openLintCard(mount) {
   mount.innerHTML = `<div class="lint-card loading"><p class="muted small">Running <code>tools/lint.py --json</code>…</p></div>`;
@@ -606,7 +606,7 @@ function wireLintCard(mount) {
   };
 }
 
-// --- /discover checkpoint browser ------------------------------------------
+// --- $discover checkpoint browser ------------------------------------------
 
 async function openCheckpointBrowser(mount) {
   mount.innerHTML = `<div class="checkpoint-browser loading"><p class="muted small">Loading <code>.checkpoints/discover-*.json</code>…</p></div>`;
@@ -620,13 +620,13 @@ async function openCheckpointBrowser(mount) {
 }
 
 function renderCheckpointBrowser(items) {
-  // Header: title + always-visible primary "New /discover" action + close.
+  // Header: title + always-visible primary "New $discover" action + close.
   // Same header for empty and non-empty states — only the body differs.
   const header = `
     <div class="checkpoint-header">
-      <h4>Past <code>/discover</code> runs <span class="muted small">(${items.length})</span></h4>
+      <h4>Past <code>$discover</code> runs <span class="muted small">(${items.length})</span></h4>
       <div class="checkpoint-actions">
-        <button type="button" class="checkpoint-fresh-btn">+ New <code>/discover</code></button>
+        <button type="button" class="checkpoint-fresh-btn">+ New <code>$discover</code></button>
         <button type="button" class="checkpoint-close ghost">Close</button>
       </div>
     </div>
@@ -637,8 +637,8 @@ function renderCheckpointBrowser(items) {
       <div class="checkpoint-browser">
         ${header}
         <p class="checkpoint-empty muted">
-          No runs yet. After <code>/discover</code> finishes in Claude Code its
-          ranked candidate list will appear here for one-click <code>/ingest</code>.
+          No runs yet. After <code>$discover</code> finishes in Codex its
+          ranked candidate list will appear here for one-click <code>$ingest</code>.
         </p>
       </div>
     `;
@@ -668,9 +668,9 @@ function wireCheckpointBrowser(mount) {
   if (close) close.onclick = () => { mount.innerHTML = ""; };
   const fresh = mount.querySelector(".checkpoint-fresh-btn");
   if (fresh) fresh.onclick = () => {
-    // /discover supports four seed modes (see the active discover/SKILL.md).
+    // $discover supports four seed modes (see the active discover/SKILL.md).
     // All form fields are optional — leave everything blank and the backend
-    // returns `/discover --from-wiki`, which mines the existing wiki.
+    // returns `$discover --from-wiki`, which mines the existing wiki.
     triggerIntent(
       "discover",
       {},
@@ -683,7 +683,7 @@ function wireCheckpointBrowser(mount) {
       ],
       {
         message: (
-          "Leave everything blank and you'll get /discover --from-wiki, which " +
+          "Leave everything blank and you'll get $discover --from-wiki, which " +
           "mines your current wiki state for next-read suggestions. Otherwise " +
           "fill exactly one mode (anchor / topic / venue+year)."
         ),
@@ -736,7 +736,7 @@ function renderCheckpointDetail(data) {
     const score = c.total_score != null ? c.total_score.toFixed(2) : "";
     const year = c.year || "";
     const ingestBtn = arxiv
-      ? `<button type="button" class="ingest-from-candidate" data-arxiv="${esc(arxiv)}">→ /ingest</button>`
+      ? `<button type="button" class="ingest-from-candidate" data-arxiv="${esc(arxiv)}">→ $ingest</button>`
       : "";
     return `
       <tr>
@@ -766,7 +766,7 @@ function wireCheckpointDetail(scope) {
     btn.addEventListener("click", () => {
       const arxiv = btn.dataset.arxiv;
       // Open the existing intent modal pre-filled with this arXiv id. The
-      // user pastes the result into Claude Code as usual.
+      // user pastes the result into Codex as usual.
       triggerIntent("ingest", { path: arxiv }, null);
     });
   });

@@ -31,15 +31,12 @@ on:
         type: boolean
         default: true
       recommender:
-        description: "Recommendation backend: auto, codex, claude-action, review-llm, or tool"
+        description: "Recommendation backend: auto, codex, review-llm, or tool"
         required: false
         default: "auto"
 
 permissions:
-  # contents: write — auto-ingest commit step pushes to main.
-  # id-token: write — legacy claude-code-action exchanges OIDC for an app token.
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: daily-arxiv-${{ github.ref }}
@@ -50,7 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HAS_CODEX_AUTH: ${{ secrets.OPENAI_API_KEY != '' || secrets.CODEX_ACCESS_TOKEN != '' }}
-      HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
       HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
       # Repo secrets must be exposed as env vars here for the Python steps;
       # otherwise S2/DeepXiv calls run anonymous and hit rate-limit walls.
@@ -122,7 +118,7 @@ jobs:
           payload = json.loads(Path(".daily-arxiv/run/resolved-config.json").read_text())
           cfg = payload["config"]
           recommender = (os.environ.get("INPUT_RECOMMENDER") or "").strip() or "auto"
-          allowed = {"auto", "codex", "claude-action", "review-llm", "tool"}
+          allowed = {"auto", "codex", "review-llm", "tool"}
           if recommender not in allowed:
               print(f"Unsupported recommender {recommender!r}; expected one of {sorted(allowed)}", file=sys.stderr)
               raise SystemExit(2)
@@ -158,20 +154,12 @@ jobs:
         if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
         run: |
           set -euo pipefail
-          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$DAILY_ARXIV_RECOMMENDER" != "auto" ] && [ "$DAILY_ARXIV_RECOMMENDER" != "claude-action" ]; then
-            echo "::error::mode=auto-ingest currently supports only recommender=auto or recommender=claude-action. Codex, review-llm, and tool recommenders are inform-mode only until full Codex CI ingest orchestration and push are verified."
-            exit 1
-          fi
-          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
-            echo "::error::mode=auto-ingest currently requires legacy Claude Code Action auth (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN). Codex CI recommendation is inform-mode only until full Codex CI ingest orchestration and push are verified."
+          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ]; then
+            echo "::error::Codex CI is recommendation-only; run auto-ingest interactively with explicit human confirmation."
             exit 1
           fi
           if [ "$DAILY_ARXIV_RECOMMENDER" = "codex" ] && [ "$HAS_CODEX_AUTH" != "true" ]; then
             echo "::error::recommender=codex requires OPENAI_API_KEY or CODEX_ACCESS_TOKEN."
-            exit 1
-          fi
-          if [ "$DAILY_ARXIV_RECOMMENDER" = "claude-action" ] && [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
-            echo "::error::recommender=claude-action requires ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."
             exit 1
           fi
           if [ "$DAILY_ARXIV_RECOMMENDER" = "review-llm" ] && [ "$HAS_REVIEW_LLM" != "true" ]; then
@@ -257,57 +245,19 @@ jobs:
           codex --ask-for-approval never "${args[@]}" - < .github/codex/daily-arxiv-inform.md
           python -m json.tool "$DAILY_ARXIV_DECISIONS" >/dev/null
 
-      - name: Run Claude recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && env.HAS_CLAUDE_CODE_AUTH == 'true' && ((steps.resolve.outputs.mode == 'auto-ingest') || (steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'claude-action' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true'))))
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Run OmegaWiki /daily-arxiv for this scheduled job.
-
-            Read .daily-arxiv/run/recommendation-context.json. Make LLM-first recommendation decisions from the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence.
-
-            Write .daily-arxiv/run/llm-decisions.json as:
-            {
-              "decisions": [
-                {
-                  "arxiv_id": "...",
-                  "decision": "strong_recommend|maybe|skip|ingest",
-                  "confidence": "high|medium|low",
-                  "score": 0.0,
-                  "rationale": "short reason grounded in the evidence",
-                  "wiki_connections": ["..."],
-                  "signals_used": ["arxiv", "wiki_profile", "semantic_scholar", "deepxiv"]
-                }
-              ]
-            }
-
-            If the context mode is "auto-ingest", mark only high-confidence selected papers as "ingest", never more than config.max_auto_ingest. Invoke /ingest sequentially for those selected papers using their arXiv URLs. Do not hand-write wiki pages, graph files, paper pages, concepts, methods, or index entries. Record "ingest_status" or "ingest_error" in the matching decision after each attempt.
-
-            If the mode is "inform", do not ingest or mutate the wiki. Keep borderline papers as "maybe".
-          claude_args: |
-            # 100 turns fits the decision step plus one full /ingest cycle
-            # (~40–50 tool calls per paper); raise if max_auto_ingest > 1.
-            # allowedTools must include Skill or /ingest cannot be invoked;
-            # TodoWrite and Agent support /ingest's task tracking and
-            # subagent fan-out.
-            --max-turns 100
-            --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
-
       - name: Note selected non-agent recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'review-llm' || steps.resolve.outputs.recommender == 'tool' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true' && env.HAS_CLAUDE_CODE_AUTH != 'true'))
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && (steps.resolve.outputs.recommender == 'review-llm' || steps.resolve.outputs.recommender == 'tool' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true'))
         run: |
           if [ "$DAILY_ARXIV_RECOMMENDER" = "tool" ]; then
             echo "Using tool-ranked fallback digest because recommender=tool." >> "$GITHUB_STEP_SUMMARY"
           elif [ "${HAS_REVIEW_LLM:-false}" = "true" ]; then
-            echo "Codex/Claude agent auth is not configured; using OpenAI-compatible LLM recommendation for inform mode." >> "$GITHUB_STEP_SUMMARY"
+            echo "Codex auth is not configured; using OpenAI-compatible LLM recommendation for inform mode." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No recommendation backend auth is configured; finalizing a tool-ranked fallback digest." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Run OpenAI-compatible LLM recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && env.HAS_REVIEW_LLM == 'true' && (steps.resolve.outputs.recommender == 'review-llm' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true' && env.HAS_CLAUDE_CODE_AUTH != 'true'))
+        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.resolve.outputs.mode == 'inform' && env.HAS_REVIEW_LLM == 'true' && (steps.resolve.outputs.recommender == 'review-llm' || (steps.resolve.outputs.recommender == 'auto' && env.HAS_CODEX_AUTH != 'true'))
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
@@ -351,34 +301,6 @@ jobs:
             .daily-arxiv/run/digest.md
             .daily-arxiv/run/digest.json
           if-no-files-found: ignore
-
-      - name: Commit auto-ingest changes
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ "$DAILY_ARXIV_MODE" != "auto-ingest" ]; then
-            echo "Auto-ingest disabled; no repository writeback attempted." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Generated wiki entities and fetched sources are ignored in the
-          # template repo because they are per-user data. Auto-ingest is the
-          # explicit writeback path, so force-add only the allowed output roots.
-          git add -f wiki raw/discovered
-          if git diff --cached --quiet; then
-            echo "Auto-ingest mode ran, but no wiki/raw changes were staged." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          git commit -m "daily-arxiv auto-ingest"
-          # Some agent steps may alter the checkout auth header; re-embed
-          # GITHUB_TOKEN before pushing.
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push
 
       - name: Send digest e-mail
         if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'

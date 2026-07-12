@@ -1,10 +1,10 @@
 # Runtime Directory Chart
 
-> On-demand reference for the repo layout. The main `CLAUDE.md` keeps only the schema and rules that should stay in immediate context.
+> On-demand reference for the repo layout. The main `AGENTS.md` keeps only the schema and rules that should stay in immediate context.
 
 ```text
 wiki/
-├── CLAUDE.md          ← runtime schema
+├── AGENTS.md          ← runtime schema
 ├── index.md           ← content catalog (YAML)
 ├── log.md             ← chronological log (append-only)
 ├── papers/            ← structured paper summaries
@@ -25,13 +25,13 @@ wiki/
 
 raw/
 ├── papers/            ← user-owned .tex / .pdf sources
-├── discovered/        ← externally fetched papers from /init and /daily-arxiv
-├── tmp/               ← generated prepared local sources for /init and direct local /ingest
+├── discovered/        ← externally fetched papers from $init and $daily-arxiv
+├── tmp/               ← generated prepared local sources for $init and direct local $ingest
 ├── notes/             ← user-owned .md notes
 └── web/               ← user-owned HTML / Markdown
 
 config/
-├── server.yaml        ← remote GPU server config (optional, needed for /exp-run --env remote)
+├── server.yaml        ← remote GPU server config (optional, needed for $exp-run --env remote)
 ├── server.yaml.example
 ├── .env.example
 └── settings.local.json.example
@@ -41,5 +41,5 @@ config/
 
 - `raw/papers/`, `raw/notes/`, and `raw/web/` are user-owned inputs.
 - `raw/discovered/` is for fetched external papers, not user drop-ins.
-- `raw/tmp/` is generated intermediate state for `/init` and direct local `/ingest`.
+- `raw/tmp/` is generated intermediate state for `$init` and direct local `$ingest`.
 - `graph/` is derived and should be maintained only through `tools/research_wiki.py`.

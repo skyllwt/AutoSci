@@ -3,11 +3,11 @@ name: check
 description: 扫描全 wiki 发现健康问题，生成分级修复建议报告（覆盖 runtime/schema/entities.yaml 中全部 entity 类型 + graph 一致性）
 ---
 
-# /check / $check
+# $check / $check
 
 > 扫描全 wiki，发现结构、链接、字段、graph 的健康问题，生成分级修复建议。
 > 覆盖 `runtime/schema/entities.yaml` 中声明的所有 entity 类型（papers, concepts, topics, people, ideas, experiments, methods, Summary, foundations），以及 graph edge / citation 一致性。重点检查包括：idea novelty-score 合理性、idea 失败原因完整性、experiment `linked_idea` 有效性。
-> 手动：Claude Code 中 `/check`，或 Codex 中 `$check`。
+> 手动：Codex 中 `$check`，或 Codex 中 `$check`。
 
 ## Inputs
 
@@ -121,7 +121,7 @@ python3 tools/lint.py --wiki-dir wiki/ --fix --dry-run --json
 1. **JSON 格式有效性**：每行都是合法 JSON
 2. **必填字段**：每条 edge 有 from, to, type
 3. **Edge type 合法性**：semantic edges 使用当前 endpoint-aware type set；旧 paper-paper / paper-concept 类型给出迁移 warning
-4. **Edge confidence**：`/ingest` 写出的 paper-paper 与 paper-concept semantic edges 使用 `confidence: high|medium|low`
+4. **Edge confidence**：`$ingest` 写出的 paper-paper 与 paper-concept semantic edges 使用 `confidence: high|medium|low`
 5. **Citation layer**：`graph/citations.jsonl` 使用 `type: cites`、合法 source/date、paper endpoints，且不写 confidence 字段
 6. **Dangling nodes**：from/to 引用的 wiki 页面必须存在
 
@@ -181,7 +181,7 @@ python3 tools/research_wiki.py log wiki/ "check | report: N 🔴, M 🟡, K 🔵
 
 ## Error Handling
 
-- **wiki/ 不存在**：报错并建议运行 Claude Code 的 `/init` 或 Codex 的 `$init`
+- **wiki/ 不存在**：报错并建议运行 Codex 的 `$init` 或 Codex 的 `$init`
 - **graph 文件不存在**：跳过缺失 graph 文件的检查，在报告中注明
 - **部分目录缺失**：跳过缺失目录的检查，在报告中列出缺失目录
 

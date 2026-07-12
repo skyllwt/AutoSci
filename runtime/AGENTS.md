@@ -13,7 +13,7 @@ runtime/
 ├── loader.py       schema access API (imported by tools/lint.py + research_wiki.py)
 ├── schema/         data-shape contract (4 YAMLs)
 ├── policy/         access control (writers.yaml)
-└── templates/      per-entity body skeletons used by /init and /ingest
+└── templates/      per-entity body skeletons used by $init and $ingest
 ```
 
 ## How to add things
@@ -72,6 +72,6 @@ Only when extending the **schema language itself**, not when adding more data:
 
 ## Out of scope
 
-- Skill prompts and workflow logic — source files under `i18n/<lang>/skills/<skill>/`, active Claude copies under `.claude/skills/<skill>/`, and active Codex copies under `.agents/skills/<skill>/`
+- Skill prompts and workflow logic — source files under `i18n/<lang>/skills/<skill>/`, active Codex copies under `.agents/skills/<skill>/`
 - Lint severity / auto-fix policy — derived from `required` / `default` in schema
 - Migration history — git log + one-shot scripts; no `migrations/` folder

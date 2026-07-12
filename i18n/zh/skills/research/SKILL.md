@@ -4,15 +4,15 @@ description: 端到端研究编排器：idea 发现 → 实验设计 → 执行 
 argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage2|stage3|stage3-collect|stage3-check|stage4|stage5] [--skip-paper] [--venue ICLR|NeurIPS|ICML|ACL|CVPR]
 ---
 
-# /research
+# $research
 
 > 端到端研究编排器，将所有 skill 组合为完整的研究流程。
 > Stage 0 (Bootstrap) + 5 个 Stage + 2 个 Human Gate，覆盖从空 wiki 到论文提交的全流程。
-> **零摩擦入口**：wiki 为空时自动触发 Bootstrap（搜索 + auto-ingest 5 篇论文），无需手动 `/init` / `$init`。
+> **零摩擦入口**：wiki 为空时自动触发 Bootstrap（搜索 + auto-ingest 5 篇论文），无需手动 `$init` / `$init`。
 > 每个 Gate 和 Stage 保存进度到 `wiki/outputs/pipeline-progress.md`，支持跨 session 恢复。
 >
-> **Stage 3 为非阻塞设计**：实验部署后立即返回。支持调度器的 runtime 可以注册 `/exp-status --collect-ready` 检查；Codex 在配置 Codex-native 调度器前，应手动运行 `$exp-status --collect-ready` 或使用外部调度器。
-> 实验全部完成后，`/exp-status --auto-advance` / `$exp-status --auto-advance` 只有在能调用 `$research` 的 agent runtime 内才会继续 Stage 4；外部调度器只报告 `stage4 ready` 并输出 `$research --start-from stage4`。可随时用 `/exp-status` / `$exp-status` 查看进度。
+> **Stage 3 为非阻塞设计**：实验部署后立即返回。支持调度器的 runtime 可以注册 `$exp-status --collect-ready` 检查；Codex 在配置 Codex-native 调度器前，应手动运行 `$exp-status --collect-ready` 或使用外部调度器。
+> 实验全部完成后，`$exp-status --auto-advance` / `$exp-status --auto-advance` 只有在能调用 `$research` 的 agent runtime 内才会继续 Stage 4；外部调度器只报告 `stage4 ready` 并输出 `$research --start-from stage4`。可随时用 `$exp-status` / `$exp-status` 查看进度。
 >
 > `--auto` 模式跳过人工确认（自动选 top-1 idea），`--skip-paper` 只做研究不写论文。
 
@@ -25,10 +25,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - `--start-from <stage>`（可选）：从指定 stage 恢复执行
   - 有效值：`stage1`、`stage2`、`stage3`、`stage3-collect`、`stage3-check`、`stage4`、`stage5`
   - `stage3-collect`：跳过 deploy，直接进入 Stage 3c（收集已部署实验的结果）
-  - `stage3-check`：只检查实验状态（等同于 `/exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`），不继续执行
+  - `stage3-check`：只检查实验状态（等同于 `$exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`），不继续执行
   - 需要 `wiki/outputs/pipeline-progress.md` 存在
-- `--skip-paper`（可选）：只做研究（Stage 1-4），不写论文（跳过 Stage 5），但仍执行 `/exp-eval` / `$exp-eval`（Stage 4）
-- `--venue`（可选）：目标会议（ICLR / NeurIPS / ICML / ACL / CVPR），传递给 `/paper-plan` / `$paper-plan`
+- `--skip-paper`（可选）：只做研究（Stage 1-4），不写论文（跳过 Stage 5），但仍执行 `$exp-eval` / `$exp-eval`（Stage 4）
+- `--venue`（可选）：目标会议（ICLR / NeurIPS / ICML / ACL / CVPR），传递给 `$paper-plan` / `$paper-plan`
 
 ## Outputs
 
@@ -42,7 +42,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Reads
 - `wiki/graph/context_brief.md` — 全局上下文（传递给子 skills）
-- `wiki/graph/open_questions.md` — 知识缺口（传递给 `/ideate` / `$ideate`）
+- `wiki/graph/open_questions.md` — 知识缺口（传递给 `$ideate` / `$ideate`）
 - `wiki/ideas/*.md` — Gate 1 选择、Stage 4 判决、Stage 5 论文规划
 - `wiki/experiments/*.md` — Stage 3-4 状态检查
 - `wiki/methods/*.md` — Stage 5 论文写作上下文
@@ -56,7 +56,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - 其他 wiki 实体写入均通过子 skill 委托（不直接写入 ideas/experiments/methods/）
 
 ### Graph edges created
-- 无直接创建 — 所有 graph edges 通过子 skill 代理（/ideate、/exp-design、/exp-eval 各自创建 edges）
+- 无直接创建 — 所有 graph edges 通过子 skill 代理（$ideate、$exp-design、$exp-eval 各自创建 edges）
 
 ## Workflow
 
@@ -83,18 +83,18 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
        [1] 从 {current_stage} 继续（推荐）
        [2] 开始新的 pipeline（将覆盖旧进度）
-       [3] 先查看实验状态（/exp-status --pipeline {slug} / $exp-status --pipeline {slug}）
+       [3] 先查看实验状态（$exp-status --pipeline {slug} / $exp-status --pipeline {slug}）
        ```
      - 若 --auto 或用户选 [1]：自动设 `--start-from {current_stage}`，继续执行
      - 若用户选 [2]：继续创建新 pipeline（覆盖旧进度文件）
-     - 若用户选 [3]：在 Claude Code 中调用 `/exp-status --pipeline {slug}`，或在 Codex 中调用 `$exp-status --pipeline {slug}`，然后退出，不继续执行
+     - 若用户选 [3]：在 Codex 中调用 `$exp-status --pipeline {slug}`，或在 Codex 中调用 `$exp-status --pipeline {slug}`，然后退出，不继续执行
 
 3. **检查恢复**（有 `--start-from` 时）：
    - 若 `wiki/outputs/pipeline-progress.md` 存在：
      - 读取进度文件，恢复 idea_slug、experiment_slugs、stage3a_deployed 和 linked_idea_slugs
      - 跳转到指定 stage
    - 若进度文件不存在：报错退出，提示先运行完整流水线
-   - **`--start-from stage3-check`**：等同于调用 `/exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`，展示状态后退出
+   - **`--start-from stage3-check`**：等同于调用 `$exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`，展示状态后退出
    - **`--start-from stage3-collect`**：跳过 Stage 3a+3b，直接进入 Stage 3c（收集已部署实验）
 
 3. **创建进度文件** `wiki/outputs/pipeline-progress.md`：
@@ -161,7 +161,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 4. **逐一 auto-ingest**：
    ```
-   Claude Code: /ingest "{arxiv_url_or_path}"
+   Codex: $ingest "{arxiv_url_or_path}"
    Codex:       $ingest "{arxiv_url_or_path}"
    ```
    每篇 ingest 后输出进度：`[{i}/5] Ingested: {paper_title}`
@@ -194,10 +194,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Stage 1: Idea Discovery
 
-调用 `/ideate`：
+调用 `$ideate`：
 
 ```
-Claude Code: /ideate "{direction}" --auto
+Codex: $ideate "{direction}" --auto
 Codex:       $ideate "{direction}" --auto
 ```
 
@@ -223,10 +223,10 @@ Codex:       $ideate "{direction}" --auto
 
 ### Stage 2: Experiment Design
 
-调用 `/exp-design`：
+调用 `$exp-design`：
 
 ```
-Claude Code: /exp-design "{idea_slug}"
+Codex: $exp-design "{idea_slug}"
 Codex:       $exp-design "{idea_slug}"
 ```
 
@@ -240,10 +240,10 @@ Stage 3 分为三个子阶段，允许实验在后台异步运行，不阻塞 se
 
 #### Stage 3a: Deploy All
 
-按 run order（design中"ablation""sensitivity""main""generalization""analysis"）依次调用 `/exp-run {experiment_slug}`（默认 deploy 模式，Phase 1+2）：
+按 run order（design中"ablation""sensitivity""main""generalization""analysis"）依次调用 `$exp-run {experiment_slug}`（默认 deploy 模式，Phase 1+2）：
 
 ```
-Claude Code: /exp-run "{experiment_slug}"
+Codex: $exp-run "{experiment_slug}"
 Codex:       $exp-run "{experiment_slug}"
 ```
 
@@ -298,8 +298,8 @@ python3 tools/research_wiki.py log wiki/ \
    ⏳ 最晚完成：明天 09:30（exp-foo-baseline）
    建议 明天 10:00 之后运行：
 
-     /exp-status 或 $exp-status                                      ← 确认所有实验完成
-     /research --start-from stage3-collect 或 $research --start-from stage3-collect
+     $exp-status 或 $exp-status                                      ← 确认所有实验完成
+     $research --start-from stage3-collect 或 $research --start-from stage3-collect
                                                                ← 收集结果并继续
 
    进度已保存至 wiki/outputs/pipeline-progress.md，当前 session 可以关闭。
@@ -307,11 +307,11 @@ python3 tools/research_wiki.py log wiki/ \
 
 #### Stage 3c: Collect（实验完成后触发）
 
-**触发条件**：用户在 Claude Code 中手动运行 `/research --start-from stage3-collect`，或在 Codex 中运行 `$research --start-from stage3-collect`
+**触发条件**：用户在 Codex 中手动运行 `$research --start-from stage3-collect`，或在 Codex 中运行 `$research --start-from stage3-collect`
 
 对每个已部署的 experiment（从 `stage3a_deployed` 列表读取）：
 ```
-Claude Code: /exp-run "{experiment_slug}" --collect
+Codex: $exp-run "{experiment_slug}" --collect
 Codex:       $exp-run "{experiment_slug}" --collect
 ```
 
@@ -340,10 +340,10 @@ Codex:       $exp-run "{experiment_slug}" --collect
 
 ### Stage 4: Verdict & Iteration
 
-对每个 completed experiment 调用 `/exp-eval`：
+对每个 completed experiment 调用 `$exp-eval`：
 
 ```
-Claude Code: /exp-eval "{experiment_slug}" --auto
+Codex: $exp-eval "{experiment_slug}" --auto
 Codex:       $exp-eval "{experiment_slug}" --auto
 ```
 
@@ -355,9 +355,9 @@ Codex:       $exp-eval "{experiment_slug}" --auto
 
 **迭代路径**（不足时，最多 1 次重试）：
 1. 分析失败原因
-2. 对相应的需要改进的实验块调用 `/refine` 改进 experiment plan：
+2. 对相应的需要改进的实验块调用 `$refine` 改进 experiment plan：
    ```
-   Claude Code: /refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
+   Codex: $refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
    Codex:       $refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
    ```
 3. 对新增/修改的 experiments 重新执行 Stage 3 → Stage 4
@@ -387,30 +387,30 @@ Codex:       $exp-eval "{experiment_slug}" --auto
 
 ### Stage 5: Paper Writing
 
-依次调用子 skills：`/paper-plan` / `$paper-plan` → `/paper-draft` / `$paper-draft` → `/refine` / `$refine` → `/paper-compile` / `$paper-compile`
+依次调用子 skills：`$paper-plan` / `$paper-plan` → `$paper-draft` / `$paper-draft` → `$refine` / `$refine` → `$paper-compile` / `$paper-compile`
 
-**5a. 调用 `/paper-plan` / `$paper-plan`**：
+**5a. 调用 `$paper-plan` / `$paper-plan`**：
 ```
-Claude Code: /paper-plan "{linked_idea_slugs}" --venue {venue}
+Codex: $paper-plan "{linked_idea_slugs}" --venue {venue}
 Codex:       $paper-plan "{linked_idea_slugs}" --venue {venue}
 ```
-（将 Stage 4 收集到的 validated idea slug(s) 传递给 `/paper-plan` / `$paper-plan`）
+（将 Stage 4 收集到的 validated idea slug(s) 传递给 `$paper-plan` / `$paper-plan`）
 
-**5b. 调用 `/paper-draft` / `$paper-draft`**：
+**5b. 调用 `$paper-draft` / `$paper-draft`**：
 ```
-Claude Code: /paper-draft "wiki/outputs/PAPER_PLAN.md" --review
+Codex: $paper-draft "wiki/outputs/PAPER_PLAN.md" --review
 Codex:       $paper-draft "wiki/outputs/PAPER_PLAN.md" --review
 ```
 
-**5c. 调用 `/refine` / `$refine` on Paper**：
+**5c. 调用 `$refine` / `$refine` on Paper**：
 ```
-Claude Code: /refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
+Codex: $refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
 Codex:       $refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
 ```
 
-**5d. 调用 `/paper-compile` / `$paper-compile`**：
+**5d. 调用 `$paper-compile` / `$paper-compile`**：
 ```
-Claude Code: /paper-compile "paper/"
+Codex: $paper-compile "paper/"
 Codex:       $paper-compile "paper/"
 ```
 
@@ -497,7 +497,7 @@ python3 tools/research_wiki.py log wiki/ \
 - **Stage 3b 结束 session**：Stage 3b 完成后当前 session 结束，不继续等待实验
 - **最多 2 轮迭代**：Stage 4 迭代最多 2 轮，防止无限循环
 - **--auto 不跳过计算**：auto 模式跳过人工确认，但不跳过任何计算步骤
-- **--skip-paper 仍执行 Stage 4 /exp-eval**：即使不写论文，也要完成 idea/experiment 更新
+- **--skip-paper 仍执行 Stage 4 $exp-eval**：即使不写论文，也要完成 idea/experiment 更新
 - **子 skill 参数透传**：将 domain、--venue 等参数正确传递给子 skill
 - **日志记录每个 Stage**：每个 Stage 完成后追加 log.md 审计日志
 - **不重复执行已完成 stage**：--start-from 跳过已完成的 stages
@@ -511,27 +511,27 @@ python3 tools/research_wiki.py log wiki/ \
 - **子 skill 调用失败**：记录错误到 pipeline-progress，报告失败的 stage，建议 --start-from 恢复
 - **所有 ideas 生成失败**：终止流水线，建议用户调整 research direction
 - **所有实验 deploy 失败**：终止流水线（Stage 3a），生成失败报告，建议检查 GPU/SSH 配置
-- **Stage 3c baseline collect 失败**：终止流水线，报告基线无法复现，建议重新 /exp-design
+- **Stage 3c baseline collect 失败**：终止流水线，报告基线无法复现，建议重新 $exp-design
 - **所有实验 collect 失败（其他非 baseline）**：进入 Stage 4 评估（以失败为证据）
 - **Gate 用户选择 stop**：保存进度到 pipeline-progress，生成部分报告
 - **RESEARCH_BRIEF.md 格式错误**：降级为纯文本 direction，忽略结构化字段
 - **wiki 为空（无 papers/concepts）**：自动触发 Stage 0 Bootstrap（搜索 + auto-ingest 5 篇论文）
 - **迭代后 idea 证据仍不足**：在报告中标注 "idea evidence insufficient after max iterations"，由用户决定是否继续
-- **用户选择查看状态（自动恢复检测 [3]）**：调用 `/exp-status --pipeline {slug}` 后退出，不继续执行新流水线
+- **用户选择查看状态（自动恢复检测 [3]）**：调用 `$exp-status --pipeline {slug}` 后退出，不继续执行新流水线
 
 ## Dependencies
 
 ### Skills
-- `/ingest`（Claude Code）或 `$ingest`（Codex）— Stage 0 Bootstrap auto-ingest
-- `/ideate`（Claude Code）或 `$ideate`（Codex）— Stage 1 idea 发现
-- `/exp-design`（Claude Code）或 `$exp-design`（Codex）— Stage 2 实验设计
-- `/exp-run`（Claude Code）或 `$exp-run`（Codex）— Stage 3a（deploy 模式）和 Stage 3c（--collect 模式）
-- `/exp-status`（Claude Code）或 `$exp-status`（Codex）— 用户手动查看实验进度；`--auto-advance` 可在 agent runtime 内继续 Stage 4，外部调度器只报告 `stage4 ready` 并输出 `$research --start-from stage4`
-- `/exp-eval`（Claude Code）或 `$exp-eval`（Codex）— Stage 4 判决
-- `/refine`（Claude Code）或 `$refine`（Codex）— Stage 4 迭代 + Stage 5 论文改进
-- `/paper-plan`（Claude Code）或 `$paper-plan`（Codex）— Stage 5 论文规划
-- `/paper-draft`（Claude Code）或 `$paper-draft`（Codex）— Stage 5 论文撰写
-- `/paper-compile`（Claude Code）或 `$paper-compile`（Codex）— Stage 5 论文编译
+- `$ingest`（Codex）或 `$ingest`（Codex）— Stage 0 Bootstrap auto-ingest
+- `$ideate`（Codex）或 `$ideate`（Codex）— Stage 1 idea 发现
+- `$exp-design`（Codex）或 `$exp-design`（Codex）— Stage 2 实验设计
+- `$exp-run`（Codex）或 `$exp-run`（Codex）— Stage 3a（deploy 模式）和 Stage 3c（--collect 模式）
+- `$exp-status`（Codex）或 `$exp-status`（Codex）— 用户手动查看实验进度；`--auto-advance` 可在 agent runtime 内继续 Stage 4，外部调度器只报告 `stage4 ready` 并输出 `$research --start-from stage4`
+- `$exp-eval`（Codex）或 `$exp-eval`（Codex）— Stage 4 判决
+- `$refine`（Codex）或 `$refine`（Codex）— Stage 4 迭代 + Stage 5 论文改进
+- `$paper-plan`（Codex）或 `$paper-plan`（Codex）— Stage 5 论文规划
+- `$paper-draft`（Codex）或 `$paper-draft`（Codex）— Stage 5 论文撰写
+- `$paper-compile`（Codex）或 `$paper-compile`（Codex）— Stage 5 论文编译
 
 ### Tools（via Bash）
 - `python3 tools/research_wiki.py slug "{title}"` — 生成 pipeline slug

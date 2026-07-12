@@ -3,7 +3,7 @@ name: setup
 description: Interactive API key configuration guide — checks current .env state and walks you through Semantic Scholar, DeepXiv, and Review LLM setup
 ---
 
-# /setup / $setup
+# $setup / $setup
 
 > Guides you through AutoSci's optional API key configuration.
 > Reads your current `.env`, shows what is and isn't configured, and helps you
@@ -74,7 +74,7 @@ Present a clear summary to the user, grouped by status:
 ```
 AutoSci Configuration Status
 ================================
-✓  Agent runtime          — managed outside `.env` (Claude Code: `claude login`; Codex: sign in through Codex)
+✓  Agent runtime          — managed outside `.env` (sign in through Codex)
 
 Recommended:
 ✗  Semantic Scholar        — not set  (citation expansion 3x slower — get free key)
@@ -96,8 +96,8 @@ Always ask for user confirmation before writing to `.env`.
 #### 4a: Semantic Scholar API Key
 
 **Explain**: "Semantic Scholar gives citation data and paper search.
-Used by /ingest, /init, /novelty, /ideate. Free to get.
-**Recommended** — without it, /init runs 3x slower and citation-chain expansion is much less effective."
+Used by $ingest, $init, $novelty, $ideate. Free to get.
+**Recommended** — without it, $init runs 3x slower and citation-chain expansion is much less effective."
 
 **Guide to get it**: "Go to https://www.semanticscholar.org/product/api and click 'Get API Key'. It's free."
 
@@ -116,7 +116,7 @@ Use the Edit tool to update `.env`:
 #### 4b: DeepXiv Token
 
 **Explain**: "DeepXiv enables semantic paper search, AI paper summaries (TLDR),
-and trending paper detection. Used by /daily-arxiv, /novelty, /ideate, /ingest, /init.
+and trending paper detection. Used by $daily-arxiv, $novelty, $ideate, $ingest, $init.
 Without it, those skills fall back to arXiv RSS + Semantic Scholar — everything still works."
 
 **Offer three options**:
@@ -173,8 +173,8 @@ offer to let the user paste a token manually instead.
 #### 4c: Review LLM
 
 **Explain**: "The Review LLM connects AutoSci to a second AI model for independent
-adversarial review. It's used by /review, /novelty, /ideate, /paper-plan, /paper-draft,
-/rebuttal, /refine, /exp-eval, /exp-design, and /daily-arxiv inform recommendations.
+adversarial review. It's used by $review, $novelty, $ideate, $paper-plan, $paper-draft,
+$rebuttal, $refine, $exp-eval, $exp-design, and $daily-arxiv inform recommendations.
 Works with any OpenAI-compatible API.
 Without it, those skills skip the cross-model review step (everything still works)."
 
@@ -225,7 +225,7 @@ for k in keys:
 ```
 
 Show a final summary. For any keys still not set, briefly note what they unlock
-and that the user can run `/setup` in Claude Code or `$setup` in Codex anytime to add them.
+and that the user can run `$setup` in Codex or `$setup` in Codex anytime to add them.
 
 ### Step 6: Next Steps
 
@@ -234,8 +234,8 @@ If this is a fresh install (no `wiki/` directory):
 Configuration done. Next:
   • Put your own papers in raw/papers/ (.tex or .pdf)
   • Optional: add intent notes to raw/notes/ and saved pages to raw/web/
-  • /init (Claude Code) or $init (Codex) and direct local /ingest or $ingest will manage generated inputs under raw/discovered/ and raw/tmp/
-  • Run: /init [your-research-topic] in Claude Code, or $init [your-research-topic] in Codex
+  • $init (Codex) or $init (Codex) and direct local $ingest or $ingest will manage generated inputs under raw/discovered/ and raw/tmp/
+  • Run: $init [your-research-topic] in Codex, or $init [your-research-topic] in Codex
 ```
 
 If `wiki/` already exists:

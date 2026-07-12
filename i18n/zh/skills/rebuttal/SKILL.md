@@ -4,7 +4,7 @@ description: 解析审稿意见 → 原子化 concerns (Rvx-Cy) → 映射到 wi
 argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---
 
-# /rebuttal
+# $rebuttal
 
 > 解析审稿意见，将每条 concern 原子化（Rvx-Cy 编号）并映射到 wiki idea 或 method，
 > 检查 evidence 是否充分（追溯到 wiki experiments），
@@ -39,7 +39,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - `wiki/experiments/*.md` — 通过 `linked_idea` 找到支持 idea 的实验 result
 - `wiki/papers/*.md` — 查找引用的论文上下文
 - `wiki/concepts/*.md` — 理解 method 相关 concerns 的概念背景
-- `wiki/outputs/PAPER_PLAN.md` — 了解论文结构（来自 /paper-plan，若有 --paper-slug）
+- `wiki/outputs/PAPER_PLAN.md` — 了解论文结构（来自 $paper-plan，若有 --paper-slug）
 - `wiki/graph/context_brief.md` — 全局上下文
 - `wiki/graph/edges.jsonl` — idea-experiment-paper-method 关系
 - `shared-references/cross-model-review.md` — Review LLM stress-test 独立性
@@ -133,7 +133,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 **Strategy B — Evidence 不足（承认 + 具体计划）：**
 - 诚实承认当前 evidence 不够充分
-- 提出具体的补充实验计划（可链接到 /exp-design）
+- 提出具体的补充实验计划（可链接到 $exp-design）
 - 说明具体时间线和资源需求
 - 不使用模糊承诺，只承诺具体可执行的补充实验
 
@@ -269,7 +269,7 @@ Additional Experiments (if applicable):
 |-----------|-------------|--------------|
 | ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
-→ 用 Claude Code 的 `/exp-design ablation-dataset-x` 或 Codex 的 `$exp-design ablation-dataset-x` 设计后续实验
+→ 用 Codex 的 `$exp-design ablation-dataset-x` 或 Codex 的 `$exp-design ablation-dataset-x` 设计后续实验
 
 ## Review LLM Stress-Test Summary
 - Average score: {N}/5
@@ -304,7 +304,7 @@ Additional Experiments (if applicable):
 - **No overpromise**：只承诺具体可执行的补充实验。用 "we will run ablation on X with setup Y" 而非 "we will investigate"
 - **Full coverage**：每个 reviewer concern (Rvx-Cy) 必须有回应，不得遗漏。coverage 不足时阻止输出
 - **Evidence 追溯**：每条回应引用的 evidence 必须可追溯到 wiki 页面，标注来源 slug
-- **不静默翻转 linked idea 的 status**：rebuttal 只在 idea 的 `## Risks` / `## Lessons learned` 或 method 的 `## Limitations` 追加 concern；status 转换由 `/exp-eval` 负责
+- **不静默翻转 linked idea 的 status**：rebuttal 只在 idea 的 `## Risks` / `## Lessons learned` 或 method 的 `## Limitations` 追加 concern；status 转换由 `$exp-eval` 负责
 - **Review LLM 独立性**：stress-test 时遵循 cross-model-review.md，不向 Review LLM 透露回应策略
 - **Concern ID 格式**：严格使用 Rvx-Cy 格式（Rv1-C1, Rv1-C2, Rv2-C1），确保可追溯
 - **具体承诺**：所有修改承诺和实验计划必须具体（specific Section、具体 dataset、明确 metric）
@@ -317,7 +317,7 @@ Additional Experiments (if applicable):
 - **concern 映射不到 idea 或 method（unmapped）**：标注 "unmapped"，仍然回应（基于论文内容而非 wiki 实体）
 - **Review LLM stress-test 不可用**：跳过 Step 5，在报告中标注 "stress-test skipped: Review LLM unavailable"
 - **evidence 严重不足**：若 >50% concerns 的 evidence 为 insufficient，警告用户并建议先补充实验
-- **wiki 为空**：警告 wiki 知识库为空，建议先运行 Claude Code 的 `/ingest` 或 Codex 的 `$ingest` 填充 ideas、methods 与 experiments
+- **wiki 为空**：警告 wiki 知识库为空，建议先运行 Codex 的 `$ingest` 或 Codex 的 `$ingest` 填充 ideas、methods 与 experiments
 - **所有回应被 Review LLM 评为 1-2 分**：终止输出，报告需要重新分析，建议先补充实验
 
 ## Dependencies
@@ -340,5 +340,5 @@ Additional Experiments (if applicable):
 - `shared-references/cross-model-review.md` — Review LLM stress-test 独立性原则
 
 ### Suggested follow-up skills
-- `/exp-design`（Claude Code）或 `$exp-design`（Codex）— 为 evidence 不足的 concerns 设计补充实验
-- `/paper-draft`（Claude Code）或 `$paper-draft`（Codex）— 准备修订版论文（基于 Paper Edits 清单）
+- `$exp-design`（Codex）或 `$exp-design`（Codex）— 为 evidence 不足的 concerns 设计补充实验
+- `$paper-draft`（Codex）或 `$paper-draft`（Codex）— 准备修订版论文（基于 Paper Edits 清单）
