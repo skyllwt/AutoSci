@@ -1,13 +1,12 @@
 ---
 name: paper-compile
 description: LaTeX 编译 → PDF：latexmk 编译 + 自动修复 + 页数/匿名/字体/[UNCONFIRMED] 检查 + 提交清单
-argument-hint: "[paper-dir] [--fix] [--checklist]"
 ---
 
-# /paper-compile
+# paper-compile
 
 > 编译 LaTeX 论文为 PDF，自动修复常见错误，验证提交要求。
-> 输入 paper/ 目录（由 /paper-draft 生成），执行 latexmk 编译，
+> 输入 paper/ 目录（由 paper-draft 生成），执行 latexmk 编译，
 > 解析错误并尝试自动修复（缺失包、引用未定义、figure 路径），
 > 验证页数限制、匿名合规、字体嵌入、[UNCONFIRMED] 标记清除。
 > 生成提交清单。
@@ -189,7 +188,7 @@ pdffonts paper/main.pdf
 
 ## Next Steps
 - {specific actions to resolve blocking issues}
-- Run `/refine paper/main.tex --focus writing` for final polish
+- Run `refine paper/main.tex --focus writing` for final polish
 - Manual review of anonymous compliance
 ```
 
@@ -211,7 +210,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Error Handling
 
-- **main.tex 不存在**：报错，建议先运行 /paper-draft
+- **main.tex 不存在**：报错，建议先运行 paper-draft
 - **latexmk 未安装**：报错，提供安装命令（`sudo apt install texlive-full` 或 `brew install --cask mactex`）
 - **编译失败且无法自动修复**：输出完整错误日志 + 定位到具体 .tex 文件和行号
 - **pdfinfo/pdffonts 未安装**：跳过页数/字体检查，在报告中标注
@@ -220,7 +219,7 @@ python3 tools/research_wiki.py log wiki/ \
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `latexmk` — LaTeX 编译
 - `pdfinfo` — PDF 页数检查（poppler-utils）
 - `pdffonts` — 字体嵌入检查（poppler-utils）
@@ -232,13 +231,13 @@ python3 tools/research_wiki.py log wiki/ \
 ### Agent Runtime Capabilities
 - `Read` — 读取 .tex 文件和编译日志
 - `Edit` — 自动修复 .tex 文件（--fix 模式）
-- `Bash` — 执行编译和检查命令
-- `Grep` — 搜索 [UNCONFIRMED]、TODO、匿名违规
+- `bash` — 执行编译和检查命令
+- `grep` — 搜索 [UNCONFIRMED]、TODO、匿名违规
 
 ### Shared References
 - `shared-references/citation-verification.md` — [UNCONFIRMED] 标记检查规则
 - `shared-references/academic-writing.md` — venue 页数限制参考
 
 ### Called by
-- `/research` Stage 5（论文编译阶段）
+- `research` Stage 5（论文编译阶段）
 - 用户手动调用

@@ -306,7 +306,7 @@ function renderExperimentsTable(exps) {
     return `
       <section class="dash-card">
         <h3>Experiments <span class="muted small">(0)</span></h3>
-        <p class="muted">No experiments yet. Use <code>/exp-design</code> in Claude Code to plan one.</p>
+        <p class="muted">No experiments yet. Use <code>exp-design</code> in OpenCode to plan one.</p>
       </section>
     `;
   }
@@ -337,7 +337,7 @@ function renderIdeasPipeline(ideas) {
     return `
       <section class="dash-card">
         <h3>Ideas pipeline <span class="muted small">(0)</span></h3>
-        <p class="muted">No ideas captured yet. Use <code>/ideate</code> in Claude Code to generate from gaps.</p>
+        <p class="muted">No ideas captured yet. Use <code>ideate</code> in OpenCode to generate from gaps.</p>
       </section>
     `;
   }
@@ -462,7 +462,7 @@ function renderQuickActions() {
       <p class="muted small">
         <code>/check</code> and <code>/discover</code> run inline below
         (mechanical, no LLM). The other five open a parameter form, then
-        produce ready-to-paste commands for Claude Code and Codex.
+        produce ready-to-paste commands for OpenCode.
       </p>
       <div class="action-grid">${cards}</div>
       <div id="quick-action-result" class="quick-action-result" aria-live="polite"></div>
@@ -637,7 +637,7 @@ function renderCheckpointBrowser(items) {
       <div class="checkpoint-browser">
         ${header}
         <p class="checkpoint-empty muted">
-          No runs yet. After <code>/discover</code> finishes in Claude Code its
+          No runs yet. After <code>discover</code> finishes in OpenCode its
           ranked candidate list will appear here for one-click <code>/ingest</code>.
         </p>
       </div>
@@ -766,7 +766,7 @@ function wireCheckpointDetail(scope) {
     btn.addEventListener("click", () => {
       const arxiv = btn.dataset.arxiv;
       // Open the existing intent modal pre-filled with this arXiv id. The
-      // user pastes the result into Claude Code as usual.
+      // user pastes the result into OpenCode as usual.
       triggerIntent("ingest", { path: arxiv }, null);
     });
   });

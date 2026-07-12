@@ -1,4 +1,4 @@
-# /init Planner Policy
+# init Planner Policy
 
 Use this reference when reading `.checkpoints/init-plan.json`, trimming the shortlist, or interpreting planner warnings and errors.
 

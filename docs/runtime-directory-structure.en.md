@@ -1,10 +1,10 @@
 # Runtime Directory Chart
 
-> On-demand reference for the repo layout. The main `CLAUDE.md` keeps only the schema and rules that should stay in immediate context.
+> On-demand reference for the repo layout. The main `AGENTS.md` keeps only the schema and rules that should stay in immediate context.
 
 ```text
 wiki/
-├── CLAUDE.md          ← runtime schema
+├── AGENTS.md          ← runtime schema
 ├── index.md           ← content catalog (YAML)
 ├── log.md             ← chronological log (append-only)
 ├── papers/            ← structured paper summaries

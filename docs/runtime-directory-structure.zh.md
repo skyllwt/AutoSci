@@ -1,10 +1,10 @@
 # 运行时目录图
 
-> 按需读取的仓库布局参考。主 `CLAUDE.md` 只保留需要常驻上下文的 schema 与约束。
+> 按需读取的仓库布局参考。主 `AGENTS.md` 只保留需要常驻上下文的 schema 与约束。
 
 ```text
 wiki/
-├── CLAUDE.md          ← runtime schema
+├── AGENTS.md          ← runtime schema
 ├── index.md           ← 内容目录（YAML）
 ├── log.md             ← 时序日志（append-only）
 ├── papers/            ← 论文结构化摘要

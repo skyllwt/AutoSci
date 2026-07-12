@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 import json
 import re
 import sys

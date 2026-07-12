@@ -1,31 +1,30 @@
 ---
 name: exp-status
 description: View the status of all running experiments; optionally auto-collect completed experiments and advance the pipeline
-argument-hint: "[--pipeline <slug>] [--collect-ready] [--auto-advance]"
 ---
 
-# /exp-status
+# exp-status
 
 > Unified experiment status monitoring entry point.
 > Scans all `running` experiments, performs a live status check on each (screen session / SSH),
 > and outputs a status table (alive / anomaly / completed) to guide the user's next actions.
 >
-> When used with `/research --auto`, acts as a periodic checker scheduled by CronCreate:
-> when all experiments in a pipeline are completed, automatically triggers `/research --start-from stage4`.
+> When used with `research --auto`, acts as a periodic checker scheduled by CronCreate:
+> when all experiments in a pipeline are completed, automatically triggers `research --start-from stage4`.
 
 ## Inputs
 
 - No arguments (default): check all `running` experiments, print status table
 - `--pipeline <slug>` (optional): check only experiments belonging to the specified pipeline; additionally print overall pipeline progress
-- `--collect-ready` (optional): auto-call `/exp-run --collect` for all experiments whose session has already ended
+- `--collect-ready` (optional): auto-call `exp-run --collect` for all experiments whose session has already ended
 - `--auto-advance` (optional, requires `--pipeline <slug>`): if all pipeline experiments are `completed`,
-  automatically trigger `/research --start-from stage4` without waiting for the user
+  automatically trigger `research --start-from stage4` without waiting for the user
 
 ## Outputs
 
 - **Status report** (terminal output, all modes): list of experiments in running/anomaly/completed states
 - `wiki/experiments/{slug}.md` — updated (outcome/key_result/status) when `--collect-ready` triggers Phase 4
-- `wiki/outputs/pipeline-progress.md` — `--auto-advance` updates current_stage → stage4 (done internally by /research --start-from stage4)
+- `wiki/outputs/pipeline-progress.md` — `--auto-advance` updates current_stage → stage4 (done internally by research --start-from stage4)
 - `wiki/log.md` — appended status check log
 
 ## Wiki Interaction
@@ -35,12 +34,12 @@ argument-hint: "[--pipeline <slug>] [--collect-ready] [--auto-advance]"
 - `wiki/outputs/pipeline-progress.md` — in `--pipeline` mode, identifies target experiments and monitoring_cron_id
 
 ### Writes
-- `wiki/experiments/{slug}.md` — updated via /exp-run --collect in `--collect-ready` mode
-- `wiki/outputs/pipeline-progress.md` — updated by /research when `--auto-advance` triggers Stage 4
+- `wiki/experiments/{slug}.md` — updated via exp-run --collect in `--collect-ready` mode
+- `wiki/outputs/pipeline-progress.md` — updated by research when `--auto-advance` triggers Stage 4
 - `wiki/log.md` — appended status check log
 
 ### Graph edges created
-- None (result writes triggered indirectly via /exp-run --collect do not produce new edges)
+- None (result writes triggered indirectly via exp-run --collect do not produce new edges)
 
 ## Workflow
 
@@ -51,15 +50,15 @@ argument-hint: "[--pipeline <slug>] [--collect-ready] [--auto-advance]"
 1. **Determine check scope**:
    - If `--pipeline <slug>` is specified:
      - Read `wiki/outputs/pipeline-progress.md`, extract the slug list from the `stage3a_deployed` field
-     - If the file does not exist or slug does not match: report error, suggest running `/research` first or specifying manually
+     - If the file does not exist or slug does not match: report error, suggest running `research` first or specifying manually
    - Otherwise:
-     - Use Glob to scan `wiki/experiments/*.md`, filter for `status == running`
+     - Use glob to scan `wiki/experiments/*.md`, filter for `status == running`
 
 2. **If no running experiments**:
    - Print a friendly message:
      ```
      No running experiments found.
-     - To start an experiment: /exp-run <slug>
+     - To start an experiment: exp-run <slug>
      - To see all experiments: check wiki/experiments/
      ```
    - Return
@@ -110,7 +109,7 @@ For each target experiment, execute in parallel (or sequentially):
 ### ⚠️ Anomaly Detected ({N})
 | Experiment | Elapsed | Issue | Action |
 |-----------|---------|-------|--------|
-| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | Run `/exp-run exp-foo-ablation --collect` to inspect |
+| [[exp-foo-ablation]] | 0.8h | NaN loss at step 500 | Run `exp-run exp-foo-ablation --collect` to inspect |
 
 ### ✅ Completed — Pending Collect ({N})
 | Experiment | Finished (estimate) |
@@ -126,13 +125,13 @@ For each target experiment, execute in parallel (or sequentially):
 ### Actions
 ```bash
 # Collect all completed experiments at once:
-/exp-status --collect-ready
+exp-status --collect-ready
 
 # Collect a specific experiment:
-/exp-run exp-foo-sanity --collect
+exp-run exp-foo-sanity --collect
 
-# Pipeline progress (if in /research):
-/exp-status --pipeline {pipeline-slug}
+# Pipeline progress (if in research):
+exp-status --pipeline {pipeline-slug}
 ```
 ```
 
@@ -144,10 +143,10 @@ python3 tools/research_wiki.py log wiki/ \
 
 ### Step 4: --collect-ready Auto-Collect (if specified)
 
-For each `completed_pending_collect` experiment, call `/exp-run --collect`:
+For each `completed_pending_collect` experiment, call `exp-run --collect`:
 
 ```
-Skill: exp-run
+skill: exp-run
 Args: "{slug} --collect"
 ```
 
@@ -182,7 +181,7 @@ After all collections are done, re-print the updated status report.
      ```
    - Trigger next stage:
      ```
-     Skill: research
+     skill: research
      Args: "--start-from stage4"
      ```
 
@@ -191,25 +190,25 @@ After all collections are done, re-print the updated status report.
 - **Read-only in non --collect-ready mode**: without `--collect-ready`, do not modify any wiki files
 - **`--auto-advance` requires `--pipeline`**: using `--auto-advance` alone is invalid, report an error
 - **Status checks must be non-blocking**: each experiment check should complete quickly (single SSH check or screen -ls)
-- **Anomalies are not auto-fixed**: `/exp-status` only reports anomalies; fixes require the user to manually call `/exp-run --collect`
+- **Anomalies are not auto-fixed**: `exp-status` only reports anomalies; fixes require the user to manually call `exp-run --collect`
 - **pipeline-progress.md must exist**: in `--pipeline` mode, if the file is missing, report an error
 
 ## Error Handling
 
 - **No running experiments**: print friendly message, not an error; provide next step suggestions
-- **`--pipeline` but pipeline-progress.md does not exist**: report error "Pipeline progress file not found. Run `/research <direction>` first or check wiki/outputs/"
+- **`--pipeline` but pipeline-progress.md does not exist**: report error "Pipeline progress file not found. Run `research <direction>` first or check wiki/outputs/"
 - **`--auto-advance` without `--pipeline`**: report error "--auto-advance requires --pipeline <slug>"
 - **SSH connection fails** (remote experiment): mark that experiment as `check_failed`, note it in the report, continue checking other experiments
 - **screen -ls returns nothing**: does not mean the experiment failed — may be a brief delay; mark as `completed_pending_collect`
-- **`/exp-run --collect` fails** (`--collect-ready` mode): record the failure, continue collecting other experiments, report all failures at the end
+- **`exp-run --collect` fails** (`--collect-ready` mode): record the failure, continue collecting other experiments, report all failures at the end
 
 ## Dependencies
 
-### Skills（via Skill tool）
-- `/exp-run` — call collect phase in `--collect-ready` mode
-- `/research` — trigger Stage 4 via `--auto-advance`
+### Skills（via skill tool）
+- `exp-run` — call collect phase in `--collect-ready` mode
+- `research` — trigger Stage 4 via `--auto-advance`
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/remote.py check --name "exp-{slug}"` — remote experiment status check
 - `python3 tools/remote.py tail-log --name "exp-{slug}" --lines 20` — fetch remote logs
 - `python3 tools/research_wiki.py set-meta <path> <field> <value>` — update pipeline-progress
@@ -220,11 +219,11 @@ After all collections are done, re-print the updated status report.
 ### Agent Runtime Capabilities
 - `Read` — read experiment pages and pipeline-progress
 - `Write` — update pipeline-progress status
-- `Glob` — scan wiki/experiments/*.md
-- `Bash` — screen/tail and other system commands
-- `Skill` — call /exp-run --collect and /research
+- `glob` — scan wiki/experiments/*.md
+- `bash` — screen/tail and other system commands
+- `skill` — call exp-run --collect and research
 
 ### Called by
-- CronCreate schedule (created by `/research --auto` Stage 3b: triggers every 30 minutes)
+- CronCreate schedule (created by `research --auto` Stage 3b: triggers every 30 minutes)
 - User directly
-- `/research` Stage 3b (in interactive mode, suggested to user)
+- `research` Stage 3b (in interactive mode, suggested to user)

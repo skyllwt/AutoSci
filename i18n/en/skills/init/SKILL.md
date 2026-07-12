@@ -1,12 +1,11 @@
 ---
 name: init
 description: Bootstrap AutoSci from user sources plus optional discovery, then ingest the final paper set
-argument-hint: "[topic] [--no-introduction]"
 ---
 
-# /init
+# init
 
-> Build a wiki from `raw/` with deterministic source preparation, planner-guided discovery, provisional notes/web scaffolding, and sequential `/ingest`.
+> Build a wiki from `raw/` with deterministic source preparation, planner-guided discovery, provisional notes/web scaffolding, and sequential `ingest`.
 
 Use these local references on demand:
 
@@ -24,7 +23,7 @@ Use these local references on demand:
 
 - `wiki/` scaffold and provisional pages (Summary, topics, ideas, concepts)
 - `raw/tmp/` and `raw/discovered/` prepared sources
-- Final paper pages via `/ingest`
+- Final paper pages via `ingest`
 - `.checkpoints/init-*.json` manifests for resume and replay
 - Updated `wiki/index.md`, `wiki/log.md`, `wiki/graph/*`
 - Refreshed visualization artifacts: `wiki/.obsidian/graph.json` (per-entity-type color groups) and `wiki/canvases/*.canvas` (best-effort, see Step 6). The interactive web Graph view is served by `tools/serve.py` (SPA), not regenerated as a standalone file.
@@ -46,12 +45,12 @@ Use these local references on demand:
 
 ### Graph edges created
 
-- `/init` itself creates only scaffold-level edges when provisional pages need them
-- all paper-driven edges are delegated to `/ingest`
+- `init` itself creates only scaffold-level edges when provisional pages need them
+- all paper-driven edges are delegated to `ingest`
 
 ## Workflow
 
-**Pre-condition**: working directory is the project root containing `wiki/`, `raw/`, and `tools/`. Set `WIKI_ROOT=wiki/`. Resolve `PYTHON_BIN` once and reuse it for every Python command during `/init` so the workflow stays on the interpreter that `setup.sh` prepared:
+**Pre-condition**: working directory is the project root containing `wiki/`, `raw/`, and `tools/`. Set `WIKI_ROOT=wiki/`. Resolve `PYTHON_BIN` once and reuse it for every Python command during `init` so the workflow stays on the interpreter that `setup.sh` prepared:
 
 ```bash
 if   [ -x .venv/bin/python ];         then PYTHON_BIN=.venv/bin/python
@@ -81,7 +80,7 @@ Create the standard wiki directories, `graph/`, `outputs/`, `index.md`, and `log
 - when the agent supplied a PDF title, treat that title as authoritative for the prepared manifest; fetched/source titles are display-only fallback metadata
 - do not use PDF metadata or PDF body text as arXiv-ID hints during prepare
 - when arXiv ID recovery succeeds, prefer fetched raw TeX source over synthetic `.tex`
-- the prepare subcommand delegates to `prepare_paper_source.py` internally; do not call `prepare_paper_source.py` directly during `/init` Step 2
+- the prepare subcommand delegates to `prepare_paper_source.py` internally; do not call `prepare_paper_source.py` directly during `init` Step 2
 
 ### Step 3: Provisional notes/web scaffolding and planner
 
@@ -100,7 +99,7 @@ Create the standard wiki directories, `graph/`, `outputs/`, `index.md`, and `log
 - `--allow-introduction true` unless user passed `--no-introduction`
 - the planner reads `.checkpoints/init-prepare.json` for local context
 - it may create provisional `wiki/topics/`, `wiki/ideas/`, `wiki/concepts/` pages seeded from notes/web
-- notes/web-derived pages must carry the exact provisional notice: `> ⚠️ **PROVISIONAL PAGE** — auto-generated from notes/web during /init. Does not (yet) cite a peer-reviewed source. Treat claims with caution.`
+- notes/web-derived pages must carry the exact provisional notice: `> ⚠️ **PROVISIONAL PAGE** — auto-generated from notes/web during init. Does not (yet) cite a peer-reviewed source. Treat claims with caution.`
 - planner details and selection policy are in `references/planner-policy.md`
 
 ### Step 4: Fetch external papers and write source manifest
@@ -126,9 +125,9 @@ Paper sources come strictly from `.checkpoints/init-sources.json`:
 - `origin=user_local`: canonical prepared path under `raw/tmp/` when available, otherwise fallback `raw/papers/...`
 - `origin=introduced`: fetched dirs or PDFs under `raw/discovered/`
 
-Execute `/ingest` for each paper **sequentially** in `shortlist_rank` order:
+Execute `ingest` for each paper **sequentially** in `shortlist_rank` order:
 
-- execute `/ingest` for exactly one source path per turn
+- execute `ingest` for exactly one source path per turn
 - in INIT MODE, consume the handed-off `canonical_ingest_path` exactly as provided
 - skip `fetch_s2.py citations`
 - skip `fetch_s2.py references`
@@ -152,20 +151,20 @@ After all papers are ingested:
 "$PYTHON_BIN" tools/lint.py --wiki-dir wiki/ --fix
 ```
 
-Then backfill `cites` edges via Semantic Scholar — `fetch_s2.py references` was skipped per-paper and must be reinstated here. Best-effort: S2 outages must not fail `/init`.
+Then backfill `cites` edges via Semantic Scholar — `fetch_s2.py references` was skipped per-paper and must be reinstated here. Best-effort: S2 outages must not fail `init`.
 
 ```bash
 "$PYTHON_BIN" tools/backfill_citations.py --wiki-dir wiki/ \
   || echo "WARN: citation backfill failed or partial; check stderr above" >&2
 ```
 
-Then regenerate visualization artifacts (best-effort; visualize failure must not fail `/init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `config/visualize.json` so the per-entity-type color groups stay in sync with the runtime config.
+Then regenerate visualization artifacts (best-effort; visualize failure must not fail `init`). `generate-obsidian-config` rewrites `wiki/.obsidian/graph.json` from `configvisualize.json` so the per-entity-type color groups stay in sync with the runtime config.
 
 ```bash
 "$PYTHON_BIN" tools/visualize.py generate-obsidian-config wiki/ \
-  || echo "WARN: visualize generate-obsidian-config failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-obsidian-config failed; run visualize manually" >&2
 "$PYTHON_BIN" tools/visualize.py generate-canvas wiki/ \
-  || echo "WARN: visualize generate-canvas failed; run /visualize manually" >&2
+  || echo "WARN: visualize generate-canvas failed; run visualize manually" >&2
 ```
 
 Report separately:
@@ -174,8 +173,8 @@ Report separately:
 - user-provided papers that fell back to original `raw/papers/` paths
 - discovered papers from `raw/discovered/`
 - provisional pages seeded from notes/web
-- pages created by `/ingest`
-- pages updated by `/ingest`
+- pages created by `ingest`
+- pages updated by `ingest`
 - any skipped or failed papers
 - visualization refresh status (Canvas + HTML succeeded, or which step warned)
 
@@ -183,14 +182,14 @@ Report separately:
 
 - Do not infer `--no-introduction` from repository state alone. Use it only when the user explicitly asked to disable external discovery.
 - `raw/papers/`, `raw/notes/`, and `raw/web/` are user-owned inputs
-- `raw/tmp/` and `raw/discovered/` are generated handoff areas; direct local `/ingest` may also prepare reusable local sidecars under `raw/tmp/`
-- `/init` may write external papers only to `raw/discovered/`; `/init` and direct local `/ingest` may write generated prepared local sources to `raw/tmp/`
-- `/prefill` is optional background seeding, not part of `/init`
-- no skill other than `/prefill` may auto-create foundations
-- `/init` must not create `people/` pages directly
+- `raw/tmp/` and `raw/discovered/` are generated handoff areas; direct local `ingest` may also prepare reusable local sidecars under `raw/tmp/`
+- `init` may write external papers only to `raw/discovered/`; `init` and direct local `ingest` may write generated prepared local sources to `raw/tmp/`
+- `prefill` is optional background seeding, not part of `init`
+- no skill other than `prefill` may auto-create foundations
+- `init` must not create `people/` pages directly
 - notes/web-derived pages are provisional and must carry the exact notice line above
 - paper evidence outranks notes/web for concept consolidation and method extraction
-- all paper ingest must run through `/ingest`
+- all paper ingest must run through `ingest`
 - Step 5 must read paper inputs from `.checkpoints/init-sources.json`, not by ad hoc folder scanning
 - exact deterministic planner policy belongs in `tools/init_discovery.py`, not in duplicated skill constants
 
@@ -204,11 +203,11 @@ Report separately:
 - **S2 or DeepXiv unavailable**: planner falls back to the remaining sources; preserve the warning in the checkpointed plan and note degraded discovery in the report
 - **External fetch fails for one paper**: keep the remaining final set and report the failed download
 - **Single paper ingest fails**: record it via checkpoint, skip it, continue the rest, and list it in the report
-- **Visualization regeneration fails**: warn and continue; never fail `/init`. The user can rerun `/visualize --canvas --html` separately to diagnose
+- **Visualization regeneration fails**: warn and continue; never fail `init`. The user can rerun `visualize --canvas --html` separately to diagnose
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 
 - `"$PYTHON_BIN" tools/research_wiki.py init wiki/`
 - `"$PYTHON_BIN" tools/research_wiki.py checkpoint-set-meta wiki/ init-session <key> <value>`
@@ -230,8 +229,8 @@ Report separately:
 
 ### Skills
 
-- `/ingest` — one paper per invoke, in INIT MODE
-- `/visualize` — Step 6 regenerates Obsidian graph color groups and Canvas by calling `tools/visualize.py` directly (best-effort); the user may also invoke `/visualize` manually later for `--focus` views or to re-render after editing `config/visualize.json`
+- `ingest` — one paper per invoke, in INIT MODE
+- `visualize` — Step 6 regenerates Obsidian graph color groups and Canvas by calling `tools/visualize.py` directly (best-effort); the user may also invoke `visualize` manually later for `--focus` views or to re-render after editing `configvisualize.json`
 
 ### External APIs used by `init_discovery.py`
 

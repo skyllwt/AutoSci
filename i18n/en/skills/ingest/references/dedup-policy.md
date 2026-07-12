@@ -1,17 +1,17 @@
-# /ingest Dedup Policy
+# ingest Dedup Policy
 
 Open this reference when you are about to create or update a concept, method, or foundation link.
 
 ## The mental model
 
-A healthy ΩmegaWiki has far fewer concepts and methods than papers. Each concept is shared by many papers that deepen or extend it; each method is shared by many papers that reuse or extend it. When `/ingest` creates a new concept or method per paper by default, the wiki quickly devolves into a pile of near-duplicates that breaks every downstream skill — survey generation, gap detection, idea novelty, citation reasoning.
+A healthy ΩmegaWiki has far fewer concepts and methods than papers. Each concept is shared by many papers that deepen or extend it; each method is shared by many papers that reuse or extend it. When `ingest` creates a new concept or method per paper by default, the wiki quickly devolves into a pile of near-duplicates that breaks every downstream skill — survey generation, gap detection, idea novelty, citation reasoning.
 
 The default action is **merge**. The exception is **create**, and it needs a clear reason every time.
 
 ## When to open this reference
 
-- Step 4 of `/ingest`: identifying concepts the paper introduces or extends.
-- Step 4 of `/ingest`: identifying methods the paper introduces (named, reusable, citable).
+- Step 4 of `ingest`: identifying concepts the paper introduces or extends.
+- Step 4 of `ingest`: identifying methods the paper introduces (named, reusable, citable).
 - Any time you are tempted to create a new concept or method "for safety" without checking.
 
 ## Required tool call
@@ -49,7 +49,7 @@ The purpose of the limit is to keep the default behavior conservative. It is not
 - importance ≥ 4: at most **3** new concepts and **2** new methods
 - Foundation references do not count.
 
-When further candidates would exceed the limit, merge them into the nearest existing entry even if its score is below the usual merge threshold. If no candidate is close enough to merge safely, skip writing that entity — `/check` will surface the resulting gaps, and the user can decide whether to `/edit` them in.
+When further candidates would exceed the limit, merge them into the nearest existing entry even if its score is below the usual merge threshold. If no candidate is close enough to merge safely, skip writing that entity — `check` will surface the resulting gaps, and the user can decide whether to `edit` them in.
 
 ## Write shape, not semantics
 
@@ -60,9 +60,9 @@ When you do create or edit a concept or method page, run the same narrow shape c
 - methods: `type` ∈ {`architecture`, `training`, `inference`, `evaluation`, `data`, `benchmark`, `system`, `optimization`, `prompting`, `protocol`, `other`}
 - YAML parses
 
-This check keeps `/check` from flagging trivially malformed pages on its next run. Anything beyond this — backlink symmetry, whether the concept's `linked_ideas` are reciprocated, whether a method's `parent_methods` chain is consistent — is `/check`'s job. Running those audits inside `/ingest` slows the skill down and duplicates work.
+This check keeps `check` from flagging trivially malformed pages on its next run. Anything beyond this — backlink symmetry, whether the concept's `linked_ideas` are reciprocated, whether a method's `parent_methods` chain is consistent — is `check`'s job. Running those audits inside `ingest` slows the skill down and duplicates work.
 
-## What `/check` owns, not `/ingest`
+## What `check` owns, not `ingest`
 
 - cross-entity backlink symmetry (A links to B ⇒ B links back to A)
 - dangling-node detection (pages referenced but missing, or existing but unreachable)
@@ -70,4 +70,4 @@ This check keeps `/check` from flagging trivially malformed pages on its next ru
 - edge-type validity and edge dedup
 - tiered fix recommendations for any of the above
 
-You can trust `/check` to find these and produce a fix report. Focus `/ingest` on emitting well-shaped entities and correct forward/reverse links at the point of writing.
+You can trust `check` to find these and produce a fix report. Focus `ingest` on emitting well-shaped entities and correct forward/reverse links at the point of writing.

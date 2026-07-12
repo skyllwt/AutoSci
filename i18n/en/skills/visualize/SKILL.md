@@ -1,10 +1,9 @@
 ---
 name: visualize
 description: Generate and update visualization artifacts — Obsidian graph config and Canvas knowledge maps. The interactive web graph view lives in the SPA at app/modules/graph.js (served by tools/serve.py).
-argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
-# /visualize
+# visualize
 
 > Generate visualization artifacts for the AutoSci knowledge graph.
 > Produces Obsidian graph config (color groups by entity type) and curated
@@ -42,11 +41,11 @@ the frontend.
 - `wiki/graph/edges.jsonl` — typed semantic edges
 - `wiki/graph/citations.jsonl` — bibliographic paper citations
 - `wiki/*/` — all entity directories for page metadata (frontmatter)
-- `config/visualize.json` — color palette and visualization preferences
+- `configvisualize.json` — color palette and visualization preferences
 
 ### Writes
 
-- `wiki/.obsidian/graph.json` — CREATE/OVERWRITE (local-only artifact, gitignored; regenerated each run from `config/visualize.json`)
+- `wiki/.obsidian/graph.json` — CREATE/OVERWRITE (local-only artifact, gitignored; regenerated each run from `configvisualize.json`)
 - `wiki/.obsidian/app.json` — CREATE only (never overwrite user customizations; gitignored)
 - `wiki/canvases/*.canvas` — CREATE/OVERWRITE (local-only artifact, gitignored)
 
@@ -58,7 +57,7 @@ Set `WIKI_ROOT=wiki/`.
 ### Step 0: Verify graph data exists
 
 Check that `wiki/graph/edges.jsonl` exists and is non-empty. If empty, report that no graph data
-exists yet and suggest running `/ingest` first.
+exists yet and suggest running `ingest` first.
 
 ### Step 1: Generate Obsidian config (--obsidian or --all)
 
@@ -164,7 +163,7 @@ manually.
    Exit code `0` = port in use (server already up — skip start). Exit code
    `1` = port free (need to start).
 
-2. If the port is free, start the server in the background via the **`Bash`
+2. If the port is free, start the server in the background via the **`bash`
    tool with `run_in_background: true`** (not foreground — foreground would
    block the skill indefinitely):
 
@@ -172,9 +171,9 @@ manually.
    python3 tools/serve.py
    ```
 
-   Do not spawn an `Agent` subagent for this — agents are not designed for
+   Do not spawn an `task` subagent for this — agents are not designed for
    long-running services, and the server may die when the agent returns. The
-   background `Bash` process is owned by the agent session and lives
+   background `bash` process is owned by the agent session and lives
    for the session's lifetime.
 
 3. Print the SPA URL to the user:
@@ -186,7 +185,7 @@ manually.
 The SPA Graph view (`app/modules/graph.js`) is a real ES module with
 the same Cytoscape + force layout + filters + BFS search as the old
 single-page generator, plus integrated double-click navigation to the
-SPA Reader view. `/visualize` no longer regenerates `wiki/graph-view.html`.
+SPA Reader view. `visualize` no longer regenerates `wiki/graph-view.html`.
 
 ### Step 4: Print recommendations
 
@@ -205,7 +204,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [list of artifa
 Standard log format:
 
 ```markdown
-## [YYYY-MM-DD] /visualize | <format> — <n> nodes, <m> edges<focus-note>
+## [YYYY-MM-DD] visualize | <format> — <n> nodes, <m> edges<focus-note>
 ```
 
 Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used, or empty otherwise.
@@ -241,16 +240,16 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 ## Constraints
 
 - Never edit `wiki/graph/` manually — only read from it
-- `config/visualize.json` is user-owned — never overwrite it
+- `configvisualize.json` is user-owned — never overwrite it
 - `.obsidian/app.json` is created only if missing (respect user customizations)
 - Canvas files are regenerated on each run (idempotent overwrite)
 - No external Python dependencies required (stdlib only)
-- `wiki/.obsidian/` and `wiki/canvases/` are gitignored as local-only artifacts; the source of truth is `config/visualize.json` + `wiki/graph/`. `/init` Step 6 and direct `/visualize` invocations regenerate them deterministically — never commit them.
+- `wiki/.obsidian/` and `wiki/canvases/` are gitignored as local-only artifacts; the source of truth is `configvisualize.json` + `wiki/graph/`. `init` Step 6 and direct `visualize` invocations regenerate them deterministically — never commit them.
 
 ## Error Handling
 
-- **No graph data**: inform user to run `/ingest` first to build the knowledge base
-- **config/visualize.json missing**: report error, file should exist at `config/visualize.json`
+- **No graph data**: inform user to run `ingest` first to build the knowledge base
+- **configvisualize.json missing**: report error, file should exist at `configvisualize.json`
 - **--focus node not found**: abort with `Error: node "<node_id>" not found`; list 5 closest slug matches
 - **No nodes after filtering**: abort with summary of filters applied and types available
 - **Canvas > 500 nodes**: warn that large canvases may be slow; suggest `--focus` or `--types` to narrow scope
@@ -260,7 +259,7 @@ Where `<focus-note>` is ` (focus: <node_id>, depth <N>)` when `--focus` was used
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 
 - `python3 tools/visualize.py generate-obsidian-config wiki/` — Obsidian config
 - `python3 tools/visualize.py generate-canvas wiki/ [--focus <node_id>] [--depth N]` — Canvas generation

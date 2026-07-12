@@ -1,16 +1,15 @@
 ---
 name: edit
 description: 根据用户要求增删 raw sources 或更新 wiki 内容
-argument-hint: "[request]"
 ---
 
-# /edit
+# edit
 
 > 根据用户要求增删 raw sources 或更新 wiki 内容。
 
 ## 触发
 
-用户手动：`/edit <用户要求>`
+用户手动：`edit <用户要求>`
 
 ## 输入
 
@@ -39,7 +38,7 @@ argument-hint: "[request]"
 
 ### STEP 2: 执行更新
 
-1. 增加的 raw sources 后续可通过 `/ingest` 纳入 wiki
+1. 增加的 raw sources 后续可通过 `ingest` 纳入 wiki
 2. 直接 wiki 修改：按用户指令更新特定页面的特定字段/内容
 3. 写正向链接时同步写反向链接
 

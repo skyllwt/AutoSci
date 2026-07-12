@@ -1,10 +1,9 @@
 ---
 name: paper-plan
 description: Compile a paper outline from the idea graph — evidence map → narrative structure → section plan + figure plan + citation plan, Review LLM review mandatory
-argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
 ---
 
-# /paper-plan
+# paper-plan
 
 > Compile a paper outline from the wiki's idea graph.
 > Input target ideas (status: validated or in-progress with succeeded experiments), specify the target venue,
@@ -74,7 +73,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 
 **Validation**:
 - If any target idea has `status: proposed`: warn "idea is unvalidated; paper may lack evidence support"
-- If any target idea has empty `novelty_score` OR `novelty_score <= 2`: warn "idea novelty is thin; consider running `/novelty` first"
+- If any target idea has empty `novelty_score` OR `novelty_score <= 2`: warn "idea novelty is thin; consider running `novelty` first"
 - If no `linked_experiments` resolve to a `succeeded` outcome for any target idea: error "at least one supporting experiment is required to plan a paper"
 
 ### Step 2: Compile Evidence Map from Wiki
@@ -297,12 +296,12 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    ```bash
    # plan → target idea
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
+     --from "outputspaper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
      --type derived_from --evidence "Paper plan built from this idea"
 
    # plan → key papers
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
+     --from "outputspaper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
      --type derived_from --evidence "Paper plan cites this paper"
    ```
 
@@ -347,8 +346,8 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    ## Review LLM Review: score {X}/10, verdict: {verdict}
 
    ## Next Steps
-   - Run `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
-   - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
+   - Run `paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
+   - Resolve {verify_count} [UNCONFIRMED] citations before paper-compile
    ```
 
 ## Constraints
@@ -366,8 +365,8 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 ## Error Handling
 
 - **Insufficient idea status**: if all ideas are `proposed`, error "ideas are unvalidated; run experiments first"
-- **No experiment evidence**: error "at least one experimental result is required"; suggest running /exp-design + /exp-run first
-- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider /ingest of more papers first"
+- **No experiment evidence**: error "at least one experimental result is required"; suggest running exp-design + exp-run first
+- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider ingest of more papers first"
 - **Page budget exceeded**: automatically move lower-priority sections to appendix plan; report the adjustment
 - **Review LLM unavailable**: fall back to the primary agent self-review; report annotated "single-model review — cross-model verification unavailable"
 - **BibTeX fetch failed**: mark [UNCONFIRMED]; summarize in the citation plan report
@@ -376,7 +375,7 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "<title>"` — generate slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild query_pack
@@ -388,13 +387,13 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 
 ### Agent Runtime Capabilities
 - `Read` — read wiki pages
-- `Glob` — find ideas, experiments, methods, papers
-- `WebFetch` — DBLP / CrossRef BibTeX fetch (Step 6)
+- `glob` — find ideas, experiments, methods, papers
+- `webfetch` — DBLP / CrossRef BibTeX fetch (Step 6)
 
 ### Shared References
 - `shared-references/academic-writing.md` — narrative structure and section design principles
 - `shared-references/citation-verification.md` — citation fetch and verification rules
 
 ### Called by
-- `/research` Stage 5 (paper writing stage)
+- `research` Stage 5 (paper writing stage)
 - Manual user invocation

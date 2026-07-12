@@ -1,17 +1,17 @@
-# /discover seed modes
+# discover seed modes
 
 Pick exactly one mode per invocation. The decision is based on what the user (or calling skill) actually said, not on what the wiki contains.
 
 ## Anchor mode (`from-anchors`)
 
-Use when the user named one or more specific papers, or when this is a post-`/ingest` `--discover` follow-up.
+Use when the user named one or more specific papers, or when this is a post-`ingest` `--discover` follow-up.
 
 Triggers:
 
 - "find papers similar to LoRA"
 - "what's related to this one I just ingested"
 - one or more arXiv URLs / IDs / wiki paper slugs in the request
-- `/ingest --discover` invocation (anchor = the just-ingested paper's arXiv ID)
+- `ingest --discover` invocation (anchor = the just-ingested paper's arXiv ID)
 
 Anchor mode is the strongest signal channel — Semantic Scholar's recommendations endpoint returns semantically similar papers based on its trained model, which is more useful than keyword search when the user has a concrete reference point.
 
@@ -27,7 +27,7 @@ Triggers:
 - "what's been written on retrieval augmented generation"
 - a domain phrase with no anchors
 
-Topic mode runs S2 search and (when available) DeepXiv search, then ranks. It is a lighter alternative to `/init`'s planner: useful for exploration but **not** a replacement for `/init`'s broader bootstrap workflow. If the user wants to seed a fresh wiki with a topic, route them to `/init` instead of bulking up `/discover`.
+Topic mode runs S2 search and (when available) DeepXiv search, then ranks. It is a lighter alternative to `init`'s planner: useful for exploration but **not** a replacement for `init`'s broader bootstrap workflow. If the user wants to seed a fresh wiki with a topic, route them to `init` instead of bulking up `discover`.
 
 ## Wiki mode (`from-wiki`)
 
@@ -41,7 +41,7 @@ Triggers:
 
 Wiki mode picks the wiki's most recently modified paper pages, extracts their arXiv IDs, and uses them as anchors. This implicitly biases discovery toward whatever the user has been working on lately — usually the desired behavior.
 
-If `wiki/papers/` is empty or no papers carry an `arxiv` or `arxiv_id` frontmatter field, wiki mode cannot run. Tell the user the wiki is too sparse and suggest topic mode (or `/init`).
+If `wiki/papers/` is empty or no papers carry an `arxiv` or `arxiv_id` frontmatter field, wiki mode cannot run. Tell the user the wiki is too sparse and suggest topic mode (or `init`).
 
 ## Venue mode (`from-venue`)
 

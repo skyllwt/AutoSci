@@ -17,7 +17,6 @@ Exit codes:
 """
 from __future__ import annotations
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json

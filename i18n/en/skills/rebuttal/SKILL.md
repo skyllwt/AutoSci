@@ -1,10 +1,9 @@
 ---
 name: rebuttal
 description: Parse review comments → atomize concerns (Rvx-Cy) → map to wiki ideas/methods → check evidence → Review LLM stress-test → generate rebuttal
-argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---
 
-# /rebuttal
+# rebuttal
 
 > Parse review comments, atomize each concern (Rvx-Cy numbering) and map it to a wiki idea or method,
 > check whether evidence is sufficient (tracing back to wiki experiments),
@@ -27,8 +26,8 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 
 ## Outputs
 
-- **wiki/outputs/rebuttal-{slug}.md** — rich-text rebuttal (with [[wikilinks]], evidence tracing, analysis tables)
-- **wiki/outputs/rebuttal-{slug}.txt** — formal rebuttal (plain text, suitable for pasting into submission system)
+- **wiki/outputsrebuttal-{slug}.md** — rich-text rebuttal (with [[wikilinks]], evidence tracing, analysis tables)
+- **wiki/outputsrebuttal-{slug}.txt** — formal rebuttal (plain text, suitable for pasting into submission system)
 - **wiki/ideas/*.md** / **wiki/methods/*.md** — if a concern exposes an evidence gap, append a suggestion to the relevant section (`## Risks` / `## Lessons learned` for ideas; `## Limitations` for methods)
 - **wiki/log.md** — append log entry
 
@@ -40,14 +39,14 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - `wiki/experiments/*.md` — find experiment results supporting ideas (via `linked_idea`)
 - `wiki/papers/*.md` — find citation context for referenced papers
 - `wiki/concepts/*.md` — understand the conceptual background of method-related concerns
-- `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from /paper-plan, if --paper-slug provided)
+- `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from paper-plan, if --paper-slug provided)
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/edges.jsonl` — idea-experiment-paper-method relationships
 - `shared-references/cross-model-review.md` — Review LLM stress-test independence
 
 ### Writes
-- `wiki/outputs/rebuttal-{slug}.md` — rich-text version
-- `wiki/outputs/rebuttal-{slug}.txt` — formal plain-text version
+- `wiki/outputsrebuttal-{slug}.md` — rich-text version
+- `wiki/outputsrebuttal-{slug}.txt` — formal plain-text version
 - `wiki/ideas/*.md` / `wiki/methods/*.md` — append reviewer-identified gaps to `## Risks` / `## Lessons learned` (ideas) or `## Limitations` (methods); do not silently flip an idea's status — only flag concerns
 - `wiki/log.md` — append log entry
 
@@ -134,7 +133,7 @@ Draft a response for each concern according to its strategy:
 
 **Strategy B — Evidence insufficient (acknowledge + concrete plan):**
 - Honestly acknowledge that current evidence is not sufficient
-- Propose a concrete supplementary experiment plan (can link to /exp-design)
+- Propose a concrete supplementary experiment plan (can link to exp-design)
 - State a specific timeline and resource requirements
 - Do not use vague commitments; only commit to concrete executable supplementary experiments
 
@@ -270,7 +269,7 @@ Additional Experiments (if applicable):
 |-----------|-------------|--------------|
 | ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
-→ Run `/exp-design ablation-dataset-x` to design follow-up
+→ Run `exp-design ablation-dataset-x` to design follow-up
 
 ## Review LLM Stress-Test Summary
 - Average score: {N}/5
@@ -305,7 +304,7 @@ Additional Experiments (if applicable):
 - **No overpromise**: only commit to specific executable supplementary experiments. Use "we will run ablation on X with setup Y" not "we will investigate"
 - **Full coverage**: every reviewer concern (Rvx-Cy) must have a response; omissions block output
 - **Evidence traceability**: every piece of evidence cited in a response must be traceable to a wiki page with source slug annotated
-- **Do not silently flip a linked idea's status**: rebuttal only flags concerns by appending to ideas' `## Risks` / `## Lessons learned` or methods' `## Limitations`; status transitions are reserved for `/exp-eval`
+- **Do not silently flip a linked idea's status**: rebuttal only flags concerns by appending to ideas' `## Risks` / `## Lessons learned` or methods' `## Limitations`; status transitions are reserved for `exp-eval`
 - **Review LLM independence**: during stress-test, follow cross-model-review.md; do not reveal response strategy to Review LLM
 - **Concern ID format**: strictly use Rvx-Cy format (Rv1-C1, Rv1-C2, Rv2-C1) to ensure traceability
 - **Specific commitments**: all revision commitments and experiment plans must be specific (specific Section, specific dataset, explicit metric)
@@ -318,12 +317,12 @@ Additional Experiments (if applicable):
 - **Concern cannot be mapped to an idea or method (unmapped)**: annotate as "unmapped"; still respond (based on paper content rather than wiki entity)
 - **Review LLM stress-test unavailable**: skip Step 5; annotate in report "stress-test skipped: Review LLM unavailable"
 - **Evidence severely insufficient**: if >50% of concerns have insufficient evidence, warn the user and suggest supplementing experiments first
-- **Wiki empty**: warn that wiki knowledge base is empty; suggest running /ingest to populate ideas, methods, and experiments
+- **Wiki empty**: warn that wiki knowledge base is empty; suggest running ingest to populate ideas, methods, and experiments
 - **All responses scored 1-2 by Review LLM**: halt output, report requires re-analysis, suggest supplementing experiments first
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "{title}"` — generate rebuttal slug
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 
@@ -334,12 +333,12 @@ Additional Experiments (if applicable):
 ### Agent Runtime Capabilities
 - `Read` — read review comments, wiki pages, shared references
 - `Write` — write rebuttal-{slug}.md, rebuttal-{slug}.txt
-- `Glob` — find ideas, methods, experiments
-- `Grep` — search wiki for concern keywords
+- `glob` — find ideas, methods, experiments
+- `grep` — search wiki for concern keywords
 
 ### Shared References
 - `shared-references/cross-model-review.md` — Review LLM stress-test independence principle
 
 ### Suggested follow-up skills
-- `/exp-design` — design supplementary experiments for concerns with insufficient evidence
-- `/paper-draft` — prepare revised paper (based on Paper Edits checklist)
+- `exp-design` — design supplementary experiments for concerns with insufficient evidence
+- `paper-draft` — prepare revised paper (based on Paper Edits checklist)

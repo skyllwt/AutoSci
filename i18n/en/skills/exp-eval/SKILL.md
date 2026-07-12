@@ -1,10 +1,9 @@
 ---
 name: exp-eval
 description: Experiment verdict gate — Review LLM independently judges results → 4 verdict paths → auto-update the linked idea's status / failure_reason and graph edges
-argument-hint: <experiment-slug> [--auto]
 ---
 
-# /exp-eval
+# exp-eval
 
 > Convert completed experiment results into wiki knowledge updates.
 > Review LLM acts as an impartial judge (following cross-model-review), independently evaluating how experimental results affect the linked idea's hypothesis.
@@ -15,7 +14,7 @@ argument-hint: <experiment-slug> [--auto]
 ## Inputs
 
 - `experiment`: slug from `wiki/experiments/` (status must be `completed`)
-- `--auto` (optional): automatic mode — do not pause for user confirmation before wiki updates (used when called by /research)
+- `--auto` (optional): automatic mode — do not pause for user confirmation before wiki updates (used when called by research)
 
 ## Outputs
 
@@ -68,7 +67,7 @@ argument-hint: <experiment-slug> [--auto]
    - `## Hypothesis`, `## Approach sketch`, `## Risks`, `## Novelty argument`
 
 3. **Load sibling experiments** (same `linked_idea`):
-   - Glob `wiki/experiments/*.md`, filter `linked_idea == this idea`
+   - glob `wiki/experiments/*.md`, filter `linked_idea == this idea`
    - Summarize their outcomes (the verdict considers the whole evidence portfolio, not just this one experiment)
 
 4. **Read global context**: `wiki/graph/context_brief.md`
@@ -156,7 +155,7 @@ Record Review LLM's verdict.
      --type supports --evidence "{key_result}"
    ```
 
-3. **Suggest next steps**: `/paper-plan {linked-idea}` or continue ablation/robustness experiments
+3. **Suggest next steps**: `paper-plan {linked-idea}` or continue ablation/robustness experiments
 
 #### Path B: PARTIALLY_SUPPORTED (partial support)
 
@@ -172,7 +171,7 @@ Record Review LLM's verdict.
 
 3. **Suggest supplementary experiments**:
    - Specify what evidence is missing
-   - Suggest using `/exp-design --linked-idea {linked-idea}` to design supplementary experiments
+   - Suggest using `exp-design --linked-idea {linked-idea}` to design supplementary experiments
    - If Review LLM-flagged concerns are addressable by experiment, suggest concrete experiment direction
 
 #### Path C: NOT_SUPPORTED (experiment refutes the idea's hypothesis)
@@ -195,13 +194,13 @@ Record Review LLM's verdict.
 3. **Suggest next steps**:
    - Analyze the failure reason
    - Consider pivoting (new idea addressing the same gap while avoiding the known failure)
-   - Suggest `/ideate` to generate alternatives
+   - Suggest `ideate` to generate alternatives
 
 #### Path D: INCONCLUSIVE (results are uncertain)
 
 1. **Do not modify idea status**: insufficient evidence to make a judgment
 
-2. **Update experiment page**: outcome is already inconclusive (set by /exp-run)
+2. **Update experiment page**: outcome is already inconclusive (set by exp-run)
 
 3. **Suggest debugging**:
    - Data issue? Implementation bug? Wrong metric?
@@ -277,7 +276,7 @@ Record Review LLM's verdict.
 
 ## Constraints
 
-- **Only process completed experiments**: experiments with status != completed are refused; prompt user to use /exp-run first.
+- **Only process completed experiments**: experiments with status != completed are refused; prompt user to use exp-run first.
 - **`linked_idea` is mandatory**: refuse to evaluate any experiment whose `linked_idea` is empty (the new schema enforces this; if you encounter such a page it is a pre-refactor artifact and must be fixed manually).
 - **Reviewer independence**: strictly follow cross-model-review.md — do not send the primary agent's pre-judgment to Review LLM.
 - **`failure_reason` must be specific**: the not_supported path's `failure_reason` cannot be vague (e.g. "experiment failed") — must state the concrete reason. `transition --reason` rejects an empty string.
@@ -289,16 +288,16 @@ Record Review LLM's verdict.
 ## Error Handling
 
 - **Experiment not found**: prompt user to check slug, list candidates in `wiki/experiments/` with status=completed.
-- **Experiment not completed**: report status, suggest running `/exp-run {slug}` or `/exp-run {slug} --check`.
-- **`linked_idea` missing**: refuse to proceed; instruct the user to run `/edit` to set the experiment's `linked_idea`.
-- **Linked idea page does not exist**: report a dangling reference; refuse to update — recommend `/edit` or `/ideate` to create the idea page first.
+- **Experiment not completed**: report status, suggest running `exp-run {slug}` or `exp-run {slug} --check`.
+- **`linked_idea` missing**: refuse to proceed; instruct the user to run `edit` to set the experiment's `linked_idea`.
+- **Linked idea page does not exist**: report a dangling reference; refuse to update — recommend `edit` or `ideate` to create the idea page first.
 - **Review LLM unavailable**: fall back to the primary agent single-model verdict, note "single-model verdict, cross-model verification unavailable" in report, suggest user confirm later.
 - **Idea was modified by another experiment**: re-read the latest state before applying transitions; do not overwrite a more advanced lifecycle state with a lower one.
-- **Results data missing**: if the experiment page's Results section is empty, prompt user to run `/exp-run {slug} --check` first.
+- **Results data missing**: if the experiment page's Results section is empty, prompt user to run `exp-run {slug} --check` first.
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to validated|failed [--reason "..."]` — advance idea lifecycle
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild query_pack
@@ -310,12 +309,12 @@ Record Review LLM's verdict.
 
 ### Agent Runtime Capabilities
 - `Read` — read wiki pages
-- `Glob` — find sibling experiments sharing the same `linked_idea`
+- `glob` — find sibling experiments sharing the same `linked_idea`
 - `Edit` — update wiki pages
 
 ### Shared References
 - `shared-references/cross-model-review.md` — Review LLM independence principle (required reading)
 
 ### Called by
-- `/research` Stage 4 (verdict and iteration stage)
+- `research` Stage 4 (verdict and iteration stage)
 - User directly

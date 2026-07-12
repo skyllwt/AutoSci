@@ -1,4 +1,4 @@
-# /discover wiki dedup
+# discover wiki dedup
 
 `tools/discover.py` deduplicates candidates against the existing wiki when `--wiki-root wiki` is passed. This document explains what the dedup does and does not catch, so the user-facing report is accurate.
 
@@ -12,7 +12,7 @@ For venue mode, candidates are also filtered by normalized title against `wiki/p
 
 ## What it does not catch
 
-- **Title-only matches outside venue mode**: a paper in the wiki without `arxiv` or `arxiv_id` (e.g., a journal article ingested via `/edit`) will not match anchor/topic/wiki candidates by title alone. This is intentional — broad fuzzy title matching produces false positives that hide legitimate candidates.
+- **Title-only matches outside venue mode**: a paper in the wiki without `arxiv` or `arxiv_id` (e.g., a journal article ingested via `edit`) will not match anchor/topic/wiki candidates by title alone. This is intentional — broad fuzzy title matching produces false positives that hide legitimate candidates.
 - **Loose fuzzy titles**: venue title fallback uses normalized exact title keys, not semantic/fuzzy title matching.
 - **Cross-source duplicates within the candidate set**: the dedup pass before wiki filtering uses `_candidate_key` (arxiv → S2 paperId → title-slug) which catches most cross-source duplicates from S2 and DeepXiv. Fully missing IDs and titles are dropped silently.
 
@@ -27,4 +27,4 @@ The skill should mention high dedup in the user-facing report; do not hide it.
 
 ## What dedup does not do
 
-`/discover` never modifies the wiki to "fix" a duplicate. If the candidate's metadata seems richer than what is currently in the wiki, that is a `/edit` or `/check` concern, not a `/discover` concern.
+`discover` never modifies the wiki to "fix" a duplicate. If the candidate's metadata seems richer than what is currently in the wiki, that is a `edit` or `check` concern, not a `discover` concern.

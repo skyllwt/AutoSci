@@ -1,10 +1,9 @@
 ---
 name: exp-run
 description: 实验执行全流程：准备代码 → 部署运行(运行前需向用户确认，申请用户手动检查) → 监控状态 → 收集结果，支持三种运行模式
-argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---
 
-# /exp-run
+# exp-run
 
 > 执行 wiki/experiments/ 中已规划的实验。
 > **不论是哪种运行模式，在准备好实验代码，准备部署运行前需向用户确认，申请用户手动检查代码、实验配置(如数据集路径，接口参数选择，API 配置等)相关信息，确认无误后运行，否则需执行修改直到用户确认执行**
@@ -13,7 +12,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 > - **`--collect`**：仅 Phase 3-4，检查已部署实验是否完成，完成则收集结果（`--check` 为 alias）。
 > - **`--full`**：完整 Phase 1-4，适合几分钟内即可完成的本地快速实验。
 >
-> 推荐流程：`/exp-run <slug>` 部署 → `/exp-status` 监控 → `/exp-run <slug> --collect` 收集。
+> 推荐流程：`exp-run <slug>` 部署 → `exp-status` 监控 → `exp-run <slug> --collect` 收集。
 
 ## Inputs
 
@@ -61,7 +60,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/log.md` — 追加操作日志
 
 ### Graph edges created
-- **无**。实验与 idea 之间的 tested_by 边已在 /exp-design 中创建。
+- **无**。实验与 idea 之间的 tested_by 边已在 exp-design 中创建。
 
 ## Workflow
 
@@ -191,7 +190,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      --cmd "bash experiments/code/{slug}/run.sh" \
      --gpu {gpu_index}
    ```
-6. 更新 `wiki/experiments/{slug}.md` frontmatter —— 以下字段已由 /exp-design 写入完整 CLAUDE.md 模板,都是空值:
+6. 更新 `wiki/experiments/{slug}.md` frontmatter —— 以下字段已由 exp-design 写入完整 AGENTS.md 模板,都是空值:
    ```bash
    # 顶层 scalar 字段 —— 用 set-meta
    python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md status running
@@ -207,7 +206,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      started: ""
      completed: ""
    ```
-   用 5 次 Edit 调用（每个子字段一次）设置 `server`、`gpu`、`session`、`started`。`completed: ""` 留空由 Phase 4 填写。如果发现文件里没有 `remote:` block,说明 /exp-design 没写完整的 CLAUDE.md 模板;停下来报 bug,不要在这里追加 block（追加会让字段顺序偏离 canonical 模板,破坏后续 edit 的匹配）。
+   用 5 次 Edit 调用（每个子字段一次）设置 `server`、`gpu`、`session`、`started`。`completed: ""` 留空由 Phase 4 填写。如果发现文件里没有 `remote:` block,说明 exp-design 没写完整的 AGENTS.md 模板;停下来报 bug,不要在这里追加 block（追加会让字段顺序偏离 canonical 模板,破坏后续 edit 的匹配）。
 7. **估算运行时长**，写入 frontmatter（同 local 模式估算逻辑）：
    ```bash
    python3 tools/research_wiki.py set-meta \
@@ -236,9 +235,9 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 ### Next Steps
 
-1. Monitor progress: `/exp-status`
-2. Check this experiment: `/exp-run {slug} --collect`
-3. In /research pipeline: progress saved to wiki/outputs/pipeline-progress.md
+1. Monitor progress: `exp-status`
+2. Check this experiment: `exp-run {slug} --collect`
+3. In research pipeline: progress saved to wiki/outputs/pipeline-progress.md
 
 ### Quick Commands
 ```bash
@@ -281,7 +280,7 @@ tail -f logs/exp-{slug}.log
      Latest metric: {metric} = {value}
      Anomalies: {none | NaN detected | ...}
      Estimated remaining: ~{N} hours
-     Run `/exp-status` to monitor all running experiments.
+     Run `exp-status` to monitor all running experiments.
      ```
    - **返回**（不执行 Phase 4）
 
@@ -341,9 +340,9 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update the linked idea in wiki
+   - Run `exp-eval {slug}` to update the linked idea in wiki
    - {if succeeded: proceed to next experiment in plan}
-   - {if failed: analyze failure, consider /exp-design revision}
+   - {if failed: analyze failure, consider exp-design revision}
    ```
 
 ---
@@ -371,18 +370,18 @@ done
 - **collect 模式只接受 running 实验**：若 status 为 planned，提示先 deploy；若为 completed，提示已完成
 - **collect 模式：alive 时不写 wiki**：仅报告进度，不修改任何 wiki 文件
 - **代码统一写入 experiments/code/{slug}/**：不写到项目根目录或其他位置
-- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status 由 /exp-eval 负责更新
+- **不修改 idea 状态**：实验结果只写入 experiments/ 页面；idea 的 status 由 exp-eval 负责更新
 - **sanity check 必须通过**：Phase 1 sanity 失败则不部署（除非用户明确 override）
 - **结果文件必须保存**：所有实验结果以 JSON 格式保存在 `results/{slug}/seed_{N}.json`
 - **多 seed 结果取均值**：报告 mean ± std，不报告单次运行
-- **graph edges 不在此 skill 创建**：tested_by 边已在 /exp-design 中创建
+- **graph edges 不在此 skill 创建**：tested_by 边已在 exp-design 中创建
 - **自动修复最多尝试 1 次**：防止无限重启循环
 
 ## Error Handling
 
 - **experiment 找不到**：提示用户检查 slug，列出 wiki/experiments/ 中的候选（status=planned 或 running）
-- **deploy 模式但 status == running**：提示 "已在运行中，使用 `/exp-run {slug} --collect` 检查状态"
-- **collect 模式但 status == completed**：提示 "已完成，直接运行 `/exp-eval {slug}`"
+- **deploy 模式但 status == running**：提示 "已在运行中，使用 `exp-run {slug} --collect` 检查状态"
+- **collect 模式但 status == completed**：提示 "已完成，直接运行 `exp-eval {slug}`"
 - **GPU 不可用**：报告错误，建议用 --env remote 或等待 GPU 释放
 - **Review LLM 不可用**（--review 模式）：跳过 code review，在 DEPLOY_REPORT 中标注「unreviewed」
 - **sanity check 失败**：详细报告错误信息，尝试自动修复一次，仍失败则停止并建议手动调试
@@ -393,10 +392,10 @@ done
 
 ## Dependencies
 
-### Skills（via Skill tool）
+### Skills（via skill tool）
 - 无直接调用子 skill
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/remote.py <command>` — 远程操作（status, gpu-status, sync-code, setup-env, launch, check, tail-log, pull-results）
 - `nvidia-smi` — 本地 GPU 状态
@@ -411,9 +410,9 @@ done
 ### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面和日志文件
 - `Write` — 写入 `experiments/code/{slug}/` 下的实验代码
-- `Bash` — 执行部署命令、监控进程
+- `bash` — 执行部署命令、监控进程
 
 ### Called by
-- `/research` Stage 3a（deploy 模式）和 Stage 3c（collect 模式）
-- `/exp-status --collect-ready`（collect 模式）
+- `research` Stage 3a（deploy 模式）和 Stage 3c（collect 模式）
+- `exp-status --collect-ready`（collect 模式）
 - 用户手动调用

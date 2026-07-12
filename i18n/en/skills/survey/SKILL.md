@@ -1,10 +1,9 @@
 ---
 name: survey
 description: Generate a Related Work section for a paper from wiki knowledge — thematic grouping → narrative structure → LaTeX output, following citation-verification and academic-writing
-argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--max-papers 30]
 ---
 
-# /survey
+# survey
 
 > Generate a Related Work section ready for direct use in a paper, based on existing wiki knowledge.
 > Draw material from wiki/papers/, concepts/, topics/; group by research direction (not paper-by-paper listing).
@@ -68,7 +67,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
    - Sort by importance descending from index.md
    - Rank by tags and domain match
    - Cap at `--max-papers` papers
-5. **If candidate papers < 5**: warn "insufficient related papers; consider /ingest of more papers first"
+5. **If candidate papers < 5**: warn "insufficient related papers; consider ingest of more papers first"
 
 ### Step 2: Deep-Read Related Pages
 
@@ -178,7 +177,7 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 - **Only cite papers already in the wiki**: do not fabricate citations; every `\cite{}` or `[[slug]]` must correspond to a page in wiki/papers/
 - **Group by theme, not as a flat list**: each paragraph covers a research direction, not "Paper A did X. Paper B did Y."
 - **Every group must have a positioning sentence**: state the relationship to this work (at the end — difference or inheritance)
-- **Warn when candidate papers < 5**: prompt user to /ingest more papers first
+- **Warn when candidate papers < 5**: prompt user to ingest more papers first
 - **BibTeX follows citation-verification.md**: do not generate from LLM memory (--format latex only)
 - **De-AI polish is mandatory**: a polish pass must be applied after generation
 - **Archive to outputs/**: do not directly modify wiki papers/concepts/topics pages
@@ -186,7 +185,7 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 
 ## Error Handling
 
-- **Fewer than 3 wiki papers**: error; suggest /ingest of enough papers first
+- **Fewer than 3 wiki papers**: error; suggest ingest of enough papers first
 - **No matching papers**: broaden search scope (relax tag matching); if still none, error
 - **All BibTeX fetches failed** (latex format): use [UNCONFIRMED] placeholders; report count
 - **PAPER_PLAN format mismatch**: ignore plan's grouping suggestions; use automatic grouping
@@ -194,24 +193,24 @@ If output format is LaTeX, following `shared-references/citation-verification.md
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "<title>"` — generate slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — add graph edge
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `python3 tools/fetch_s2.py search "<title>"` — BibTeX fallback (S2 search)
 
 ### MCP Servers
-- None (survey does not require Review LLM; use /review --focus writing for separate review)
+- None (survey does not require Review LLM; use review --focus writing for separate review)
 
 ### Agent Runtime Capabilities
 - `Read` — read wiki pages
-- `Glob` — find ideas, methods, concepts, topics, papers
-- `WebFetch` — DBLP / CrossRef BibTeX fetch (--format latex only)
+- `glob` — find ideas, methods, concepts, topics, papers
+- `webfetch` — DBLP / CrossRef BibTeX fetch (--format latex only)
 
 ### Shared References
 - `shared-references/academic-writing.md` — Related Work writing rules + de-AI polish
 - `shared-references/citation-verification.md` — BibTeX fetch and [UNCONFIRMED] protocol
 
 ### Called by
-- `/paper-draft` Step 3 (Related Work section can be delegated to this skill)
+- `paper-draft` Step 3 (Related Work section can be delegated to this skill)
 - Manual user invocation

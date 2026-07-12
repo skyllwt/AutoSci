@@ -1,17 +1,16 @@
 ---
 name: prefill
-description: Seed wiki/foundations/ with domain background knowledge so subsequent /ingest does not create duplicate concept pages for textbook material
-argument-hint: "[domain] [--add 'concept name']"
+description: Seed wiki/foundations/ with domain background knowledge so subsequent ingest does not create duplicate concept pages for textbook material
 ---
 
-# /prefill
+# prefill
 
 > Sediments foundational background (seminal methods, common practice, standard architectures) into `wiki/foundations/` as **terminal** pages.
 > Foundations are single-direction by design: other pages link to them, foundations write no reverse links.
 
 ## Trigger
 
-Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
+Manual: `prefill [domain]` or `prefill --add "concept name"`.
 
 ## Inputs
 
@@ -38,7 +37,7 @@ Manual: `/prefill [domain]` or `/prefill --add "concept name"`.
 
 ## Workflow
 
-**Pre-conditions**: working directory contains `wiki/`, `tools/`, `.claude/`. Set `WIKI_ROOT=wiki/`.
+**Pre-conditions**: working directory contains `wiki/`, `tools/`, `.opencode/`. Set `WIKI_ROOT=wiki/`.
 
 ### Step 1: Resolve domain
 
@@ -132,7 +131,7 @@ Print a grouped summary:
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-Remind the user that subsequent `/ingest` runs will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
+Remind the user that subsequent `ingest` runs will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
 
 ## Constraints
 
@@ -151,7 +150,7 @@ Remind the user that subsequent `/ingest` runs will dedup against these foundati
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 tools/fetch_wikipedia.py summary|sections|section|wikitext "<title>" [--index N]`
 - `python3 tools/research_wiki.py slug "<title>"`
 - `python3 tools/research_wiki.py rebuild-index wiki/`

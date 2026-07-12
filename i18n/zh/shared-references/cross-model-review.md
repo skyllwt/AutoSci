@@ -1,6 +1,6 @@
 # 评审独立性原则
 
-> 引用方: `/review`, `/novelty`, `/ideate`, `/exp-eval`, `/exp-design`, `/paper-plan`, `/paper-draft`, `/rebuttal`, `/refine`
+> 引用方: `review`, `novelty`, `ideate`, `exp-eval`, `exp-design`, `paper-plan`, `paper-draft`, `rebuttal`, `refine`
 
 ---
 
@@ -31,17 +31,17 @@ The reviewer must **NOT** receive:
 
 ## How to Apply
 
-### In `/review` (adversarial critique)
+### In `review` (adversarial critique)
 - Step 2: Send artifact + context + review prompt to the Review LLM. Do NOT include any pre-assessment.
 - Step 3 (multi-turn): The primary agent may respond to the Review LLM's critique with rebuttals, but these are responses to its points, not pre-formed judgments.
 
-### In `/novelty` (cross-verification)
+### In `novelty` (cross-verification)
 - Step 3: Send method signature + existing similar works to the Review LLM. Do NOT include the primary agent's novelty score from Step 2.
 
-### In `/ideate` (dual-model brainstorm)
+### In `ideate` (dual-model brainstorm)
 - Phase 2: The Review LLM generates ideas from the same landscape context as the primary agent, but does NOT see the primary agent's idea list. Merge happens after both complete independently.
 
-### In `/exp-eval` (impartial verdict)
+### In `exp-eval` (impartial verdict)
 - Step 2: Send experiment results + the linked idea's hypothesis + context to the Review LLM. Do NOT include the primary agent's interpretation of the results.
 
 ---
@@ -64,7 +64,7 @@ After both models have independently assessed:
 ### 检测
 
 `llm-review` MCP chat tool 调用会失败的情况：
-- MCP server 未配置（Claude Code：缺少 `.mcp.json` 或 `enableAllProjectMcpServers` 未启用；Codex：缺少用户级 `mcp_servers.llm-review` 配置）
+- MCP server 未配置（OpenCode：缺少 `.mcp.json` 或 `enableAllProjectMcpServers` 未启用；OpenCode：缺少用户级 `mcp_servers.llm-review` 配置）
 - `.env` 中未设置 `LLM_API_KEY` 或 `LLM_BASE_URL`
 - API 端点不可达
 

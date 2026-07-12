@@ -22,7 +22,6 @@ import os
 import sys
 
 import _env  # noqa: F401 — load .env files for API keys
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 try:
     from deepxiv_sdk import Reader

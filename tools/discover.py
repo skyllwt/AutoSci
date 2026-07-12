@@ -40,7 +40,6 @@ from pathlib import Path
 from typing import Any
 
 import _env  # noqa: F401 — load .env files
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import fetch_s2
 

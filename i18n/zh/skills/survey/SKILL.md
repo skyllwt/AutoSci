@@ -1,10 +1,9 @@
 ---
 name: survey
 description: 从 wiki 知识生成论文 Related Work 章节：主题分组 → 叙事结构 → LaTeX 输出，遵循 citation-verification 和 academic-writing
-argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--max-papers 30]
 ---
 
-# /survey
+# survey
 
 > 基于 wiki 已有知识，生成可直接用于论文的 Related Work 章节。
 > 从 wiki/papers/、concepts/、topics/ 取材，按研究方向分组（非逐篇罗列），
@@ -68,7 +67,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
    - 从 index.md 按 importance 降序排列
    - 按 tags 和 domain 匹配度排序
    - 限制为 `--max-papers` 篇
-5. **若候选论文 < 5 篇**：警告「相关论文不足，建议先 /ingest 更多论文」
+5. **若候选论文 < 5 篇**：警告「相关论文不足，建议先 ingest 更多论文」
 
 ### Step 2: 精读相关页面
 
@@ -178,7 +177,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 - **只引用 wiki 中已有论文**：不凭空编造引用。每个 `\cite{}` 或 `[[slug]]` 必须对应 wiki/papers/ 中的页面
 - **按主题分组，非逐篇列表**：每段覆盖一个研究方向，非「Paper A did X. Paper B did Y.」
 - **每组必须有定位句**：与本文的关系（结尾处说明区别或继承）
-- **候选论文 < 5 篇时警告**：提示用户先 /ingest 更多论文
+- **候选论文 < 5 篇时警告**：提示用户先 ingest 更多论文
 - **BibTeX 遵循 citation-verification.md**：不从 LLM 记忆生成（仅 --format latex）
 - **de-AI polish 必选**：生成后必须执行 polish pass
 - **归档到 outputs/**：不直接修改 wiki 的 papers/concepts/topics 页面
@@ -186,7 +185,7 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 
 ## Error Handling
 
-- **wiki 论文不足 3 篇**：报错，建议先 /ingest 足够数量的论文
+- **wiki 论文不足 3 篇**：报错，建议先 ingest 足够数量的论文
 - **无匹配论文**：扩大搜索范围（放宽 tag 匹配），若仍无则报错
 - **BibTeX 获取全部失败**（latex 格式）：使用 [UNCONFIRMED] 占位，报告数量
 - **PAPER_PLAN 格式不匹配**：忽略 plan 的分组建议，使用自动分组
@@ -194,24 +193,24 @@ argument-hint: <research-question-or-idea-slugs> [--format latex|markdown] [--ma
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "<title>"` — 生成 slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加 graph edge
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/fetch_s2.py search "<title>"` — BibTeX fallback（S2 搜索）
 
 ### MCP Servers
-- 无（survey 不需要 Review LLM，可通过 /review --focus writing 单独审查）
+- 无（survey 不需要 Review LLM，可通过 review --focus writing 单独审查）
 
 ### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面
-- `Glob` — 查找 ideas、methods、concepts、topics、papers
-- `WebFetch` — DBLP / CrossRef BibTeX 获取（仅 --format latex）
+- `glob` — 查找 ideas、methods、concepts、topics、papers
+- `webfetch` — DBLP / CrossRef BibTeX 获取（仅 --format latex）
 
 ### Shared References
 - `shared-references/academic-writing.md` — Related Work 写作规则 + de-AI polish
 - `shared-references/citation-verification.md` — BibTeX 获取和 [UNCONFIRMED] 协议
 
 ### Called by
-- `/paper-draft` Step 3（Related Work section 可委托此 skill）
+- `paper-draft` Step 3（Related Work section 可委托此 skill）
 - 用户手动调用

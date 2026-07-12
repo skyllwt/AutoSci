@@ -18,7 +18,7 @@ dag.json schema:
 }
 
 This bridge is LaTeX-only. Wiki entity enrichment happens in the /poster
-or $poster SKILL.md, where the coding agent can read PAPER_PLAN and linked wiki/ideas/*.md to
+or the OpenCode `poster` skill, where the coding agent can read PAPER_PLAN and linked wiki/ideas/*.md to
 inform per-section distillation prompts.
 """
 

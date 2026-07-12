@@ -1,10 +1,9 @@
 ---
 name: exp-design
 description: 基于idea的实验设计（含迭代消融） — 方法候选生成（直接实现/混合融合/跨idea结合） → 基准选择 → 迭代消融（非线性：消融可触发方法简化与重新规划）→ 敏感度分析 → 主实验 → 可选泛化实验 → 中间量深度分析。在预实验评估后为idea设计完整实验套件时使用。
-argument-hint: <idea-slug>
 ---
 
-# /exp-design
+# exp-design
 
 > 为idea设计完整、非线性的实验套件。
 > 本skill支持方法候选生成、带方法简化的迭代消融、敏感度分析和中间量深度分析。
@@ -216,7 +215,7 @@ argument-hint: <idea-slug>
 ```
 iteration = 0
 while iteration < 2:
-    运行消融实验（通过 /exp-run）
+    运行消融实验（通过 exp-run）
     根据结果分类每个消融因子：
       - 必要：   去掉后性能大幅下降（>10%）→ 保留
       - 贡献：   去掉后性能中等下降（3-10%）→ 保留
@@ -318,14 +317,14 @@ Stage 4：深度分析
    {阶段依赖关系、预估GPU小时}
 
    ## 结果
-   （/exp-run 后填写）
+   （exp-run 后填写）
    ```
 
 2. **创建experiment wiki页面** — 每个实验块一个页面（遵循 `runtime/schema/entities.yaml` 和 `runtime/templates/experiments.md.tmpl`）：
    ```bash
    python3 tools/research_wiki.py slug "<experiment-title>"
    ```
-   创建 `wiki/experiments/{slug}.md`，严格遵循 `runtime/schema/entities.yaml::experiments` 和 `runtime/templates/experiments.md.tmpl` — 以下每个frontmatter字段必须存在（即使为空），因为 `/exp-run` 后续使用 `tools/research_wiki.py set-meta` 更新，而 `set-meta` 拒绝创建不存在的字段：
+   创建 `wiki/experiments/{slug}.md`，严格遵循 `runtime/schema/entities.yaml::experiments` 和 `runtime/templates/experiments.md.tmpl` — 以下每个frontmatter字段必须存在（即使为空），因为 `exp-run` 后续使用 `tools/research_wiki.py set-meta` 更新，而 `set-meta` 拒绝创建不存在的字段：
    ```yaml
    ---
    title: ""
@@ -341,14 +340,14 @@ Stage 4：深度分析
      framework: ""
    metrics: []
    baseline: ""
-   outcome: ""                  # /exp-run Phase 4 前留空 — succeeded | failed | inconclusive
-   key_result: ""               # /exp-run Phase 4 前留空
+   outcome: ""                  # exp-run Phase 4 前留空 — succeeded | failed | inconclusive
+   key_result: ""               # exp-run Phase 4 前留空
    date_planned: YYYY-MM-DD
-   date_completed: ""           # /exp-run Phase 4 前留空
-   run_log: ""                  # /exp-run Phase 2 前留空
-   started: ""                  # /exp-run Phase 2 前留空（ISO时间戳，通过set-meta设置）
-   estimated_hours: 0           # /exp-run Phase 2 前为0（通过set-meta设置）
-   remote:                      # 整块必须存在，以便 /exp-run --env remote 通过Edit填充子字段
+   date_completed: ""           # exp-run Phase 4 前留空
+   run_log: ""                  # exp-run Phase 2 前留空
+   started: ""                  # exp-run Phase 2 前留空（ISO时间戳，通过set-meta设置）
+   estimated_hours: 0           # exp-run Phase 2 前为0（通过set-meta设置）
+   remote:                      # 整块必须存在，以便 exp-run --env remote 通过Edit填充子字段
      server: ""
      gpu: ""
      session: ""
@@ -363,40 +362,40 @@ Stage 4：深度分析
    - `## Objective` — 测试哪些因子，消融揭示方法的什么特性
    - `## Setup` — 消融矩阵（因子组合）、模型、数据集、硬件、超参数
    - `## Procedure` — 逐步执行：运行每个因子组合，收集指标和中间量
-   - `## Results`（/exp-run 后填写）— 因子分类表：必要 / 贡献 / 边际 / 有害
-   - `## Analysis`（/exp-run 后填写）— 哪些因子应移除，迭代历史
+   - `## Results`（exp-run 后填写）— 因子分类表：必要 / 贡献 / 边际 / 有害
+   - `## Analysis`（exp-run 后填写）— 哪些因子应移除，迭代历史
    - `## Follow-up` — 若发现边际/有害因子：简化方法并重新消融（迭代2）；若全部必要/贡献：进入主实验
 
    **敏感度分析**（`tags: ["sensitivity"]`）：
    - `## Objective` — 扫描哪些超参数，最优范围是什么
    - `## Setup` — 扫描范围和分辨率、模型、数据集、硬件
    - `## Procedure` — 逐步执行：先在子集上运行，缩小范围，再完整扫描
-   - `## Results`（/exp-run 后填写）— 最佳超参数值、性能曲线
-   - `## Analysis`（/exp-run 后填写）— 敏感度模式，推荐用于主实验的值
+   - `## Results`（exp-run 后填写）— 最佳超参数值、性能曲线
+   - `## Analysis`（exp-run 后填写）— 敏感度模式，推荐用于主实验的值
    - `## Follow-up` — 将最佳超参传递给主实验
 
    **主实验**（`tags: ["main"]`）：
    - `## Objective` — 此实验证明idea相对于baselines的什么结论
    - `## Setup` — 方法 vs 所有baselines，完整基准，多seed（>=3），敏感度分析的最佳超参
    - `## Procedure` — 逐步执行计划，含明确成功标准；收集中间量供深度分析使用
-   - `## Results`（/exp-run 后填写）— 指标对比表（方法 vs baselines），统计显著性
-   - `## Analysis`（/exp-run 后填写）— 方法为何有效/失败，中间量分析
+   - `## Results`（exp-run 后填写）— 指标对比表（方法 vs baselines），统计显著性
+   - `## Analysis`（exp-run 后填写）— 方法为何有效/失败，中间量分析
    - `## Follow-up` — 应急计划：成功/失败后分别怎么做
 
    **泛化实验**（`tags: ["generalization"]`，可选）：
    - `## Objective` — 测试什么泛化声明
    - `## Setup` — 与主实验不同的基准/数据集/设置
    - `## Procedure` — 用最终方法和最佳超参在新设置上运行
-   - `## Results`（/exp-run 后填写）— 新设置 vs 主设置的性能
-   - `## Analysis`（/exp-run 后填写）— 方法是否泛化？
+   - `## Results`（exp-run 后填写）— 新设置 vs 主设置的性能
+   - `## Analysis`（exp-run 后填写）— 方法是否泛化？
    - `## Follow-up` — 若失败：识别哪个假设不成立
 
    **深度分析**（`tags: ["analysis"]`）：
    - `## Objective` — 分析哪些中间量，验证什么假设
    - `## Setup` — 数据来源（主实验日志）、可视化规格
    - `## Procedure` — 运行分析脚本，产出图表和诊断表
-   - `## Results`（/exp-run 后填写）— 图表、表格、关键观察
-   - `## Analysis`（/exp-run 后填写）— 中间量是否证实了方法的假设？
+   - `## Results`（exp-run 后填写）— 图表、表格、关键观察
+   - `## Analysis`（exp-run 后填写）— 中间量是否证实了方法的假设？
    - `## Follow-up` — 若假设未证实：识别问题所在
 
 3. **添加graph edges**：
@@ -404,7 +403,7 @@ Stage 4：深度分析
    # 每个experiment页面，idea → experiment
    python3 tools/research_wiki.py add-edge wiki/ \
      --from "ideas/{idea-slug}" --to "experiments/{exp-slug}" \
-     --type tested_by --evidence "Designed by /exp-design"
+     --type tested_by --evidence "Designed by exp-design"
    ```
 
 4. **更新idea页面**：在 `wiki/ideas/{slug}.md` 的 `linked_experiments` 中追加所有experiment slug。
@@ -459,12 +458,12 @@ Stage 4：深度分析
    - 总预估: {N} GPU小时
 
    ## 下一步
-   - 运行 `/exp-run [[sensitivity-slug]]` 开始Stage 0
+   - 运行 `exp-run [[sensitivity-slug]]` 开始Stage 0
    ```
 
 ## Constraints
 
-- **每个experiment必须引用一个idea**：`linked_idea` 是schema必需的。若无idea页面，拒绝设计 — 指示用户先运行 `/ideate`。
+- **每个experiment必须引用一个idea**：`linked_idea` 是schema必需的。若无idea页面，拒绝设计 — 指示用户先运行 `ideate`。
 - **不重复创建experiment**：创建前扫描 `wiki/experiments/*.md` 中已有相同 `linked_idea` + `hypothesis` 的实验。
 - **不覆盖已有设计文件**：若 `experiments/designs/{slug}-master.md` 已存在，覆盖前询问用户。
 - **方法候选必须有依据**：不凭空编造方法 — 所有候选必须源自idea页面内容。
@@ -477,7 +476,7 @@ Stage 4：深度分析
 
 ## Error Handling
 
-- **Idea页面未找到**：报告错误，建议先运行 `/ideate`。
+- **Idea页面未找到**：报告错误，建议先运行 `ideate`。
 - **无预实验结果**：警告用户，继续但在设计文档中注明信心降低。
 - **用户未选择任何方法候选**：用更清晰的对比重新展示，要求明确选择。
 - **基准不可用**：建议替代方案，由用户决定。
@@ -487,11 +486,11 @@ Stage 4：深度分析
 
 ## Dependencies
 
-### Skills (via Skill tool)
-- `/exp-run` — 执行设计好的实验
-- `/exp-pilot-eval` — 前置条件：预实验评估应在正式设计前完成
+### Skills (via skill tool)
+- `exp-run` — 执行设计好的实验
+- `exp-pilot-eval` — 前置条件：预实验评估应在正式设计前完成
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 tools/research_wiki.py slug "<title>"` — 生成slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加graph edge
 - `python3 tools/research_wiki.py set-meta ...` — 更新frontmatter字段
@@ -502,9 +501,9 @@ Stage 4：深度分析
 ### Agent Runtime Capabilities
 - `Read` — 读取wiki页面
 - `Write` — 创建设计文档和实验页面
-- `Glob` — 查找已有实验
+- `glob` — 查找已有实验
 - 交互式用户询问 — 方法候选选择
 
 ### Called by
-- `/ideate`（预实验评估后）
+- `ideate`（预实验评估后）
 - 用户直接调用

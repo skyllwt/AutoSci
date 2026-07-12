@@ -1,12 +1,12 @@
-# /ingest PDF 预处理
+# ingest PDF 预处理
 
-当 `/ingest` 接收到本地 `.pdf` 且需要转换成 prepared `.tex` 以便后续 ingest 时，打开此参考。INIT MODE 下跳过 —— `/init` 已经做过等价的批量预处理并交接了 canonical path。
+当 `ingest` 接收到本地 `.pdf` 且需要转换成 prepared `.tex` 以便后续 ingest 时，打开此参考。INIT MODE 下跳过 —— `init` 已经做过等价的批量预处理并交接了 canonical path。
 
 ## 为什么要做预处理
 
-裸 PDF 作为 ingest 来源质量不佳：文本提取不稳定，公式与图表标题容易丢失，reference list 也经常不可靠。如果论文在 arXiv 上，把它解析到 arXiv ID 并抓取 TeX 源就能显著改善。即便没有 arXiv 源，我们也要把 PDF 统一规范成 synthetic `.tex`，让 `/ingest` 的其余步骤基于统一的输入形状运行。
+裸 PDF 作为 ingest 来源质量不佳：文本提取不稳定，公式与图表标题容易丢失，reference list 也经常不可靠。如果论文在 arXiv 上，把它解析到 arXiv ID 并抓取 TeX 源就能显著改善。即便没有 arXiv 源，我们也要把 PDF 统一规范成 synthetic `.tex`，让 `ingest` 的其余步骤基于统一的输入形状运行。
 
-这与 `tools/init_discovery.py prepare` 在 `/init` 批量处理本地 PDF 时执行的流水线是同一套 —— 此处是把它单篇、就地执行一遍。
+这与 `tools/init_discovery.py prepare` 在 `init` 批量处理本地 PDF 时执行的流水线是同一套 —— 此处是把它单篇、就地执行一遍。
 
 ## 恢复顺序
 
@@ -42,7 +42,7 @@
 - 只有 agent 从页面上读到 arXiv ID 才传 `--arxiv-id`。文件名中的 ID 由 helper 自动识别。
 - 两者都不可信时，同时省略这两个参数。helper 会干净地 fallback。
 
-helper 在 `raw/tmp/` 下写出一个 prepared 条目，并在 stdout 打印一份含 `prepared_path`、`title`、`arxiv_id` 与任何 warning 的 JSON 记录。后续 `/ingest` 步骤以 `prepared_path` 为来源。
+helper 在 `raw/tmp/` 下写出一个 prepared 条目，并在 stdout 打印一份含 `prepared_path`、`title`、`arxiv_id` 与任何 warning 的 JSON 记录。后续 `ingest` 步骤以 `prepared_path` 为来源。
 
 ## 标题权威性
 

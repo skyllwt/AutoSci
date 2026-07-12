@@ -10,12 +10,9 @@ build/
 .env
 *.env.local
 
-# Language state (set by setup.sh --lang)
-.claude/.current-lang
-.agents/.current-lang
-
-# Claude Code local settings (contains MCP server permissions, may contain API keys)
-.claude/settings.local.json
+# OpenCode generated state (bilingual i18n sources are authoritative)
+.opencode/
+opencode.json
 
 # IDE
 .vscode/

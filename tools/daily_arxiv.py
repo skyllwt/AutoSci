@@ -7,7 +7,6 @@ profile extraction, optional external enrichment, and digest formatting.
 """
 from __future__ import annotations
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import argparse
 import json
@@ -92,12 +91,9 @@ STOPWORDS = {
 
 DEFAULT_CATEGORIES = ["cs.LG", "cs.CV", "cs.CL", "cs.AI", "stat.ML"]
 DEFAULT_CONFIG: dict[str, Any] = {
-    "mode": "inform",
-    "runtime": "auto",
     "hours": 24,
     "categories": DEFAULT_CATEGORIES,
     "max_recommendations": 10,
-    "max_auto_ingest": 1,
     "email": {"enabled": True},
     "schedule": {"enabled": True, "cron": "17 0 * * *"},
     "profile": {
@@ -301,21 +297,10 @@ def load_config(path: Path | None, overrides: dict[str, Any] | None = None) -> t
     if overrides:
         cfg = _deep_merge(cfg, overrides)
 
-    cfg["mode"] = str(cfg.get("mode") or "inform")
-    if cfg["mode"] not in {"inform", "auto-ingest"}:
-        notes.append(f"Unknown mode {cfg['mode']!r}; falling back to inform.")
-        cfg["mode"] = "inform"
-
-    cfg["runtime"] = str(cfg.get("runtime") or "auto")
-    if cfg["runtime"] not in {"auto", "claude", "codex", "codex-api", "codex-account", "llm"}:
-        notes.append(f"Unknown runtime {cfg['runtime']!r}; falling back to auto.")
-        cfg["runtime"] = "auto"
-
     categories = _split_categories(cfg.get("categories"))
     cfg["categories"] = categories or DEFAULT_CATEGORIES
     cfg["hours"] = _coerce_int(cfg.get("hours"), 24, 1)
     cfg["max_recommendations"] = _coerce_int(cfg.get("max_recommendations"), 10, 0)
-    cfg["max_auto_ingest"] = _coerce_int(cfg.get("max_auto_ingest"), 1, 0)
     cfg.setdefault("email", {})
     cfg["email"]["enabled"] = _coerce_bool(cfg["email"].get("enabled"), True)
     cfg.setdefault("schedule", {})
@@ -768,9 +753,7 @@ def build_recommendation_context(
     all_candidates = [*new_candidates, *[candidate for candidate in candidates if candidate["is_known"]]]
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "mode": cfg["mode"],
         "recommendation_enabled": True,
-        "auto_ingest_enabled": cfg["mode"] == "auto-ingest",
         "llm_decision_required": True,
         "config": {
             key: value
@@ -800,7 +783,7 @@ def build_recommendation_context(
 # ---------------------------------------------------------------------------
 
 
-VALID_DECISIONS = {"strong_recommend", "maybe", "skip", "ingest"}
+VALID_DECISIONS = {"strong_recommend", "maybe", "skip"}
 VALID_CONFIDENCE = {"high", "medium", "low"}
 
 
@@ -863,10 +846,6 @@ def _merge_decision(candidate: dict[str, Any], decision: dict[str, Any] | None, 
     out["rationale"] = str(decision.get("rationale") or out.get("rationale") or "").strip()
     out["wiki_connections"] = decision.get("wiki_connections") or out.get("wiki_connections") or []
     out["signals_used"] = decision.get("signals_used") or out.get("signals_used") or []
-    if decision.get("ingest_status"):
-        out["ingest_status"] = decision["ingest_status"]
-    if decision.get("ingest_error"):
-        out["ingest_error"] = decision["ingest_error"]
     out["signals"]["llm"] = llm_available
     return out
 
@@ -875,8 +854,6 @@ def finalize_payload(context: dict[str, Any], decisions_path: Path | None = None
     decisions, notes = _load_decisions(decisions_path)
     llm_available = bool(decisions)
     cfg = context.get("config") or {}
-    mode = context.get("mode") or cfg.get("mode") or "inform"
-    max_auto = _coerce_int(cfg.get("max_auto_ingest"), 1, 0)
 
     finalized: list[dict[str, Any]] = []
     for candidate in context.get("candidates", []):
@@ -890,45 +867,16 @@ def finalize_payload(context: dict[str, Any], decisions_path: Path | None = None
     ordered = sorted(
         new_candidates,
         key=lambda item: (
-            1 if item.get("decision") == "ingest" else 0,
             1 if item.get("decision") == "strong_recommend" else 0,
             item.get("score") if isinstance(item.get("score"), (int, float)) else item.get("tool_rank_score", 0),
         ),
         reverse=True,
     )
-    selected = [
-        candidate
-        for candidate in ordered
-        if mode == "auto-ingest"
-        and candidate.get("decision") == "ingest"
-        and candidate.get("confidence") == "high"
-    ][:max_auto]
-    selected_keys = {_candidate_key(candidate) for candidate in selected}
-    for candidate in finalized:
-        if candidate.get("decision") == "ingest" and _candidate_key(candidate) not in selected_keys:
-            candidate["auto_ingest_blocked"] = (
-                "not selected because mode/cap/confidence guard did not permit ingestion"
-            )
-
     payload = deepcopy(context)
     payload["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     payload["llm_decision_available"] = llm_available
     payload["candidates"] = finalized
     payload["listed_candidates"] = ordered[: _coerce_int(cfg.get("max_recommendations"), 10, 0)]
-    payload["auto_ingest"] = {
-        "enabled": mode == "auto-ingest",
-        "cap": max_auto,
-        "selected": [
-            {
-                "arxiv_id": candidate.get("arxiv_id"),
-                "title": candidate.get("title"),
-                "arxiv_url": candidate.get("arxiv_url"),
-                "confidence": candidate.get("confidence"),
-            }
-            for candidate in selected
-        ],
-        "requires_ingest_skill": True,
-    }
     payload["notes"] = [*(context.get("notes") or []), *notes]
     return payload
 
@@ -981,16 +929,11 @@ def _format_candidate(lines: list[str], index: int, paper: dict[str, Any]) -> No
         lines.append(f"   - Rationale: {paper['rationale']}")
     if paper.get("abstract_preview"):
         lines.append(f"   - Abstract: {paper['abstract_preview']}")
-    if paper.get("ingest_status"):
-        lines.append(f"   - Ingest: {paper['ingest_status']}")
-    if paper.get("ingest_error"):
-        lines.append(f"   - Ingest error: {paper['ingest_error']}")
     lines.append("")
 
 
 def format_markdown(payload: dict[str, Any]) -> str:
     counts = payload["counts"]
-    mode = payload.get("mode", "inform")
     lines = [
         "# Daily arXiv Recommendations",
         "",
@@ -1002,26 +945,12 @@ def format_markdown(payload: dict[str, Any]) -> str:
         f"- Already in wiki: {counts['already_in_wiki']}",
         f"- New candidates: {counts['new_candidates']}",
         f"- Listed in this digest: {counts['listed']}",
-        f"- Mode: `{mode}`",
         f"- LLM decisions: {'available' if payload.get('llm_decision_available') else 'not available; tool-ranked fallback'}",
         "",
     ]
 
-    auto_ingest = payload.get("auto_ingest") or {}
-    if auto_ingest:
-        lines.extend(["## Auto-Ingest", ""])
-        if not auto_ingest.get("enabled"):
-            lines.append("Auto-ingest is disabled for this run.")
-        elif not auto_ingest.get("selected"):
-            lines.append("Auto-ingest is enabled, but no high-confidence candidates passed the guard.")
-        else:
-            lines.append(f"Selected for `/ingest` (cap {auto_ingest.get('cap', 0)}):")
-            for item in auto_ingest["selected"]:
-                lines.append(f"- [{item.get('arxiv_id')}]({item.get('arxiv_url')}) — {item.get('title')}")
-        lines.append("")
-
     listed = payload.get("listed_candidates") or []
-    strong = [paper for paper in listed if paper.get("decision") in {"ingest", "strong_recommend"}]
+    strong = [paper for paper in listed if paper.get("decision") == "strong_recommend"]
     maybe = [paper for paper in listed if paper.get("decision") == "maybe"]
     skipped = [paper for paper in listed if paper.get("decision") == "skip"]
     unjudged = [paper for paper in listed if paper.get("decision") == "unjudged"]
@@ -1063,7 +992,7 @@ def format_markdown(payload: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# OpenAI-compatible LLM recommendation for inform mode
+# OpenAI-compatible LLM recommendation
 # ---------------------------------------------------------------------------
 
 
@@ -1142,7 +1071,6 @@ def _compact_llm_context(context: dict[str, Any], limit: int | None = None) -> d
         )
 
     return {
-        "mode": context.get("mode"),
         "generated_at": context.get("generated_at"),
         "config": {
             "max_recommendations": cfg.get("max_recommendations"),
@@ -1199,8 +1127,6 @@ def _normalize_llm_decisions(payload: dict[str, Any], allowed_ids: set[str], pro
         if not arxiv_id or arxiv_id not in allowed_ids:
             continue
         decision = str(item.get("decision") or "maybe").strip()
-        if decision == "ingest":
-            decision = "strong_recommend"
         if decision not in {"strong_recommend", "maybe", "skip"}:
             decision = "maybe"
         confidence = str(item.get("confidence") or "medium").strip()
@@ -1225,12 +1151,11 @@ def _normalize_llm_decisions(payload: dict[str, Any], allowed_ids: set[str], pro
         "provider": "openai-compatible",
         "base_url": provider,
         "model": model,
-        "mode": "inform",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "decisions": decisions,
         "notes": [
-            "Generated by a third-party OpenAI-compatible LLM in inform mode.",
-            "The `ingest` decision is intentionally unavailable in this path.",
+            "Generated by a third-party OpenAI-compatible recommendation LLM.",
+            "This path never mutates the wiki.",
         ],
     }
 
@@ -1251,7 +1176,7 @@ def _call_openai_compatible(
     system = (
         "You are OmegaWiki's daily arXiv recommendation judge. "
         "Use only the provided evidence. Return strict JSON only. "
-        "This is inform mode: never select or request ingestion."
+        "Never select or request ingestion."
     )
     user = (
         "Rank fresh arXiv candidates for this user's research wiki. "
@@ -1300,8 +1225,6 @@ def run_third_party_recommendation(
     timeout: int = 90,
     temperature: float = 0.1,
 ) -> dict[str, Any]:
-    if context.get("mode") != "inform":
-        raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires a coding-agent runtime")
     env = _require_llm_env()
     compact = _compact_llm_context(context, limit)
     allowed_ids = {
@@ -1314,7 +1237,6 @@ def run_third_party_recommendation(
             "provider": "openai-compatible",
             "base_url": env["base_url"],
             "model": env["model"],
-            "mode": "inform",
             "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "decisions": [],
             "notes": ["No new candidates were available for third-party LLM recommendation."],
@@ -1344,9 +1266,7 @@ def build_digest(feed_path: Path, wiki_root: Path, max_items: int) -> dict[str, 
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "mode": "inform",
         "recommendation_enabled": False,
-        "auto_ingest_enabled": False,
         "feed_path": str(feed_path),
         "wiki_root": str(wiki_root),
         "counts": {
@@ -1358,7 +1278,6 @@ def build_digest(feed_path: Path, wiki_root: Path, max_items: int) -> dict[str, 
         "category_counts": dict(sorted(category_counts.items())),
         "candidates": candidates,
         "listed_candidates": listed,
-        "auto_ingest": {"enabled": False, "cap": 0, "selected": []},
         "llm_decision_available": False,
         "notes": [
             "Compatibility digest only: run `prepare` + LLM decisions + `finalize` for real recommendations.",
@@ -1374,7 +1293,7 @@ def build_digest(feed_path: Path, wiki_root: Path, max_items: int) -> dict[str, 
 
 def _overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
     overrides: dict[str, Any] = {}
-    for key in ("mode", "runtime", "hours", "max_recommendations", "max_auto_ingest"):
+    for key in ("hours", "max_recommendations"):
         value = getattr(args, key, None)
         if value is not None:
             overrides[key] = value
@@ -1473,21 +1392,14 @@ def cmd_digest(args: argparse.Namespace) -> None:
 
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", type=Path, default=Path("config/daily-arxiv.yml"), help="Daily arXiv config path")
-    parser.add_argument("--mode", choices=["inform", "auto-ingest"], help="Override action mode")
-    parser.add_argument(
-        "--runtime",
-        choices=["auto", "claude", "codex", "codex-api", "codex-account", "llm"],
-        help="Override the GitHub Actions decision runtime",
-    )
     parser.add_argument("--hours", type=int, help="Override lookback window")
     parser.add_argument("--categories", nargs="*", help="Override arXiv categories")
     parser.add_argument("--max-recommendations", type=int, help="Override digest recommendation cap")
-    parser.add_argument("--max-auto-ingest", type=int, help="Override auto-ingest cap")
     parser.add_argument("--send-email", help="Override e-mail enabled flag")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="OmegaWiki daily arXiv helpers")
+    parser = argparse.ArgumentParser(description="AutoSci daily arXiv recommendation helpers")
     sub = parser.add_subparsers(dest="command", required=True)
 
     config = sub.add_parser("config", help="Resolve daily arXiv config")
@@ -1513,7 +1425,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     recommend_llm = sub.add_parser(
         "recommend-llm",
-        help="Use an OpenAI-compatible LLM to write inform-mode recommendation decisions",
+        help="Use an OpenAI-compatible LLM to write recommendation decisions",
     )
     recommend_llm.add_argument("--context", type=Path, required=True, help="Recommendation context JSON from prepare")
     recommend_llm.add_argument("--out", type=Path, required=True, help="LLM decisions JSON output")
@@ -1522,7 +1434,7 @@ def build_parser() -> argparse.ArgumentParser:
     recommend_llm.add_argument("--temperature", type=float, default=0.1, help="Sampling temperature")
     recommend_llm.set_defaults(func=cmd_recommend_llm)
 
-    digest = sub.add_parser("digest", help="Build a compatibility inform-only digest")
+    digest = sub.add_parser("digest", help="Build a deterministic compatibility digest")
     digest.add_argument("--feed", type=Path, required=True, help="JSON feed from tools/fetch_arxiv.py")
     digest.add_argument("--wiki-root", type=Path, default=Path("wiki"), help="Wiki root for deduplication")
     digest.add_argument("--out-md", type=Path, required=True, help="Markdown digest output path")

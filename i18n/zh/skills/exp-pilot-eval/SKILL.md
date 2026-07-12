@@ -1,19 +1,18 @@
 ---
 name: exp-pilot-eval
-description: 预实验结果评估 — 读取预实验结果，应用成功标准，更新 idea 页面（pilot_result，失败时更新 failure_reason），生成 PILOT_VERDICT_REPORT。由 /ideate Phase 5 在 /exp-pilot-run 之后调用。
-argument-hint: <idea-slug> [--auto]
+description: 预实验结果评估 — 读取预实验结果，应用成功标准，更新 idea 页面（pilot_result，失败时更新 failure_reason），生成 PILOT_VERDICT_REPORT。由 ideate Phase 5 在 exp-pilot-run 之后调用。
 ---
 
-# /exp-pilot-eval
+# exp-pilot-eval
 
 > 评估预实验结果并更新关联的 idea 页面。
 > 从 `experiments/pilot/code/{slug}/results/` 读取预实验结果，应用判定逻辑（pass/fail/inconclusive），更新 idea 的 `pilot_result`、`failure_reason` 和 `status` 字段。
-> 由 `/ideate` Phase 5 在 `/exp-pilot-run` 完成后调用。
+> 由 `ideate` Phase 5 在 `exp-pilot-run` 完成后调用。
 
 ## Inputs
 
 - `idea-slug`：刚完成预实验的 idea 的 slug
-- `--auto`（可选）：自动模式，不暂停等待用户确认（由 `/research` 调用时使用）
+- `--auto`（可选）：自动模式，不暂停等待用户确认（由 `research` 调用时使用）
 
 ## Outputs
 
@@ -36,7 +35,7 @@ argument-hint: <idea-slug> [--auto]
 - `experiments/pilot/{slug}/report.md` — PILOT_VERDICT_REPORT 文件副本
 
 ### Graph edges created
-- 无。预实验评估不创建 graph edges（正式实验的 edges 由 `/exp-eval` 创建）。
+- 无。预实验评估不创建 graph edges（正式实验的 edges 由 `exp-eval` 创建）。
 
 ## Workflow
 
@@ -76,7 +75,7 @@ argument-hint: <idea-slug> [--auto]
 若 verdict == `fail`：
 - 设置 `pilot_result`：`"fail — <具体失败>"`
 - 设置 `failure_reason`：`"[pilot] <具体失败描述>"`
-  - `[pilot]` 前缀区分于 Phase 3 的 `[filter]` 淘汰和 `/exp-eval` 的实验后失败
+  - `[pilot]` 前缀区分于 Phase 3 的 `[filter]` 淘汰和 `exp-eval` 的实验后失败
 - 将 status 转为 `failed`：
   ```bash
   python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md pilot_result "fail — <具体失败>"
@@ -122,7 +121,7 @@ argument-hint: <idea-slug> [--auto]
    | ideas/{slug} | failure_reason | — | {new} | (only if failed) |
 
    ## Next Steps
-   - {if pass: proceed to /exp-design for full experiments}
+   - {if pass: proceed to exp-design for full experiments}
    - {if fail: idea eliminated; review pilot log for details}
    - {if inconclusive: proceed to full experiment with caution}
    ```
@@ -132,24 +131,24 @@ argument-hint: <idea-slug> [--auto]
 - **只处理已预实验的 ideas**：结果必须存在于 `experiments/pilot/code/{slug}/results/`
 - **failure_reason 必须具体**：不能是模糊的 "pilot failed" — 需包含什么失败了以及为什么
 - **Idea 生命周期只向前**：`proposed → failed`（不能从 validated 退回 failed）
-- **不创建 graph edges**：正式实验的 edges 由 `/exp-eval` 创建
+- **不创建 graph edges**：正式实验的 edges 由 `exp-eval` 创建
 - **Pass 阈值故意宽松**：检测明显失败，而非衡量最终性能
 - **`[pilot]` 前缀在 failure_reason 中必须存在**：区分于 `[filter]` 和实验后失败
 
 ## Error Handling
 
-- **Idea 页面找不到**：报告错误，建议先运行 `/ideate`
-- **预实验结果找不到**：报告错误，建议先运行 `/exp-pilot-run`
+- **Idea 页面找不到**：报告错误，建议先运行 `ideate`
+- **预实验结果找不到**：报告错误，建议先运行 `exp-pilot-run`
 - **Idea 已经 failed**：报告当前状态，不覆盖
 - **Idea 已经 validated**：拒绝降级 status，报告警告
-- **Pilot Spec 找不到**：报告错误，建议先运行 `/ideate` 生成 spec
+- **Pilot Spec 找不到**：报告错误，建议先运行 `ideate` 生成 spec
 
 ## Dependencies
 
-### Skills (via Skill tool)
+### Skills (via skill tool)
 - 无
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 tools/research_wiki.py set-meta wiki/ideas/{slug}.md <field> "<value>"` — 更新 idea 字段（如 pilot_result）
 - `python3 tools/research_wiki.py transition wiki/ideas/{slug}.md --to <status> [--reason "..."]` — 转换 idea 生命周期状态
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
@@ -157,8 +156,8 @@ argument-hint: <idea-slug> [--auto]
 ### Agent Runtime Capabilities
 - `Read` — 读取 idea 页面、预实验结果、预实验日志、Pilot Spec
 - `Edit` — 更新 idea 页面字段
-- `Bash` — 执行 research_wiki.py 命令
+- `bash` — 执行 research_wiki.py 命令
 
 ### Called by
-- `/ideate` Phase 5
+- `ideate` Phase 5
 - 用户手动调用

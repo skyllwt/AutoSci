@@ -1,15 +1,14 @@
 ---
 name: novelty
-description: Multi-source novelty verification — WebSearch + Semantic Scholar + wiki + Review LLM cross-verify — outputs novelty score and recommendations. Optionally writes the score back to an idea page with --write.
-argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
+description: Multi-source novelty verification — websearch + Semantic Scholar + wiki + Review LLM cross-verify — outputs novelty score and recommendations. Optionally writes the score back to an idea page with --write.
 ---
 
-# /novelty
+# novelty
 
-> Verify the novelty of a research idea or method using multiple sources. Searches WebSearch,
+> Verify the novelty of a research idea or method using multiple sources. Searches websearch,
 > Semantic Scholar, existing wiki work, and arXiv recent preprints, then Review LLM cross-verifies.
 > Outputs a novelty score (1-5), closest prior work, differentiation points, and next-step recommendations.
-> Can be used standalone or called by /ideate Phase 4.
+> Can be used standalone or called by ideate Phase 4.
 
 ## Inputs
 
@@ -19,7 +18,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
   - paper title or arXiv URL (check novelty of that paper's method)
 - `--quick`: fast mode, skip Review LLM cross-verify (Step 3), search only
 - `--verbose`: output full search results, not just summaries
-- `--write` (optional, default **off**): persist the resulting `novelty_score` to the target's frontmatter. **Only takes effect when `target` is an idea slug** (i.e. `wiki/ideas/{slug}.md` exists). Free-text targets and paper-novelty checks remain read-only regardless of this flag. Treat as a user-owned flag — `/ideate` Phase 4 sets it explicitly when calling `/novelty`; do not infer it from repo state.
+- `--write` (optional, default **off**): persist the resulting `novelty_score` to the target's frontmatter. **Only takes effect when `target` is an idea slug** (i.e. `wiki/ideas/{slug}.md` exists). Free-text targets and paper-novelty checks remain read-only regardless of this flag. Treat as a user-owned flag — `ideate` Phase 4 sets it explicitly when calling `novelty`; do not infer it from repo state.
 
 ## Outputs
 
@@ -64,7 +63,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 
 ### Step 2: Multi-Source Search
 
-Execute the following searches in parallel (use Agent tool for concurrency):
+Execute the following searches in parallel (use task tool for concurrency):
 
 **Source A — Web Search (5+ queries):**
 1. Direct query: `"<method-name>" + "<task>"` — exact phrase search
@@ -96,7 +95,7 @@ Use DeepXiv brief TLDRs to quickly judge method similarity.
 4. Read `wiki/graph/context_brief.md` for global perspective
 
 **Source D — Recent arXiv Preprints:**
-- Use WebSearch: `site:arxiv.org <method-keywords> 2025 2026`
+- Use websearch: `site:arxiv.org <method-keywords> 2025 2026`
 
 ### Step 3: Review LLM Cross-Verify
 
@@ -184,22 +183,22 @@ Where `{N}` is the integer 1-5 from the composite scoring rules above. If `set-m
 - **`--write` is meaningless for non-idea targets**: if the target is free text or a paper slug, ignore `--write` and produce the read-only report.
 - **Conservative scoring**: underestimate novelty rather than overestimate to avoid wasting effort on known work
 - **Must check failed ideas**: ideas with status=failed in wiki/ideas/ are important anti-repetition signals
-- **Search coverage**: at least 5 distinct WebSearch queries + Semantic Scholar + wiki internal search
+- **Search coverage**: at least 5 distinct websearch queries + Semantic Scholar + wiki internal search
 - **Review LLM independence**: do not include the primary agent's own novelty judgment when submitting to Review LLM; let Review LLM assess independently
-- **Cite real sources**: all prior work listed in the report must be real (returned by WebSearch/S2); do not fabricate
+- **Cite real sources**: all prior work listed in the report must be real (returned by websearch/S2); do not fabricate
 
 ## Error Handling
 
-- **WebSearch unavailable**: skip Sources A and D, rely only on S2 + wiki search; note limited coverage in report
-- **Semantic Scholar API unavailable**: skip S2 portion, use DeepXiv + WebSearch as compensation
-- **DeepXiv API unavailable**: skip DeepXiv portion, rely on S2 + WebSearch (fall back to original behavior)
+- **websearch unavailable**: skip Sources A and D, rely only on S2 + wiki search; note limited coverage in report
+- **Semantic Scholar API unavailable**: skip S2 portion, use DeepXiv + websearch as compensation
+- **DeepXiv API unavailable**: skip DeepXiv portion, rely on S2 + websearch (fall back to original behavior)
 - **Review LLM unavailable**: skip Step 3; annotate report with "Review LLM cross-verify unavailable, single-model assessment only"
 - **Wiki empty**: proceed with external searches normally; annotate wiki internal search section with "wiki empty"
 - **idea slug not found**: prompt user to check the slug, list available slugs in wiki/ideas/
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/fetch_s2.py search "<query>" --limit 20` — Semantic Scholar keyword search
 - `python3 tools/fetch_s2.py paper <s2_id>` — fetch paper details
 - `python3 tools/fetch_deepxiv.py search "<query>" --mode hybrid --limit 20` — DeepXiv semantic search
@@ -211,8 +210,10 @@ Where `{N}` is the integer 1-5 from the composite scoring rules above. If `set-m
 - `llm-review MCP chat tool` — Review LLM cross-verify (Step 3)
 
 ### Agent Runtime Capabilities
-- `WebSearch` — multi-query web search (Step 2 Sources A + D)
-- `Agent` tool — parallel execution of multi-source search (Step 2)
+- `websearch` — multi-query web search (Step 2 Sources A + D)
+- `task` tool — parallel execution of multi-source search (Step 2)
 
 ### Shared References
 - `shared-references/cross-model-review.md` (created in Phase 2, Review LLM independence principle)
+
+> If `websearch` is unavailable, prefer the project Python retrieval tools and explicitly label the reduced coverage as degraded.

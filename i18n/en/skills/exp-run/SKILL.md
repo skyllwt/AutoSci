@@ -1,10 +1,9 @@
 ---
 name: exp-run
 description: Full experiment execution pipeline — prepare code → deploy(Confirm with the user before operation and ask the applicant to conduct manual inspection) → monitor → collect results, supporting three run modes
-argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|remote]
 ---
 
-# /exp-run
+# exp-run
 
 > Execute an experiment that has been planned in wiki/experiments/.
 > **No matter which operation mode it is, before preparing the experimental codes and deploying them for operation, confirmation shall be obtained from users. Users need to manually check relevant information such as codes and experimental configurations(Dataset paths, interface parameter selection, API configuration, etc.). The operation can only be launched after confirmation; otherwise, revisions shall be made repeatedly until users approve the execution.**
@@ -13,7 +12,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 > - **`--collect`**: Phase 3-4 only — check whether a deployed experiment has finished; collect results if so (`--check` is an alias).
 > - **`--full`**: All four phases end-to-end. Best for short local experiments that finish in minutes.
 >
-> Recommended flow: `/exp-run <slug>` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.
+> Recommended flow: `exp-run <slug>` to deploy → `exp-status` to monitor → `exp-run <slug> --collect` to collect.
 
 ## Inputs
 
@@ -61,7 +60,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 - `wiki/log.md` — append operation log
 
 ### Graph edges created
-- **None**. The tested_by edges between experiments and ideas are created by /exp-design.
+- **None**. The tested_by edges between experiments and ideas are created by exp-design.
 
 ## Workflow
 
@@ -190,7 +189,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      --cmd "bash experiments/code/{slug}/run.sh" \
      --gpu {gpu_index}
    ```
-6. Update `wiki/experiments/{slug}.md` frontmatter — all of these fields already exist (empty) because `/exp-design` wrote the full CLAUDE.md template:
+6. Update `wiki/experiments/{slug}.md` frontmatter — all of these fields already exist (empty) because `exp-design` wrote the full AGENTS.md template:
    ```bash
    # Top-level scalar fields — use set-meta
    python3 tools/research_wiki.py set-meta wiki/experiments/{slug}.md status running
@@ -206,7 +205,7 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
      started: ""
      completed: ""
    ```
-   Use five Edit calls (one per sub-field) to set `server`, `gpu`, `session`, `started`. Leave `completed: ""` — Phase 4 fills that. If you find the `remote:` block missing from the file, that means `/exp-design` did not write the full CLAUDE.md template; stop and report the bug rather than trying to append the block here (appending would drift the file away from the canonical order and break future edits).
+   Use five Edit calls (one per sub-field) to set `server`, `gpu`, `session`, `started`. Leave `completed: ""` — Phase 4 fills that. If you find the `remote:` block missing from the file, that means `exp-design` did not write the full AGENTS.md template; stop and report the bug rather than trying to append the block here (appending would drift the file away from the canonical order and break future edits).
 
 7. **Estimate runtime** and write to frontmatter (same estimation logic as local mode):
    ```bash
@@ -236,9 +235,9 @@ argument-hint: <experiment-slug> [--review] [--collect] [--full] [--env local|re
 
 ### Next Steps
 
-1. Monitor progress: `/exp-status`
-2. Check this experiment: `/exp-run {slug} --collect`
-3. In /research pipeline: progress saved to wiki/outputs/pipeline-progress.md
+1. Monitor progress: `exp-status`
+2. Check this experiment: `exp-run {slug} --collect`
+3. In research pipeline: progress saved to wiki/outputs/pipeline-progress.md
 
 ### Quick Commands
 ```bash
@@ -281,7 +280,7 @@ tail -f logs/exp-{slug}.log
      Latest metric: {metric} = {value}
      Anomalies: {none | NaN detected | ...}
      Estimated remaining: ~{N} hours
-     Run `/exp-status` to monitor all running experiments.
+     Run `exp-status` to monitor all running experiments.
      ```
    - **Return** (do not execute Phase 4)
 
@@ -341,9 +340,9 @@ tail -f logs/exp-{slug}.log
    {key_result}
 
    ## Next Steps
-   - Run `/exp-eval {slug}` to update the linked idea in wiki
+   - Run `exp-eval {slug}` to update the linked idea in wiki
    - {if succeeded: proceed to next experiment in plan}
-   - {if failed: analyze failure, consider /exp-design revision}
+   - {if failed: analyze failure, consider exp-design revision}
    ```
 
 ---
@@ -371,18 +370,18 @@ done
 - **Collect mode only accepts running experiments**: if status is planned, prompt to deploy first; if completed, note it is already done
 - **Collect mode: do not write wiki when alive**: only report progress, do not modify any wiki files
 - **Code goes in experiments/code/{slug}/**: do not write to project root or any other location
-- **Do not update the linked idea's status**: experiment results are written only to experiments/ pages; idea updates are handled by /exp-eval
+- **Do not update the linked idea's status**: experiment results are written only to experiments/ pages; idea updates are handled by exp-eval
 - **Sanity check must pass**: Phase 1 sanity failure blocks deployment (unless user explicitly overrides)
 - **Results must be saved**: all experiment results saved as JSON in `results/{slug}/seed_{N}.json`
 - **Multi-seed results use mean**: report mean ± std, not single-run results
-- **Graph edges are not created here**: tested_by edges were created by /exp-design
+- **Graph edges are not created here**: tested_by edges were created by exp-design
 - **Automatic fix attempts are limited to 1**: prevents infinite restart loops
 
 ## Error Handling
 
 - **Experiment not found**: prompt user to check slug, list candidates in wiki/experiments/ (status=planned or running)
-- **Deploy mode but status == running**: prompt "already running — use `/exp-run {slug} --collect` to check status"
-- **Collect mode but status == completed**: prompt "already completed — run `/exp-eval {slug}` directly"
+- **Deploy mode but status == running**: prompt "already running — use `exp-run {slug} --collect` to check status"
+- **Collect mode but status == completed**: prompt "already completed — run `exp-eval {slug}` directly"
 - **GPU unavailable**: report error, suggest using --env remote or waiting for GPU to free up
 - **Review LLM unavailable** (--review mode): skip code review, note "unreviewed" in DEPLOY_REPORT
 - **Sanity check fails**: report detailed error, attempt one automatic fix, if still failing stop and suggest manual debugging
@@ -393,10 +392,10 @@ done
 
 ## Dependencies
 
-### Skills（via Skill tool）
+### Skills（via skill tool）
 - No direct sub-skill calls
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
 - `python3 tools/remote.py <command>` — remote operations (status, gpu-status, sync-code, setup-env, launch, check, tail-log, pull-results)
 - `nvidia-smi` — local GPU status
@@ -411,9 +410,9 @@ done
 ### Agent Runtime Capabilities
 - `Read` — read wiki pages and log files
 - `Write` — write experiment code to `experiments/code/{slug}/`
-- `Bash` — execute deployment commands, monitor processes
+- `bash` — execute deployment commands, monitor processes
 
 ### Called by
-- `/research` Stage 3a (deploy mode) and Stage 3c (collect mode)
-- `/exp-status --collect-ready` (collect mode)
+- `research` Stage 3a (deploy mode) and Stage 3c (collect mode)
+- `exp-status --collect-ready` (collect mode)
 - User directly

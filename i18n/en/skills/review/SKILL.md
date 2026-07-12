@@ -1,16 +1,15 @@
 ---
 name: review
 description: General-purpose cross-model review — Review LLM independently reviews any research artifact, outputs structured scores, wiki entity mapping, and improvement suggestions
-argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---
 
-# /review
+# review
 
 > Review any research artifact (idea, proposal, experiment plan, paper draft, method) using cross-model review.
 > Uses Review LLM as an independent reviewer. Outputs a structured score, actionable improvement suggestions,
 > and a mapping to wiki entities (which ideas/methods need strengthening, which gaps are discovered).
 > Supports three difficulty levels (standard / hard / adversarial) and four review focuses.
-> Can be used standalone or called by /ideate, /refine, /exp-design.
+> Can be used standalone or called by ideate, refine, exp-design.
 
 ## Inputs
 
@@ -55,7 +54,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 ### Writes
 - **None**. Review is a read-only query operation.
-  - Review results are output to terminal; the user or caller (e.g. /refine) decides whether to apply them.
+  - Review results are output to terminal; the user or caller (e.g. refine) decides whether to apply them.
 
 ### Graph edges created
 - **None**.
@@ -214,13 +213,13 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ### Ideas / methods needing stronger support
 | Entity | Signal | Issue | Suggested action |
 |--------|--------|-------|------------------|
-| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run /novelty rerun |
-| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun /check |
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run novelty rerun |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun check |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
 |-----|-----------|------------------|
-| {description} | [[slug]] | /ingest, /exp-run, or /query |
+| {description} | [[slug]] | ingest, exp-run, or /query |
 
 ### Suggested wiki updates
 - `wiki/ideas/{slug}.md`: add risk factor from review
@@ -246,7 +245,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ## Constraints
 
 - **Reviewer independence**: strictly follow `shared-references/cross-model-review.md`; do not leak the primary agent's pre-judgments to Review LLM
-- **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. /refine)
+- **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. refine)
 - **Scores must have justification**: scores without a rationale are not accepted
 - **Weaknesses must have fixes**: every weakness must include a specific, actionable fix suggestion; vague criticism is not accepted
 - **Entity-level mapping is required**: output must include the Wiki Entity Mapping section, mapping review findings to specific wiki entities (ideas, methods, etc.)
@@ -265,7 +264,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - No direct tool calls (review does not require deterministic tools)
 
 ### MCP Servers
@@ -274,12 +273,12 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 
 ### Agent Runtime Capabilities
 - `Read` — read artifact and wiki pages
-- `Glob` — find wiki page corresponding to artifact
+- `glob` — find wiki page corresponding to artifact
 
 ### Shared References
 - `shared-references/cross-model-review.md` — reviewer independence principle (required reading)
 
 ### Called by
-- `/ideate` Phase 4 (review top ideas)
-- `/refine` each iteration round (review current version)
-- `/exp-design --review` (review experiment plan)
+- `ideate` Phase 4 (review top ideas)
+- `refine` each iteration round (review current version)
+- `exp-design --review` (review experiment plan)

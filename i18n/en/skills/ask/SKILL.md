@@ -1,10 +1,9 @@
 ---
 name: ask
 description: Ask the wiki a question, retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki
-argument-hint: <question>
 ---
 
-# /ask
+# ask
 
 > Ask a question to the wiki knowledge base. The LLM reads context_brief.md for global context,
 > retrieves relevant pages, synthesizes an answer with citations. Good answers can be
@@ -134,7 +133,7 @@ Choose the crystallize target based on answer content:
    ```
 
 **Case B — Create new concept:**
-1. If the answer reveals a new concept: create `wiki/concepts/{slug}.md` using the CLAUDE.md concept template
+1. If the answer reveals a new concept: create `wiki/concepts/{slug}.md` using the AGENTS.md concept template
 2. maturity: emerging
 3. key_papers: extracted from answer citations
 4. Add graph edges (concept → papers)
@@ -189,14 +188,14 @@ Output a summary including:
 ## Error Handling
 
 - **context_brief.md missing**: run `python3 tools/research_wiki.py rebuild-context-brief wiki/` to rebuild, then retry
-- **wiki is empty**: inform the user to first run `/init` or `/ingest` to build the knowledge base
+- **wiki is empty**: inform the user to first run `init` or `ingest` to build the knowledge base
 - **no matching pages**: honestly report that no relevant content exists in the wiki, suggest search and ingest directions
 - **crystallize slug conflict**: append a numeric suffix (e.g. `query-result-2`)
 - **index.md missing**: run `python3 tools/research_wiki.py init wiki/` to initialize, then retry
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "<title>"` — slug generation
 - `python3 tools/research_wiki.py add-edge wiki/ --from <id> --to <id> --type <type> --evidence "<text>"` — add graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — rebuild compressed context
@@ -204,8 +203,8 @@ Output a summary including:
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
 - `python3 tools/research_wiki.py init wiki/` — initialize wiki (fallback)
 
-### Skills（via Skill tool）
-- `/ingest` — referenced when suggesting the user supplement knowledge
+### Skills（via skill tool）
+- `ingest` — referenced when suggesting the user supplement knowledge
 
 ### Shared References
 - `shared-references/citation-verification.md` (created in Phase 3)

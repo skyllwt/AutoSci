@@ -1,13 +1,13 @@
-# /ingest Error Handling
+# ingest Error Handling
 
-Open this reference when a step fails. `/ingest` prefers to degrade gracefully: record what happened, continue with what remains, and surface the gap in the final report.
+Open this reference when a step fails. `ingest` prefers to degrade gracefully: record what happened, continue with what remains, and surface the gap in the final report.
 
 ## Source parsing
 
 - **`.tex` parse fails**: fall back to the PDF if one is available in the same source directory.
 - **PDF text extraction fails**: fall back to a vision-API pass on the first few pages to recover the title and abstract, then run the preprocessing pipeline in `references/pdf-preprocessing.md` with the recovered title.
 - **No readable source at all**: stop and report. Do not create a paper page from a title alone — a paper page without grounded content is noise.
-- **INIT MODE input unreadable**: do not attempt to re-prepare the source (INIT MODE is read-only on `raw/`). Stop, record the failure, and let the parent `/init` retry or skip the paper at fan-in.
+- **INIT MODE input unreadable**: do not attempt to re-prepare the source (INIT MODE is read-only on `raw/`). Stop, record the failure, and let the parent `init` retry or skip the paper at fan-in.
 
 ## External APIs
 
@@ -29,7 +29,7 @@ If `wiki/` is missing or empty, run:
 "$PYTHON_BIN" tools/research_wiki.py init wiki/
 ```
 
-Then retry `/ingest`. Do not attempt to create pages in a non-initialized wiki; `index.md` and `graph/` scaffolding must exist first.
+Then retry `ingest`. Do not attempt to create pages in a non-initialized wiki; `index.md` and `graph/` scaffolding must exist first.
 
 ## Partial failure mid-ingest
 
@@ -37,8 +37,8 @@ If an ingest fails after some writes have landed (paper page written, but concep
 
 - do not roll back the writes that succeeded
 - append a log entry via `tools/research_wiki.py log` describing which steps completed and which are incomplete
-- surface the incomplete steps in the user report so the user can run `/edit` or `/check --fix` to finish the job
-- in INIT MODE, if the ingest completed successfully, commit inside the worktree before exiting (see `references/init-mode.md`). If the ingest partially failed, do **not** commit the incomplete state; let the parent `/init` handle the failed worktree at fan-in
+- surface the incomplete steps in the user report so the user can run `edit` or `check --fix` to finish the job
+- in INIT MODE, if the ingest completed successfully, commit inside the worktree before exiting (see `referencesinit-mode.md`). If the ingest partially failed, do **not** commit the incomplete state; let the parent `init` handle the failed worktree at fan-in
 
 ## When to stop vs. continue
 
@@ -54,4 +54,4 @@ Continue with a warning when:
 - the reference list cannot be parsed (skip step 5; paper ingest still works)
 - a single concept or method dedup call fails transiently (retry once; if it still fails, skip that candidate and note it)
 
-The guiding principle: a partial ingest that preserves a well-shaped paper page is more useful than a clean abort that leaves the wiki unchanged. Partial state is recoverable via `/check` and `/edit`. Lost partial state is not.
+The guiding principle: a partial ingest that preserves a well-shaped paper page is more useful than a clean abort that leaves the wiki unchanged. Partial state is recoverable via `check` and `edit`. Lost partial state is not.

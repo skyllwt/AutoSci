@@ -1,12 +1,11 @@
 ---
 name: paper-draft
 description: 从 PAPER_PLAN 起草 LaTeX 论文：逐 section 从 wiki 取材撰写 + 生成 figures/tables + BibTeX 验证 + de-AI polish
-argument-hint: <paper-plan-path> [--review] [--sections <section-numbers>]
 ---
 
-# /paper-draft
+# paper-draft
 
-> 从 /paper-plan 生成的 PAPER_PLAN.md 起草完整 LaTeX 论文。
+> 从 paper-plan 生成的 PAPER_PLAN.md 起草完整 LaTeX 论文。
 > 逐 section 撰写：每个 section 从 wiki 读取 ideas/methods/experiments/papers/concepts 取材，
 > 生成 LaTeX + figures + tables。BibTeX 从 DBLP/CrossRef 获取（遵循 citation-verification），
 > 完成后执行 de-AI polish（遵循 academic-writing）。
@@ -272,12 +271,12 @@ llm-review MCP chat tool:
    - Sections written: {list}
    - De-AI polish: applied
    - Review LLM review: {yes/no, if yes: overall score}
-   - [UNCONFIRMED] citations: {count} (resolve before /paper-compile)
+   - [UNCONFIRMED] citations: {count} (resolve before paper-compile)
 
    ## Next Steps
-   - Run `/paper-compile paper/` to compile and verify
+   - Run `paper-compile paper/` to compile and verify
    - Resolve [UNCONFIRMED] citations manually
-   - Run `/refine paper/main.tex --focus writing` for further polish
+   - Run `refine paper/main.tex --focus writing` for further polish
    ```
 
 ## Constraints
@@ -295,8 +294,8 @@ llm-review MCP chat tool:
 
 ## Error Handling
 
-- **PAPER_PLAN 找不到**：报错，建议先运行 /paper-plan
-- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 /paper-plan
+- **PAPER_PLAN 找不到**：报错，建议先运行 paper-plan
+- **PAPER_PLAN 格式不完整**：列出缺失 section，建议重新运行 paper-plan
 - **wiki 页面找不到**（plan 引用的 idea/experiment/method/paper 不存在）：警告并跳过该引用，标注缺失
 - **figure 生成失败**（matplotlib 错误）：输出占位符 `% TODO: generate figure {name}`，继续其他 section
 - **BibTeX 全部获取失败**：使用 [UNCONFIRMED] 占位，在终端报告需要手动处理的数量
@@ -306,7 +305,7 @@ llm-review MCP chat tool:
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — 追加日志
 - `python3 tools/fetch_s2.py search "<title>"` — BibTeX fallback（S2 搜索）
 - `python3` — 执行 matplotlib figure 脚本
@@ -316,15 +315,15 @@ llm-review MCP chat tool:
 
 ### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面和 PAPER_PLAN
-- `Glob` — 查找 wiki 页面
+- `glob` — 查找 wiki 页面
 - `Write` — 写入 paper/ 目录中的文件
-- `Bash` — 执行 figure 脚本、创建目录
-- `WebFetch` — DBLP / CrossRef BibTeX 获取
+- `bash` — 执行 figure 脚本、创建目录
+- `webfetch` — DBLP / CrossRef BibTeX 获取
 
 ### Shared References
 - `shared-references/academic-writing.md` — 写作规范 + de-AI polish 规则 + figure 设计
 - `shared-references/citation-verification.md` — BibTeX 获取流程 + [UNCONFIRMED] 协议
 
 ### Called by
-- `/research` Stage 5（论文写作阶段）
+- `research` Stage 5（论文写作阶段）
 - 用户手动调用

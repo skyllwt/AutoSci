@@ -1,6 +1,6 @@
 # Academic Writing Principles
 
-> Shared reference for all skills that produce written output: /paper-draft, /paper-plan, /survey.
+> Shared reference for all skills that produce written output: paper-draft, paper-plan, survey.
 > These principles ensure publication-quality writing that reads as expert-authored, not AI-generated.
 
 ---

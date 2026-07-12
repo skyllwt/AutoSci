@@ -3,7 +3,7 @@ name: setup
 description: Interactive API key configuration guide — checks current .env state and walks you through Semantic Scholar, DeepXiv, and Review LLM setup
 ---
 
-# /setup / $setup
+# setup / setup
 
 > Guides you through AutoSci's optional API key configuration.
 > Reads your current `.env`, shows what is and isn't configured, and helps you
@@ -14,7 +14,7 @@ description: Interactive API key configuration guide — checks current .env sta
 
 - No arguments required
 - Reads: `.env` (current configuration state)
-- Reads: `config/setup-guide.md` (reference for what each key does)
+- Reads: `configsetup-guide.md` (reference for what each key does)
 
 ## Outputs
 
@@ -33,7 +33,7 @@ description: Interactive API key configuration guide — checks current .env sta
 
 ### Step 1: Read Configuration Reference
 
-Read `config/setup-guide.md` to load the complete reference for all configurable keys,
+Read `configsetup-guide.md` to load the complete reference for all configurable keys,
 including what each does, which skills use it, how to get it, and fallback behavior.
 
 ### Step 2: Detect Current Environment
@@ -74,7 +74,7 @@ Present a clear summary to the user, grouped by status:
 ```
 AutoSci Configuration Status
 ================================
-✓  Agent runtime          — managed outside `.env` (Claude Code: `claude login`; Codex: sign in through Codex)
+✓  Agent runtime          — managed outside `.env` (OpenCode: sign in through OpenCode)
 
 Recommended:
 ✗  Semantic Scholar        — not set  (citation expansion 3x slower — get free key)
@@ -96,8 +96,8 @@ Always ask for user confirmation before writing to `.env`.
 #### 4a: Semantic Scholar API Key
 
 **Explain**: "Semantic Scholar gives citation data and paper search.
-Used by /ingest, /init, /novelty, /ideate. Free to get.
-**Recommended** — without it, /init runs 3x slower and citation-chain expansion is much less effective."
+Used by ingest, init, novelty, ideate. Free to get.
+**Recommended** — without it, init runs 3x slower and citation-chain expansion is much less effective."
 
 **Guide to get it**: "Go to https://www.semanticscholar.org/product/api and click 'Get API Key'. It's free."
 
@@ -107,7 +107,7 @@ Used by /ingest, /init, /novelty, /ideate. Free to get.
 ```python
 # Read current .env, update or append SEMANTIC_SCHOLAR_API_KEY=<value>
 ```
-Use the Edit tool to update `.env`:
+Use the edit tool to update `.env`:
 - If `SEMANTIC_SCHOLAR_API_KEY=` line exists (even empty), replace it
 - Otherwise append `SEMANTIC_SCHOLAR_API_KEY=<value>`
 
@@ -116,7 +116,7 @@ Use the Edit tool to update `.env`:
 #### 4b: DeepXiv Token
 
 **Explain**: "DeepXiv enables semantic paper search, AI paper summaries (TLDR),
-and trending paper detection. Used by /daily-arxiv, /novelty, /ideate, /ingest, /init.
+and trending paper detection. Used by daily-arxiv, novelty, ideate, ingest, init.
 Without it, those skills fall back to arXiv RSS + Semantic Scholar — everything still works."
 
 **Offer three options**:
@@ -173,12 +173,12 @@ offer to let the user paste a token manually instead.
 #### 4c: Review LLM
 
 **Explain**: "The Review LLM connects AutoSci to a second AI model for independent
-adversarial review. It's used by /review, /novelty, /ideate, /paper-plan, /paper-draft,
-/rebuttal, /refine, /exp-eval, /exp-design, and /daily-arxiv inform recommendations.
+adversarial review. It's used by review, novelty, ideate, paper-plan, paper-draft,
+rebuttal, refine, exp-eval, exp-design, and daily-arxiv inform recommendations.
 Works with any OpenAI-compatible API.
 Without it, those skills skip the cross-model review step (everything still works)."
 
-**Present the provider table** from `config/setup-guide.md` (Key 3 section).
+**Present the provider table** from `configsetup-guide.md` (Key 3 section).
 
 **Clarify what 'OpenAI-compatible' means** if the user asks: any API that accepts
 `POST /chat/completions` with `{"model": "...", "messages": [...]}` in the OpenAI format.
@@ -207,7 +207,7 @@ it if the user explicitly asks, or if their research area is clearly outside ML/
 
 ### Step 5: Verify Configuration
 
-After the user finishes configuring, run the verification check from `config/setup-guide.md`:
+After the user finishes configuring, run the verification check from `configsetup-guide.md`:
 
 ```bash
 python3 -c "
@@ -225,7 +225,7 @@ for k in keys:
 ```
 
 Show a final summary. For any keys still not set, briefly note what they unlock
-and that the user can run `/setup` in Claude Code or `$setup` in Codex anytime to add them.
+and that the user can run `setup` in OpenCode or `setup` in OpenCode anytime to add them.
 
 ### Step 6: Next Steps
 
@@ -234,8 +234,8 @@ If this is a fresh install (no `wiki/` directory):
 Configuration done. Next:
   • Put your own papers in raw/papers/ (.tex or .pdf)
   • Optional: add intent notes to raw/notes/ and saved pages to raw/web/
-  • /init (Claude Code) or $init (Codex) and direct local /ingest or $ingest will manage generated inputs under raw/discovered/ and raw/tmp/
-  • Run: /init [your-research-topic] in Claude Code, or $init [your-research-topic] in Codex
+  • init (OpenCode) or init (OpenCode) and direct local ingest or ingest will manage generated inputs under raw/discovered/ and raw/tmp/
+  • Run: init [your-research-topic] in OpenCode, or init [your-research-topic] in OpenCode
 ```
 
 If `wiki/` already exists:
@@ -259,7 +259,7 @@ Configuration updated. Restart your coding agent for Review LLM changes to take 
   ```
   Then continue with configuration.
 
-- **`config/setup-guide.md` not found**: Proceed using the information in this SKILL.md directly.
+- **`configsetup-guide.md` not found**: Proceed using the information in this SKILL.md directly.
 
 - **DeepXiv registration fails** (network error, server error): Show the error message clearly,
   offer to let the user paste a token manually, or skip.
@@ -269,15 +269,15 @@ Configuration updated. Restart your coding agent for Review LLM changes to take 
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 -c "import _env; ..."` — read current `.env` state
 - `python3 -c "import requests; ..."` — DeepXiv auto-registration HTTP call
 
 ### Files Read
-- `config/setup-guide.md` — complete reference for all configurable keys
+- `configsetup-guide.md` — complete reference for all configurable keys
 - `.env` — current configuration (read + write)
 
 ### Files Written
-- `.env` — updated with newly configured keys (via Edit tool)
+- `.env` — updated with newly configured keys (via edit tool)
 
 ### No MCP servers, no wiki, no external skills called

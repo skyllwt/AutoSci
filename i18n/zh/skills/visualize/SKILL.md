@@ -1,10 +1,9 @@
 ---
 name: visualize
 description: 生成并更新可视化产物 —— Obsidian 图谱配置与 Canvas 知识地图。交互式网页图谱视图位于 SPA 的 app/modules/graph.js（由 tools/serve.py 提供服务）。
-argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types <page-type,...>] [--edge-types <edge-type,...>] [--all]
 ---
 
-# /visualize
+# visualize
 
 > 为 AutoSci 知识图谱生成可视化产物。
 > 产出 Obsidian 图谱配置（按实体类型分色组）以及带类型标签边的精选 Canvas 视图。
@@ -38,11 +37,11 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 - `wiki/graph/edges.jsonl` —— 带类型的语义边
 - `wiki/graph/citations.jsonl` —— 论文引用
 - `wiki/*/` —— 全部 entity 目录的 frontmatter
-- `config/visualize.json` —— 颜色调色板与可视化偏好
+- `configvisualize.json` —— 颜色调色板与可视化偏好
 
 ### Writes
 
-- `wiki/.obsidian/graph.json` —— CREATE/OVERWRITE（本地产物，已 gitignore；每次都从 `config/visualize.json` 重生成）
+- `wiki/.obsidian/graph.json` —— CREATE/OVERWRITE（本地产物，已 gitignore；每次都从 `configvisualize.json` 重生成）
 - `wiki/.obsidian/app.json` —— 仅在不存在时 CREATE（不覆盖用户自定义；已 gitignore）
 - `wiki/canvases/*.canvas` —— CREATE/OVERWRITE（本地产物，已 gitignore）
 
@@ -53,7 +52,7 @@ argument-hint: [--obsidian] [--canvas] [--focus <node_id>] [--depth N] [--types 
 
 ### Step 0: 确认图谱数据存在
 
-检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 `/ingest`。
+检查 `wiki/graph/edges.jsonl` 存在且非空。若为空，提示尚无图谱数据，建议先运行 `ingest`。
 
 ### Step 1: 生成 Obsidian 配置（`--obsidian` 或 `--all`）
 
@@ -140,13 +139,13 @@ Canvas 边 schema：
 
    退出码 `0` = 端口被占（服务已起 —— 跳过启动）。退出码 `1` = 端口空闲（需要启动）。
 
-2. 若端口空闲，用 **`Bash` tool 的 `run_in_background: true`** 后台启动（不要前台，前台会无限阻塞 skill）：
+2. 若端口空闲，用 **`bash` tool 的 `run_in_background: true`** 后台启动（不要前台，前台会无限阻塞 skill）：
 
    ```bash
    python3 tools/serve.py
    ```
 
-   不要用 `Agent` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `Bash` 进程归当前 agent 会话所有，活到会话结束。
+   不要用 `task` subagent 包裹 —— agent 不适合长跑服务，且 agent 返回时服务可能跟着挂掉。后台 `bash` 进程归当前 agent 会话所有，活到会话结束。
 
 3. 把 URL 打印给用户：
 
@@ -154,7 +153,7 @@ Canvas 边 schema：
    SPA Graph view: http://127.0.0.1:8765/#/graph
    ```
 
-SPA Graph 视图（`app/modules/graph.js`）是真正的 ES module，包含与原单文件生成器一样的 Cytoscape + 力导向布局 + 过滤器 + BFS 搜索，并集成了双击跳转到 SPA Reader 视图的能力。`/visualize` 不再重新生成 `wiki/graph-view.html`。
+SPA Graph 视图（`app/modules/graph.js`）是真正的 ES module，包含与原单文件生成器一样的 Cytoscape + 力导向布局 + 过滤器 + BFS 搜索，并集成了双击跳转到 SPA Reader 视图的能力。`visualize` 不再重新生成 `wiki/graph-view.html`。
 
 ### Step 4: 打印推荐
 
@@ -173,7 +172,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 标准日志格式：
 
 ```markdown
-## [YYYY-MM-DD] /visualize | <format> — <n> nodes, <m> edges<focus-note>
+## [YYYY-MM-DD] visualize | <format> — <n> nodes, <m> edges<focus-note>
 ```
 
 `<focus-note>` 在使用 `--focus` 时为 ` (focus: <node_id>, depth <N>)`，否则为空。
@@ -209,16 +208,16 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 ## Constraints
 
 - 不要手动改 `wiki/graph/` —— 只读
-- `config/visualize.json` 是用户拥有的 —— 不要覆盖
+- `configvisualize.json` 是用户拥有的 —— 不要覆盖
 - `.obsidian/app.json` 仅在缺失时创建（尊重用户自定义）
 - Canvas 文件每次运行重生成（幂等覆盖）
 - 不依赖外部 Python 包（仅用 stdlib）
-- `wiki/.obsidian/` 与 `wiki/canvases/` 都是已 gitignore 的本地产物；source of truth 是 `config/visualize.json` + `wiki/graph/`。`/init` Step 6 与直接调用 `/visualize` 都会幂等地重生成它们 —— 永远不要 commit 它们。
+- `wiki/.obsidian/` 与 `wiki/canvases/` 都是已 gitignore 的本地产物；source of truth 是 `configvisualize.json` + `wiki/graph/`。`init` Step 6 与直接调用 `visualize` 都会幂等地重生成它们 —— 永远不要 commit 它们。
 
 ## Error Handling
 
-- **没有图谱数据**：提醒用户先跑 `/ingest` 建立知识库
-- **`config/visualize.json` 缺失**：报错，文件应当存在于 `config/visualize.json`
+- **没有图谱数据**：提醒用户先跑 `ingest` 建立知识库
+- **`configvisualize.json` 缺失**：报错，文件应当存在于 `configvisualize.json`
 - **`--focus` 节点找不到**：中止并打印 `Error: node "<node_id>" not found`；列出 5 个最相近的 slug 候选
 - **过滤后没有节点**：中止并汇总当前过滤器与可用类型
 - **Canvas 节点超过 500 个**：警告大型 Canvas 可能很慢；建议用 `--focus` 或 `--types` 缩小范围
@@ -228,7 +227,7 @@ python3 tools/research_wiki.py log wiki/ "visualize | generated: [产物列表]"
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 
 - `python3 tools/visualize.py generate-obsidian-config wiki/` —— Obsidian 配置
 - `python3 tools/visualize.py generate-canvas wiki/ [--focus <node_id>] [--depth N]` —— Canvas 生成

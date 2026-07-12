@@ -27,7 +27,6 @@ from typing import Any
 
 import requests
 
-import _sandbox  # noqa: F401 — sandbox gate, exits if blocked
 
 import prepare_paper_source as paper_source
 from fetch_deepxiv import search as deepxiv_search

@@ -72,6 +72,6 @@ Only when extending the **schema language itself**, not when adding more data:
 
 ## Out of scope
 
-- Skill prompts and workflow logic — source files under `i18n/<lang>/skills/<skill>/`, active Claude copies under `.claude/skills/<skill>/`, and active Codex copies under `.agents/skills/<skill>/`
+- Skill prompts and workflow logic — source files under `i18n/<lang>/skills/<skill>/`; setup generates the active `.opencode/skills/<skill>/` copy.
 - Lint severity / auto-fix policy — derived from `required` / `default` in schema
 - Migration history — git log + one-shot scripts; no `migrations/` folder

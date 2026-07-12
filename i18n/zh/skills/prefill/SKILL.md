@@ -1,17 +1,16 @@
 ---
 name: prefill
-description: 用领域基础知识填充 wiki/foundations/，避免后续 /ingest 为教科书材料创建重复的 concept 页面
-argument-hint: "[domain] [--add '概念名']"
+description: 用领域基础知识填充 wiki/foundations/，避免后续 ingest 为教科书材料创建重复的 concept 页面
 ---
 
-# /prefill
+# prefill
 
 > 将领域基础知识（奠基性方法、common practice、标准架构）作为**终端**页面沉淀到 `wiki/foundations/`。
 > Foundations 设计上**单向**：其他页面可以链接到 foundation，foundation 不写反向链接。
 
 ## Trigger
 
-手动：`/prefill [domain]` 或 `/prefill --add "概念名"`。
+手动：`prefill [domain]` 或 `prefill --add "概念名"`。
 
 ## Inputs
 
@@ -38,7 +37,7 @@ argument-hint: "[domain] [--add '概念名']"
 
 ## Workflow
 
-**前置条件**：当前目录包含 `wiki/`、`tools/`、`.claude/`。`WIKI_ROOT=wiki/`。
+**前置条件**：当前目录包含 `wiki/`、`tools/`、`.opencode/`。`WIKI_ROOT=wiki/`。
 
 ### Step 1: 确定 domain
 
@@ -132,7 +131,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-提醒用户：后续 `/ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
+提醒用户：后续 `ingest` 会与这些 foundation 去重，遇到匹配概念时创建 `[[foundation-slug]]` 链接而非新建 concept 页面。
 
 ## Constraints
 
@@ -151,7 +150,7 @@ python3 tools/research_wiki.py log wiki/ "prefill | {N} foundations created for 
 
 ## Dependencies
 
-### 工具（通过 Bash）
+### 工具（通过 bash）
 - `python3 tools/fetch_wikipedia.py summary|sections|section|wikitext "<title>" [--index N]`
 - `python3 tools/research_wiki.py slug "<title>"`
 - `python3 tools/research_wiki.py rebuild-index wiki/`

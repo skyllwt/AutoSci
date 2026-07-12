@@ -1,21 +1,20 @@
 ---
 name: reset
 description: Reset wiki state to a clean scaffold by scope (wiki / raw / log / checkpoints / all). Useful during development or carefree restarts after a botched setup.
-argument-hint: "--scope wiki|raw|log|checkpoints|all"
 ---
 
-# /reset
+# reset
 
 > Resets the wiki to a clean scaffold by scope. Designed for development iteration and recovery after a failed setup — not a routine operation.
 
 ## Trigger
 
-Manual: `/reset --scope wiki` / `--scope raw` / `--scope log` / `--scope checkpoints` / `--scope all`. Multiple scopes may be combined comma-separated: `--scope wiki,log`.
+Manual: `reset --scope wiki` / `--scope raw` / `--scope log` / `--scope checkpoints` / `--scope all`. Multiple scopes may be combined comma-separated: `--scope wiki,log`.
 
 ## Inputs
 
 - `--scope` *(required)*: one of
-  - `wiki` — delete every `*.md` under `wiki/<entity>/` and `wiki/outputs/`, plus `wiki/index.md`, `wiki/log.md`, and `wiki/graph/` files. Preserves `.gitkeep` and `wiki/CLAUDE.md`.
+  - `wiki` — delete every `*.md` under `wiki/<entity>/` and `wiki/outputs/`, plus `wiki/index.md`, `wiki/log.md`, and `wiki/graph/` files. Preserves `.gitkeep` and `wiki/AGENTS.md`.
   - `raw` — delete every entry under `raw/papers/`, `raw/discovered/`, `raw/tmp/`, `raw/notes/`, `raw/web/` (except `.gitkeep`).
   - `log` — reset `wiki/log.md` to the empty header.
   - `checkpoints` — clear batch state via `research_wiki.py checkpoint-clear`.
@@ -57,7 +56,7 @@ Print the plan summary and ask for explicit confirmation:
 About to delete N files and reset M files. Continue? [y/N]
 ```
 
-If the user says no, exit. **Never proceed without explicit approval** — `/reset` is destructive and `raw/` deletions are not tracked by git.
+If the user says no, exit. **Never proceed without explicit approval** — `reset` is destructive and `raw/` deletions are not tracked by git.
 
 ### Step 3: Execute
 
@@ -86,28 +85,28 @@ Deleted: N files
 Reset:   M files
 
 Next steps:
-- /init       — bootstrap wiki from raw/
-- /prefill    — seed foundational background
-- /ingest     — add a single source manually
+- init       — bootstrap wiki from raw/
+- prefill    — seed foundational background
+- ingest     — add a single source manually
 ```
 
 ## Constraints
 
 - **Confirm before destructive action**: never call `--yes` without showing the plan and asking the user.
-- **Preserves**: `.gitkeep` placeholders, `wiki/CLAUDE.md`, `.claude/` (skills are never touched).
+- **Preserves**: `.gitkeep` placeholders, `wiki/AGENTS.md`, `.opencode/` (skills are never touched).
 - **`raw/` deletes are irreversible**: PDFs are not in git history. Warn the user before executing `raw` or `all` scopes.
-- **`/reset` does not touch `tools/`, `mcp-servers/`, `i18n/`, `.env`, or git state.**
-- **Scope is required**: no default action (`/reset` with no flag prompts for scope rather than guessing).
+- **`reset` does not touch `tools/`, `mcp-servers/`, `i18n/`, `.env`, or git state.**
+- **Scope is required**: no default action (`reset` with no flag prompts for scope rather than guessing).
 
 ## Error Handling
 
 - **Unknown scope**: print valid scopes and exit nonzero.
-- **Missing wiki directory**: report and suggest running `/init`.
+- **Missing wiki directory**: report and suggest running `init`.
 - **`checkpoint-clear` failure**: log a warning but do not fail other scopes.
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 tools/reset_wiki.py --scope <scope> [--yes] [--project-root .]` — deterministic destructive helper
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log
-- `reset_wiki.py` clears `wiki/.checkpoints/*.json` directly for `checkpoints` scope (no CLI dispatch — the `checkpoint-clear` subcommand requires a specific `task_id`, while `/reset --scope checkpoints` semantics is "clear everything")
+- `reset_wiki.py` clears `wiki/.checkpoints/*.json` directly for `checkpoints` scope (no CLI dispatch — the `checkpoint-clear` subcommand requires a specific `task_id`, while `reset --scope checkpoints` semantics is "clear everything")

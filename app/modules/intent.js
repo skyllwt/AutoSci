@@ -7,7 +7,7 @@
 // into contextBody and the same modal opens with the parameters substituted
 // in. The SPA still cannot run agent skills — this is purely a "build me the
 // right command, with my parameters" helper that the user pastes into
-// Claude Code or Codex.
+// OpenCode.
 
 import { postIntent } from "./api.js";
 import { showToast, escHtml } from "./ui.js";
@@ -83,15 +83,10 @@ function showIntentModal(payload) {
   pop.querySelector("#intent-title").innerHTML =
     `Run <code>${escHtml(payload.skill)}</code> in your coding agent`;
   pop.querySelector("#intent-message").textContent = payload.message || "";
-  const commandText = payload.codex_command
-    ? `Claude Code: ${payload.command || ""}\nCodex: ${payload.codex_command}`
-    : (payload.command || "");
-  pop.querySelector("#intent-cmd").textContent = commandText;
+  pop.querySelector("#intent-cmd").textContent = payload.command || "";
   const docEl = pop.querySelector("#intent-doc");
-  if (payload.doc_url || payload.codex_doc_url) {
-    const claudeDoc = payload.doc_url ? `Claude: <code>${escHtml(payload.doc_url)}</code>` : "";
-    const codexDoc = payload.codex_doc_url ? `Codex: <code>${escHtml(payload.codex_doc_url)}</code>` : "";
-    docEl.innerHTML = `Skill spec: ${[claudeDoc, codexDoc].filter(Boolean).join(" · ")}`;
+  if (payload.doc_url) {
+    docEl.innerHTML = `Skill spec: <code>${escHtml(payload.doc_url)}</code>`;
     docEl.style.display = "";
   } else {
     docEl.style.display = "none";

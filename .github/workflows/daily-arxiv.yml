@@ -2,595 +2,94 @@ name: Daily arXiv recommendation
 
 on:
   schedule:
-    - cron: '17 0 * * *'  # 00:17 UTC = 08:17 Beijing time
+    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
-      mode:
-        description: "inform or auto-ingest"
-        required: false
-        default: ""
-      runtime:
-        description: "decision runtime: auto, claude, codex, codex-account, codex-api, or llm"
-        required: false
-        default: ""
       hours:
-        description: "Lookback window in hours"
+        description: Lookback window in hours
         required: false
-        default: ""
+        default: ''
       categories:
-        description: "Optional arXiv categories, separated by spaces or commas"
+        description: Optional categories separated by spaces or commas
         required: false
-        default: ""
+        default: ''
       max_recommendations:
-        description: "Maximum recommendations in the digest"
+        description: Maximum recommendations
         required: false
-        default: ""
-      max_auto_ingest:
-        description: "Maximum high-confidence papers to ingest when mode=auto-ingest"
-        required: false
-        default: ""
+        default: ''
       send_email:
-        description: "Send the digest by SMTP"
+        description: Send the digest by SMTP
         required: false
         type: boolean
         default: true
 
 permissions:
-  # contents: write — auto-ingest commit step pushes to main.
-  # id-token: write — claude-code-action exchanges OIDC for an app token.
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
-  # ChatGPT-managed Codex auth may rotate during a run. Serialize all daily
-  # runs for this repository so two branches cannot write competing refreshes.
-  group: daily-arxiv-${{ github.repository }}
+  group: daily-arxiv-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  daily-arxiv:
+  recommend:
     runs-on: ubuntu-latest
     env:
-      HAS_CLAUDE_CODE_AUTH: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-      HAS_CODEX_API_AUTH: ${{ secrets.OPENAI_API_KEY != '' }}
-      HAS_CODEX_ACCOUNT_AUTH: ${{ secrets.CODEX_AUTH_JSON != '' }}
-      HAS_CODEX_ACCOUNT_AUTH_SYNC: ${{ secrets.CODEX_AUTH_SECRET_SYNC_TOKEN != '' }}
-      HAS_REVIEW_LLM: ${{ secrets.LLM_API_KEY != '' && secrets.LLM_BASE_URL != '' && secrets.LLM_MODEL != '' }}
-      REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
-      # Repo secrets must be exposed as env vars here for the Python steps;
-      # otherwise S2/DeepXiv calls run anonymous and hit rate-limit walls.
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      LLM_FALLBACK_MODEL: ${{ secrets.LLM_FALLBACK_MODEL }}
       SEMANTIC_SCHOLAR_API_KEY: ${{ secrets.SEMANTIC_SCHOLAR_API_KEY }}
       DEEPXIV_TOKEN: ${{ secrets.DEEPXIV_TOKEN }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          persist-credentials: true
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+          python-version: '3.11'
           cache: pip
-          cache-dependency-path: requirements.txt
-
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Resolve run configuration
-        id: resolve
+      - run: python -m pip install -r requirements.txt
+      - name: Resolve configuration and prepare data
         env:
-          INPUT_MODE: ${{ github.event.inputs.mode }}
-          INPUT_RUNTIME: ${{ github.event.inputs.runtime }}
           INPUT_HOURS: ${{ github.event.inputs.hours }}
           INPUT_CATEGORIES: ${{ github.event.inputs.categories }}
-          INPUT_MAX_RECOMMENDATIONS: ${{ github.event.inputs.max_recommendations }}
-          INPUT_MAX_AUTO_INGEST: ${{ github.event.inputs.max_auto_ingest }}
-          INPUT_SEND_EMAIL: ${{ github.event.inputs.send_email }}
+          INPUT_MAX: ${{ github.event.inputs.max_recommendations }}
         run: |
           set -euo pipefail
-
-          run_dir=".daily-arxiv/run"
-          mkdir -p "$run_dir"
-
-          args=(config --config config/daily-arxiv.yml --out "$run_dir/resolved-config.json")
-          if [ -n "${INPUT_MODE:-}" ]; then
-            args+=(--mode "$INPUT_MODE")
-          fi
-          if [ -n "${INPUT_RUNTIME:-}" ]; then
-            args+=(--runtime "$INPUT_RUNTIME")
-          fi
-          if [ -n "${INPUT_HOURS:-}" ]; then
-            args+=(--hours "$INPUT_HOURS")
-          fi
+          mkdir -p .daily-arxiv/run
+          args=(prepare --config config/daily-arxiv.yml --out-feed .daily-arxiv/run/feed.json --wiki-root wiki --out .daily-arxiv/run/context.json)
+          [ -z "${INPUT_HOURS:-}" ] || args+=(--hours "$INPUT_HOURS")
+          [ -z "${INPUT_MAX:-}" ] || args+=(--max-recommendations "$INPUT_MAX")
           if [ -n "${INPUT_CATEGORIES:-}" ]; then
             normalized="${INPUT_CATEGORIES//,/ }"
-            read -r -a category_args <<< "$normalized"
-            args+=(--categories "${category_args[@]}")
+            read -r -a cats <<< "$normalized"
+            args+=(--categories "${cats[@]}")
           fi
-          if [ -n "${INPUT_MAX_RECOMMENDATIONS:-}" ]; then
-            args+=(--max-recommendations "$INPUT_MAX_RECOMMENDATIONS")
-          fi
-          if [ -n "${INPUT_MAX_AUTO_INGEST:-}" ]; then
-            args+=(--max-auto-ingest "$INPUT_MAX_AUTO_INGEST")
-          fi
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            args+=(--send-email "${INPUT_SEND_EMAIL:-true}")
-          fi
-
           python tools/daily_arxiv.py "${args[@]}"
-
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          payload = json.loads(Path(".daily-arxiv/run/resolved-config.json").read_text())
-          cfg = payload["config"]
-          env_lines = [
-              "DAILY_ARXIV_RUN_DIR=.daily-arxiv/run",
-              f"DAILY_ARXIV_MODE={cfg['mode']}",
-              f"DAILY_ARXIV_RUNTIME_REQUESTED={cfg['runtime']}",
-              f"DAILY_ARXIV_HOURS={cfg['hours']}",
-              "DAILY_ARXIV_CATEGORIES=" + " ".join(cfg["categories"]),
-              f"DAILY_ARXIV_MAX_RECOMMENDATIONS={cfg['max_recommendations']}",
-              f"DAILY_ARXIV_MAX_AUTO_INGEST={cfg['max_auto_ingest']}",
-              f"DAILY_ARXIV_SEND_EMAIL={str(cfg['email']['enabled']).lower()}",
-              f"DAILY_ARXIV_SCHEDULE_ENABLED={str(cfg['schedule']['enabled']).lower()}",
-              "DAILY_ARXIV_FEED=.daily-arxiv/run/feed.json",
-              "DAILY_ARXIV_CONTEXT=.daily-arxiv/run/recommendation-context.json",
-              "DAILY_ARXIV_DECISIONS=.daily-arxiv/run/llm-decisions.json",
-              "DAILY_ARXIV_DIGEST_MD=.daily-arxiv/run/digest.md",
-              "DAILY_ARXIV_DIGEST_JSON=.daily-arxiv/run/digest.json",
-          ]
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
-              fh.write("\n".join(env_lines) + "\n")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              fh.write(f"schedule_enabled={str(cfg['schedule']['enabled']).lower()}\n")
-              fh.write(f"mode={cfg['mode']}\n")
-              fh.write(f"runtime_requested={cfg['runtime']}\n")
-          PY
-
-      - name: Select decision runtime
-        id: runtime
+      - name: Recommend with OpenAI-compatible LLM
+        id: llm
+        continue-on-error: true
+        run: python tools/daily_arxiv.py recommend-llm --context .daily-arxiv/run/context.json --out .daily-arxiv/run/decisions.json
+      - name: Finalize recommendation digest
+        if: always()
         run: |
-          set -euo pipefail
-          requested="${DAILY_ARXIV_RUNTIME_REQUESTED:-auto}"
-          case "$requested" in
-            auto)
-              # Keep existing Claude-first behavior when both agent secrets
-              # are present. A private repo may use coding-plan account auth.
-              if [ "$HAS_CLAUDE_CODE_AUTH" = "true" ]; then
-                runtime="claude"
-              elif [ "$HAS_CODEX_ACCOUNT_AUTH" = "true" ] && [ "$REPOSITORY_VISIBILITY" = "private" ]; then
-                runtime="codex-account"
-              elif [ "$HAS_CODEX_API_AUTH" = "true" ]; then
-                runtime="codex-api"
-              elif [ "$HAS_REVIEW_LLM" = "true" ]; then
-                runtime="llm"
-              else
-                runtime="fallback"
-              fi
-              ;;
-            codex)
-              if [ "$HAS_CODEX_ACCOUNT_AUTH" = "true" ] && [ "$REPOSITORY_VISIBILITY" = "private" ]; then
-                runtime="codex-account"
-              else
-                runtime="codex-api"
-              fi
-              ;;
-            claude|codex-api|codex-account|llm)
-              runtime="$requested"
-              ;;
-            *)
-              echo "::error::Unknown daily-arxiv runtime '$requested'; use auto, claude, codex, codex-account, codex-api, or llm."
-              exit 1
-              ;;
-          esac
-          echo "DAILY_ARXIV_RUNTIME=$runtime" >> "$GITHUB_ENV"
-          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
-          echo "daily-arxiv decision runtime: $runtime" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Note disabled schedule
-        if: github.event_name == 'schedule' && steps.resolve.outputs.schedule_enabled != 'true'
-        run: echo "daily-arxiv schedule is disabled in config/daily-arxiv.yml." >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Validate decision runtime credentials
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: |
-          set -euo pipefail
-          case "$DAILY_ARXIV_RUNTIME" in
-            claude)
-              if [ "$HAS_CLAUDE_CODE_AUTH" != "true" ]; then
-                echo "::error::runtime=claude requires ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."
-                exit 1
-              fi
-              ;;
-            codex-api)
-              if [ "$HAS_CODEX_API_AUTH" != "true" ]; then
-                echo "::error::runtime=codex-api requires the OPENAI_API_KEY repository secret."
-                exit 1
-              fi
-              ;;
-            codex-account)
-              if [ "$HAS_CODEX_ACCOUNT_AUTH" != "true" ]; then
-                echo "::error::runtime=codex-account requires the CODEX_AUTH_JSON repository secret."
-                exit 1
-              fi
-              if [ "$REPOSITORY_VISIBILITY" != "private" ]; then
-                echo "::error::runtime=codex-account is allowed only for private repositories."
-                exit 1
-              fi
-              if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$HAS_CODEX_ACCOUNT_AUTH_SYNC" != "true" ]; then
-                echo "::error::Scheduled codex-account runs on GitHub-hosted runners require CODEX_AUTH_SECRET_SYNC_TOKEN so refreshed auth.json can be persisted."
-                exit 1
-              fi
-              if [ "$HAS_CODEX_ACCOUNT_AUTH_SYNC" != "true" ]; then
-                echo "::warning::CODEX_AUTH_SECRET_SYNC_TOKEN is unset. This manual account-auth run can smoke-test Codex, but any refreshed login will not persist."
-              fi
-              ;;
-            llm)
-              if [ "$HAS_REVIEW_LLM" != "true" ]; then
-                echo "::error::runtime=llm requires LLM_API_KEY, LLM_BASE_URL, and LLM_MODEL."
-                exit 1
-              fi
-              ;;
-          esac
-
-          if [ "$DAILY_ARXIV_MODE" = "auto-ingest" ] && [ "$DAILY_ARXIV_RUNTIME" != "claude" ] && [ "$DAILY_ARXIV_RUNTIME" != "codex-api" ] && [ "$DAILY_ARXIV_RUNTIME" != "codex-account" ]; then
-            echo "::error::mode=auto-ingest requires runtime=claude, codex-api, or codex-account; recommendation-only runtimes cannot invoke /ingest."
-            exit 1
-          fi
-
-      - name: Prepare recommendation context
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: |
-          set -euo pipefail
-
-          args=(
-            prepare
-            --config config/daily-arxiv.yml
-            --mode "$DAILY_ARXIV_MODE"
-            --hours "$DAILY_ARXIV_HOURS"
-            --max-recommendations "$DAILY_ARXIV_MAX_RECOMMENDATIONS"
-            --max-auto-ingest "$DAILY_ARXIV_MAX_AUTO_INGEST"
-            --out-feed "$DAILY_ARXIV_FEED"
-            --wiki-root wiki
-            --out "$DAILY_ARXIV_CONTEXT"
-          )
-          read -r -a category_args <<< "$DAILY_ARXIV_CATEGORIES"
-          if [ "${#category_args[@]}" -gt 0 ]; then
-            args+=(--categories "${category_args[@]}")
-          fi
-
+          args=(finalize --context .daily-arxiv/run/context.json --out-md .daily-arxiv/run/digest.md --out-json .daily-arxiv/run/digest.json)
+          [ ! -s .daily-arxiv/run/decisions.json ] || args+=(--decisions .daily-arxiv/run/decisions.json)
           python tools/daily_arxiv.py "${args[@]}"
-
-      - name: Snapshot agent write boundary
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import json
-          from pathlib import Path
-
-          manifest = {}
-          for root_name in ("wiki", "raw"):
-              root = Path(root_name)
-              if not root.exists():
-                  continue
-              for path in sorted(root.rglob("*")):
-                  if path.is_file():
-                      digest = hashlib.sha256(path.read_bytes()).hexdigest()
-                      manifest[str(path)] = digest
-          Path(".daily-arxiv/run/pre-agent-manifest.json").write_text(
-              json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-          PY
-
-      - name: Configure Codex account authentication
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
-        env:
-          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
-        run: |
-          set -euo pipefail
-          test -n "$CODEX_AUTH_JSON"
-          codex_home="$RUNNER_TEMP/autosci-codex-home"
-          mkdir -p "$codex_home"
-          chmod 700 "$codex_home"
-          CODEX_HOME="$codex_home" python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          raw = os.environ["CODEX_AUTH_JSON"]
-          json.loads(raw)
-          target = Path(os.environ["CODEX_HOME"]) / "auth.json"
-          target.write_text(raw, encoding="utf-8")
-          target.chmod(0o600)
-          PY
-
-      - name: Set up Codex CLI for account authentication
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Install Codex CLI for account authentication
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
-        run: npm install --global @openai/codex@latest
-
-      - name: Enable sandbox user namespaces for Codex account authentication
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
-        run: |
-          set -euo pipefail
-          current_userns="$(sysctl -n kernel.unprivileged_userns_clone 2>/dev/null || true)"
-          if [ -n "$current_userns" ] && [ "$current_userns" != "1" ]; then
-            sudo sysctl -w kernel.unprivileged_userns_clone=1
-          fi
-          current_apparmor="$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null || true)"
-          if [ -n "$current_apparmor" ] && [ "$current_apparmor" != "0" ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-
-      - name: Run Claude recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'claude'
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            Run AutoSci /daily-arxiv for this scheduled job.
-
-            Read .daily-arxiv/run/recommendation-context.json. Make LLM-first recommendation decisions from the provided arXiv, wiki, Semantic Scholar, and DeepXiv evidence.
-
-            Write .daily-arxiv/run/llm-decisions.json as:
-            {
-              "decisions": [
-                {
-                  "arxiv_id": "...",
-                  "decision": "strong_recommend|maybe|skip|ingest",
-                  "confidence": "high|medium|low",
-                  "score": 0.0,
-                  "rationale": "short reason grounded in the evidence",
-                  "wiki_connections": ["..."],
-                  "signals_used": ["arxiv", "wiki_profile", "semantic_scholar", "deepxiv"]
-                }
-              ]
-            }
-
-            If the context mode is "auto-ingest", mark only high-confidence selected papers as "ingest", never more than config.max_auto_ingest. Invoke /ingest sequentially for those selected papers using their arXiv URLs. Do not hand-write wiki pages, graph files, paper pages, concepts, methods, or index entries. Record "ingest_status" or "ingest_error" in the matching decision after each attempt.
-
-            If the mode is "inform", do not ingest or mutate the wiki. Keep borderline papers as "maybe".
-          claude_args: |
-            # 100 turns fits the decision step plus one full /ingest cycle
-            # (~40–50 tool calls per paper); raise if max_auto_ingest > 1.
-            # allowedTools must include Skill or /ingest cannot be invoked;
-            # TodoWrite and Agent support /ingest's task tracking and
-            # subagent fan-out.
-            --max-turns 100
-            --allowedTools "Read,Write,Edit,Bash,Skill,TodoWrite,Agent"
-
-      - name: Run Codex API recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-api'
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: .github/codex/daily-arxiv-prompt.md
-          codex-args: >-
-            --ephemeral
-            --output-schema .github/codex/llm-decisions.schema.json
-          output-file: .daily-arxiv/run/llm-decisions.json
-          sandbox: ${{ steps.resolve.outputs.mode == 'auto-ingest' && 'danger-full-access' || 'workspace-write' }}
-          safety-strategy: drop-sudo
-
-      - name: Run Codex account recommendation and optional ingest
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account'
-        env:
-          CODEX_HOME: ${{ runner.temp }}/autosci-codex-home
-        run: |
-          set -euo pipefail
-          sandbox="workspace-write"
-          if [ "${DAILY_ARXIV_MODE}" = "auto-ingest" ]; then
-            sandbox="danger-full-access"
-          fi
-          codex exec \
-            --ephemeral \
-            --sandbox "$sandbox" \
-            --output-schema .github/codex/llm-decisions.schema.json \
-            --output-last-message "$DAILY_ARXIV_DECISIONS" \
-            - < .github/codex/daily-arxiv-prompt.md
-
-      - name: Persist refreshed Codex account authentication
-        if: ${{ always() && (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'codex-account' && env.HAS_CODEX_ACCOUNT_AUTH_SYNC == 'true' }}
-        env:
-          CODEX_HOME: ${{ runner.temp }}/autosci-codex-home
-          GH_TOKEN: ${{ secrets.CODEX_AUTH_SECRET_SYNC_TOKEN }}
-        run: |
-          set -euo pipefail
-          auth_file="$CODEX_HOME/auth.json"
-          test -s "$auth_file"
-          python - "$auth_file" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          if payload.get("auth_mode") != "chatgpt":
-              raise SystemExit("Refusing to persist a non-ChatGPT Codex auth file.")
-          if not (payload.get("tokens") or {}).get("refresh_token"):
-              raise SystemExit("Refusing to persist Codex auth without a refresh token.")
-          PY
-          gh secret set CODEX_AUTH_JSON --repo "$GITHUB_REPOSITORY" < "$auth_file"
-          echo "Persisted refreshed Codex account authentication." >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Note selected fallback recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'fallback'
-        run: |
-          echo "No configured decision runtime is available; finalizing a tool-ranked fallback digest." >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Run OpenAI-compatible LLM recommendation
-        if: (github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true') && steps.runtime.outputs.runtime == 'llm' && steps.resolve.outputs.mode == 'inform'
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          LLM_FALLBACK_MODEL: ${{ secrets.LLM_FALLBACK_MODEL }}
-        run: |
-          set -euo pipefail
-          python tools/daily_arxiv.py recommend-llm \
-            --context "$DAILY_ARXIV_CONTEXT" \
-            --out "$DAILY_ARXIV_DECISIONS"
-
-      - name: Validate agent write boundary
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import hashlib
-          import json
-          import os
-          import subprocess
-          import sys
-          from pathlib import Path
-
-          before = json.loads(Path(".daily-arxiv/run/pre-agent-manifest.json").read_text())
-          after = {}
-          for root_name in ("wiki", "raw"):
-              root = Path(root_name)
-              if not root.exists():
-                  continue
-              for path in sorted(root.rglob("*")):
-                  if path.is_file():
-                      after[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
-
-          changed = sorted(
-              path for path in set(before) | set(after)
-              if before.get(path) != after.get(path)
-          )
-          auto_ingest = os.environ.get("DAILY_ARXIV_MODE") == "auto-ingest"
-          allowed_roots = ("wiki/", "raw/discovered/") if auto_ingest else ()
-          unexpected = [
-              path for path in changed
-              if not any(path.startswith(root) for root in allowed_roots)
-          ]
-
-          tracked = subprocess.run(
-              ["git", "diff", "--name-only", "HEAD"],
-              check=True,
-              capture_output=True,
-              text=True,
-          ).stdout.splitlines()
-          tracked += subprocess.run(
-              ["git", "ls-files", "--others", "--exclude-standard"],
-              check=True,
-              capture_output=True,
-              text=True,
-          ).stdout.splitlines()
-          tracked_unexpected = sorted(
-              {
-                  path for path in tracked
-                  if not path.startswith(".daily-arxiv/")
-                  and not (auto_ingest and (path.startswith("wiki/") or path.startswith("raw/discovered/")))
-              }
-          )
-          unexpected = sorted(set(unexpected) | set(tracked_unexpected))
-          if unexpected:
-              print("::error::agent modified paths outside the daily-arxiv write boundary:", file=sys.stderr)
-              print("\n".join(unexpected), file=sys.stderr)
-              sys.exit(1)
-
-          if auto_ingest:
-              writeback = [path for path in changed if path.startswith("wiki/") or path.startswith("raw/discovered/")]
-              Path(".daily-arxiv/run/writeback-files.txt").write_text(
-                  "".join(f"{path}\n" for path in writeback),
-                  encoding="utf-8",
-              )
-          PY
-
-      - name: Finalize digest
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: |
-          set -euo pipefail
-          decisions_arg=()
-          if [ -f "$DAILY_ARXIV_DECISIONS" ]; then
-            decisions_arg=(--decisions "$DAILY_ARXIV_DECISIONS")
-          fi
-          python tools/daily_arxiv.py finalize \
-            --context "$DAILY_ARXIV_CONTEXT" \
-            "${decisions_arg[@]}" \
-            --out-md "$DAILY_ARXIV_DIGEST_MD" \
-            --out-json "$DAILY_ARXIV_DIGEST_JSON"
-
-      - name: Add digest to job summary
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        run: cat "$DAILY_ARXIV_DIGEST_MD" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload daily arXiv artifacts
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-arxiv-${{ github.run_id }}
-          path: |
-            .daily-arxiv/run/resolved-config.json
-            .daily-arxiv/run/feed.json
-            .daily-arxiv/run/recommendation-context.json
-            .daily-arxiv/run/llm-decisions.json
-            .daily-arxiv/run/digest.md
-            .daily-arxiv/run/digest.json
-          if-no-files-found: ignore
-
-      - name: Commit auto-ingest changes
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ "$DAILY_ARXIV_MODE" != "auto-ingest" ]; then
-            echo "Auto-ingest disabled; no repository writeback attempted." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          if [ ! -s .daily-arxiv/run/writeback-files.txt ]; then
-            echo "Auto-ingest mode ran, but no wiki/raw changes were detected." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          while IFS= read -r path; do
-            [ -n "$path" ] || continue
-            git add -f -A -- "$path"
-          done < .daily-arxiv/run/writeback-files.txt
-          if git diff --cached --quiet; then
-            echo "Auto-ingest mode detected changes, but no wiki/raw changes were staged." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          git commit -m "daily-arxiv auto-ingest"
-          # Re-embed the token in case an agent changed checkout credentials.
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push
-
-      - name: Send digest e-mail
-        if: github.event_name != 'schedule' || steps.resolve.outputs.schedule_enabled == 'true'
+          cat .daily-arxiv/run/digest.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Send optional email
+        if: always() && (github.event_name != 'workflow_dispatch' || github.event.inputs.send_email == 'true')
+        continue-on-error: true
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_USER: ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
-          DAILY_ARXIV_EMAIL_TO: ${{ secrets.DAILY_ARXIV_EMAIL_TO }}
-        run: |
-          set -euo pipefail
-          if [ "$DAILY_ARXIV_SEND_EMAIL" != "true" ]; then
-            echo "E-mail sending disabled for this run." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          python tools/send_email.py --check-config
-          subject="AutoSci daily arXiv recommendations $(date -u +%F)"
-          python tools/send_email.py \
-            --subject "$subject" \
-            --body-file "$DAILY_ARXIV_DIGEST_MD"
+          DAILY_ARXIV_EMAIL_TO: ${{ secrets.SMTP_TO }}
+        run: python tools/send_email.py --subject "AutoSci daily arXiv" --body-file .daily-arxiv/run/digest.md
+      - name: Upload digest artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-arxiv-${{ github.run_id }}
+          path: .daily-arxiv/run/
+          if-no-files-found: error

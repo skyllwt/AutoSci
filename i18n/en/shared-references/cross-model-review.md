@@ -1,6 +1,6 @@
 # Reviewer Independence Principle
 
-> Referenced by: `/review`, `/novelty`, `/ideate`, `/exp-eval`, `/exp-design`, `/paper-plan`, `/paper-draft`, `/rebuttal`, `/refine`
+> Referenced by: `review`, `novelty`, `ideate`, `exp-eval`, `exp-design`, `paper-plan`, `paper-draft`, `rebuttal`, `refine`
 
 ---
 
@@ -31,17 +31,17 @@ The reviewer must **NOT** receive:
 
 ## How to Apply
 
-### In `/review` (adversarial critique)
+### In `review` (adversarial critique)
 - Step 2: Send artifact + context + review prompt to the Review LLM. Do NOT include any pre-assessment.
 - Step 3 (multi-turn): The primary agent may respond to the Review LLM's critique with rebuttals, but these are responses to its points, not pre-formed judgments.
 
-### In `/novelty` (cross-verification)
+### In `novelty` (cross-verification)
 - Step 3: Send method signature + existing similar works to the Review LLM. Do NOT include the primary agent's novelty score from Step 2.
 
-### In `/ideate` (dual-model brainstorm)
+### In `ideate` (dual-model brainstorm)
 - Phase 2: The Review LLM generates ideas from the same landscape context as the primary agent, but does NOT see the primary agent's idea list. Merge happens after both complete independently.
 
-### In `/exp-eval` (impartial verdict)
+### In `exp-eval` (impartial verdict)
 - Step 2: Send experiment results + the linked idea's hypothesis + context to the Review LLM. Do NOT include the primary agent's interpretation of the results.
 
 ---
@@ -64,7 +64,7 @@ Before calling `llm-review MCP chat tool`, every skill must check availability a
 ### Detection
 
 A call to the `llm-review` MCP chat tool will fail if:
-- The MCP server is not configured (Claude Code: missing `.mcp.json` or `enableAllProjectMcpServers`; Codex: missing user-level `mcp_servers.llm-review` config)
+- The MCP server is not configured (OpenCode: missing `.mcp.json` or `enableAllProjectMcpServers`; OpenCode: missing user-level `mcp_servers.llm-review` config)
 - `LLM_API_KEY` or `LLM_BASE_URL` is not set in `.env`
 - The API endpoint is unreachable
 

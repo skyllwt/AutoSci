@@ -7,7 +7,7 @@ Ports the mechanical bits of PaperX's DAG2poster.py into AutoSci:
                    (PDF → PNG conversion via pdftoppm when needed)
   validate      — sanity checks on the final HTML
 
-The coding agent (in the /poster or $poster SKILL.md workflow) writes the outline HTML — this
+The coding agent (in the OpenCode `poster` skill workflow) writes the outline HTML — this
 tool only handles mechanical injection, copying, and validation.
 """
 

@@ -1,6 +1,6 @@
-# /init Prepare And Discovery
+# init Prepare And Discovery
 
-Use this reference when `/init` is preparing local inputs, selecting the final paper set, or writing `.checkpoints/init-sources.json`.
+Use this reference when `init` is preparing local inputs, selecting the final paper set, or writing `.checkpoints/init-sources.json`.
 
 ## Prepare Flow
 
@@ -17,7 +17,7 @@ Use this reference when `/init` is preparing local inputs, selecting the final p
 ## Source Preference Rules
 
 - Prefer local sources in this order: original local `.tex` > archive-extracted source `.tex` or fetched arXiv source directory > PDF-derived synthetic `.tex` > raw `.pdf`.
-- Keep notes/web on their original source paths. `/init` reads them directly during planning.
+- Keep notes/web on their original source paths. `init` reads them directly during planning.
 - If the handed-off source already lives under `raw/tmp/` or `raw/discovered/`, treat that path as canonical and do not duplicate it into `raw/papers/`.
 - Set each local paper's `canonical_ingest_path` to a prepared `raw/tmp/` path when available; otherwise fall back to the original `raw/papers/...` path.
 
@@ -36,7 +36,7 @@ Run:
 "$PYTHON_BIN" tools/init_discovery.py fetch --raw-root raw --plan-json .checkpoints/init-plan.json --prepared-manifest .checkpoints/init-prepare.json --output-sources .checkpoints/init-sources.json --id <candidate-id> --id <candidate-id>
 ```
 
-- External papers downloaded by `/init` go to `raw/discovered/`, never `raw/papers/`.
+- External papers downloaded by `init` go to `raw/discovered/`, never `raw/papers/`.
 - Never fetch a paper that is already represented by a prepared local source from `raw/tmp/`.
 
 ## Source Manifest Contract

@@ -3,7 +3,7 @@ name: setup
 description: 交互式 API key 配置引导 — 检测当前 .env 状态，逐步引导配置 Semantic Scholar、DeepXiv 和 Review LLM
 ---
 
-# /setup / $setup
+# setup / setup
 
 > 引导你完成 AutoSci 的可选 API key 配置。
 > 读取当前 `.env`，展示已配置和未配置的内容，并帮助你逐步设置每个 key，
@@ -14,7 +14,7 @@ description: 交互式 API key 配置引导 — 检测当前 .env 状态，逐�
 
 - 不需要任何参数
 - 读取：`.env`（当前配置状态）
-- 读取：`config/setup-guide.md`（每个 key 的参考说明）
+- 读取：`configsetup-guide.md`（每个 key 的参考说明）
 
 ## Outputs
 
@@ -33,7 +33,7 @@ description: 交互式 API key 配置引导 — 检测当前 .env 状态，逐�
 
 ### Step 1：读取配置参考文档
 
-读取 `config/setup-guide.md`，加载所有可配置 key 的完整参考信息，
+读取 `configsetup-guide.md`，加载所有可配置 key 的完整参考信息，
 包括每个 key 的作用、使用它的 skill、获取方式以及未配置时的降级行为。
 
 ### Step 2：检测当前环境
@@ -74,7 +74,7 @@ python3 --version
 ```
 AutoSci 配置状态
 ================================
-✓  Agent runtime          — 在 `.env` 外部管理（Claude Code: `claude login`; Codex: 通过 Codex 登录）
+✓  Agent runtime          — 在 `.env` 外部管理（OpenCode: 通过 OpenCode 登录）
 
 推荐配置：
 ✗  Semantic Scholar        — 未配置（引用链扩展速度慢 3 倍，建议配置免费 key）
@@ -96,8 +96,8 @@ AutoSci 配置状态
 #### 4a：Semantic Scholar API Key
 
 **解释**："Semantic Scholar 提供论文引用数据和检索功能。
-被 /ingest、/init、/novelty、/ideate 使用。免费获取。
-**推荐配置** — 不配置的话，/init 速度慢 3 倍，引用链扩展效率大幅下降。"
+被 ingest、init、novelty、ideate 使用。免费获取。
+**推荐配置** — 不配置的话，init 速度慢 3 倍，引用链扩展效率大幅下降。"
 
 **引导获取**："访问 https://www.semanticscholar.org/product/api，
 点击 'Get API Key'，免费申请。"
@@ -114,7 +114,7 @@ AutoSci 配置状态
 #### 4b：DeepXiv Token
 
 **解释**："DeepXiv 提供语义论文检索、AI 论文摘要（TLDR）和热门论文检测。
-被 /daily-arxiv、/novelty、/ideate、/ingest、/init 使用。
+被 daily-arxiv、novelty、ideate、ingest、init 使用。
 不配置时，这些 skill 回退到 arXiv RSS + Semantic Scholar，功能全部可用，
 只是缺少语义搜索和 TLDR 功能。"
 
@@ -171,11 +171,11 @@ stdout → token 值；stderr → 人类可读状态（直接透传，不要抑�
 #### 4c：Review LLM
 
 **解释**："Review LLM 将 AutoSci 连接到第二个 AI 模型，进行独立的对抗性评审。
-被 /review、/novelty、/ideate、/paper-plan、/paper-draft、/rebuttal、/refine、
-/exp-eval、/exp-design，以及 /daily-arxiv 的 inform 推荐使用。支持任何 OpenAI-compatible API。
+被 review、novelty、ideate、paper-plan、paper-draft、rebuttal、refine、
+exp-eval、exp-design，以及 daily-arxiv 的 inform 推荐使用。支持任何 OpenAI-compatible API。
 不配置时，这些 skill 跳过跨模型 review 步骤（功能全部保留）。"
 
-**展示 provider 对照表**（来自 `config/setup-guide.md` Key 3 部分）。
+**展示 provider 对照表**（来自 `configsetup-guide.md` Key 3 部分）。
 
 **如果用户问 'OpenAI-compatible 是什么意思'**：解释为任何接受
 `POST /chat/completions`、请求体格式为 `{"model": "...", "messages": [...]}` 的 API。
@@ -222,7 +222,7 @@ for k in keys:
 ```
 
 展示最终总结。对仍未配置的 key，简要说明其解锁的功能，
-并告知用户可以随时在 Claude Code 中重新运行 `/setup`，或在 Codex 中运行 `$setup` 来补充配置。
+并告知用户可以随时在 OpenCode 中重新运行 `setup`，或在 OpenCode 中运行 `setup` 来补充配置。
 
 ### Step 6：下一步
 
@@ -231,8 +231,8 @@ for k in keys:
 配置完成。接下来：
   • 将你自己的论文放入 raw/papers/（.tex 或 .pdf）
   • 可选：把意图笔记放入 raw/notes/，网页存档放入 raw/web/
-  • Claude Code 的 /init 或 Codex 的 $init，以及直接本地 /ingest 或 $ingest 会自动管理 raw/discovered/ 与 raw/tmp/ 下的生成内容
-  • 运行：Claude Code 中 /init [你的研究主题]；Codex 中 $init [你的研究主题]
+  • OpenCode 的 init 或 OpenCode 的 init，以及直接本地 ingest 或 ingest 会自动管理 raw/discovered/ 与 raw/tmp/ 下的生成内容
+  • 运行：OpenCode 中 init [你的研究主题]；OpenCode 中 init [你的研究主题]
 ```
 
 如果 `wiki/` 已存在：
@@ -256,7 +256,7 @@ for k in keys:
   ```
   然后继续配置流程。
 
-- **`config/setup-guide.md` 不存在**：直接使用本 SKILL.md 中的信息继续。
+- **`configsetup-guide.md` 不存在**：直接使用本 SKILL.md 中的信息继续。
 
 - **DeepXiv 注册失败**（网络错误、服务器错误）：清晰展示错误信息，
   提供让用户手动粘贴 token 的选项，或跳过。
@@ -266,12 +266,12 @@ for k in keys:
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 -c "import _env; ..."` — 读取当前 `.env` 状态
 - `python3 -c "import requests; ..."` — DeepXiv 自动注册 HTTP 请求
 
 ### Files Read
-- `config/setup-guide.md` — 所有可配置 key 的完整参考
+- `configsetup-guide.md` — 所有可配置 key 的完整参考
 - `.env` — 当前配置（读 + 写）
 
 ### Files Written

@@ -1,18 +1,17 @@
 ---
 name: research
 description: End-to-end research orchestrator — idea discovery → experiment design → execution → verdict → paper writing, with human gates and session-resumable state
-argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage2|stage3|stage3-collect|stage3-check|stage4|stage5] [--skip-paper] [--venue ICLR|NeurIPS|ICML|ACL|CVPR]
 ---
 
-# /research
+# research
 
 > End-to-end research orchestrator that composes all skills into a complete research workflow.
 > Stage 0 (Bootstrap) + 5 Stages + 2 Human Gates, covering the full pipeline from empty wiki to paper submission.
-> **Zero-friction entry**: if the wiki is empty, Bootstrap is triggered automatically (search + auto-ingest 5 papers); no need to run /init manually.
+> **Zero-friction entry**: if the wiki is empty, Bootstrap is triggered automatically (search + auto-ingest 5 papers); no need to run init manually.
 > Every Gate and Stage saves progress to `wiki/outputs/pipeline-progress.md`, supporting cross-session recovery.
 >
 > **Stage 3 is non-blocking**: experiments are deployed and control returns immediately (`--auto` mode automatically sets up a CronCreate to monitor every 30 minutes).
-> When all experiments finish, Stage 4 is triggered automatically. Use `/exp-status` at any time to check progress.
+> When all experiments finish, Stage 4 is triggered automatically. Use `exp-status` at any time to check progress.
 >
 > `--auto` mode skips manual confirmation (automatically selects the top-1 idea). `--skip-paper` runs the research without writing a paper.
 
@@ -25,10 +24,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - `--start-from <stage>` (optional): resume execution from the specified stage
   - Valid values: `stage1`, `stage2`, `stage3`, `stage3-collect`, `stage3-check`, `stage4`, `stage5`
   - `stage3-collect`: skip deploy, go directly to Stage 3c (collect results from already-deployed experiments)
-  - `stage3-check`: check experiment status only (equivalent to `/exp-status --pipeline {slug}`), do not continue execution
+  - `stage3-check`: check experiment status only (equivalent to `exp-status --pipeline {slug}`), do not continue execution
   - Requires `wiki/outputs/pipeline-progress.md` to exist
-- `--skip-paper` (optional): run research only (Stages 1-4), skip paper writing (Stage 5), but still run /exp-eval (Stage 4)
-- `--venue` (optional): target conference (ICLR / NeurIPS / ICML / ACL / CVPR), passed to /paper-plan
+- `--skip-paper` (optional): run research only (Stages 1-4), skip paper writing (Stage 5), but still run exp-eval (Stage 4)
+- `--venue` (optional): target conference (ICLR / NeurIPS / ICML / ACL / CVPR), passed to paper-plan
 
 ## Outputs
 
@@ -42,7 +41,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Reads
 - `wiki/graph/context_brief.md` — global context (passed to sub-skills)
-- `wiki/graph/open_questions.md` — knowledge gaps (passed to /ideate)
+- `wiki/graph/open_questions.md` — knowledge gaps (passed to ideate)
 - `wiki/ideas/*.md` — Gate 1 selection, Stage 4 verdict, Stage 5 paper planning
 - `wiki/experiments/*.md` — Stage 3-4 status checks
 - `wiki/methods/*.md` — Stage 5 paper writing context
@@ -56,7 +55,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - All other wiki entity writes are delegated to sub-skills (do not directly write to ideas/experiments/methods/)
 
 ### Graph edges created
-- None directly — all graph edges are delegated to sub-skills (/ideate, /exp-design, /exp-eval each create their own edges)
+- None directly — all graph edges are delegated to sub-skills (ideate, exp-design, exp-eval each create their own edges)
 
 ## Workflow
 
@@ -83,18 +82,18 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
        [1] Resume from {current_stage} (recommended)
        [2] Start a new pipeline (will overwrite old progress)
-       [3] View experiment status first (/exp-status --pipeline {slug})
+       [3] View experiment status first (exp-status --pipeline {slug})
        ```
      - If --auto or user selects [1]: auto-set `--start-from {current_stage}`, continue execution
      - If user selects [2]: continue creating new pipeline (overwrite old progress file)
-     - If user selects [3]: call `/exp-status --pipeline {slug}` then exit without continuing
+     - If user selects [3]: call `exp-status --pipeline {slug}` then exit without continuing
 
 3. **Check recovery** (when `--start-from` is specified):
    - If `wiki/outputs/pipeline-progress.md` exists:
      - Read progress file, restore idea_slug, experiment_slugs, stage3a_deployed, linked_idea_slugs, monitoring_cron_id
      - Jump to specified stage
    - If progress file does not exist: report error and exit; prompt user to run the full pipeline first
-   - **`--start-from stage3-check`**: equivalent to calling `/exp-status --pipeline {slug}`; display status then exit
+   - **`--start-from stage3-check`**: equivalent to calling `exp-status --pipeline {slug}`; display status then exit
    - **`--start-from stage3-collect`**: skip Stage 3a+3b; go directly to Stage 3c (collect already-deployed experiments)
 
 3. **Create progress file** `wiki/outputs/pipeline-progress.md`:
@@ -148,7 +147,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
    python3 tools/research_wiki.py init wiki/
    ```
 
-2. **Search for relevant papers** (use Agent tool with 3 parallel searches):
+2. **Search for relevant papers** (use task tool with 3 parallel searches):
    - DeepXiv: `python3 tools/fetch_deepxiv.py search "{direction}" --mode hybrid --limit 20`
    - Semantic Scholar: `python3 tools/fetch_s2.py search "{direction}" --limit 20`
    - arXiv: `python3 tools/fetch_arxiv.py` (using direction keywords)
@@ -161,7 +160,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 4. **Auto-ingest each paper**:
    ```
-   Skill: ingest
+   skill: ingest
    Args: "{arxiv_url_or_path}"
    ```
    Output progress after each ingest: `[{i}/5] Ingested: {paper_title}`
@@ -194,10 +193,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Stage 1: Idea Discovery
 
-Call `/ideate`:
+Call `ideate`:
 
 ```
-Skill: ideate
+skill: ideate
 Args: "{direction}" --auto
 ```
 
@@ -223,10 +222,10 @@ Args: "{direction}" --auto
 
 ### Stage 2: Experiment Design
 
-Call `/exp-design`:
+Call `exp-design`:
 
 ```
-Skill: exp-design
+skill: exp-design
 Args: "{idea_slug}"
 ```
 
@@ -240,10 +239,10 @@ Stage 3 is divided into three sub-stages, allowing experiments to run asynchrono
 
 #### Stage 3a: Deploy All
 
-Deploy each experiment in run order (baseline → validation → ablation → robustness) by calling `/exp-run {experiment_slug}` (default deploy mode, Phase 1+2):
+Deploy each experiment in run order (baseline → validation → ablation → robustness) by calling `exp-run {experiment_slug}` (default deploy mode, Phase 1+2):
 
 ```
-Skill: exp-run
+skill: exp-run
 Args: "{experiment_slug}"
 ```
 
@@ -298,19 +297,19 @@ After all experiments are deployed, compute ETA, save progress, and end the curr
    Latest completion: Tomorrow 09:30 (exp-foo-baseline)
    Recommended time to return: Tomorrow 10:00+
 
-     /exp-status                              ← confirm all experiments complete
-     /research --start-from stage3-collect    ← collect results and continue
+     exp-status                              ← confirm all experiments complete
+     research --start-from stage3-collect    ← collect results and continue
 
    Progress saved to wiki/outputs/pipeline-progress.md; current session can be closed.
    ```
 
 #### Stage 3c: Collect (triggered after experiments complete)
 
-**Trigger**: user manually runs `/research --start-from stage3-collect`
+**Trigger**: user manually runs `research --start-from stage3-collect`
 
 For each deployed experiment (read from `stage3a_deployed` list):
 ```
-Skill: exp-run
+skill: exp-run
 Args: "{experiment_slug} --collect"
 ```
 
@@ -339,10 +338,10 @@ Args: "{experiment_slug} --collect"
 
 ### Stage 4: Verdict & Iteration
 
-Call `/exp-eval` for each completed experiment:
+Call `exp-eval` for each completed experiment:
 
 ```
-Skill: exp-eval
+skill: exp-eval
 Args: "{experiment_slug}" --auto
 ```
 
@@ -354,9 +353,9 @@ Args: "{experiment_slug}" --auto
 
 **Iteration path** (when insufficient, up to 1 retry):
 1. Analyze the cause of failure
-2. Call `/refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
+2. Call `refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
    ```
-   Skill: refine
+   skill: refine
    Args: "{experiment_plan_slug}" --max-rounds 2 --focus evidence
    ```
 3. Re-run Stage 3 → Stage 4 for new/modified experiments
@@ -386,30 +385,30 @@ Args: "{experiment_slug}" --auto
 
 ### Stage 5: Paper Writing
 
-Call sub-skills in sequence: /paper-plan → /paper-draft → /refine → /paper-compile
+Call sub-skills in sequence: paper-plan → paper-draft → refine → paper-compile
 
-**5a. Call /paper-plan**:
+**5a. Call paper-plan**:
 ```
-Skill: paper-plan
+skill: paper-plan
 Args: "{linked_idea_slugs}" --venue {venue}
 ```
-(passes the validated idea slug(s) collected in Stage 4 to /paper-plan)
+(passes the validated idea slug(s) collected in Stage 4 to paper-plan)
 
-**5b. Call /paper-draft**:
+**5b. Call paper-draft**:
 ```
-Skill: paper-draft
+skill: paper-draft
 Args: "wiki/outputs/PAPER_PLAN.md" --review
 ```
 
-**5c. Call /refine on paper**:
+**5c. Call refine on paper**:
 ```
-Skill: refine
+skill: refine
 Args: "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
 ```
 
-**5d. Call /paper-compile**:
+**5d. Call paper-compile**:
 ```
-Skill: paper-compile
+skill: paper-compile
 Args: "paper/"
 ```
 
@@ -489,14 +488,14 @@ Update pipeline-progress: status: completed
 
 ## Constraints
 
-- **Orchestrator does not directly modify wiki entities or embed sub-skill logic**: all wiki modifications are delegated to sub-skills; the pipeline only coordinates by calling them via the Skill tool
+- **Orchestrator does not directly modify wiki entities or embed sub-skill logic**: all wiki modifications are delegated to sub-skills; the pipeline only coordinates by calling them via the skill tool
 - **Gates and Stages must save progress**: every Gate and Stage must save pipeline-progress.md when completed or entering await
 - **Stage 3a deploy failures do not abort**: record a warning and continue deploying; do not terminate early (baseline collect failure is what triggers termination)
 - **Baseline collect failure terminates**: in Stage 3c, if baseline outcome == failed, terminate the pipeline
 - **Stage 3b ends the session**: after Stage 3b completes, the current session ends; do not continue waiting for experiments
 - **Maximum 2 iterations**: Stage 4 iterates at most 2 times to prevent infinite loops
 - **--auto does not skip computation**: auto mode skips human confirmation but skips no computation steps
-- **--skip-paper still runs Stage 4 /exp-eval**: idea/experiment updates must be completed even when not writing a paper
+- **--skip-paper still runs Stage 4 exp-eval**: idea/experiment updates must be completed even when not writing a paper
 - **Pass sub-skill parameters through**: correctly pass domain, --venue, and other parameters to sub-skills
 - **Log every Stage**: append a log.md audit entry after each Stage completes
 - **Do not re-run completed stages**: --start-from skips already-completed stages
@@ -510,29 +509,29 @@ Update pipeline-progress: status: completed
 - **Sub-skill call fails**: record error to pipeline-progress, report the failed stage, suggest --start-from to resume
 - **All ideas generation fails**: terminate pipeline; suggest the user adjust the research direction
 - **All experiment deploys fail**: terminate pipeline (Stage 3a); generate failure report; suggest checking GPU/SSH configuration
-- **Stage 3c baseline collect fails**: terminate pipeline; report baseline cannot be reproduced; suggest re-running /exp-design
+- **Stage 3c baseline collect fails**: terminate pipeline; report baseline cannot be reproduced; suggest re-running exp-design
 - **All experiment collects fail (non-baseline)**: proceed to Stage 4 evaluation (treat failures as evidence)
 - **Gate user selects stop**: save progress to pipeline-progress; generate partial report
 - **RESEARCH_BRIEF.md malformed**: fall back to plain-text direction; ignore structured fields
 - **Wiki empty (no papers/concepts)**: auto-trigger Stage 0 Bootstrap (search + auto-ingest 5 papers)
 - **Idea evidence still insufficient after iteration**: annotate report with "idea evidence insufficient after max iterations"; let user decide whether to continue
-- **User selects view status (auto-recovery detection [3])**: call `/exp-status --pipeline {slug}` then exit without starting a new pipeline
+- **User selects view status (auto-recovery detection [3])**: call `exp-status --pipeline {slug}` then exit without starting a new pipeline
 
 ## Dependencies
 
-### Skills（via Skill tool）
-- `/ingest` — Stage 0 Bootstrap auto-ingest
-- `/ideate` — Stage 1 idea discovery
-- `/exp-design` — Stage 2 experiment design
-- `/exp-run` — Stage 3a (deploy mode) and Stage 3c (--collect mode)
-- `/exp-status` — user manually checks experiment progress; `--auto-advance` can automatically trigger Stage 4 when all complete
-- `/exp-eval` — Stage 4 verdict
-- `/refine` — Stage 4 iteration + Stage 5 paper improvement
-- `/paper-plan` — Stage 5 paper planning
-- `/paper-draft` — Stage 5 paper writing
-- `/paper-compile` — Stage 5 paper compilation
+### Skills（via skill tool）
+- `ingest` — Stage 0 Bootstrap auto-ingest
+- `ideate` — Stage 1 idea discovery
+- `exp-design` — Stage 2 experiment design
+- `exp-run` — Stage 3a (deploy mode) and Stage 3c (--collect mode)
+- `exp-status` — user manually checks experiment progress; `--auto-advance` can automatically trigger Stage 4 when all complete
+- `exp-eval` — Stage 4 verdict
+- `refine` — Stage 4 iteration + Stage 5 paper improvement
+- `paper-plan` — Stage 5 paper planning
+- `paper-draft` — Stage 5 paper writing
+- `paper-compile` — Stage 5 paper compilation
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "{title}"` — generate pipeline slug
 - `python3 tools/research_wiki.py set-meta <path> <field> <value>` — update pipeline-progress fields
 - `python3 tools/research_wiki.py log wiki/ "<message>"` — append log entry
@@ -548,6 +547,6 @@ Update pipeline-progress: status: completed
 ### Agent Runtime Capabilities
 - `Read` — read pipeline-progress, wiki pages, RESEARCH_BRIEF
 - `Write` — write pipeline-progress, PIPELINE_REPORT
-- `Glob` — find experiments, ideas, methods
-- `Skill` — call sub-skills (core capability)
+- `glob` — find experiments, ideas, methods
+- `skill` — call sub-skills (core capability)
 - interactive user prompt — user interaction at Gates and auto-recovery detection

@@ -1,16 +1,15 @@
 ---
 name: exp-pilot-run
-description: Pilot experiment execution — read Pilot Spec YAML, write pilot code, run experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), return results. Called by /ideate Phase 5. Does NOT modify wiki pages or judge pass/fail.
-argument-hint: <idea-slug> [--env local|remote]
+description: Pilot experiment execution — read Pilot Spec YAML, write pilot code, run experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), return results. Called by ideate Phase 5. Does NOT modify wiki pages or judge pass/fail.
 ---
 
-# /exp-pilot-run
+# exp-pilot-run
 
 > Execute a pilot experiment described by a Pilot Spec YAML file.
 > Reads the spec from `experiments/pilot/{slug}.yaml`, writes pilot code, runs the experiment(Confirm with the user before operation and require the applicant to conduct manual inspection), and returns raw results to the caller.
 >**No matter which operating mode is adopted, before the experimental code is ready for deployment and operation, confirmation shall be obtained from users. Users need to manually check relevant information including codes and experimental configurations(Such as dataset paths, interface parameter selection, API configuration and so on). The operation can only be launched after confirmation. Otherwise, revisions shall be made repeatedly until users approve the execution.**
 > Supports **local** (direct GPU) and **remote** (SSH deployment via `tools/remote.py`) modes.
-> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `/exp-pilot-eval`.
+> Does NOT modify any wiki pages. Does NOT judge pass/fail — results are evaluated by `exp-pilot-eval`.
 
 ## Inputs
 
@@ -31,7 +30,7 @@ argument-hint: <idea-slug> [--env local|remote]
 ## Wiki Interaction
 
 ### Reads
-- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
+- `experiments/pilot/{slug}.yaml` — Pilot Spec (all configuration) **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in ideate Phase 5.**
 - `wiki/papers/*.md` — related papers' method descriptions (implementation reference)
 
 ### Writes
@@ -55,14 +54,14 @@ argument-hint: <idea-slug> [--env local|remote]
 **Phase 1: Prepare**
 
 1. **Read Pilot Spec**:
-   **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in /ideate Phase 5.**
+   **If the Pilot Spec for the selected idea does not exist at the corresponding position, remind the user and create it following the steps for creating a Pilot Spec in ideate Phase 5.**
    - Load `experiments/pilot/{slug}.yaml`
    - The YAML has a `pilot_spec:` root key; all fields below are nested under it
    - Validate required fields exist under `pilot_spec:`: `implementation`, `setup`, `metrics`, `baseline`, `success_criterion`
    - Extract from `pilot_spec:`: repo, entry_point, modifications, files_to_create, setup (model, dataset, hardware, framework, batch_size, max_steps, learning_rate, seeds, other_hparams), metrics, baseline, success_criterion, hypothesis, approach_sketch
 
 2. **Load implementation context**:
-   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `/ideate` Phase 4, before pilot)
+   - Use `pilot_spec.hypothesis` and `pilot_spec.approach_sketch` as the primary implementation guide (idea pages are written by `ideate` Phase 4, before pilot)
    - Read related papers' method descriptions for algorithm details (from `wiki/papers/` if they exist)
    - Read source paper repo for base code reference
 
@@ -220,15 +219,15 @@ Possible reference paths for the preliminary experiment code:
    - {list of anomalies detected during run, or "None"}
 
    ## Next Steps
-   - Proceed to /exp-pilot-eval for verdict assessment and wiki update
+   - Proceed to exp-pilot-eval for verdict assessment and wiki update
    ```
 
-7. **Return** the raw results and key metrics to the caller (e.g., `/ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `/exp-pilot-eval`, not by this skill.
+7. **Return** the raw results and key metrics to the caller (e.g., `ideate` Phase 5). Do NOT modify any wiki pages — pilot results are evaluated by `exp-pilot-eval`, not by this skill.
 
 ## Constraints
 
 - **Does not require a wiki experiment page**: reads from `experiments/pilot/{slug}.yaml` instead
-- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `/exp-pilot-eval`
+- **Does not write to wiki pages**: pilot results are returned to the caller; idea page updates are handled by `exp-pilot-eval`
 - **Code goes in `experiments/pilot/code/{slug}/`**: do not write to project root or any other location
 - **Results must be saved**: all pilot results saved as JSON in `experiments/pilot/code/{slug}/results/seed_{N}.json`
 - **Multi-seed results use mean ± std**: report mean ± std, not single-run results
@@ -238,8 +237,8 @@ Possible reference paths for the preliminary experiment code:
 
 ## Error Handling
 
-- **Pilot Spec not found**: report error, suggest running `/ideate` first to generate the spec
-- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `/ideate`
+- **Pilot Spec not found**: report error, suggest running `ideate` first to generate the spec
+- **Pilot Spec missing fields**: report which required fields are missing, suggest re-running `ideate`
 - **GPU unavailable**: report error, suggest waiting for GPU to free up
 - **Sanity check fails**: report detailed error, attempt one automatic fix, if still failing report error and stop
 - **Result files missing**: report error "no result files produced (run may have crashed)"
@@ -250,10 +249,10 @@ Possible reference paths for the preliminary experiment code:
 
 ## Dependencies
 
-### Skills (via Skill tool)
+### Skills (via skill tool)
 - None
 
-### Tools (via Bash)
+### Tools (via bash)
 - `nvidia-smi` — local GPU status
 - `screen` — local background process management
 - `python3 tools/remote.py <command>` — remote operations (status, gpu-status, sync-code, setup-env, launch, check, tail-log, pull-results)
@@ -264,8 +263,8 @@ Possible reference paths for the preliminary experiment code:
 ### Agent Runtime Capabilities
 - `Read` — read Pilot Spec and wiki pages
 - `Write` — write pilot code to `experiments/pilot/code/{slug}/`
-- `Bash` — execute pilot code, monitor processes
+- `bash` — execute pilot code, monitor processes
 
 ### Called by
-- `/ideate` Phase 5
+- `ideate` Phase 5
 - User directly

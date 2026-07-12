@@ -1,10 +1,9 @@
 ---
 name: paper-plan
 description: 从 idea graph 编译论文大纲：编译 evidence map → 叙事结构 → 章节计划 + figure plan + citation plan，Review LLM review 必选
-argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
 ---
 
-# /paper-plan
+# paper-plan
 
 > 从 wiki 的 idea graph 编译论文大纲。
 > 输入 target ideas（status: validated 或 in_progress 且具备 succeeded 实验），指定目标会议/期刊，
@@ -74,7 +73,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 
 **验证**：
 - 若任何 target idea 的 status 为 `proposed`：警告「idea 尚未验证，论文可能缺乏证据支撑」
-- 若任何 target idea 的 `novelty_score` 为空或 `novelty_score <= 2`：警告「idea 新颖性较弱，建议先运行 `/novelty`」
+- 若任何 target idea 的 `novelty_score` 为空或 `novelty_score <= 2`：警告「idea 新颖性较弱，建议先运行 `novelty`」
 - 若任何 target idea 的 `linked_experiments` 中没有任何一个 `succeeded` 结果：错误「至少需要一个支撑实验才能规划论文」
 
 ### Step 2: 从 Wiki 编译 Evidence Map
@@ -297,12 +296,12 @@ llm-review MCP chat tool:
    ```bash
    # plan → target idea
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
+     --from "outputspaper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
      --type derived_from --evidence "Paper plan built from this idea"
 
    # plan → key papers
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
+     --from "outputspaper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
      --type derived_from --evidence "Paper plan cites this paper"
    ```
 
@@ -347,8 +346,8 @@ llm-review MCP chat tool:
    ## Review LLM Review: score {X}/10, verdict: {verdict}
 
    ## Next Steps
-   - Run `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
-   - Resolve {verify_count} [UNCONFIRMED] citations before /paper-compile
+   - Run `paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` to draft the paper
+   - Resolve {verify_count} [UNCONFIRMED] citations before paper-compile
    ```
 
 ## Constraints
@@ -366,8 +365,8 @@ llm-review MCP chat tool:
 ## Error Handling
 
 - **idea 状态不足**：若所有 ideas 均为 `proposed`，报错「ideas 尚未验证，建议先运行实验」
-- **无 experiment evidence**：报错「至少需要一个实验结果」，建议先运行 /exp-design + /exp-run
-- **wiki papers 不足**：若 citation plan 中 wiki 论文 < 5 篇，警告「相关工作覆盖不足，建议先 /ingest 更多论文」
+- **无 experiment evidence**：报错「至少需要一个实验结果」，建议先运行 exp-design + exp-run
+- **wiki papers 不足**：若 citation plan 中 wiki 论文 < 5 篇，警告「相关工作覆盖不足，建议先 ingest 更多论文」
 - **page budget 超限**：自动将低优先级 section 移至 appendix 计划，报告调整
 - **Review LLM 不可用**：降级为 主 agent 自审，报告标注「single-model review — cross-model verification unavailable」
 - **BibTeX 获取失败**：标记 [UNCONFIRMED]，在 citation plan 报告中汇总
@@ -376,7 +375,7 @@ llm-review MCP chat tool:
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/research_wiki.py slug "<title>"` — 生成 slug
 - `python3 tools/research_wiki.py add-edge wiki/ ...` — 添加 graph edge
 - `python3 tools/research_wiki.py rebuild-context-brief wiki/` — 重建 query_pack
@@ -388,13 +387,13 @@ llm-review MCP chat tool:
 
 ### Agent Runtime Capabilities
 - `Read` — 读取 wiki 页面
-- `Glob` — 查找 ideas、experiments、methods、papers
-- `WebFetch` — DBLP / CrossRef BibTeX 获取（Step 6）
+- `glob` — 查找 ideas、experiments、methods、papers
+- `webfetch` — DBLP / CrossRef BibTeX 获取（Step 6）
 
 ### Shared References
 - `shared-references/academic-writing.md` — 叙事结构和章节设计原则
 - `shared-references/citation-verification.md` — 引用获取和验证规则
 
 ### Called by
-- `/research` Stage 5（论文写作阶段）
+- `research` Stage 5（论文写作阶段）
 - 用户手动调用

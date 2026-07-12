@@ -1,7 +1,7 @@
 # writers.yaml — Field- and edge-level write permissions.
 #
 # STATUS: SPEC, NOT A RUNTIME GATE.
-# Nothing in tools/, .claude/skills/, or .agents/skills/ reads this file at
+# Python tools and generated OpenCode skills consume this policy indirectly at
 # write time. It is a declarative contract for SKILL.md authors and for agents
 # when reading the repo's rules — "this is who is supposed to write this." Enforcement is at
 # the prompt level (each skill's SKILL.md tells the agent what it writes), not

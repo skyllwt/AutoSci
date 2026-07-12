@@ -1,10 +1,23 @@
 {
+  "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "llm-review": {
       "type": "local",
-      "command": ["python3", "mcp-servers/llm-review/server.py"],
-      "cwd": "${workspaceFolder}",
+      "command": ["/absolute/path/to/AutoSci/.venv/bin/python", "/absolute/path/to/AutoSci/mcp-servers/llm-review/server.py"],
       "enabled": true
     }
+  },
+  "permission": {
+    "skill": "allow",
+    "task": "allow",
+    "question": "allow",
+    "websearch": "allow",
+    "webfetch": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "edit": "ask",
+    "bash": "ask"
   }
 }

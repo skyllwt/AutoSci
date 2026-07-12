@@ -1,8 +1,8 @@
-# /init Parallel Ingest (Optional)
+# init Parallel Ingest (Optional)
 
 > ⚠️ **SANDBOX GATE** — this workflow requires `git worktree add`, concurrent subagent sessions, `git merge`, and `git stash`/`git branch -d`. Do **not** attempt in sandboxed environments where these operations are blocked. Use the default sequential ingest in `SKILL.md` Step 5 instead.
 
-Use this reference when the runtime supports full git operations and you want to fan out paper ingest across parallel `/ingest` subagents.
+Use this reference when the runtime supports full git operations and you want to fan out paper ingest across parallel `ingest` subagents.
 
 ## Pre-Fan-Out Safety
 
@@ -19,7 +19,7 @@ BASE_COMMIT=$(git rev-parse HEAD)
 ```
 
 - Record `stash_ref`, `base_branch`, and `base_commit` with `tools/research_wiki.py checkpoint-set-meta`.
-- `/init` worktree mode requires a named branch; stop on detached HEAD.
+- `init` worktree mode requires a named branch; stop on detached HEAD.
 
 ## Worktree Creation
 
@@ -37,8 +37,8 @@ git worktree add -b "$WT_BRANCH" "$WT_PATH" "$BASE_COMMIT"
 ## Subagent Prompt Contract
 
 - The subagent's shell working directory must be the worktree path (`$WT_PATH`), not the main repository root. All relative paths resolve from there.
-- Execute `/ingest` for exactly one relative source path.
-- Do not bypass `/ingest`.
+- Execute `ingest` for exactly one relative source path.
+- Do not bypass `ingest`.
 - In INIT MODE, consume the handed-off canonical path exactly as provided.
 - Skip `fetch_s2.py citations`.
 - Skip `fetch_s2.py references`.

@@ -1,6 +1,6 @@
 # Citation Discipline
 
-> Shared reference for all skills that generate citations: /paper-draft, /survey, /paper-plan.
+> Shared reference for all skills that generate citations: paper-draft, survey, paper-plan.
 > Every citation in a OmegaWiki output must be **verifiable** — never LLM-generated.
 
 ---
@@ -24,7 +24,7 @@ When a BibTeX entry **cannot** be fetched from any authoritative source:
 1. Generate a best-effort entry from available information (title, authors, year from wiki page)
 2. Prefix the BibTeX key with `UNCONFIRMED_`: `@article{UNCONFIRMED_smith2024attention, ...}`
 3. Add a comment: `% [UNCONFIRMED] BibTeX not confirmed from DBLP/CrossRef — manual check required`
-4. The `[UNCONFIRMED]` marker is a **hard blocker** for submission — /paper-compile must flag all remaining `[UNCONFIRMED]` entries
+4. The `[UNCONFIRMED]` marker is a **hard blocker** for submission — paper-compile must flag all remaining `[UNCONFIRMED]` entries
 
 ## Fetching BibTeX
 
@@ -32,17 +32,17 @@ When a BibTeX entry **cannot** be fetched from any authoritative source:
 
 ```bash
 # Search by title
-WebFetch: https://dblp.org/search/publ/api?q={url-encoded-title}&format=json&h=3
+webfetch: https://dblp.org/search/publ/api?q={url-encoded-title}&format=json&h=3
 
 # Parse response: .result.hits.hit[].info contains title, authors, venue, year, url
-# Get BibTeX: WebFetch the .url field + ".bib" suffix
+# Get BibTeX: webfetch the .url field + ".bib" suffix
 ```
 
 ### CrossRef (preferred for DOI)
 
 ```bash
 # Search by title
-WebFetch: https://api.crossref.org/works?query.bibliographic={url-encoded-title}&rows=3
+webfetch: https://api.crossref.org/works?query.bibliographic={url-encoded-title}&rows=3
 
 # Parse response: .message.items[] contains title, author, container-title, DOI
 # Construct BibTeX from structured data
@@ -68,19 +68,19 @@ Examples:
 
 ## Rules for Skills
 
-### /paper-draft
+### paper-draft
 1. After drafting each section, collect all `\cite{}` references
 2. For each citation: attempt DBLP → CrossRef → S2 in order
 3. Only include entries that are actually cited (`\nocite{*}` is forbidden)
 4. Write `references.bib` with fetched entries + [UNCONFIRMED] entries separated at bottom
 
-### /survey
+### survey
 1. Use `[[slug]]` wikilinks during drafting (wiki-internal format)
 2. When converting to LaTeX, resolve each `[[slug]]` to a `\cite{key}`
 3. The citation key must match a verified BibTeX entry
 4. If a wiki paper has no verifiable BibTeX, output `\cite{UNCONFIRMED_slug}` and flag
 
-### /paper-plan
+### paper-plan
 1. In the citation plan, list all wiki papers that will be cited
 2. Pre-fetch BibTeX for each planned citation (fail-fast: identify [UNCONFIRMED] entries early)
 3. Report citation coverage: how many are verified vs. [UNCONFIRMED]

@@ -1,7 +1,6 @@
 ---
 name: poster
 description: Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures and inter-section transitions
-argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
 # /poster
@@ -59,7 +58,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 ## Workflow
 
-**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run /paper-draft first."
+**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run paper-draft first."
 
 ### Step 0: Interactive header configuration
 
@@ -71,7 +70,7 @@ The flow uses interactive user prompts for the yes/no/layout choices, then asks 
 
    1. `--authors STR` flag → use that, do not prompt, do not persist.
    2. `--anonymous` flag → force "Anonymous", do not prompt, do not persist.
-   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `/paper-draft` is expected to seed this file during the writing stage; until then, `/poster` Step 0 maintains it (see below).
+   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `paper-draft` is expected to seed this file during the writing stage; until then, `/poster` Step 0 maintains it (see below).
    4. dag.json root `content` (from `\author{...}` in `main.tex`) is non-empty AND not literally "Anonymous" → use it, do not prompt.
    5. **Otherwise (anonymized paper, no cached display name)**: ASK the user.
 
@@ -516,7 +515,7 @@ Auto-applied; no user interaction.
 > **TASKS** (apply only where flagged by the checklist):
 >
 > **Task 1: Fix LaTeX / encoding leaks** (when `latex_leaks` non-empty)
-> - Replace raw LaTeX with HTML entities or Unicode (`\\textbf{x}` → `<strong>x</strong>`, `\\citep{key}` → `[N]`, `$d_S \\ge 10$` → `d_S ≥ 10`).
+> - Replace raw LaTeX with HTML entities or Unicode (`\\textbf{x}` → `<strong>x</strong>`, `\\citep{key}` → `[N]`, `d_S \\ge 10$` → `d_S ≥ 10`).
 >
 > **Task 2: Normalize section headers** (when `numbering_prefixes` non-empty)
 > - Strip leading `1.`, `2.1`, `A.`, `E.`, `- `, etc. from `<div class="section-bar">` contents.
@@ -543,7 +542,7 @@ Auto-applied; no user interaction.
 > ```
 >
 > **Screenshot**:
-> *(the contents of poster/poster.png attached via the Read tool — the primary agent reads it as an image)*
+> *(the contents of poster/poster.png attached via the read tool — the primary agent reads it as an image)*
 
 **Termination conditions**:
 - **Convergence (preferred)**: overflow.ok=true AND prose diff < 50 chars. Exit normally.
@@ -625,18 +624,18 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 - **Do not modify `paper/` source files**: this skill is read-only over LaTeX source (`main.tex`, `sections/*.tex`, `figures/`, `references.bib`, `math_commands.tex`). The only allowed writes to `paper/` are: (a) `paper/.author_display.txt` — Step 0 author cache; (b) `paper/figures/_tikz_<sec>_<label>.png` — rasterized TikZ figure cache (Step 1, see "TikZ figures" in Step 1's preservation list). The `_tikz_` prefix marks these as derived from `paper/sections/*.tex`; they're safe to delete (next run rebuilds). All other output goes to `poster/`.
 - **Do not create wiki entities or graph edges**: the poster is a presentation artifact.
-- **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `/paper-compile`.
+- **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `paper-compile`.
 - **Respect `--anonymous`**: when set, authors become "Anonymous" in both `dag.json` and the poster header.
 - **Max section limit**: hard-coded at 6 sections to keep the poster legible at 1400×900. Sections are selected from the priority list in Step 2.5; Related Work / Background / Appendix get dropped first when papers have more sections than the cap.
 - **40-word summary**: per the poster_outline_prompt, each section paragraph stays ≤ 40 words before transitions are added.
 - **De-AI polish is mandatory**: per `shared-references/academic-writing.md`. Avoid signature openings ("In this work", "We propose", "Our approach"), replace inflated verbs ("leverage" → "use", "delve" → "examine").
 - **Strict template injection**: `tools/poster.py build` only injects between `<div class="flow" id="flow">...</div>`; do not edit the template's CSS or JavaScript fit algorithm.
-- **Figure selection is interactive by default**: omitting both `--auto-figures` and `--no-figures` runs the Step 2.5 manifest + question flow. The flags are user-owned per CLAUDE.md rule 5 — do not infer them; ask if unsure which mode to use.
+- **Figure selection is interactive by default**: omitting both `--auto-figures` and `--no-figures` runs the Step 2.5 manifest + question flow. The flags are user-owned per AGENTS.md rule 5 — do not infer them; ask if unsure which mode to use.
 - **No special layout for wide figures**: every figure renders inline within its `<section>`. The `wide` flag on visual nodes is informational only — used to surface the ⚠ marker in the manifest so the user can pick an alternative or skip a cramped figure. A future figure-generation skill is expected to solve the aspect-ratio problem upstream by producing poster-fit figures.
 
 ## Error Handling
 
-- **`paper/main.tex` not found**: error with "Run /paper-draft first to generate the paper."
+- **`paper/main.tex` not found**: error with "Run paper-draft first to generate the paper."
 - **No sections found in `\input{sections/...}`**: error with the list of files searched; suggest checking `main.tex` for non-standard section includes.
 - **No figures referenced**: continue with text-only sections; warn in POSTER_REPORT.
 - **`pdftoppm` not installed**: PDF figures fail to convert; warn and suggest `brew install poppler` (macOS) or `apt install poppler-utils` (Linux). The poster will still render but with broken image refs for those figures.
@@ -650,7 +649,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 ## Dependencies
 
-### Tools (via Bash)
+### Tools (via bash)
 - `python3 tools/wiki2dag.py build --paper-dir <dir> --output <path> [--anonymous] [--citations]` — build dag.json; `--citations` opts back in to inline `[N]` markers (default: dropped, no reference list on the poster)
 - `python3 tools/poster.py build --template <path> --outline <path> --output <path>` — inject outline
 - `python3 tools/poster.py inject-title --dag <path> <poster.html> [--anonymous] [--authors STR]` — set title/authors; `--authors` overrides dag.json's author field when the paper was anonymized at the source
@@ -673,7 +672,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 - `Read` — read .tex, dag.json, outline.html
 - `Write` — write outline.html
 - `Edit` — apply transition sentences to outline.html
-- `Bash` — invoke wiki2dag, poster, research_wiki tools
+- `bash` — invoke wiki2dag, poster, research_wiki tools
 
 ### Shared References
 - `shared-references/academic-writing.md` — de-AI polish standards
@@ -681,4 +680,4 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 ### Called by
 - Manual user invocation
-- Future: `/research` Stage 5b (post paper-compile)
+- Future: `research` Stage 5b (post paper-compile)

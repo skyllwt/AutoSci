@@ -1,15 +1,14 @@
 ---
 name: novelty
-description: 多源 novelty 验证：WebSearch + Semantic Scholar + wiki + Review LLM cross-verify，输出 novelty 评分与建议。可选 --write，把分数写回 idea 页面。
-argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
+description: 多源 novelty 验证：websearch + Semantic Scholar + wiki + Review LLM cross-verify，输出 novelty 评分与建议。可选 --write，把分数写回 idea 页面。
 ---
 
-# /novelty
+# novelty
 
-> 对一个研究想法或方法进行多源 novelty 验证。搜索 WebSearch、Semantic Scholar、
+> 对一个研究想法或方法进行多源 novelty 验证。搜索 websearch、Semantic Scholar、
 > wiki 内已有工作和 arXiv 最新预印本，然后由 Review LLM 交叉验证，输出 novelty 评分（1-5）、
 > 最相似已有工作、差异化要点和下一步建议。
-> 可独立使用，也被 /ideate Phase 4 调用。
+> 可独立使用，也被 ideate Phase 4 调用。
 
 ## Inputs
 
@@ -19,7 +18,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
   - 论文标题或 arXiv URL（检查该论文方法的 novelty）
 - `--quick`：快速模式，跳过 Review LLM cross-verify（Step 3），仅做搜索
 - `--verbose`：输出完整搜索结果，不仅是摘要
-- `--write`（可选，默认 **关闭**）：把得到的 `novelty_score` 持久化到 target frontmatter。**仅当 `target` 是 idea slug**（即 `wiki/ideas/{slug}.md` 存在）时生效。自由文本 target 与论文 novelty 检查无论是否带此 flag 都保持只读。视为用户可见参数 —— `/ideate` Phase 4 调用 `/novelty` 时显式传入；不得仅根据仓库状态推断。
+- `--write`（可选，默认 **关闭**）：把得到的 `novelty_score` 持久化到 target frontmatter。**仅当 `target` 是 idea slug**（即 `wiki/ideas/{slug}.md` 存在）时生效。自由文本 target 与论文 novelty 检查无论是否带此 flag 都保持只读。视为用户可见参数 —— `ideate` Phase 4 调用 `novelty` 时显式传入；不得仅根据仓库状态推断。
 
 ## Outputs
 
@@ -64,7 +63,7 @@ argument-hint: <idea-description-or-slug> [--quick] [--verbose] [--write]
 
 ### Step 2: 多源搜索
 
-并行执行以下搜索（使用 Agent tool 并发）：
+并行执行以下搜索（使用 task tool 并发）：
 
 **Source A — Web Search（5+ 查询）：**
 1. 直接查询：`"<method-name>" + "<task>"` 精确短语搜索
@@ -96,7 +95,7 @@ python3 tools/fetch_deepxiv.py brief <arxiv_id>
 4. 读取 `wiki/graph/context_brief.md` 获取全局视角
 
 **Source D — arXiv 近期预印本：**
-- 使用 WebSearch 查询 `site:arxiv.org <method-keywords> 2025 2026`
+- 使用 websearch 查询 `site:arxiv.org <method-keywords> 2025 2026`
 
 ### Step 3: Review LLM 交叉验证
 
@@ -184,22 +183,22 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - **`--write` 对非 idea target 无效**：target 是自由文本或 paper slug 时，忽略 `--write`，仍输出只读报告。
 - **保守评分**：宁可低估 novelty 也不高估，避免在已有工作上浪费精力
 - **必须检查 failed ideas**：wiki/ideas/ 中 status=failed 的 ideas 是重要的 anti-repetition 信号
-- **搜索覆盖面**：至少 5 个不同的 WebSearch 查询 + Semantic Scholar + wiki 内部搜索
+- **搜索覆盖面**：至少 5 个不同的 websearch 查询 + Semantic Scholar + wiki 内部搜索
 - **Review LLM 独立性**：提交给 Review LLM 时不包含 主 agent 自己的 novelty 判断，让 Review LLM 独立评估
-- **引用真实来源**：报告中列出的所有 prior work 必须是真实存在的（WebSearch/S2 返回的），不得编造
+- **引用真实来源**：报告中列出的所有 prior work 必须是真实存在的（websearch/S2 返回的），不得编造
 
 ## Error Handling
 
-- **WebSearch 不可用**：跳过 Source A 和 D，仅依赖 S2 + wiki 搜索，在报告中注明覆盖面不足
-- **Semantic Scholar API 不可用**：跳过 S2 部分，依赖 DeepXiv + WebSearch 补偿
-- **DeepXiv API 不可用**：跳过 DeepXiv 部分，依赖 S2 + WebSearch（回退到原有行为）
+- **websearch 不可用**：跳过 Source A 和 D，仅依赖 S2 + wiki 搜索，在报告中注明覆盖面不足
+- **Semantic Scholar API 不可用**：跳过 S2 部分，依赖 DeepXiv + websearch 补偿
+- **DeepXiv API 不可用**：跳过 DeepXiv 部分，依赖 S2 + websearch（回退到原有行为）
 - **Review LLM 不可用**：跳过 Step 3，报告标注「Review LLM cross-verify unavailable, single-model assessment only」
 - **Wiki 为空**：正常执行外部搜索，wiki 内部搜索部分标注「wiki empty」
 - **idea slug 不存在**：提示用户检查 slug，列出 wiki/ideas/ 中的可用 slugs
 
 ## Dependencies
 
-### Tools（via Bash）
+### Tools（via bash）
 - `python3 tools/fetch_s2.py search "<query>" --limit 20` — Semantic Scholar 关键词搜索
 - `python3 tools/fetch_s2.py paper <s2_id>` — 获取论文详情
 - `python3 tools/fetch_deepxiv.py search "<query>" --mode hybrid --limit 20` — DeepXiv 语义搜索
@@ -211,8 +210,10 @@ python3 tools/research_wiki.py log wiki/ "novelty | wrote novelty_score=${N} to 
 - `llm-review MCP chat tool` — Review LLM 交叉验证（Step 3）
 
 ### Agent Runtime Capabilities
-- `WebSearch` — 多查询 web 搜索（Step 2 Source A + D）
-- `Agent` tool — 并行执行多源搜索（Step 2）
+- `websearch` — 多查询 web 搜索（Step 2 Source A + D）
+- `task` tool — 并行执行多源搜索（Step 2）
 
 ### Shared References
 - `shared-references/cross-model-review.md`（Phase 2 创建，Review LLM 独立性原则）
+
+> If `websearch` is unavailable, prefer the project Python retrieval tools and explicitly label the reduced coverage as degraded.

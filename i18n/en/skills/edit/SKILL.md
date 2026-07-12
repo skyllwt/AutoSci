@@ -1,16 +1,15 @@
 ---
 name: edit
 description: Add or remove raw sources, or update wiki content, per user request
-argument-hint: "[request]"
 ---
 
-# /edit
+# edit
 
 > Add or remove raw sources, or update wiki content, per user request.
 
 ## Trigger
 
-User manual: `/edit <user request>`
+User manual: `edit <user request>`
 
 ## Inputs
 
@@ -39,7 +38,7 @@ Updated wiki files, `index.md`, `log.md`
 
 ### STEP 2: Execute Updates
 
-1. Newly added raw sources can later be incorporated into the wiki via `/ingest`
+1. Newly added raw sources can later be incorporated into the wiki via `ingest`
 2. Direct wiki modifications: update the specified fields/content in specific pages per user instructions
 3. When writing forward links, simultaneously write reverse links
 
