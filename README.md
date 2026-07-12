@@ -66,10 +66,10 @@ Current boundary:
 | Area | Status |
 |---|---|
 | Local Codex skills | Preview supported via `.agents/skills` |
-| Claude Code skills | Still supported via `.claude/skills` |
-| Shared skill source | `i18n/<lang>/skills` regenerates both active skill trees |
-| Daily arXiv CI inform recommendations | Codex supported |
-| Daily arXiv CI auto-ingest/writeback | Still uses the legacy Claude Code Action path until unattended Codex writeback is verified |
+| Runtime scope | Codex-only; Claude Code remains available separately on `main` |
+| Shared skill source | `i18n/<lang>/skills` regenerates the active `.agents/skills` tree |
+| Review LLM | Optional `llm-review` MCP configured through the Codex config example |
+| Daily arXiv | CI is recommendation-only; no repository writeback or unattended ingest |
 
 See [docs/codex-preview.md](docs/codex-preview.md) for the preview notes and known boundaries.
 
@@ -128,8 +128,7 @@ Published a separate OpenCode adaptation while keeping the existing Claude Code 
 
 ### 🛠️ 2026-07-10 · autosci-codex branch adaptation
 
-Ported the project from a Claude Code-first baseline to a Codex-adapted branch on top of `main`: standardized runtime-facing docs, aligned setup/sync behavior, and updated workflow expectations for Codex compatibility.  
-Key functional change in this cycle: `/research` no longer auto-implements bootstrap ingest logic on cold wiki; it now delegates bootstrap explicitly to `/init` / `$init` and proceeds only after bootstrap completion.
+Published a separate Codex-only adaptation while keeping the stable Claude Code release on `main` and the OpenCode Preview on `autosci-opencode`. The Codex branch provides bilingual skills under `.agents/skills`, root `AGENTS.md` instructions, Codex-specific setup and Review LLM configuration, and recommendation-only daily-arXiv CI without Claude Action authentication, automatic ingest, or repository writeback. The `$research` workflow delegates cold-wiki bootstrap to `$init` and proceeds only after bootstrap completes.
 
 ### 🛠️ 2026-05-19 · Experiment Overhaul
 
@@ -347,7 +346,7 @@ codex --version
 chmod +x setup.sh && ./setup.sh        # Linux / macOS
 # Windows (PowerShell):
 #   powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# setup creates .venv and syncs both .claude/skills and .agents/skills
+# setup creates .venv and syncs the Codex `.agents/skills` tree
 
 # 4. Put your own papers in raw/papers/ (.tex or .pdf)
 #    Optional: intent notes in raw/notes/, saved pages in raw/web/
@@ -357,9 +356,11 @@ codex
 # Then invoke: $init [your-research-topic]
 ```
 
-Claude Code users can still use the same checkout:
+Claude Code users should use the stable `main` branch instead:
 
 ```bash
+git clone -b main https://github.com/skyllwt/AutoSci.git
+cd AutoSci
 npm install -g @anthropic-ai/claude-code
 claude login
 claude
