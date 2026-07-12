@@ -10,6 +10,7 @@
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
 [![Claude Code](https://img.shields.io/badge/main-Claude_Code_stable-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
 [![Codex Preview](https://img.shields.io/badge/Codex-preview-111111.svg)](https://developers.openai.com/codex)
+[![OpenCode Preview](https://img.shields.io/badge/OpenCode-preview-6f42c1.svg)](https://opencode.ai/)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
 [![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
@@ -22,7 +23,31 @@
 
 > **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
 
-> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. This [`migrate-codex`](https://github.com/skyllwt/AutoSci/tree/migrate-codex) branch is the **official Codex Preview**: local Codex skills are available under `.agents/skills`, while Claude Code compatibility is preserved under `.claude/skills`. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
+> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. [`migrate-codex`](https://github.com/skyllwt/AutoSci/tree/migrate-codex) is the **official Codex Preview**, and [`opencode-update`](https://github.com/skyllwt/AutoSci/tree/opencode-update) is the **official OpenCode Preview**. These are separate runtime adaptations; the existing Claude Code and Codex versions remain available. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
+
+### OpenCode Preview
+
+Try the OpenCode adaptation without changing your Claude Code or Codex checkout:
+
+```bash
+git clone -b opencode-update https://github.com/skyllwt/AutoSci.git
+cd AutoSci
+./setup.sh --lang en
+opencode
+# Then ask OpenCode to run the init skill for your research topic.
+```
+
+Current boundary:
+
+| Area | Status |
+|---|---|
+| Local OpenCode skills | Preview supported via generated `.opencode/skills` |
+| Runtime instructions | Root `AGENTS.md`, generated from the selected language |
+| Shared skill source | `i18n/<lang>/skills` remains the bilingual source of truth |
+| Review LLM | Local `llm-review` MCP configured through generated `opencode.json` |
+| Daily arXiv | Recommendation-only; standalone OpenAI-compatible API with deterministic fallback and optional email |
+
+The OpenCode preview does not replace the Claude Code stable release or the Codex Preview.
 
 ### Codex Preview
 
@@ -96,6 +121,10 @@ If you find AutoSci useful in your research, please [cite our paper](#citation).
 ---
 
 ## 🆕 What's New
+
+### 🛠️ 2026-07-12 · OpenCode Preview adaptation
+
+Published a separate OpenCode adaptation while keeping the existing Claude Code stable release and Codex Preview available. The OpenCode branch provides bilingual project skills under `.opencode/skills`, root `AGENTS.md` instructions, generated machine-local configuration, and `llm-review` MCP integration. Its daily-arXiv automation is recommendation-only and uses a standalone OpenAI-compatible API with deterministic fallback, optional best-effort email, and digest artifacts without repository writeback.
 
 ### 🛠️ 2026-07-10 · migrate-codex branch codex adaptation
 
@@ -272,6 +301,32 @@ The following papers were generated end-to-end using AutoSci — from literature
 | Forced Honesty Dissociates Polite Speech from Motivated Cognition in LLM Attitude Ratings | LLMs as cognitive models | [📄 PDF](assets/papers/llm-positivity-bias-cognitive-models.pdf) |
 
 **Have you used AutoSci in your own research?** We'd love to feature your work here — open a PR or drop us a message!
+
+---
+
+## OpenCode Preview Quick Start
+
+**Prerequisites:** Python 3.9+, Node.js 18+, and OpenCode
+
+```bash
+# 1. Clone the OpenCode Preview branch
+git clone -b opencode-update https://github.com/skyllwt/AutoSci.git
+cd AutoSci
+
+# 2. Verify OpenCode
+opencode --version
+
+# 3. Generate the local environment, skills, AGENTS.md, and opencode.json
+chmod +x setup.sh && ./setup.sh --lang en
+
+# 4. Add your papers and optional notes
+#    raw/papers/  raw/notes/  raw/web/
+
+# 5. Start OpenCode and load the init skill
+opencode
+```
+
+The generated `.opencode/` tree and `opencode.json` are machine-local and should not be committed. The English and Chinese sources under `i18n/` remain authoritative.
 
 ---
 
