@@ -23,14 +23,14 @@
 
 > **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
 
-> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. [`migrate-codex`](https://github.com/skyllwt/AutoSci/tree/migrate-codex) is the **official Codex Preview**, and [`opencode-update`](https://github.com/skyllwt/AutoSci/tree/opencode-update) is the **official OpenCode Preview**. These are separate runtime adaptations; the existing Claude Code and Codex versions remain available. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
+> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. [`autosci-codex`](https://github.com/skyllwt/AutoSci/tree/autosci-codex) is the **official Codex Preview**, and [`autosci-opencode`](https://github.com/skyllwt/AutoSci/tree/autosci-opencode) is the **official OpenCode Preview**. These are separate runtime adaptations; the existing Claude Code and Codex versions remain available. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
 
 ### OpenCode Preview
 
 Try the OpenCode adaptation without changing your Claude Code or Codex checkout:
 
 ```bash
-git clone -b opencode-update https://github.com/skyllwt/AutoSci.git
+git clone -b autosci-opencode https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 ./setup.sh --lang en
 opencode
@@ -54,7 +54,7 @@ The OpenCode preview does not replace the Claude Code stable release or the Code
 Try the Codex preview without changing your `main` checkout:
 
 ```bash
-git clone -b migrate-codex https://github.com/skyllwt/AutoSci.git
+git clone -b autosci-codex https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 ./setup.sh --lang en
 codex
@@ -126,7 +126,7 @@ If you find AutoSci useful in your research, please [cite our paper](#citation).
 
 Published a separate OpenCode adaptation while keeping the existing Claude Code stable release and Codex Preview available. The OpenCode branch provides bilingual project skills under `.opencode/skills`, root `AGENTS.md` instructions, generated machine-local configuration, and `llm-review` MCP integration. Its daily-arXiv automation is recommendation-only and uses a standalone OpenAI-compatible API with deterministic fallback, optional best-effort email, and digest artifacts without repository writeback.
 
-### 🛠️ 2026-07-10 · migrate-codex branch codex adaptation
+### 🛠️ 2026-07-10 · autosci-codex branch adaptation
 
 Ported the project from a Claude Code-first baseline to a Codex-adapted branch on top of `main`: standardized runtime-facing docs, aligned setup/sync behavior, and updated workflow expectations for Codex compatibility.  
 Key functional change in this cycle: `/research` no longer auto-implements bootstrap ingest logic on cold wiki; it now delegates bootstrap explicitly to `/init` / `$init` and proceeds only after bootstrap completion.
@@ -310,7 +310,7 @@ The following papers were generated end-to-end using AutoSci — from literature
 
 ```bash
 # 1. Clone the OpenCode Preview branch
-git clone -b opencode-update https://github.com/skyllwt/AutoSci.git
+git clone -b autosci-opencode https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 
 # 2. Verify OpenCode
@@ -336,7 +336,7 @@ The generated `.opencode/` tree and `opencode.json` are machine-local and should
 
 ```bash
 # 1. Clone the Codex Preview branch
-git clone -b migrate-codex https://github.com/skyllwt/AutoSci.git
+git clone -b autosci-codex https://github.com/skyllwt/AutoSci.git
 cd AutoSci
 
 # 2. Install and sign in to Codex
