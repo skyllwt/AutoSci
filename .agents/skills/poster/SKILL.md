@@ -4,7 +4,7 @@ description: Generate an academic poster from a drafted paper — distill sectio
 argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
-# /poster
+# $poster
 
 > Generate an academic HTML poster from a drafted paper. Reads `paper/main.tex`,
 > section files, and figures; builds a PaperX-compatible `dag.json` intermediate;
@@ -59,7 +59,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
 ## Workflow
 
-**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run `/paper-draft` in Claude Code or `$paper-draft` in Codex first."
+**Precondition**: confirm `paper/main.tex` exists. If not, error with "Run `$paper-draft` in Codex or `$paper-draft` in Codex first."
 
 ### Step 0: Interactive header configuration
 
@@ -71,7 +71,7 @@ The flow uses interactive user prompts for the yes/no/layout choices, then asks 
 
    1. `--authors STR` flag → use that, do not prompt, do not persist.
    2. `--anonymous` flag → force "Anonymous", do not prompt, do not persist.
-   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `/paper-draft` is expected to seed this file during the writing stage; until then, `/poster` Step 0 maintains it (see below).
+   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `$paper-draft` is expected to seed this file during the writing stage; until then, `$poster` Step 0 maintains it (see below).
    4. dag.json root `content` (from `\author{...}` in `main.tex`) is non-empty AND not literally "Anonymous" → use it, do not prompt.
    5. **Otherwise (anonymized paper, no cached display name)**: ASK the user.
 
@@ -80,7 +80,7 @@ The flow uses interactive user prompts for the yes/no/layout choices, then asks 
      - `"Keep 'Anonymous' (double-blind submission)"` (Recommended)
      - `"Provide author names (I'll ask for the string)"`
    - If "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors string.
-   - **Persist the answer** to `paper/.author_display.txt` (one line, no trailing newline beyond the string). On the *next* `/poster` run, the file exists → step 0 Q1 is silent. To change later, the user edits or deletes that file.
+   - **Persist the answer** to `paper/.author_display.txt` (one line, no trailing newline beyond the string). On the *next* `$poster` run, the file exists → step 0 Q1 is silent. To change later, the user edits or deletes that file.
    - Either branch ("Keep Anonymous" or a provided string) gets persisted — the goal is *no more prompts unless the user opts back in by removing the file*.
 
 2. **Venue text** — if `--venue` was not provided:
@@ -625,7 +625,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 - **Do not modify `paper/` source files**: this skill is read-only over LaTeX source (`main.tex`, `sections/*.tex`, `figures/`, `references.bib`, `math_commands.tex`). The only allowed writes to `paper/` are: (a) `paper/.author_display.txt` — Step 0 author cache; (b) `paper/figures/_tikz_<sec>_<label>.png` — rasterized TikZ figure cache (Step 1, see "TikZ figures" in Step 1's preservation list). The `_tikz_` prefix marks these as derived from `paper/sections/*.tex`; they're safe to delete (next run rebuilds). All other output goes to `poster/`.
 - **Do not create wiki entities or graph edges**: the poster is a presentation artifact.
-- **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `/paper-compile`.
+- **Reuse compiled figures**: do not regenerate figures from `paper/figures/plot_*.py`. The user already ran `$paper-compile`.
 - **Respect `--anonymous`**: when set, authors become "Anonymous" in both `dag.json` and the poster header.
 - **Max section limit**: hard-coded at 6 sections to keep the poster legible at 1400×900. Sections are selected from the priority list in Step 2.5; Related Work / Background / Appendix get dropped first when papers have more sections than the cap.
 - **40-word summary**: per the poster_outline_prompt, each section paragraph stays ≤ 40 words before transitions are added.
@@ -636,7 +636,7 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 ## Error Handling
 
-- **`paper/main.tex` not found**: error with "Run `/paper-draft` in Claude Code or `$paper-draft` in Codex first to generate the paper."
+- **`paper/main.tex` not found**: error with "Run `$paper-draft` in Codex or `$paper-draft` in Codex first to generate the paper."
 - **No sections found in `\input{sections/...}`**: error with the list of files searched; suggest checking `main.tex` for non-standard section includes.
 - **No figures referenced**: continue with text-only sections; warn in POSTER_REPORT.
 - **`pdftoppm` not installed**: PDF figures fail to convert; warn and suggest `brew install poppler` (macOS) or `apt install poppler-utils` (Linux). The poster will still render but with broken image refs for those figures.
@@ -681,4 +681,4 @@ or **Ctrl+P** (Win/Linux) → **Save as PDF**. Recommended print settings:
 
 ### Called by
 - Manual user invocation
-- Future: `/research` Stage 5b (post paper-compile)
+- Future: `$research` Stage 5b (post paper-compile)

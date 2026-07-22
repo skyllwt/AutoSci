@@ -4,7 +4,7 @@ description: Generate an academic poster from a drafted paper — distill sectio
 argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
-# /poster
+# $poster
 
 > Generate an academic HTML poster from a drafted paper. Reads `paper/main.tex`,
 > section files, and figures; builds a PaperX-compatible `dag.json` intermediate;
@@ -71,7 +71,7 @@ The flow uses interactive user prompts for the yes/no/layout choices, then asks 
 
    1. `--authors STR` flag → use that, do not prompt, do not persist.
    2. `--anonymous` flag → force "Anonymous", do not prompt, do not persist.
-   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `$paper-draft` is expected to seed this file during the writing stage; until then, `/poster` Step 0 maintains it (see below).
+   3. `paper/.author_display.txt` exists → use its content, do not prompt. This is the "ask once, reuse" cache. Future `$paper-draft` is expected to seed this file during the writing stage; until then, `$poster` Step 0 maintains it (see below).
    4. dag.json root `content` (from `\author{...}` in `main.tex`) is non-empty AND not literally "Anonymous" → use it, do not prompt.
    5. **Otherwise (anonymized paper, no cached display name)**: ASK the user.
 
@@ -80,7 +80,7 @@ The flow uses interactive user prompts for the yes/no/layout choices, then asks 
      - `"Keep 'Anonymous' (double-blind submission)"` (Recommended)
      - `"Provide author names (I'll ask for the string)"`
    - If "Provide author names": ask free-text *"What author string should appear? e.g. `Morrow Yang, Co-Author Name`. Reply with the string, or `skip` to keep 'Anonymous'."* Take the next user message as the authors string.
-   - **Persist the answer** to `paper/.author_display.txt` (one line, no trailing newline beyond the string). On the *next* `/poster` run, the file exists → step 0 Q1 is silent. To change later, the user edits or deletes that file.
+   - **Persist the answer** to `paper/.author_display.txt` (one line, no trailing newline beyond the string). On the *next* `$poster` run, the file exists → step 0 Q1 is silent. To change later, the user edits or deletes that file.
    - Either branch ("Keep Anonymous" or a provided string) gets persisted — the goal is *no more prompts unless the user opts back in by removing the file*.
 
 2. **Venue text** — if `--venue` was not provided:

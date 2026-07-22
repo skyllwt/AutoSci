@@ -1220,7 +1220,7 @@ a.chip.tag:hover { background: rgba(74, 144, 217, 0.32); cursor: pointer; }
   margin-top: 0;
 }
 
-/* /check inline lint card */
+/* $check inline lint card */
 .lint-card {
   background: var(--muted-bg);
   border-radius: 8px;
@@ -1331,7 +1331,7 @@ a.chip.tag:hover { background: rgba(74, 144, 217, 0.32); cursor: pointer; }
 .lint-fix-preview { margin: 0.3rem 0 0 1rem; padding: 0; }
 .lint-fix-preview li { margin: 2px 0; }
 
-/* /discover checkpoint browser */
+/* $discover checkpoint browser */
 .checkpoint-browser {
   background: var(--muted-bg);
   border-radius: 8px;

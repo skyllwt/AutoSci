@@ -4,14 +4,14 @@ description: Seed wiki/foundations/ with domain background knowledge so later in
 argument-hint: "[domain] [--add 'concept name']"
 ---
 
-# /prefill
+# $prefill
 
 > Sediments foundational background (seminal methods, common practice, standard architectures) into `wiki/foundations/` as **terminal** pages.
 > Foundations are single-direction by design: other pages link to them, foundations write no reverse links.
 
 ## Trigger
 
-Manual: `/prefill [domain]` in Claude Code or `$prefill [domain]` in Codex; `/prefill --add "concept name"` in Claude Code or `$prefill --add "concept name"` in Codex.
+Manual: `$prefill [domain]` in Codex or `$prefill [domain]` in Codex; `$prefill --add "concept name"` in Codex or `$prefill --add "concept name"` in Codex.
 
 ## Inputs
 
@@ -132,7 +132,7 @@ Print a grouped summary:
 - foundations/recurrent-neural-networks — Recurrent Neural Networks
 ```
 
-Remind the user that subsequent `/ingest` runs in Claude Code or `$ingest` runs in Codex will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
+Remind the user that subsequent `$ingest` runs in Codex or `$ingest` runs in Codex will dedup against these foundations and create wikilinks (`[[foundation-slug]]`) instead of new concept pages.
 
 ## Constraints
 

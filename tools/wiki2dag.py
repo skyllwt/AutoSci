@@ -17,7 +17,7 @@ dag.json schema:
   ]
 }
 
-This bridge is LaTeX-only. Wiki entity enrichment happens in the /poster
+This bridge is LaTeX-only. Wiki entity enrichment happens in the $poster
 or $poster SKILL.md, where the coding agent can read PAPER_PLAN and linked wiki/ideas/*.md to
 inform per-section distillation prompts.
 """
@@ -706,7 +706,7 @@ def _extract_authors(
 
     Precedence (first non-empty wins):
       1. `paper/.author_display.txt` — paper-level metadata that survives
-         across /poster runs and other output skills. Lets the user answer
+         across $poster runs and other output skills. Lets the user answer
          once and never be re-prompted. Future $paper-draft is expected to
          seed this file during the writing stage.
       2. `\\author{...}` from main.tex — the canonical paper authors. Often

@@ -361,7 +361,7 @@ export async function viewEntity(mount, type, slug) {
   applyJustAddedHighlight(type, slug);
 }
 
-// --- Phase 5: context-aware /skill intent buttons --------------------------
+// --- Phase 5: context-aware $skill intent buttons --------------------------
 
 function renderIntentButtons(type, slug, fm) {
   const buttons = [];

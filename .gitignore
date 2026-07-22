@@ -26,15 +26,15 @@ Thumbs.db
 # Virtual environment
 .venv/
 
-# Local and CI scratch files for /daily-arxiv runs
+# Local and CI scratch files for $daily-arxiv runs
 .daily-arxiv/
 
 # ---------------------------------------------------------------------------
 # Per-user data — NEVER commit, NEVER push to upstream.
 #
 # Origin's wiki/{papers,concepts,...}/ and raw/* contain only .gitkeep
-# placeholders; the actual content is generated locally by /init, /ingest,
-# /exp-run, etc. Each user's wiki is theirs; pushing it back pollutes the
+# placeholders; the actual content is generated locally by $init, $ingest,
+# $exp-run, etc. Each user's wiki is theirs; pushing it back pollutes the
 # template repo. Rules below ignore content but keep the .gitkeep scaffolds.
 # ---------------------------------------------------------------------------
 
@@ -85,15 +85,15 @@ wiki/graph/*
 # Skill-generated runtime state (regenerated each invocation)
 # ---------------------------------------------------------------------------
 
-# /init session state
+# $init session state
 .checkpoints/
 wiki/.checkpoints/
 
-# /exp-run generated experiment code
+# $exp-run generated experiment code
 experiments/code/
 
-# /visualize generated artifacts (regenerated from config/visualize.json
-# + wiki/graph/ at /init Step 6 or direct /visualize)
+# $visualize generated artifacts (regenerated from config/visualize.json
+# + wiki/graph/ at $init Step 6 or direct $visualize)
 wiki/.obsidian/
 wiki/canvases/
 wiki/graph-view.html

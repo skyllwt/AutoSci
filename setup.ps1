@@ -7,7 +7,7 @@
 #
 # Mirrors setup.sh: prerequisites -> venv + deps -> config -> activate i18n -> verify.
 # API key configuration (Semantic Scholar, DeepXiv, Review LLM) is handled
-# interactively by your coding agent - run /setup in Claude Code or $setup in Codex.
+# interactively by Codex - run $setup.
 # ============================================================================
 
 [CmdletBinding()]
@@ -74,15 +74,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Ok "pip available"
 
-$HaveClaude = $false
 $HaveCodex = $false
-if (Get-Command claude -ErrorAction SilentlyContinue) {
-    $HaveClaude = $true
-    Write-Ok "Claude Code installed"
-} else {
-    Write-Warn2 "Claude Code not found."
-}
-
 if (Get-Command codex -ErrorAction SilentlyContinue) {
     $HaveCodex = $true
     Write-Ok "Codex installed"
@@ -90,15 +82,13 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
     Write-Warn2 "Codex not found."
 }
 
-if (-not $HaveClaude -and -not $HaveCodex) {
+if (-not $HaveCodex) {
     Write-Host ""
-    Write-Host "  Install at least one coding-agent runtime to use AutoSci skills:"
-    Write-Host "    npm install -g @anthropic-ai/claude-code"
-    Write-Host "    # or install Codex from your OpenAI/Codex setup path"
+    Write-Host "  Install Codex from your OpenAI/Codex setup path to use AutoSci skills."
     Write-Host ""
     $reply = Read-Host "  Continue setup without a coding agent? [y/N]"
     if ($reply -notmatch '^[Yy]$') {
-        Write-Host "  Install Claude Code or Codex first, then re-run setup.ps1"
+        Write-Host "  Install Codex first, then re-run setup.ps1"
         exit 1
     }
 }
@@ -144,44 +134,31 @@ try {
         Write-Ok "Created .env from template"
     }
 
-    if (-not (Test-Path ".claude")) { New-Item -ItemType Directory -Path ".claude" | Out-Null }
-    if (Test-Path ".claude\settings.local.json") {
-        Write-Warn2 ".claude\settings.local.json already exists, not overwriting"
-    } else {
-        Copy-Item "config\settings.local.json.example" ".claude\settings.local.json"
-        Write-Ok "Created .claude\settings.local.json"
-    }
-
     # -- Step 3b: Activate language files ----------------------------------
     Write-Host ""
     Write-Info "Activating language: $Lang"
-    Copy-Item (Join-Path $I18nDir "CLAUDE.md") "CLAUDE.md" -Force
     $AgentsSource = Join-Path $I18nDir "AGENTS.md"
-    if (Test-Path $AgentsSource) {
-        Copy-Item $AgentsSource "AGENTS.md" -Force
-    }
+    Copy-Item $AgentsSource "AGENTS.md" -Force
 
     $skillsSrc = Join-Path $I18nDir "skills"
-    foreach ($agentSkillsDir in @(".claude\skills", ".agents\skills")) {
-        if (-not (Test-Path $agentSkillsDir)) { New-Item -ItemType Directory -Path $agentSkillsDir -Force | Out-Null }
-        Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
-            $name = $_.Name
-            $destDir = Join-Path $agentSkillsDir $name
-            if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
-            Copy-Item (Join-Path $_.FullName "*") $destDir -Recurse -Force
-        }
-
-        $sharedDest = Join-Path $agentSkillsDir "shared-references"
-        if (-not (Test-Path $sharedDest)) { New-Item -ItemType Directory -Path $sharedDest -Force | Out-Null }
-        Get-ChildItem -Path (Join-Path $I18nDir "shared-references") -Filter "*.md" | ForEach-Object {
-            Copy-Item $_.FullName (Join-Path $sharedDest $_.Name) -Force
-        }
+    $agentSkillsDir = ".agents\skills"
+    if (-not (Test-Path $agentSkillsDir)) { New-Item -ItemType Directory -Path $agentSkillsDir -Force | Out-Null }
+    Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
+        $name = $_.Name
+        $destDir = Join-Path $agentSkillsDir $name
+        if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Path $destDir -Force | Out-Null }
+        Copy-Item (Join-Path $_.FullName "*") $destDir -Recurse -Force
     }
 
-    Set-Content -Path ".claude\.current-lang" -Value $Lang -NoNewline
+    $sharedDest = Join-Path $agentSkillsDir "shared-references"
+    if (-not (Test-Path $sharedDest)) { New-Item -ItemType Directory -Path $sharedDest -Force | Out-Null }
+    Get-ChildItem -Path (Join-Path $I18nDir "shared-references") -Filter "*.md" | ForEach-Object {
+        Copy-Item $_.FullName (Join-Path $sharedDest $_.Name) -Force
+    }
+
     if (-not (Test-Path ".agents")) { New-Item -ItemType Directory -Path ".agents" -Force | Out-Null }
     Set-Content -Path ".agents\.current-lang" -Value $Lang -NoNewline
-    Write-Ok "Language files activated for Claude Code and Codex ($Lang)"
+    Write-Ok "Language files activated for Codex ($Lang)"
 
     # -- Step 4: Verify installation ---------------------------------------
     Write-Host ""
@@ -261,26 +238,19 @@ Write-Host "============================================"
 Write-Host ""
 Write-Host "  Next steps:"
 Write-Host ""
-Write-Host "  1. Authenticate your coding agent (if not already):"
-Write-Host "       claude login"
+Write-Host "  1. Authenticate Codex (if not already), then start it:"
 Write-Host "       codex"
 Write-Host ""
 Write-Host "  2. Activate the venv in your shell only if you want to run Python tools manually:"
 Write-Host "       .\.venv\Scripts\Activate.ps1"
 Write-Host "       setup.ps1 does not activate your current shell permanently."
-Write-Host "       /init will use .venv automatically when it exists."
+Write-Host "       `$init will use .venv automatically when it exists."
 Write-Host ""
-Write-Host "  3. Start an agent:"
-Write-Host "       claude"
-Write-Host "       codex"
+Write-Host "  3. Complete API key configuration (guided):"
+Write-Host "       `$setup"
 Write-Host ""
-Write-Host "  4. Complete API key configuration (guided):"
-Write-Host "       Claude Code: /setup"
-Write-Host "       Codex:       `$setup"
-Write-Host ""
-Write-Host "  5. Then initialize your wiki:"
-Write-Host "       Claude Code: /init [your-research-topic]"
-Write-Host "       Codex:       `$init [your-research-topic]"
+Write-Host "  4. Then initialize your wiki:"
+Write-Host "       `$init [your-research-topic]"
 Write-Host ""
 Write-Host "  For more, see README.md"
 Write-Host ""

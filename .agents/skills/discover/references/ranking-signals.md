@@ -1,12 +1,12 @@
-# /discover ranking signals
+# $discover ranking signals
 
-The deterministic ranking lives in `tools/discover.py` — this file documents what it weighs and **why it differs from `/init`**, so that future edits do not accidentally re-converge the two.
+The deterministic ranking lives in `tools/discover.py` — this file documents what it weighs and **why it differs from `$init`**, so that future edits do not accidentally re-converge the two.
 
 ## Anchor-mode candidate channels
 
 Anchor mode gathers from **three** S2 channels per anchor, because any single channel has a characteristic bias:
 
-- **`recommend`** (S2 semantic recommendations endpoint) — surfaces semantically similar papers, but the endpoint is heavily skewed toward recent work. On its own this collapses into "recent papers near the topic", overlapping `/daily-arxiv`.
+- **`recommend`** (S2 semantic recommendations endpoint) — surfaces semantically similar papers, but the endpoint is heavily skewed toward recent work. On its own this collapses into "recent papers near the topic", overlapping `$daily-arxiv`.
 - **`references`** (papers the anchor cites) — surfaces the **older canonical** work the anchor built on. This is the literature-review channel.
 - **`citations`** (papers that cite the anchor) — surfaces **high-impact follow-ups** and subsequent work built on the anchor.
 
@@ -48,13 +48,13 @@ A paper can score high on one and low on the other. Example: a well-known benchm
 
 ## What discovery does **not** score on
 
-This is where `/discover` deliberately differs from `/init`'s planner (`tools/init_discovery.py`):
+This is where `$discover` deliberately differs from `$init`'s planner (`tools/init_discovery.py`):
 
-- **No survey preference**. `/init` favors survey/review papers because a fresh wiki benefits from them as anchor coverage. `/discover` is invoked when a user already knows the area (anchor mode) or is exploring (topic mode); they rarely need yet another survey, and surfacing surveys above novel work would be noise.
-- **No "older canonical anchor" bonus**. `/init`'s bootstrap mode promotes one older citation-heavy paper to broaden coverage. `/discover` users typically want forward-looking recommendations, not foundational re-anchoring.
-- **No notes/web priority terms**. `/init` reads `raw/notes/` and `raw/web/` to extract the user's stated intent. `/discover` does not — its inputs are explicit (anchor, topic, or wiki state).
+- **No survey preference**. `$init` favors survey$review papers because a fresh wiki benefits from them as anchor coverage. `$discover` is invoked when a user already knows the area (anchor mode) or is exploring (topic mode); they rarely need yet another survey, and surfacing surveys above novel work would be noise.
+- **No "older canonical anchor" bonus**. `$init`'s bootstrap mode promotes one older citation-heavy paper to broaden coverage. `$discover` users typically want forward-looking recommendations, not foundational re-anchoring.
+- **No notes/web priority terms**. `$init` reads `raw/notes/` and `raw/web/` to extract the user's stated intent. `$discover` does not — its inputs are explicit (anchor, topic, or wiki state).
 
-If a future ranking signal seems shared between `/init` and `/discover`, prefer keeping two implementations rather than extracting a shared scorer. The objectives genuinely differ; a shared scorer would force one skill to compromise.
+If a future ranking signal seems shared between `$init` and `$discover`, prefer keeping two implementations rather than extracting a shared scorer. The objectives genuinely differ; a shared scorer would force one skill to compromise.
 
 ## Field-set restrictions on S2 endpoints
 
@@ -65,4 +65,4 @@ If a future ranking signal seems shared between `/init` and `/discover`, prefer 
 
 Do not re-merge the two sets: the restricted endpoints really do reject the nested form, verified with live probes.
 
-Practical consequence for anchor mode: candidates that enter only via `references` / `citations` / `recommend` lack `hIndex` and `tldr` in their rationale. Topic mode candidates (which enter via `/paper/search`) carry both. A follow-up `fetch_s2.paper(arxiv_id)` call per candidate would enrich the missing ones, but the discovery tool deliberately does not do this — it would multiply per-run cost by (shortlist_size × latency) for a small rationale improvement. `/ingest` does the enrichment when the user actually picks a candidate to ingest.
+Practical consequence for anchor mode: candidates that enter only via `references` / `citations` / `recommend` lack `hIndex` and `tldr` in their rationale. Topic mode candidates (which enter via `/paper/search`) carry both. A follow-up `fetch_s2.paper(arxiv_id)` call per candidate would enrich the missing ones, but the discovery tool deliberately does not do this — it would multiply per-run cost by (shortlist_size × latency) for a small rationale improvement. `$ingest` does the enrichment when the user actually picks a candidate to ingest.

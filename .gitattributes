@@ -1,4 +1,4 @@
-# Append-only / accumulator files written by parallel ingest subagents during /init.
+# Append-only / accumulator files written by parallel ingest subagents during $init.
 #
 # These files have a single shared structure that every paper appends to:
 #   - wiki/log.md            : every ingest appends a "## [date] ingest | ..." line
@@ -19,7 +19,7 @@
 # rebuild-index`, so any duplicate lines introduced by `merge=union` are removed
 # by the time Step 7 finishes.
 #
-# Without this driver, /init's Phase B fan-in fails on the first merge and
+# Without this driver, $init's Phase B fan-in fails on the first merge and
 # cascades into manual cherry-pick recovery (see init/SKILL.md error handling
 # entries for the failure modes this prevents).
 wiki/log.md                merge=union

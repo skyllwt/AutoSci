@@ -4,15 +4,15 @@ description: End-to-end research orchestrator — idea discovery → experiment 
 argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage2|stage3|stage3-collect|stage3-check|stage4|stage5] [--skip-paper] [--venue ICLR|NeurIPS|ICML|ACL|CVPR]
 ---
 
-# /research
+# $research
 
 > End-to-end research orchestrator that composes all skills into a complete research workflow.
 > Stage 0 (Bootstrap) + 5 Stages + 2 Human Gates, covering the full pipeline from empty wiki to paper submission.
-> **Zero-friction entry**: if the wiki is empty, Bootstrap is triggered automatically (search + auto-ingest 5 papers); no need to run `/init` / `$init` manually.
+> **Zero-friction entry**: if the wiki is empty, Bootstrap is triggered automatically (search + auto-ingest 5 papers); no need to run `$init` / `$init` manually.
 > Every Gate and Stage saves progress to `wiki/outputs/pipeline-progress.md`, supporting cross-session recovery.
 >
-> **Stage 3 is non-blocking**: experiments are deployed and control returns immediately. Runtimes with a scheduler may register `/exp-status --collect-ready` checks; Codex should use manual `$exp-status --collect-ready` runs or an external scheduler until a Codex-native scheduler is configured.
-> When all experiments finish, `/exp-status --auto-advance` / `$exp-status --auto-advance` can continue to Stage 4 only inside an agent runtime that can invoke `$research`; external schedulers report `stage4 ready` and print `$research --start-from stage4`. Use `/exp-status` / `$exp-status` at any time to check progress.
+> **Stage 3 is non-blocking**: experiments are deployed and control returns immediately. Runtimes with a scheduler may register `$exp-status --collect-ready` checks; Codex should use manual `$exp-status --collect-ready` runs or an external scheduler until a Codex-native scheduler is configured.
+> When all experiments finish, `$exp-status --auto-advance` / `$exp-status --auto-advance` can continue to Stage 4 only inside an agent runtime that can invoke `$research`; external schedulers report `stage4 ready` and print `$research --start-from stage4`. Use `$exp-status` / `$exp-status` at any time to check progress.
 >
 > `--auto` mode skips manual confirmation (automatically selects the top-1 idea). `--skip-paper` runs the research without writing a paper.
 
@@ -25,10 +25,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - `--start-from <stage>` (optional): resume execution from the specified stage
   - Valid values: `stage1`, `stage2`, `stage3`, `stage3-collect`, `stage3-check`, `stage4`, `stage5`
   - `stage3-collect`: skip deploy, go directly to Stage 3c (collect results from already-deployed experiments)
-  - `stage3-check`: check experiment status only (equivalent to `/exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`), do not continue execution
+  - `stage3-check`: check experiment status only (equivalent to `$exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`), do not continue execution
   - Requires `wiki/outputs/pipeline-progress.md` to exist
-- `--skip-paper` (optional): run research only (Stages 1-4), skip paper writing (Stage 5), but still run `/exp-eval` / `$exp-eval` (Stage 4)
-- `--venue` (optional): target conference (ICLR / NeurIPS / ICML / ACL / CVPR), passed to `/paper-plan` / `$paper-plan`
+- `--skip-paper` (optional): run research only (Stages 1-4), skip paper writing (Stage 5), but still run `$exp-eval` / `$exp-eval` (Stage 4)
+- `--venue` (optional): target conference (ICLR / NeurIPS / ICML / ACL / CVPR), passed to `$paper-plan` / `$paper-plan`
 
 ## Outputs
 
@@ -42,7 +42,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Reads
 - `wiki/graph/context_brief.md` — global context (passed to sub-skills)
-- `wiki/graph/open_questions.md` — knowledge gaps (passed to `/ideate` / `$ideate`)
+- `wiki/graph/open_questions.md` — knowledge gaps (passed to `$ideate` / `$ideate`)
 - `wiki/ideas/*.md` — Gate 1 selection, Stage 4 verdict, Stage 5 paper planning
 - `wiki/experiments/*.md` — Stage 3-4 status checks
 - `wiki/methods/*.md` — Stage 5 paper writing context
@@ -56,7 +56,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 - All other wiki entity writes are delegated to sub-skills (do not directly write to ideas/experiments/methods/)
 
 ### Graph edges created
-- None directly — all graph edges are delegated to sub-skills (/ideate, /exp-design, /exp-eval each create their own edges)
+- None directly — all graph edges are delegated to sub-skills ($ideate, $exp-design, $exp-eval each create their own edges)
 
 ## Workflow
 
@@ -83,18 +83,18 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
        [1] Resume from {current_stage} (recommended)
        [2] Start a new pipeline (will overwrite old progress)
-       [3] View experiment status first (/exp-status --pipeline {slug} / $exp-status --pipeline {slug})
+       [3] View experiment status first ($exp-status --pipeline {slug} / $exp-status --pipeline {slug})
        ```
      - If --auto or user selects [1]: auto-set `--start-from {current_stage}`, continue execution
      - If user selects [2]: continue creating new pipeline (overwrite old progress file)
-     - If user selects [3]: call `/exp-status --pipeline {slug}` in Claude Code or `$exp-status --pipeline {slug}` in Codex, then exit without continuing
+     - If user selects [3]: call `$exp-status --pipeline {slug}` in Codex or `$exp-status --pipeline {slug}` in Codex, then exit without continuing
 
 3. **Check recovery** (when `--start-from` is specified):
    - If `wiki/outputs/pipeline-progress.md` exists:
      - Read progress file, restore idea_slug, experiment_slugs, stage3a_deployed, and linked_idea_slugs
      - Jump to specified stage
    - If progress file does not exist: report error and exit; prompt user to run the full pipeline first
-   - **`--start-from stage3-check`**: equivalent to calling `/exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`; display status then exit
+   - **`--start-from stage3-check`**: equivalent to calling `$exp-status --pipeline {slug}` / `$exp-status --pipeline {slug}`; display status then exit
    - **`--start-from stage3-collect`**: skip Stage 3a+3b; go directly to Stage 3c (collect already-deployed experiments)
 
 3. **Create progress file** `wiki/outputs/pipeline-progress.md`:
@@ -161,7 +161,7 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 4. **Auto-ingest each paper**:
    ```
-   Claude Code: /ingest "{arxiv_url_or_path}"
+   Codex: $ingest "{arxiv_url_or_path}"
    Codex:       $ingest "{arxiv_url_or_path}"
    ```
    Output progress after each ingest: `[{i}/5] Ingested: {paper_title}`
@@ -194,10 +194,10 @@ argument-hint: <research-direction-or-brief> [--auto] [--start-from stage1|stage
 
 ### Stage 1: Idea Discovery
 
-Call `/ideate`:
+Call `$ideate`:
 
 ```
-Claude Code: /ideate "{direction}" --auto
+Codex: $ideate "{direction}" --auto
 Codex:       $ideate "{direction}" --auto
 ```
 
@@ -223,10 +223,10 @@ Codex:       $ideate "{direction}" --auto
 
 ### Stage 2: Experiment Design
 
-Call `/exp-design`:
+Call `$exp-design`:
 
 ```
-Claude Code: /exp-design "{idea_slug}"
+Codex: $exp-design "{idea_slug}"
 Codex:       $exp-design "{idea_slug}"
 ```
 
@@ -240,10 +240,10 @@ Stage 3 is divided into three sub-stages, allowing experiments to run asynchrono
 
 #### Stage 3a: Deploy All
 
-Deploy each experiment in run order (baseline → validation → ablation → robustness) by calling `/exp-run {experiment_slug}` (default deploy mode, Phase 1+2):
+Deploy each experiment in run order (baseline → validation → ablation → robustness) by calling `$exp-run {experiment_slug}` (default deploy mode, Phase 1+2):
 
 ```
-Claude Code: /exp-run "{experiment_slug}"
+Codex: $exp-run "{experiment_slug}"
 Codex:       $exp-run "{experiment_slug}"
 ```
 
@@ -298,8 +298,8 @@ After all experiments are deployed, compute ETA, save progress, and end the curr
    Latest completion: Tomorrow 09:30 (exp-foo-baseline)
    Recommended time to return: Tomorrow 10:00+
 
-     /exp-status or $exp-status                                      ← confirm all experiments complete
-     /research --start-from stage3-collect or $research --start-from stage3-collect
+     $exp-status or $exp-status                                      ← confirm all experiments complete
+     $research --start-from stage3-collect or $research --start-from stage3-collect
                                                                ← collect results and continue
 
    Progress saved to wiki/outputs/pipeline-progress.md; current session can be closed.
@@ -307,11 +307,11 @@ After all experiments are deployed, compute ETA, save progress, and end the curr
 
 #### Stage 3c: Collect (triggered after experiments complete)
 
-**Trigger**: user manually runs `/research --start-from stage3-collect` in Claude Code or `$research --start-from stage3-collect` in Codex
+**Trigger**: user manually runs `$research --start-from stage3-collect` in Codex or `$research --start-from stage3-collect` in Codex
 
 For each deployed experiment (read from `stage3a_deployed` list):
 ```
-Claude Code: /exp-run "{experiment_slug}" --collect
+Codex: $exp-run "{experiment_slug}" --collect
 Codex:       $exp-run "{experiment_slug}" --collect
 ```
 
@@ -340,10 +340,10 @@ Codex:       $exp-run "{experiment_slug}" --collect
 
 ### Stage 4: Verdict & Iteration
 
-Call `/exp-eval` for each completed experiment:
+Call `$exp-eval` for each completed experiment:
 
 ```
-Claude Code: /exp-eval "{experiment_slug}" --auto
+Codex: $exp-eval "{experiment_slug}" --auto
 Codex:       $exp-eval "{experiment_slug}" --auto
 ```
 
@@ -355,9 +355,9 @@ Codex:       $exp-eval "{experiment_slug}" --auto
 
 **Iteration path** (when insufficient, up to 1 retry):
 1. Analyze the cause of failure
-2. Call `/refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
+2. Call `$refine` for the corresponding experimental blocks that need improvement to optimize the experiment plan:
    ```
-   Claude Code: /refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
+   Codex: $refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
    Codex:       $refine "{experiment_plan_slug}" --max-rounds 2 --focus evidence
    ```
 3. Re-run Stage 3 → Stage 4 for new/modified experiments
@@ -387,30 +387,30 @@ Codex:       $exp-eval "{experiment_slug}" --auto
 
 ### Stage 5: Paper Writing
 
-Call sub-skills in sequence: /paper-plan → /paper-draft → /refine → /paper-compile
+Call sub-skills in sequence: $paper-plan → $paper-draft → $refine → $paper-compile
 
-**5a. Call `/paper-plan` / `$paper-plan`**:
+**5a. Call `$paper-plan` / `$paper-plan`**:
 ```
-Claude Code: /paper-plan "{linked_idea_slugs}" --venue {venue}
+Codex: $paper-plan "{linked_idea_slugs}" --venue {venue}
 Codex:       $paper-plan "{linked_idea_slugs}" --venue {venue}
 ```
-(passes the validated idea slug(s) collected in Stage 4 to /paper-plan)
+(passes the validated idea slug(s) collected in Stage 4 to $paper-plan)
 
-**5b. Call `/paper-draft` / `$paper-draft`**:
+**5b. Call `$paper-draft` / `$paper-draft`**:
 ```
-Claude Code: /paper-draft "wiki/outputs/PAPER_PLAN.md" --review
+Codex: $paper-draft "wiki/outputs/PAPER_PLAN.md" --review
 Codex:       $paper-draft "wiki/outputs/PAPER_PLAN.md" --review
 ```
 
-**5c. Call `/refine` / `$refine` on paper**:
+**5c. Call `$refine` / `$refine` on paper**:
 ```
-Claude Code: /refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
+Codex: $refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
 Codex:       $refine "paper/main.tex" --max-rounds 3 --target-score 8 --focus writing
 ```
 
-**5d. Call `/paper-compile` / `$paper-compile`**:
+**5d. Call `$paper-compile` / `$paper-compile`**:
 ```
-Claude Code: /paper-compile "paper/"
+Codex: $paper-compile "paper/"
 Codex:       $paper-compile "paper/"
 ```
 
@@ -497,7 +497,7 @@ Update pipeline-progress: status: completed
 - **Stage 3b ends the session**: after Stage 3b completes, the current session ends; do not continue waiting for experiments
 - **Maximum 2 iterations**: Stage 4 iterates at most 2 times to prevent infinite loops
 - **--auto does not skip computation**: auto mode skips human confirmation but skips no computation steps
-- **--skip-paper still runs Stage 4 /exp-eval**: idea/experiment updates must be completed even when not writing a paper
+- **--skip-paper still runs Stage 4 $exp-eval**: idea/experiment updates must be completed even when not writing a paper
 - **Pass sub-skill parameters through**: correctly pass domain, --venue, and other parameters to sub-skills
 - **Log every Stage**: append a log.md audit entry after each Stage completes
 - **Do not re-run completed stages**: --start-from skips already-completed stages
@@ -511,27 +511,27 @@ Update pipeline-progress: status: completed
 - **Sub-skill call fails**: record error to pipeline-progress, report the failed stage, suggest --start-from to resume
 - **All ideas generation fails**: terminate pipeline; suggest the user adjust the research direction
 - **All experiment deploys fail**: terminate pipeline (Stage 3a); generate failure report; suggest checking GPU/SSH configuration
-- **Stage 3c baseline collect fails**: terminate pipeline; report baseline cannot be reproduced; suggest re-running /exp-design
+- **Stage 3c baseline collect fails**: terminate pipeline; report baseline cannot be reproduced; suggest re-running $exp-design
 - **All experiment collects fail (non-baseline)**: proceed to Stage 4 evaluation (treat failures as evidence)
 - **Gate user selects stop**: save progress to pipeline-progress; generate partial report
 - **RESEARCH_BRIEF.md malformed**: fall back to plain-text direction; ignore structured fields
 - **Wiki empty (no papers/concepts)**: auto-trigger Stage 0 Bootstrap (search + auto-ingest 5 papers)
 - **Idea evidence still insufficient after iteration**: annotate report with "idea evidence insufficient after max iterations"; let user decide whether to continue
-- **User selects view status (auto-recovery detection [3])**: call `/exp-status --pipeline {slug}` then exit without starting a new pipeline
+- **User selects view status (auto-recovery detection [3])**: call `$exp-status --pipeline {slug}` then exit without starting a new pipeline
 
 ## Dependencies
 
 ### Skills
-- `/ingest` (Claude Code) or `$ingest` (Codex) — Stage 0 Bootstrap auto-ingest
-- `/ideate` (Claude Code) or `$ideate` (Codex) — Stage 1 idea discovery
-- `/exp-design` (Claude Code) or `$exp-design` (Codex) — Stage 2 experiment design
-- `/exp-run` (Claude Code) or `$exp-run` (Codex) — Stage 3a (deploy mode) and Stage 3c (--collect mode)
-- `/exp-status` (Claude Code) or `$exp-status` (Codex) — user manually checks experiment progress; `--auto-advance` may continue Stage 4 inside an agent runtime, while external schedulers only report `stage4 ready` and print `$research --start-from stage4`
-- `/exp-eval` (Claude Code) or `$exp-eval` (Codex) — Stage 4 verdict
-- `/refine` (Claude Code) or `$refine` (Codex) — Stage 4 iteration + Stage 5 paper improvement
-- `/paper-plan` (Claude Code) or `$paper-plan` (Codex) — Stage 5 paper planning
-- `/paper-draft` (Claude Code) or `$paper-draft` (Codex) — Stage 5 paper writing
-- `/paper-compile` (Claude Code) or `$paper-compile` (Codex) — Stage 5 paper compilation
+- `$ingest` (Codex) or `$ingest` (Codex) — Stage 0 Bootstrap auto-ingest
+- `$ideate` (Codex) or `$ideate` (Codex) — Stage 1 idea discovery
+- `$exp-design` (Codex) or `$exp-design` (Codex) — Stage 2 experiment design
+- `$exp-run` (Codex) or `$exp-run` (Codex) — Stage 3a (deploy mode) and Stage 3c (--collect mode)
+- `$exp-status` (Codex) or `$exp-status` (Codex) — user manually checks experiment progress; `--auto-advance` may continue Stage 4 inside an agent runtime, while external schedulers only report `stage4 ready` and print `$research --start-from stage4`
+- `$exp-eval` (Codex) or `$exp-eval` (Codex) — Stage 4 verdict
+- `$refine` (Codex) or `$refine` (Codex) — Stage 4 iteration + Stage 5 paper improvement
+- `$paper-plan` (Codex) or `$paper-plan` (Codex) — Stage 5 paper planning
+- `$paper-draft` (Codex) or `$paper-draft` (Codex) — Stage 5 paper writing
+- `$paper-compile` (Codex) or `$paper-compile` (Codex) — Stage 5 paper compilation
 
 ### Tools（via Bash）
 - `python3 tools/research_wiki.py slug "{title}"` — generate pipeline slug

@@ -4,7 +4,7 @@ description: Parse review comments → atomize concerns (Rvx-Cy) → map to wiki
 argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--stress-test] [--format formal|rich]
 ---
 
-# /rebuttal
+# $rebuttal
 
 > Parse review comments, atomize each concern (Rvx-Cy numbering) and map it to a wiki idea or method,
 > check whether evidence is sufficient (tracing back to wiki experiments),
@@ -40,7 +40,7 @@ argument-hint: <review-file-or-path> [--paper-slug <slug>] [--venue <venue>] [--
 - `wiki/experiments/*.md` — find experiment results supporting ideas (via `linked_idea`)
 - `wiki/papers/*.md` — find citation context for referenced papers
 - `wiki/concepts/*.md` — understand the conceptual background of method-related concerns
-- `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from /paper-plan, if --paper-slug provided)
+- `wiki/outputs/PAPER_PLAN.md` — understand paper structure (from $paper-plan, if --paper-slug provided)
 - `wiki/graph/context_brief.md` — global context
 - `wiki/graph/edges.jsonl` — idea-experiment-paper-method relationships
 - `shared-references/cross-model-review.md` — Review LLM stress-test independence
@@ -134,7 +134,7 @@ Draft a response for each concern according to its strategy:
 
 **Strategy B — Evidence insufficient (acknowledge + concrete plan):**
 - Honestly acknowledge that current evidence is not sufficient
-- Propose a concrete supplementary experiment plan (can link to /exp-design)
+- Propose a concrete supplementary experiment plan (can link to $exp-design)
 - State a specific timeline and resource requirements
 - Do not use vague commitments; only commit to concrete executable supplementary experiments
 
@@ -270,7 +270,7 @@ Additional Experiments (if applicable):
 |-----------|-------------|--------------|
 | ablation-dataset-x | [[idea-slug]] | Rv1-C2 |
 
-→ Design the follow-up with `/exp-design ablation-dataset-x` in Claude Code or `$exp-design ablation-dataset-x` in Codex
+→ Design the follow-up with `$exp-design ablation-dataset-x` in Codex or `$exp-design ablation-dataset-x` in Codex
 
 ## Review LLM Stress-Test Summary
 - Average score: {N}/5
@@ -305,7 +305,7 @@ Additional Experiments (if applicable):
 - **No overpromise**: only commit to specific executable supplementary experiments. Use "we will run ablation on X with setup Y" not "we will investigate"
 - **Full coverage**: every reviewer concern (Rvx-Cy) must have a response; omissions block output
 - **Evidence traceability**: every piece of evidence cited in a response must be traceable to a wiki page with source slug annotated
-- **Do not silently flip a linked idea's status**: rebuttal only flags concerns by appending to ideas' `## Risks` / `## Lessons learned` or methods' `## Limitations`; status transitions are reserved for `/exp-eval`
+- **Do not silently flip a linked idea's status**: rebuttal only flags concerns by appending to ideas' `## Risks` / `## Lessons learned` or methods' `## Limitations`; status transitions are reserved for `$exp-eval`
 - **Review LLM independence**: during stress-test, follow cross-model-review.md; do not reveal response strategy to Review LLM
 - **Concern ID format**: strictly use Rvx-Cy format (Rv1-C1, Rv1-C2, Rv2-C1) to ensure traceability
 - **Specific commitments**: all revision commitments and experiment plans must be specific (specific Section, specific dataset, explicit metric)
@@ -318,7 +318,7 @@ Additional Experiments (if applicable):
 - **Concern cannot be mapped to an idea or method (unmapped)**: annotate as "unmapped"; still respond (based on paper content rather than wiki entity)
 - **Review LLM stress-test unavailable**: skip Step 5; annotate in report "stress-test skipped: Review LLM unavailable"
 - **Evidence severely insufficient**: if >50% of concerns have insufficient evidence, warn the user and suggest supplementing experiments first
-- **Wiki empty**: warn that wiki knowledge base is empty; suggest running `/ingest` in Claude Code or `$ingest` in Codex to populate ideas, methods, and experiments
+- **Wiki empty**: warn that wiki knowledge base is empty; suggest running `$ingest` in Codex or `$ingest` in Codex to populate ideas, methods, and experiments
 - **All responses scored 1-2 by Review LLM**: halt output, report requires re-analysis, suggest supplementing experiments first
 
 ## Dependencies
@@ -341,5 +341,5 @@ Additional Experiments (if applicable):
 - `shared-references/cross-model-review.md` — Review LLM stress-test independence principle
 
 ### Suggested follow-up skills
-- `/exp-design` (Claude Code) or `$exp-design` (Codex) — design supplementary experiments for concerns with insufficient evidence
-- `/paper-draft` (Claude Code) or `$paper-draft` (Codex) — prepare revised paper (based on Paper Edits checklist)
+- `$exp-design` (Codex) or `$exp-design` (Codex) — design supplementary experiments for concerns with insufficient evidence
+- `$paper-draft` (Codex) or `$paper-draft` (Codex) — prepare revised paper (based on Paper Edits checklist)

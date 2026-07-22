@@ -4,7 +4,7 @@ description: Compile a paper outline from the idea graph — evidence map → na
 argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--title <working-title>]
 ---
 
-# /paper-plan
+# $paper-plan
 
 > Compile a paper outline from the wiki's idea graph.
 > Input target ideas (status: validated or in-progress with succeeded experiments), specify the target venue,
@@ -74,7 +74,7 @@ argument-hint: <idea-slugs...> --venue <ICLR|NeurIPS|ICML|ACL|CVPR|IEEE> [--titl
 
 **Validation**:
 - If any target idea has `status: proposed`: warn "idea is unvalidated; paper may lack evidence support"
-- If any target idea has empty `novelty_score` OR `novelty_score <= 2`: warn "idea novelty is thin; consider running `/novelty` first"
+- If any target idea has empty `novelty_score` OR `novelty_score <= 2`: warn "idea novelty is thin; consider running `$novelty` first"
 - If no `linked_experiments` resolve to a `succeeded` outcome for any target idea: error "at least one supporting experiment is required to plan a paper"
 
 ### Step 2: Compile Evidence Map from Wiki
@@ -297,12 +297,12 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    ```bash
    # plan → target idea
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
+     --from "outputs$paper-plan-{slug}-{date}" --to "ideas/{primary-idea}" \
      --type derived_from --evidence "Paper plan built from this idea"
 
    # plan → key papers
    python3 tools/research_wiki.py add-edge wiki/ \
-     --from "outputs/paper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
+     --from "outputs$paper-plan-{slug}-{date}" --to "papers/{paper-slug}" \
      --type derived_from --evidence "Paper plan cites this paper"
    ```
 
@@ -347,8 +347,8 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
    ## Review LLM Review: score {X}/10, verdict: {verdict}
 
    ## Next Steps
-   - Draft the paper with `/paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Claude Code or `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Codex
-   - Resolve {verify_count} [UNCONFIRMED] citations before `/paper-compile` / `$paper-compile`
+   - Draft the paper with `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Codex or `$paper-draft wiki/outputs/paper-plan-{slug}-{date}.md` in Codex
+   - Resolve {verify_count} [UNCONFIRMED] citations before `$paper-compile` / `$paper-compile`
    ```
 
 ## Constraints
@@ -366,8 +366,8 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 ## Error Handling
 
 - **Insufficient idea status**: if all ideas are `proposed`, error "ideas are unvalidated; run experiments first"
-- **No experiment evidence**: error "at least one experimental result is required"; suggest running `/exp-design` + `/exp-run` in Claude Code or `$exp-design` + `$exp-run` in Codex first
-- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider `/ingest` in Claude Code or `$ingest` in Codex for more papers first"
+- **No experiment evidence**: error "at least one experimental result is required"; suggest running `$exp-design` + `$exp-run` in Codex or `$exp-design` + `$exp-run` in Codex first
+- **Insufficient wiki papers**: if the citation plan has fewer than 5 wiki papers, warn "related work coverage is insufficient; consider `$ingest` in Codex or `$ingest` in Codex for more papers first"
 - **Page budget exceeded**: automatically move lower-priority sections to appendix plan; report the adjustment
 - **Review LLM unavailable**: fall back to the primary agent self-review; report annotated "single-model review — cross-model verification unavailable"
 - **BibTeX fetch failed**: mark [UNCONFIRMED]; summarize in the citation plan report
@@ -396,5 +396,5 @@ Revise the outline based on Review LLM feedback (add sections, adjust page budge
 - `shared-references/citation-verification.md` — citation fetch and verification rules
 
 ### Called by
-- `/research` (Claude Code) or `$research` (Codex) Stage 5 (paper writing stage)
+- `$research` (Codex) or `$research` (Codex) Stage 5 (paper writing stage)
 - Manual user invocation

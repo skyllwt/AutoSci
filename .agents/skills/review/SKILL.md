@@ -4,13 +4,13 @@ description: General-purpose cross-model review — Review LLM independently rev
 argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] [--focus method|evidence|writing|completeness]
 ---
 
-# /review
+# $review
 
 > Review any research artifact (idea, proposal, experiment plan, paper draft, method) using cross-model review.
 > Uses Review LLM as an independent reviewer. Outputs a structured score, actionable improvement suggestions,
 > and a mapping to wiki entities (which ideas/methods need strengthening, which gaps are discovered).
 > Supports three difficulty levels (standard / hard / adversarial) and four review focuses.
-> Can be used standalone or called by /ideate, /refine, /exp-design.
+> Can be used standalone or called by $ideate, $refine, $exp-design.
 
 ## Inputs
 
@@ -55,7 +55,7 @@ argument-hint: <artifact-path-or-slug> [--difficulty standard|hard|adversarial] 
 
 ### Writes
 - **None**. Review is a read-only query operation.
-  - Review results are output to terminal; the user or caller (e.g. /refine) decides whether to apply them.
+  - Review results are output to terminal; the user or caller (e.g. $refine) decides whether to apply them.
 
 ### Graph edges created
 - **None**.
@@ -214,13 +214,13 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ### Ideas / methods needing stronger support
 | Entity | Signal | Issue | Suggested action |
 |--------|--------|-------|------------------|
-| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run `/novelty` in Claude Code or `$novelty` in Codex |
-| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun `/check` in Claude Code or `$check` in Codex |
+| [[idea-slug]] | novelty_score 2/5 | Novelty argument is thin | Run `$novelty` in Codex or `$novelty` in Codex |
+| [[method-slug]] | source_papers sparse | Missing source paper backing | Ingest the missing paper, then rerun `$check` in Codex or `$check` in Codex |
 
 ### Knowledge gaps identified
 | Gap | Related to | Suggested action |
 |-----|-----------|------------------|
-| {description} | [[slug]] | `/ingest`, `/exp-run`, or `/ask` in Claude Code; `$ingest`, `$exp-run`, or `$ask` in Codex |
+| {description} | [[slug]] | `$ingest`, `$exp-run`, or `$ask` in Codex; `$ingest`, `$exp-run`, or `$ask` in Codex |
 
 ### Suggested wiki updates
 - `wiki/ideas/{slug}.md`: add risk factor from review
@@ -246,7 +246,7 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 ## Constraints
 
 - **Reviewer independence**: strictly follow `shared-references/cross-model-review.md`; do not leak the primary agent's pre-judgments to Review LLM
-- **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. /refine)
+- **Do not modify wiki**: review only outputs suggestions; it does not directly modify any wiki pages. Wiki modifications are handled by the caller (e.g. $refine)
 - **Scores must have justification**: scores without a rationale are not accepted
 - **Weaknesses must have fixes**: every weakness must include a specific, actionable fix suggestion; vague criticism is not accepted
 - **Entity-level mapping is required**: output must include the Wiki Entity Mapping section, mapping review findings to specific wiki entities (ideas, methods, etc.)
@@ -280,6 +280,6 @@ Synthesize Step 2 + Step 3 results into a structured Review Report:
 - `shared-references/cross-model-review.md` — reviewer independence principle (required reading)
 
 ### Called by
-- `/ideate` (Claude Code) or `$ideate` (Codex) Phase 4 (review top ideas)
-- `/refine` (Claude Code) or `$refine` (Codex) each iteration round (review current version)
-- `/exp-design --review` (Claude Code) or `$exp-design --review` (Codex) (review experiment plan)
+- `$ideate` (Codex) or `$ideate` (Codex) Phase 4 (review top ideas)
+- `$refine` (Codex) or `$refine` (Codex) each iteration round (review current version)
+- `$exp-design --review` (Codex) or `$exp-design --review` (Codex) (review experiment plan)

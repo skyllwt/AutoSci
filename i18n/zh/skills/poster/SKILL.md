@@ -4,7 +4,7 @@ description: 从已撰写的论文生成学术海报 —— 提炼章节为单�
 argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos] [--no-refine]"
 ---
 
-# /poster
+# $poster
 
 > 从已撰写的论文生成学术 HTML 海报。读取 `paper/main.tex`、章节文件与图片;
 > 构建 PaperX 兼容的 `dag.json` 中间格式;将每个章节提炼为 2–5 句话摘要;
@@ -70,7 +70,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
 
    1. 传入 `--authors STR` flag → 用它,不问也不持久化。
    2. 传入 `--anonymous` flag → 强制 "Anonymous",不问也不持久化。
-   3. `paper/.author_display.txt` 存在 → 用文件内容,不问。这是"问一次,以后复用"的缓存。未来 `$paper-draft` 会在写作阶段填这个文件;在那之前,`/poster` Step 0 维护它(见下)。
+   3. `paper/.author_display.txt` 存在 → 用文件内容,不问。这是"问一次,以后复用"的缓存。未来 `$paper-draft` 会在写作阶段填这个文件;在那之前,`$poster` Step 0 维护它(见下)。
    4. dag.json 根节点 `content` (来自 `main.tex` 的 `\author{...}`) 非空且不是字面 "Anonymous" → 用它,不问。
    5. **否则(匿名稿且没有缓存的 display name)**:问用户。
 
@@ -79,7 +79,7 @@ argument-hint: "[paper-dir] [--review] [--anonymous] [--no-figures] [--no-logos]
      - `"Keep 'Anonymous' (double-blind submission)"`(Recommended)
      - `"Provide author names (I'll ask for the string)"`
    - 若选 "Provide author names":自由文本询问 *"海报上应显示什么作者字符串?例如 `Mingtian Yang, Co-Author Name`。回复字符串,或回复 `skip` 保留 'Anonymous'。"* 把下一条用户消息取作 authors 字符串。
-   - **把答案持久化** 到 `paper/.author_display.txt`(单行,不要末尾换行)。下一次 `/poster` 跑时文件已存在 → step 0 Q1 静默跳过。用户想改的话,自己编辑或删除这个文件。
+   - **把答案持久化** 到 `paper/.author_display.txt`(单行,不要末尾换行)。下一次 `$poster` 跑时文件已存在 → step 0 Q1 静默跳过。用户想改的话,自己编辑或删除这个文件。
    - 两个分支("Keep Anonymous" 或 自定义字符串)都要持久化 —— 目标是 **除非用户主动删文件,否则不再被问**。
 
 2. **Venue 文本** —— 若未传入 `--venue`:

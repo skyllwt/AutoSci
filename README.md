@@ -99,32 +99,32 @@ If you find AutoSci useful in your research, please [cite our paper](#citation).
 
 ### 🛠️ 2026-05-19 · Experiment Overhaul
 
-A possible usage process：`/ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `/exp-design <idea-slug>`-> For each experimental block,recommended flow: `/exp-run <slug> [--env local|remote]` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.->`/exp-eval <experiment-slug>`
+A possible usage process：`$ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `$exp-design <idea-slug>`-> For each experimental block,recommended flow: `$exp-run <slug> [--env local|remote]` to deploy → `$exp-status` to monitor → `$exp-run <slug> --collect` to collect.->`$exp-eval <experiment-slug>`
 
 ✨ : New Skills
-`/exp-pilot-run` — Pilot experiment execution: write code, deploy, monitor, collect raw results.
-`/exp-pilot-eval` — Pilot result evaluation: read results, apply lenient verdict logic
-These two skills are built into Phase5 of `/ideate`
+`$exp-pilot-run` — Pilot experiment execution: write code, deploy, monitor, collect raw results.
+`$exp-pilot-eval` — Pilot result evaluation: read results, apply lenient verdict logic
+These two skills are built into Phase5 of `$ideate`
 🛠️ : Modified Skills
-`/ideate`
+`$ideate`
 5 structured generation paths (A-E) for both Claude and Review LLM.
 Phase restructuring: Filter & Validation merged into Phase 3, Write Wiki moved to Phase 4.
 Phase 5: Finish pilot design and workflow invocation
 Your ideas will follow a clearer path, and a more reasonable screening mechanism will be established through pilot experiments.
-`/exp-design`
+`$exp-design`
 A brand-new experimental design process:method candidate generation + 5 experiment block types + iterative ablation loop
-`/exp-run`
+`$exp-run`
 Add the code decision gate, code optimization and config check
 
-### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
+### 🎨 2026-05-18 · $poster — drafted paper → print-ready conference poster
 
 Run the poster skill after paper-draft and paper-compile (`/poster` in Claude Code, `$poster` in Codex) to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; the agent walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
 
 <p align="center">
-  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output" width="720" />
+  <img src="assets/poster_demo_tikz_tables.png" alt="Example $poster output" width="720" />
 </p>
 
-### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
+### 🎯 2026-05-12 · $discover from a venue — "what should I read first from ICLR 2024?"
 
 Use `/discover --venue iclr --year 2024` in Claude Code or `$discover --venue iclr --year 2024` in Codex (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for your research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
 
@@ -137,7 +137,7 @@ Use `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex for a one-off pass.
 Your research graph now has two ways to explore:
 
 - **Web UI** — run `python3 tools/serve.py`, open `http://localhost:8765/#/graph`. Click any node to highlight its neighborhood via BFS, filter by entity type or edge category, double-click to open the full page in the Reader.
-- **Obsidian** — run `/visualize --obsidian` to generate a color-coded graph config, or `/visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
+- **Obsidian** — run `$visualize --obsidian` to generate a color-coded graph config, or `$visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
 
 ---
 
@@ -342,7 +342,7 @@ Copy-Item config\settings.local.json.example .claude\settings.local.json  # Clau
 ```
 
 Note: native Windows is supported for the local pipeline. Remote-GPU
-experiments via `/exp-run --env remote` rely on `ssh`/`rsync`/`screen`
+experiments via `$exp-run --env remote` rely on `ssh`/`rsync`/`screen`
 and are best run from WSL2 or Linux/macOS.
 
 </details>
@@ -357,7 +357,7 @@ and are best run from WSL2 or Linux/macOS.
 | `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions legacy Claude Code auth for Pro/Max users and daily-arxiv auto-ingest |
 | `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `$daily-arxiv` inform recommendations |
 
 > **Don't have an Anthropic API key?** You can use Codex, or use Claude Code with any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for Claude Code provider snippets.
 

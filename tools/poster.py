@@ -7,7 +7,7 @@ Ports the mechanical bits of PaperX's DAG2poster.py into AutoSci:
                    (PDF → PNG conversion via pdftoppm when needed)
   validate      — sanity checks on the final HTML
 
-The coding agent (in the /poster or $poster SKILL.md workflow) writes the outline HTML — this
+Codex (in the $poster SKILL.md workflow) writes the outline HTML — this
 tool only handles mechanical injection, copying, and validation.
 """
 
@@ -137,7 +137,7 @@ def inject_title(
 
     Precedence for the authors string:
       1. `anonymous=True` always wins → "Anonymous"
-      2. `authors_override` (e.g. from /poster --authors flag)
+      2. `authors_override` (e.g. from $poster --authors flag)
       3. dag.json root node's "content" field
       4. Fallback "Anonymous" if all of the above are empty
     """
@@ -992,7 +992,7 @@ def check_overflow(
             "error": (
                 "Playwright not installed; overflow check could not run. "
                 "Install with `pip install playwright && python -m "
-                "playwright install chromium` to enable. /poster Step 5.5 "
+                "playwright install chromium` to enable. $poster Step 5.5 "
                 "should fall back to LLM-only visual evaluation."
             ),
         }
@@ -1276,7 +1276,7 @@ def main(argv: list[str] | None = None) -> int:
     p_chk = sub.add_parser(
         "check-overflow",
         help="Query rendered DOM for clipped content (Playwright); "
-        "writes a JSON report. Used by /poster Step 5.5.",
+        "writes a JSON report. Used by $poster Step 5.5.",
     )
     p_chk.add_argument("html", help="Path to poster.html")
     p_chk.add_argument(

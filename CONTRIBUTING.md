@@ -6,7 +6,7 @@ Thank you for your interest in contributing to AutoSci. This guide covers the es
 
 Use [GitHub Issues](../../issues):
 
-- **Bugs**: Use the "Bug Report" template. Include which `/skill` triggered the issue and any error logs.
+- **Bugs**: Use the "Bug Report" template. Include which `$skill` triggered the issue and any error logs.
 - **Features**: Use the "Feature Request" template.
 
 ## Submitting Pull Requests

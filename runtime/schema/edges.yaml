@@ -11,7 +11,7 @@
 # Storage location of each edge type is decided in conventions.yaml::edge_storage.
 
 # -----------------------------------------------------------------------------
-# Paper ↔ Paper semantic edges  (written by /ingest)
+# Paper ↔ Paper semantic edges  (written by $ingest)
 # -----------------------------------------------------------------------------
 
 # 4 irreducible paper↔paper semantic edges. The 4 removed in this round
@@ -55,7 +55,7 @@ challenges:
     evidence:   { type: str, required: true }
 
 # -----------------------------------------------------------------------------
-# Paper → Concept semantic edges  (written by /ingest)
+# Paper → Concept semantic edges  (written by $ingest)
 # -----------------------------------------------------------------------------
 
 introduces_concept:
