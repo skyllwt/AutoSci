@@ -589,7 +589,7 @@ We welcome contributions and feedback — especially while we're in active itera
 
 ## Community / 交流群
 
-<img src="assets/wechat_group_4.jpg" width="240" alt="WeChat Group QR Code">
+<img src="assets/wechat_group_4_0804.jpg" width="240" alt="WeChat Group QR Code">
 
 Scan to join the AutoSci WeChat group / 扫码加入微信交流群
 
