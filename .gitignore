@@ -13,8 +13,14 @@ build/
 # Language state (set by setup.sh --lang)
 .claude/.current-lang
 
+# Language state (set by setup-qoder / tools/convert_to_qoder.py)
+.qoder/.current-lang
+
 # Claude Code local settings (contains MCP server permissions, may contain API keys)
 .claude/settings.local.json
+
+# Qoder local MCP registration (generated from config/mcp.qoder.json.example)
+.qoder/mcp.json
 
 # IDE
 .vscode/

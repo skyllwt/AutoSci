@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "llm-review": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["mcp-servers/llm-review/server.py"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

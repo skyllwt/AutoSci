@@ -2,181 +2,34 @@
 
 <img src="assets/autosci-logo.png" width="160" alt="AutoSci Logo">
 
-# AutoSci
+# AutoSci-Qoder
 
-**Read, think, experiment, write, evolve — the AI research agent with memory that compounds across every project.**
+**读文献、想点子、跑实验、写论文、持续进化 —— 面向 Qoder 的 AI 科研智能体，记忆跨项目复利积累。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-yellow.svg)](https://www.python.org/)
-[![Claude Code](https://img.shields.io/badge/main-Claude_Code_stable-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
-[![Codex Preview](https://img.shields.io/badge/Codex-preview-111111.svg)](https://developers.openai.com/codex)
-[![OpenCode Preview](https://img.shields.io/badge/OpenCode-preview-6f42c1.svg)](https://opencode.ai/)
+[![Qoder](https://img.shields.io/badge/runtime-Qoder-00c4cc.svg)](https://qoder.com)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
-[![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
-
 
 </div>
 
 ---
 
-## ⚠️ Status & Update
+## 项目简介
 
-> **Thanks to everyone who's been trying AutoSci — the community response has been amazing!** AutoSci evolved from our earlier OmegaWiki prototype into what we're building toward: a next-generation research agent that can handle the full scientific lifecycle. We're actively testing and iterating on new features, and more capabilities are on the way. Jump in, break things, and tell us what you think — your feedback and ideas are what's shaping where this goes next. 🙏
+本仓库是 [AutoSci](https://github.com/skyllwt/AutoSci)（上游稳定版基于 Claude Code）的 **Qoder 适配版**。AutoSci 是一个以记忆为中心的科研智能体系统，覆盖从文献消化到 rebuttal 的完整科研生命周期，并在项目之间保持结构化持久记忆。
 
-> **🌿 Which branch?** [`main`](https://github.com/skyllwt/AutoSci/tree/main) remains the **stable Claude Code version**. [`autosci-codex`](https://github.com/skyllwt/AutoSci/tree/autosci-codex) is the **official Codex Preview**, and [`autosci-opencode`](https://github.com/skyllwt/AutoSci/tree/autosci-opencode) is the **official OpenCode Preview**. These are separate runtime adaptations; the existing Claude Code and Codex versions remain available. The **full system described in our [paper](https://arxiv.org/abs/2605.31468)** — SciMem · SciFlow · SciDAG · SciEvolve — lives on the [`paper`](https://github.com/skyllwt/AutoSci/tree/paper) branch (frozen as tag [`arxiv-v1`](https://github.com/skyllwt/AutoSci/tree/arxiv-v1)).
+适配原则：**不改动上游的科研逻辑**。全部 28 个 skill、Python 工具链（`tools/`）、wiki 契约（`runtime/`）保持原样，仅将运行时载体从 Claude Code 替换为 Qoder：
 
-### OpenCode Preview
-
-Try the OpenCode adaptation without changing your Claude Code or Codex checkout:
-
-```bash
-git clone -b autosci-opencode https://github.com/skyllwt/AutoSci.git
-cd AutoSci
-./setup.sh --lang en
-opencode
-# Then ask OpenCode to run the init skill for your research topic.
-```
-
-Current boundary:
-
-| Area | Status |
+| 上游（Claude Code） | 本仓库（Qoder） |
 |---|---|
-| Local OpenCode skills | Preview supported via generated `.opencode/skills` |
-| Runtime instructions | Root `AGENTS.md`, generated from the selected language |
-| Shared skill source | `i18n/<lang>/skills` remains the bilingual source of truth |
-| Review LLM | Local `llm-review` MCP configured through generated `opencode.json` |
-| Daily arXiv | Recommendation-only; standalone OpenAI-compatible API with deterministic fallback and optional email |
+| `.claude/skills/` | `.qoder/skills/`（由 `tools/convert_to_qoder.py` 自动生成） |
+| `CLAUDE.md` 运行时契约 | `AGENTS.md`（Qoder 自动读取） |
+| `.mcp.json` | `.qoder/mcp.json`（llm-review MCP server） |
+| `/setup`、`/init` 等斜杠命令 | 按 skill 名称调用（如让 Qoder 运行 `init` skill） |
+| Claude Code 子代理并行 ingest | Qoder 子代理（Agent 工具）+ 同一套 git worktree 隔离契约 |
 
-The OpenCode preview does not replace the Claude Code stable release or the Codex Preview.
-
-### Codex Preview
-
-Try the Codex preview without changing your `main` checkout:
-
-```bash
-git clone -b autosci-codex https://github.com/skyllwt/AutoSci.git
-cd AutoSci
-./setup.sh --lang en
-codex
-# Then invoke: $init [your-research-topic]
-```
-
-Current boundary:
-
-| Area | Status |
-|---|---|
-| Local Codex skills | Preview supported via `.agents/skills` |
-| Runtime scope | Codex-only; Claude Code remains available separately on `main` |
-| Shared skill source | `i18n/<lang>/skills` regenerates the active `.agents/skills` tree |
-| Review LLM | Optional `llm-review` MCP configured through the Codex config example |
-| Daily arXiv | CI is recommendation-only; no repository writeback or unattended ingest |
-
-See [docs/codex-preview.md](docs/codex-preview.md) for the preview notes and known boundaries.
-
----
-
-## 📄 Paper
-
-> ### [AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle](https://arxiv.org/abs/2605.31468)
->
-> [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468) &nbsp;·&nbsp; [📄 **Read on arXiv →**](https://arxiv.org/abs/2605.31468)
-
-If you find AutoSci useful in your research, please [cite our paper](#citation).
-
----
-
-## 📌 Poster & Demo
-
-<!--
-  POSTER & VIDEO PLACEHOLDER
-  Drop your files into assets/ and uncomment the blocks below:
-    - Conference poster image  -> assets/poster.png   (or .jpg/.pdf)
-    - Demo video               -> a YouTube/Bilibili link, or assets/demo.mp4 / assets/demo.gif
-  GitHub READMEs cannot embed/play local .mp4 inline; for video, prefer either:
-    (a) a clickable thumbnail linking to the hosted video, or
-    (b) a short looping assets/demo.gif.
--->
-
-<div align="center">
-  <a href="assets/poster.png"><img src="assets/poster.png" width="760" alt="AutoSci conference poster"></a>
-  <br/><sub><em>AutoSci poster — click to view full size.</em></sub>
-</div>
-
-<!-- DEMO VIDEO (uncomment and replace links/thumbnail once available)
-<div align="center">
-  <a href="https://your-video-url">
-    <img src="assets/demo-thumbnail.png" width="640" alt="Watch the AutoSci demo">
-  </a>
-  <br/><sub><em>▶ Watch the AutoSci walkthrough.</em></sub>
-</div>
--->
-
-<div align="center">
-  <a href="https://www.bilibili.com/video/BV19gVg6pEk6/">
-    <img src="assets/demo-thumbnail.jpg" width="640" alt="▶ Watch AutoSci on Bilibili">
-  </a>
-  <br/><sub><em>▶ Watch the AutoSci demo on Bilibili</em></sub>
-</div>
-
----
-
-## 🆕 What's New
-
-### 🛠️ 2026-07-12 · OpenCode Preview adaptation
-
-Published a separate OpenCode adaptation while keeping the existing Claude Code stable release and Codex Preview available. The OpenCode branch provides bilingual project skills under `.opencode/skills`, root `AGENTS.md` instructions, generated machine-local configuration, and `llm-review` MCP integration. Its daily-arXiv automation is recommendation-only and uses a standalone OpenAI-compatible API with deterministic fallback, optional best-effort email, and digest artifacts without repository writeback.
-
-### 🛠️ 2026-07-10 · autosci-codex branch adaptation
-
-Published a separate Codex-only adaptation while keeping the stable Claude Code release on `main` and the OpenCode Preview on `autosci-opencode`. The Codex branch provides bilingual skills under `.agents/skills`, root `AGENTS.md` instructions, Codex-specific setup and Review LLM configuration, and recommendation-only daily-arXiv CI without Claude Action authentication, automatic ingest, or repository writeback. The `$research` workflow delegates cold-wiki bootstrap to `$init` and proceeds only after bootstrap completes.
-
-### 🛠️ 2026-05-19 · Experiment Overhaul
-
-A possible usage process：`/ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `/exp-design <idea-slug>`-> For each experimental block,recommended flow: `/exp-run <slug> [--env local|remote]` to deploy → `/exp-status` to monitor → `/exp-run <slug> --collect` to collect.->`/exp-eval <experiment-slug>`
-
-✨ : New Skills
-`/exp-pilot-run` — Pilot experiment execution: write code, deploy, monitor, collect raw results.
-`/exp-pilot-eval` — Pilot result evaluation: read results, apply lenient verdict logic
-These two skills are built into Phase5 of `/ideate`
-🛠️ : Modified Skills
-`/ideate`
-5 structured generation paths (A-E) for both Claude and Review LLM.
-Phase restructuring: Filter & Validation merged into Phase 3, Write Wiki moved to Phase 4.
-Phase 5: Finish pilot design and workflow invocation
-Your ideas will follow a clearer path, and a more reasonable screening mechanism will be established through pilot experiments.
-`/exp-design`
-A brand-new experimental design process:method candidate generation + 5 experiment block types + iterative ablation loop
-`/exp-run`
-Add the code decision gate, code optimization and config check
-
-### 🎨 2026-05-18 · /poster — drafted paper → print-ready conference poster
-
-Run the poster skill after paper-draft and paper-compile (`/poster` in Claude Code, `$poster` in Codex) to turn your finished draft into a self-contained 1400×900 HTML poster and a print-quality PNG. Figures, booktabs tables, and math macros are extracted automatically from your LaTeX source; the agent walks you through picking which figures land in which sections and customizing the header (venue, affiliation logo). Export to PDF from your browser's print dialog. Pipeline adapted from [PaperX](https://github.com/yutao1024/PaperX) ([arXiv:2602.03866](https://arxiv.org/abs/2602.03866)).
-
-<p align="center">
-  <img src="assets/poster_demo_tikz_tables.png" alt="Example /poster output" width="720" />
-</p>
-
-### 🎯 2026-05-12 · /discover from a venue — "what should I read first from ICLR 2024?"
-
-Use `/discover --venue iclr --year 2024` in Claude Code or `$discover --venue iclr --year 2024` in Codex (or any conference/year) and get a personalized shortlist of papers from that venue, ranked by relevance to what's already in your wiki. Instead of scrolling a 7000-paper proceedings, you see the dozen that actually matter for your research direction, each with a rationale tied to topics and methods you already track. No new API keys, no ingest side-effects on your wiki — just a ranked reading list. Supports NeurIPS, ICLR, ICML, and other venues covered by [Paper Copilot](https://github.com/papercopilot/paperlists).
-
-### 📰 2026-05-09 · Daily arXiv — fresh-paper recommendations, on demand or scheduled
-
-Use `/daily-arxiv` in Claude Code or `$daily-arxiv` in Codex for a one-off pass. The GitHub Actions scheduler supports Codex CLI for unattended `inform` recommendations, with legacy Claude Code Action and Review LLM fallbacks; CI `auto-ingest` remains on the legacy Claude Action path until Codex writeback is separately verified. The skill builds an evidence packet from arXiv + Semantic Scholar + DeepXiv, lets the LLM rank candidates against your wiki interests, and delivers a digest by e-mail. Explicit `--mode auto-ingest` calls the ingest skill for high-confidence picks; `inform` mode just notifies.
-
-### 🌐 2026-05-06 · Knowledge Graph Visualization — browser + Obsidian
-
-Your research graph now has two ways to explore:
-
-- **Web UI** — run `python3 tools/serve.py`, open `http://localhost:8765/#/graph`. Click any node to highlight its neighborhood via BFS, filter by entity type or edge category, double-click to open the full page in the Reader.
-- **Obsidian** — run `/visualize --obsidian` to generate a color-coded graph config, or `/visualize --canvas` to produce a force-layout Canvas with labeled semantic edges.
-
----
-
-## What is AutoSci?
-
-Scientific research has traditionally been **human-intensive**: researchers coordinate literature, ideas, experiments, manuscripts, and review responses across long project cycles. **AutoSci** is a memory-centric agentic system that automates the full research lifecycle — from paper ingestion to rebuttal — while maintaining structured persistent memory across projects and improving its own procedures over time.
+> 📄 论文：[AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle](https://arxiv.org/abs/2605.31468)。若本系统对你的研究有帮助，请[引用论文](#引用)。
 
 <div align="center">
 <img src="assets/fig-overview.png" width="820" alt="AutoSci system overview">
@@ -184,352 +37,213 @@ Scientific research has traditionally been **human-intensive**: researchers coor
 
 ---
 
-## 🔬 Works Produced with AutoSci
+## 🚀 快速安装
 
-The following papers were generated end-to-end using AutoSci — from literature ingestion and idea generation to experiment execution and manuscript writing.
+**前置要求：** Python 3.9+（推荐 3.10+，DeepXiv 功能需要）、git、[Qoder](https://qoder.com)。
 
-| Paper | Domain | PDF |
-|-------|--------|-----|
-| Agent-driven iterative optimization of Triton GPU kernels | GPU kernel optimization | [📄 PDF](assets/papers/gpu-kernel-optimization.pdf) |
-| PTM-aware degrader target nomination via calibrated ternary-complex scoring | Biomedical drug discovery | [📄 PDF](assets/papers/protac-target-nomination.pdf) |
-| Forced Honesty Dissociates Polite Speech from Motivated Cognition in LLM Attitude Ratings | LLMs as cognitive models | [📄 PDF](assets/papers/llm-positivity-bias-cognitive-models.pdf) |
-
-**Have you used AutoSci in your own research?** We'd love to feature your work here — open a PR or drop us a message!
-
----
-
-## OpenCode Preview Quick Start
-
-**Prerequisites:** Python 3.9+, Node.js 18+, and OpenCode
-
-```bash
-# 1. Clone the OpenCode Preview branch
-git clone -b autosci-opencode https://github.com/skyllwt/AutoSci.git
-cd AutoSci
-
-# 2. Verify OpenCode
-opencode --version
-
-# 3. Generate the local environment, skills, AGENTS.md, and opencode.json
-chmod +x setup.sh && ./setup.sh --lang en
-
-# 4. Add your papers and optional notes
-#    raw/papers/  raw/notes/  raw/web/
-
-# 5. Start OpenCode and load the init skill
-opencode
-```
-
-The generated `.opencode/` tree and `opencode.json` are machine-local and should not be committed. The English and Chinese sources under `i18n/` remain authoritative.
-
----
-
-## Codex Preview Quick Start
-
-**Prerequisites:** Python 3.9+, Node.js 18+
-
-```bash
-# 1. Clone the Codex Preview branch
-git clone -b autosci-codex https://github.com/skyllwt/AutoSci.git
-cd AutoSci
-
-# 2. Install and sign in to Codex
-# Follow your Codex/OpenAI setup path, then verify:
-codex --version
-
-# 3. One-click setup
-chmod +x setup.sh && ./setup.sh        # Linux / macOS
-# Windows (PowerShell):
-#   powershell -ExecutionPolicy Bypass -File .\setup.ps1
-# setup creates .venv and syncs the Codex `.agents/skills` tree
-
-# 4. Put your own papers in raw/papers/ (.tex or .pdf)
-#    Optional: intent notes in raw/notes/, saved pages in raw/web/
-
-# 5. Build your research memory and start a project
-codex
-# Then invoke: $init [your-research-topic]
-```
-
-Claude Code users should use the stable `main` branch instead:
-
-```bash
-git clone -b main https://github.com/skyllwt/AutoSci.git
-cd AutoSci
-npm install -g @anthropic-ai/claude-code
-claude login
-claude
-# Then type: /init [your-research-topic]
-```
-
-<details>
-<summary><b>Manual setup (Linux / macOS)</b></summary>
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env                 # Edit to add API keys
-mkdir -p .agents/skills/shared-references
-cp -R i18n/en/skills/. .agents/skills/
-cp i18n/en/shared-references/*.md .agents/skills/shared-references/
-mkdir -p .claude/skills/shared-references
-cp -R i18n/en/skills/. .claude/skills/
-cp i18n/en/shared-references/*.md .claude/skills/shared-references/
-cp config/settings.local.json.example .claude/settings.local.json  # Claude Code compatibility
-```
-
-</details>
-
-<details>
-<summary><b>Manual setup (Windows / PowerShell)</b></summary>
+### Windows（PowerShell）
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env          # Edit to add API keys
-New-Item -ItemType Directory -Force .agents\skills\shared-references | Out-Null
-Copy-Item i18n\en\skills\* .agents\skills -Recurse -Force
-Copy-Item i18n\en\shared-references\*.md .agents\skills\shared-references -Force
-New-Item -ItemType Directory -Force .claude\skills\shared-references | Out-Null
-Copy-Item i18n\en\skills\* .claude\skills -Recurse -Force
-Copy-Item i18n\en\shared-references\*.md .claude\skills\shared-references -Force
-Copy-Item config\settings.local.json.example .claude\settings.local.json  # Claude Code compatibility
+# 1. 克隆本仓库
+git clone https://github.com/terryji-lab/AutoSci-Qoder.git
+cd AutoSci-Qoder
+
+# 2. 一键安装（中文 skills；英文用 -Lang en）
+powershell -ExecutionPolicy Bypass -File .\setup-qoder.ps1 -Lang zh
 ```
 
-Note: native Windows is supported for the local pipeline. Remote-GPU
-experiments via `/exp-run --env remote` rely on `ssh`/`rsync`/`screen`
-and are best run from WSL2 or Linux/macOS.
+脚本会自动完成：Python 环境检查 → 创建 `.venv` 并安装依赖 → 从模板生成 `.env` → 将 `i18n/zh/skills` 转换为 Qoder 原生 `.qoder/skills`（28 个 skill）→ 生成根目录 `AGENTS.md` 与 `.qoder/mcp.json` → 逐项验证安装。
 
-</details>
-
-### API Keys
-
-| Key | Required? | How to get | What it enables |
-|-----|-----------|-----------|-----------------|
-| Agent runtime auth | **Yes** | Claude Code: `claude login`; Codex: sign in through Codex | Powers the interactive coding-agent skills |
-| `OPENAI_API_KEY` or `CODEX_ACCESS_TOKEN` | Optional | OpenAI / Codex account | GitHub Actions Codex CLI recommender for daily-arxiv inform mode |
-| `ANTHROPIC_API_KEY` | Claude Code only (or use a third-party compatible API — see below) | `claude login` (automatic) | Powers Claude Code skills |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Optional | `claude setup-token` | GitHub Actions legacy Claude Code auth for Pro/Max users and daily-arxiv auto-ingest |
-| `SEMANTIC_SCHOLAR_API_KEY` | Optional | [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api) (free) | Citation graph, paper search |
-| `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
-| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
-
-> **Don't have an Anthropic API key?** You can use Codex, or use Claude Code with any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for Claude Code provider snippets.
-
-> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in single-agent mode.
-
----
-
-## LLM API Configuration / 大模型 API 配置
-
-AutoSci runs on **Claude Code** or **Codex**. Claude Code speaks the **Anthropic API** protocol: you can use Claude directly, or route Claude Code to any third-party provider that exposes an Anthropic-compatible endpoint by overriding a few environment variables. Codex uses the Codex/OpenAI sign-in path and reads the repo skills from `.agents/skills`.
-
-AutoSci 支持 **Claude Code** 与 **Codex**。Claude Code 使用 **Anthropic API** 协议通信：你既可以直接使用 Claude, 也可以通过覆盖几个环境变量, 把 Claude Code 指向任意支持 Anthropic 协议的第三方供应商。Codex 使用 Codex/OpenAI 登录路径，并从 `.agents/skills` 读取 repo skills。
-
-### Option A — Native Claude / 原生 Claude
+### Linux / macOS
 
 ```bash
-claude login   # OAuth, no manual config / OAuth 登录,无需手动配置
+git clone https://github.com/terryji-lab/AutoSci-Qoder.git
+cd AutoSci-Qoder
+chmod +x setup-qoder.sh && ./setup-qoder.sh --lang zh
 ```
-
-### Option B — Third-party Anthropic-compatible API / 第三方 Anthropic 兼容 API
-
-Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the project's `.claude/settings.json`), and replace the `<...>` placeholder with your own API key. Model names and extra options follow each provider's official Claude Code docs.
-
-从下方任选一个供应商,把对应配置粘贴到 `~/.claude/settings.json`(或项目的 `.claude/settings.json`),并把 `<...>` 占位符替换为你自己的 API key。模型名与额外选项均来自各供应商官方 Claude Code 文档。
-
-<details>
-<summary><b>MiMo / DeepSeek / Kimi / GLM 配置示例</b></summary>
-
-#### MiMo (小米)
-
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.xiaomimimo.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "<your-mimo-key>",
-    "ANTHROPIC_MODEL": "mimo-v2.5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "mimo-v2.5",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "mimo-v2.5-pro",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "mimo-v2.5"
-  }
-}
-```
-
-#### DeepSeek
-
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "<your-deepseek-key>",
-    "ANTHROPIC_MODEL": "deepseek-v4-pro[1m]",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "deepseek-v4-pro[1m]",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "deepseek-v4-pro[1m]",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "deepseek-v4-flash",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "deepseek-v4-flash",
-    "CLAUDE_CODE_EFFORT_LEVEL": "max"
-  }
-}
-```
-
-#### Kimi (Moonshot)
-
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.moonshot.ai/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "<your-moonshot-key>",
-    "ANTHROPIC_MODEL": "kimi-k2.5",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "kimi-k2.5",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "kimi-k2.5",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "kimi-k2.5",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "kimi-k2.5",
-    "ENABLE_TOOL_SEARCH": "false"
-  }
-}
-```
-
-#### GLM (Z.AI)
-
-```json
-{
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "<your-zai-key>",
-    "API_TIMEOUT_MS": "3000000"
-  }
-}
-```
-
-> Z.AI applies a default server-side model mapping, so no explicit `ANTHROPIC_MODEL` is needed.
-> Z.AI 默认在服务端做模型映射,无需显式设置 `ANTHROPIC_MODEL`。
-
-</details>
-
-**Skip the Claude Code onboarding** / **跳过 Claude Code 初始引导**: when using a third-party key, create or edit `.claude.json` (`~/.claude.json` on macOS/Linux) and add `{ "hasCompletedOnboarding": true }`.
 
 ---
 
-## Skills
+## ⚙️ 安装后配置
 
-AutoSci ships with 30+ agent skills spanning the full research lifecycle.
+### 1. 用 Qoder 打开项目
 
-- Claude Code: invoke skills as slash commands, for example `/init`.
-- Codex: invoke skills with `$skill-name` or from `/skills`, for example `$init`.
+直接用 Qoder 打开项目根目录。根目录的 `AGENTS.md`（运行时契约）和 `.qoder/skills/`（项目级 skills）会被自动加载。
+
+### 2. 注册 llm-review MCP server（可选但推荐）
+
+`/review`、`/rebuttal`、`/novelty` 等跨模型评审功能依赖本地 `llm-review` MCP server。安装脚本已生成 `.qoder/mcp.json`（来自 `config/mcp.qoder.json.example`）：
+
+```json
+{
+  "mcpServers": {
+    "llm-review": {
+      "command": ".venv/Scripts/python.exe",
+      "args": ["mcp-servers/llm-review/server.py"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
+```
+
+若 Qoder 未自动识别该文件，请在 Qoder 的 MCP 设置中手动添加（Linux/macOS 把 command 改为 `.venv/bin/python`）。不配置也能用，相关 skill 会降级为单模型自审模式。
+
+### 3. 配置 API key
+
+在 Qoder 中让它运行 **`setup` skill**，会交互式引导你配置（全部可选，可随时重跑补充）：
+
+| Key | 建议 | 作用 |
+|-----|------|------|
+| `SEMANTIC_SCHOLAR_API_KEY` | **推荐**（免费） | 引用图谱与论文检索；不配置时 `/init` 速度慢约 3 倍 |
+| `DEEPXIV_TOKEN` | 可选 | 语义检索、TLDR 摘要、热门论文检测（可在 setup 中一键自动注册） |
+| `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | 可选 | 跨模型独立评审（任何 OpenAI 兼容 API：DeepSeek、OpenAI、Qwen、OpenRouter、SiliconFlow 等） |
+
+> Qoder 自身的模型与登录由 Qoder 管理，不需要额外的 agent runtime key。
+
+### 4. 放入你的素材（可选）
+
+- `raw/papers/` — 你自己的论文（`.tex` 或 `.pdf`）
+- `raw/notes/` — 研究意图笔记
+- `raw/web/` — 网页存档
+
+---
+
+## 🧭 使用流程
+
+在 Qoder 对话框中**按名称调用 skill** 即可（文档中的 `/init`、`/ingest` 等写法均表示"调用 skill `init`"）。典型科研流程：
+
+```text
+1. setup       — 配置 API key（一次性）
+2. init <研究主题>  — 消化你的论文 + 自动发现 8-10 篇相关文献，构建 wiki 知识库
+3. ask / check — 向知识库提问 / 体检
+4. ideate      — 生成并筛选研究点子（含预实验试点）
+5. exp-design → exp-run → exp-eval — 实验设计、执行、裁决
+6. paper-plan → paper-draft → paper-compile — 论文大纲、起草、编译 PDF
+7. review / rebuttal / poster — 评审、答辩、学术海报
+```
+
+日常补充文献：`ingest`（单篇，本地路径或 arXiv 链接）、`discover`（候选清单）、`daily-arxiv`（每日推荐）。
 
 <details>
-<summary><b>View all skills</b></summary>
+<summary><b>全部 28 个 skill 一览</b></summary>
 
-Each skill has the same name in both runtimes. Use the Claude Code slash form
-inside Claude Code, and the Codex dollar form inside Codex or select the skill
-from Codex `/skills`.
+### 阶段 0：配置
+| Skill | 作用 |
+|-------|------|
+| setup | 交互式 API key 配置引导（Semantic Scholar、DeepXiv、Review LLM） |
+| reset | 按范围（`wiki / raw / log / checkpoints / all`）重置 wiki 状态 |
 
-### Phase 0: Setup
-| Skill | Claude Code | Codex | What it does |
-|-------|-------------|-------|-------------|
-| setup | `/setup` | `$setup` | Interactive API key configuration — checks `.env` state and walks through Semantic Scholar, DeepXiv, and Review LLM setup |
-| reset | `/reset` | `$reset` | Destructive cleanup — reset wiki state to a clean scaffold by scope (`wiki / raw / log / checkpoints / all`) |
+### 阶段 1：知识库
+| Skill | 作用 |
+|-------|------|
+| prefill | 预填充领域基础知识，避免后续 ingest 重复创建教科书概念页 |
+| init | 从 `raw/` 素材引导构建 wiki，可选外部发现，并行消化最终论文集 |
+| ingest | 消化一篇论文（本地路径或 arXiv URL），建立全部交叉引用与图边 |
+| discover | 构建候选论文排序清单（锚点/主题/会议/w 状态驱动），不入库 |
+| edit | 按用户请求增删原始素材或更新 wiki 内容 |
+| ask | 向 wiki 提问，综合检索相关页面作答，好答案可沉淀回 wiki |
+| check | 全库健康扫描，生成分级修复建议报告 |
 
-### Phase 1: Knowledge Base
-| Skill | Claude Code | Codex | What it does |
-|-------|-------------|-------|-------------|
-| prefill | `/prefill` | `$prefill` | Seed `wiki/foundations/` with domain background so later ingest runs do not create duplicate concept pages for textbook material |
-| init | `/init` | `$init` | Bootstrap the wiki from your source files, with optional discovery, then ingest the final paper set serially by default, with optional parallel worktree mode |
-| ingest | `/ingest` | `$ingest` | Ingest a paper (local path or arXiv URL) — creates pages and builds all cross-references and graph edges |
-| discover | `/discover` | `$discover` | Build a ranked shortlist of candidate papers (anchor-driven, topic-driven, venue-filtered, or from wiki state) without ingesting |
-| edit | `/edit` | `$edit` | Add or remove raw sources, or update wiki content, per user request |
-| ask | `/ask` | `$ask` | Ask the wiki a question — retrieve and synthesize relevant pages, optionally crystallize the answer back into the wiki |
-| check | `/check` | `$check` | Scan the full wiki to detect health issues and produce a tiered fix-recommendation report |
+### 阶段 2：创意与实验
+| Skill | 作用 |
+|-------|------|
+| daily-arxiv | 每日 arXiv 推荐（一次性或定时），邮件推送排序摘要，可选自动入库 |
+| ideate | 多阶段点子生成：领域扫描 → 双模型头脑风暴 → 过滤验证 → 写入 wiki → 试点 |
+| exp-pilot-run | 预实验执行：写代码、部署、监控、收集原始结果 |
+| exp-pilot-eval | 预实验评估：读取结果、应用宽松判定、更新 idea 页面 |
+| novelty | 多源新颖性验证（WebSearch + Semantic Scholar + wiki + Review LLM） |
+| review | 对任意研究产出做跨模型评审，输出结构化评分与改进建议 |
+| exp-design | idea 驱动的实验设计：方法候选 → 基准选择 → 敏感性分析 → 主实验 |
+| exp-run | 完整实验执行流水线：准备代码 → 部署 → 监控 → 收集结果 |
+| exp-status | 查看所有在跑实验状态，可选自动收集并推进流水线 |
+| exp-eval | 实验裁决关卡：Review LLM 独立判定结果并更新 idea 状态与图边 |
+| refine | 多轮迭代打磨产出：评审 → 解析反馈 → 修复 → 更新 wiki，直到目标分数 |
 
-### Phase 2: Ideation & Experiments
-| Skill | Claude Code | Codex | What it does |
-|-------|-------------|-------|-------------|
-| daily-arxiv | `/daily-arxiv` | `$daily-arxiv` | Run or schedule the daily arXiv recommendation feed; delivers a ranked digest by email with optional auto-ingest for high-confidence picks |
-| ideate | `/ideate` | `$ideate` | Multi-phase research idea generation: landscape scan → dual-model brainstorm → filter & validation → write to wiki → pilot |
-| exp-pilot-run | `/exp-pilot-run` | `$exp-pilot-run` | Pilot experiment execution — write code, deploy, monitor, collect raw results as part of the ideation pipeline |
-| exp-pilot-eval | `/exp-pilot-eval` | `$exp-pilot-eval` | Pilot result evaluation — read results, apply success criteria, update idea page as part of the ideation pipeline |
-| novelty | `/novelty` | `$novelty` | Multi-source novelty verification via WebSearch + Semantic Scholar + wiki + Review LLM; outputs novelty score and recommendations |
-| review | `/review` | `$review` | Cross-model review of any research artifact — outputs structured scores, wiki entity mapping, and improvement suggestions |
-| exp-design | `/exp-design` | `$exp-design` | Idea-driven experiment design with iterative ablation — method candidates → benchmark selection → sensitivity analysis → main experiment |
-| exp-run | `/exp-run` | `$exp-run` | Full experiment execution pipeline — prepare code → deploy → monitor → collect results |
-| exp-status | `/exp-status` | `$exp-status` | View the status of all running experiments; optionally auto-collect completed runs and advance the pipeline |
-| exp-eval | `/exp-eval` | `$exp-eval` | Experiment verdict gate — Review LLM independently judges results and auto-updates the linked idea's status and graph edges |
-| refine | `/refine` | `$refine` | Multi-round iterative improvement — repeatedly reviews an artifact, parses feedback, applies fixes, and updates wiki until target score |
+### 阶段 3：写作与传播
+| Skill | 作用 |
+|-------|------|
+| survey | 基于 wiki 生成 Related Work：主题分组 → 叙事结构 → LaTeX 输出 |
+| paper-plan | 从 idea 图谱整理论文大纲：证据地图 → 叙事结构 → 章节/图表/引用计划 |
+| paper-draft | 按大纲起草 LaTeX 论文：逐节写作、生成图表、校验 BibTeX |
+| paper-compile | LaTeX 编译 → PDF：自动修复 + 页数/匿名/字体检查 + 投稿清单 |
+| research | 端到端科研编排：idea 发现 → 实验 → 裁决 → 写作（含人工关卡） |
+| rebuttal | 解析评审意见 → 原子化 → 映射 wiki → Review LLM 压力测试 → 生成 rebuttal |
+| poster | 从已起草论文生成学术海报（单页 HTML + 印刷级 PNG） |
 
-### Phase 3: Writing & Dissemination
-| Skill | Claude Code | Codex | What it does |
-|-------|-------------|-------|-------------|
-| survey | `/survey` | `$survey` | Generate a Related Work section from wiki knowledge — thematic grouping → narrative structure → LaTeX output |
-| paper-plan | `/paper-plan` | `$paper-plan` | Compile a paper outline from the idea graph — evidence map → narrative structure → section + figure + citation plan |
-| paper-draft | `/paper-draft` | `$paper-draft` | Draft a LaTeX paper from `PAPER_PLAN` — write each section from wiki sources, generate figures/tables, verify BibTeX |
-| paper-compile | `/paper-compile` | `$paper-compile` | LaTeX compile → PDF — latexmk compile + auto-fix + page count / anonymity / font checks + submission checklist |
-| research | `/research` | `$research` | End-to-end research orchestrator — idea discovery → experiment design → execution → verdict → paper writing with human gates |
-| rebuttal | `/rebuttal` | `$rebuttal` | Parse review comments → atomize concerns → map to wiki → stress-test with Review LLM → generate rebuttal |
-| poster | `/poster` | `$poster` | Generate an academic poster from a drafted paper — distill sections into a single-page HTML poster with figures |
-
-### Utilities
-| Skill | Claude Code | Codex | What it does |
-|-------|-------------|-------|-------------|
-| visualize | `/visualize` | `$visualize` | Generate Obsidian graph configs and Canvas knowledge maps; the interactive web graph is served by `tools/serve.py` |
+### 工具
+| Skill | 作用 |
+|-------|------|
+| visualize | 生成 Obsidian 图配置与 Canvas 知识地图；交互式网页图由 `tools/serve.py` 提供（`python tools/serve.py` 后访问 `http://localhost:8765/#/graph`） |
 
 </details>
 
 ---
 
-## Contributing
+## 🗂️ 目录结构与适配机制
 
-We welcome contributions and feedback — especially while we're in active iteration. See [CONTRIBUTING.md](CONTRIBUTING.md).
+```text
+.qoder/skills/        ← Qoder 原生 skills（生成物，勿手改）
+AGENTS.md             ← 运行时契约（生成物，勿手改）
+i18n/{en,zh}/         ← 双语 skill 源（唯一事实来源）
+tools/convert_to_qoder.py ← i18n → .qoder 的确定性转换器
+setup-qoder.ps1 / .sh     ← Qoder 一键安装脚本
+runtime/              ← wiki 契约源（schema + policy + templates）
+tools/                ← Python 工具（research_wiki.py 是 wiki 引擎）
+mcp-servers/llm-review/   ← 跨模型评审 MCP server
+wiki/ raw/            ← 你的知识库与素材（本地生成，不入库）
+```
 
-## Community / 交流群
+修改 skill 内容的正确方式：编辑 `i18n/<lang>/skills/` 下的源文件，然后重新运行安装脚本或 `python tools/convert_to_qoder.py --lang zh` 重新生成。
 
-<img src="assets/wechat_group_4_0811.jpg" width="240" alt="WeChat Group QR Code">
+---
 
-Scan to join the AutoSci WeChat group / 扫码加入微信交流群
+## 🔄 同步上游更新
 
-## Citation
+```powershell
+git remote add upstream https://github.com/skyllwt/AutoSci.git
+git fetch upstream
+git merge upstream/main        # 或 rebase；冲突后重跑转换脚本
+python tools/convert_to_qoder.py --lang zh
+```
 
-If you find AutoSci useful in your research, please cite our paper:
+---
+
+## 常见问题
+
+- **Windows 远程 GPU 实验**：`exp-run --env remote` 依赖 `ssh`/`rsync`/`screen`，建议在 WSL2 或 Linux/macOS 上运行；本地流水线原生支持 Windows。
+- **切换语言**：重新运行 `setup-qoder.ps1 -Lang en`（或 `--lang zh`）即可整体切换 skill 语言。
+- **DeepXiv 不可用**：需要 Python ≥ 3.10；缺失时自动降级为 arXiv RSS + Semantic Scholar，不影响主流程。
+
+---
+
+## 致谢
+
+- 上游项目 **[AutoSci](https://github.com/skyllwt/AutoSci)**（MIT 许可）及其作者团队
+- **[Qoder](https://qoder.com)** —— 本适配版运行的智能体 IDE
+- `/poster` 流水线改编自 [PaperX](https://github.com/yutao1024/PaperX)
+
+## 引用
 
 ```bibtex
 @misc{qian2026autosci,
-      title={AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle}, 
+      title={AutoSci: A Memory-Centric Agentic System for the Full Scientific Research Lifecycle},
       author={Weitong Qian and Beicheng Xu and Zhongao Xie and Bowen Fan and Guozheng Tang and Jiale Chen and Xinzhe Wu and Mingtian Yang and Chenyang Di and Jiajun Li and Lingching Tung and Peichao Lai and Yifei Xia and Ziyi Guo and Yanwei Xu and Yanzhao Qin and Shaoduo Gan and Xupeng Miao and Bin Cui},
       year={2026},
       eprint={2605.31468},
       archivePrefix={arXiv},
       primaryClass={cs.AI},
-      url={https://arxiv.org/abs/2605.31468}, 
+      url={https://arxiv.org/abs/2605.31468},
 }
 ```
 
-## Acknowledgments
-
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** and **[Codex](https://developers.openai.com/codex)** — supported coding-agent runtimes for AutoSci
-- The `/poster` pipeline is adapted from [PaperX](https://github.com/yutao1024/PaperX)
-
 ## License
 
-[MIT](LICENSE) — use it, fork it, build on it.
+[MIT](LICENSE) — 自由使用、fork、二次开发。
 
-## Star History
-
-<div align="center">
-<a href="https://star-history.com/#skyllwt/AutoSci&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" />
-    <img alt="AutoSci Star History Chart" src="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" width="600" />
-  </picture>
-</a>
-</div>
-
+---
 
 <div align="center">
 
-**Built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Codex](https://developers.openai.com/codex)**
-
-If this project helps your research, give it a ⭐
+**本适配版为 [Qoder](https://qoder.com) 构建 · 上游项目为 [AutoSci](https://github.com/skyllwt/AutoSci)**
 
 </div>
