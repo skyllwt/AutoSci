@@ -11,6 +11,7 @@
 [![Claude Code](https://img.shields.io/badge/main-Claude_Code_stable-d97706.svg)](https://docs.anthropic.com/en/docs/claude-code)
 [![Codex Preview](https://img.shields.io/badge/Codex-preview-111111.svg)](https://developers.openai.com/codex)
 [![OpenCode Preview](https://img.shields.io/badge/OpenCode-preview-6f42c1.svg)](https://opencode.ai/)
+[![Qoder Preview](https://img.shields.io/badge/Qoder-preview-00c4cc.svg)](https://qoder.com)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.31468-b31b1b.svg)](https://arxiv.org/abs/2605.31468)
 [![Status](https://img.shields.io/badge/status-internal_beta-orange.svg)](#️⃣-status--update)
 
@@ -72,6 +73,30 @@ Current boundary:
 | Daily arXiv | CI is recommendation-only; no repository writeback or unattended ingest |
 
 See [docs/codex-preview.md](docs/codex-preview.md) for the preview notes and known boundaries.
+
+### Qoder Preview
+
+Try the Qoder adaptation on this branch:
+
+```bash
+git clone -b autosci-qoder https://github.com/skyllwt/AutoSci.git
+cd AutoSci
+./setup-qoder.sh --lang zh        # or: powershell -ExecutionPolicy Bypass -File .\setup-qoder.ps1 -Lang zh
+# Open the folder in Qoder, then ask Qoder to run the `init` skill for your research topic.
+```
+
+Current boundary:
+
+| Area | Status |
+|---|---|
+| Local Qoder skills | Preview supported via generated `.qoder/skills` (`tools/convert_to_qoder.py`) |
+| Runtime instructions | Root `AGENTS.md`, generated from the selected language (`i18n/<lang>/AGENTS.md`) |
+| Shared skill source | `i18n/<lang>/skills` remains the bilingual source of truth |
+| Review LLM | Local `llm-review` MCP configured through generated `.qoder/mcp.json` (example in `config/mcp.qoder.json.example`) |
+| Parallel ingest fan-out | Qoder subagents (Agent tool) with the same git-worktree isolation contract |
+| Daily arXiv | Recommendation-only; standalone OpenAI-compatible API with deterministic fallback and optional email |
+
+The Qoder preview does not replace the Claude Code stable release, the Codex Preview, or the OpenCode Preview.
 
 ---
 

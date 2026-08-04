@@ -1294,7 +1294,7 @@ def run_third_party_recommendation(
     temperature: float = 0.1,
 ) -> dict[str, Any]:
     if context.get("mode") != "inform":
-        raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires Claude Code runtime")
+        raise RuntimeError("third-party LLM recommendation is inform-mode only; auto-ingest requires an agent runtime (Qoder/Claude Code)")
     env = _require_llm_env()
     compact = _compact_llm_context(context, limit)
     allowed_ids = {

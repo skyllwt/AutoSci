@@ -1,7 +1,7 @@
 """Shared environment loader for OmegaWiki tools.
 
 Loads environment variables from .env files so that API keys configured
-by the user are available even when Claude Code spawns a fresh shell.
+by the user are available even when the host agent (Qoder) spawns a fresh shell.
 
 Load order (later files do NOT override earlier ones):
   1. ~/.env          (global, e.g. DEEPXIV_TOKEN auto-registered here)
