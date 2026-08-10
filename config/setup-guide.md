@@ -124,6 +124,7 @@ cross-model review is unavailable.
 | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o` |
 | OpenRouter | `https://openrouter.ai/api/v1` | any model slug |
+| OrcaRouter | `https://api.orcarouter.ai/v1` | `orcarouter/auto` |
 | Qwen (DashScope) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-max` |
 | SiliconFlow | `https://api.siliconflow.cn/v1` | see their docs |
 | Local (Ollama) | `http://localhost:11434/v1` | `llama3.2` |

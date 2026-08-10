@@ -76,7 +76,7 @@ After both models have independently assessed:
    > "跨模型 review 尚未配置。此 skill 在独立 review LLM 辅助下效果更好。你想现在配置，还是仅用 Claude 继续？"
 
 2. **若用户选择配置**，交互引导：
-   - 询问用户使用哪个 OpenAI 兼容 API（DeepSeek、OpenAI、Qwen、OpenRouter 等）
+   - 询问用户使用哪个 OpenAI 兼容 API（DeepSeek、OpenAI、Qwen、OpenRouter、OrcaRouter 等）
    - 帮助用户编辑 `.env`，设置 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`
    - 提示用户重启 Claude Code 以使 MCP server 加载新配置
    - 引导参考 `.env.example` 中的 provider 列表

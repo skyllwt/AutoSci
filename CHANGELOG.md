@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- **OrcaRouter provider support**: add [OrcaRouter](https://www.orcarouter.ai) as a named provider for the Review LLM (OpenAI-compatible) and Claude Code (Anthropic protocol). The Review LLM provider table in `config/setup-guide.md` and the provider tables in `.env.example` / `config/.env.example` now include OrcaRouter (`LLM_BASE_URL=https://api.orcarouter.ai/v1`, example model `orcarouter/auto`). README Option B gains an OrcaRouter `settings.json` snippet for Claude Code via `ANTHROPIC_BASE_URL=https://api.orcarouter.ai` with the three `ANTHROPIC_DEFAULT_*_MODEL` pins. Cross-model review references (`cross-model-review.md`) and the `llm-review` MCP server docstring list OrcaRouter as well.
+
 ## [1.4.0] - 2026-05-18
 
 ### Added

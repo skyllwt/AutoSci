@@ -76,7 +76,7 @@ When the review MCP server is **unavailable**:
    > "Cross-model review is not configured. This skill works best with an independent review LLM. Would you like to set it up now, or proceed with Claude-only analysis?"
 
 2. **If the user wants to configure**, guide them interactively:
-   - Ask which OpenAI-compatible API provider they have (DeepSeek, OpenAI, Qwen, OpenRouter, etc.)
+   - Ask which OpenAI-compatible API provider they have (DeepSeek, OpenAI, Qwen, OpenRouter, OrcaRouter, etc.)
    - Help them edit `.env` to set `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`
    - Tell them to restart Claude Code so the MCP server picks up the new config
    - Reference `.env.example` for the full provider table

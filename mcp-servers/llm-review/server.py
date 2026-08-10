@@ -7,7 +7,7 @@ Provides three tools:
   - web_search: web search via LLM (provider-specific, may not work with all APIs)
 
 Works with any OpenAI-compatible API provider:
-  - DeepSeek, Qwen (DashScope), OpenRouter, SiliconFlow, OpenAI, etc.
+  - DeepSeek, Qwen (DashScope), OpenRouter, SiliconFlow, OpenAI, OrcaRouter, etc.
 
 Configuration: set LLM_* variables in the project root .env file.
   LLM_API_KEY         - API key (required)

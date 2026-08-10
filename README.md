@@ -315,9 +315,9 @@ and are best run from WSL2 or Linux/macOS.
 | `DEEPXIV_TOKEN` | Optional | `setup.sh` auto-registers | Semantic search, TLDR, trending |
 | `LLM_API_KEY` + `LLM_BASE_URL` + `LLM_MODEL` | Optional | Any OpenAI-compatible API | Cross-model review; `/daily-arxiv` inform recommendations |
 
-> **Don't have an Anthropic API key?** You can use Codex, or use Claude Code with any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for Claude Code provider snippets.
+> **Don't have an Anthropic API key?** You can use Codex, or use Claude Code with any Anthropic-protocol-compatible provider — DeepSeek, Kimi, MiMo, GLM, OrcaRouter, and more. See the [LLM API Configuration](#llm-api-configuration--大模型-api-配置) section below for Claude Code provider snippets.
 
-> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, etc. If not configured, skills still work in single-agent mode.
+> **Cross-model review**: AutoSci uses a second LLM as an independent reviewer for ideas, experiments, and paper drafts. Works with **any OpenAI-compatible API** — DeepSeek, OpenAI, Qwen, OpenRouter, SiliconFlow, OrcaRouter, etc. If not configured, skills still work in single-agent mode.
 
 ---
 
@@ -340,7 +340,7 @@ Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the 
 从下方任选一个供应商,把对应配置粘贴到 `~/.claude/settings.json`(或项目的 `.claude/settings.json`),并把 `<...>` 占位符替换为你自己的 API key。模型名与额外选项均来自各供应商官方 Claude Code 文档。
 
 <details>
-<summary><b>MiMo / DeepSeek / Kimi / GLM 配置示例</b></summary>
+<summary><b>MiMo / DeepSeek / Kimi / GLM / OrcaRouter 配置示例</b></summary>
 
 #### MiMo (小米)
 
@@ -405,6 +405,21 @@ Pick a provider below, paste the snippet into `~/.claude/settings.json` (or the 
 
 > Z.AI applies a default server-side model mapping, so no explicit `ANTHROPIC_MODEL` is needed.
 > Z.AI 默认在服务端做模型映射,无需显式设置 `ANTHROPIC_MODEL`。
+
+#### OrcaRouter
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.orcarouter.ai",
+    "ANTHROPIC_AUTH_TOKEN": "<your-orcarouter-key>",
+    "ANTHROPIC_MODEL": "anthropic/claude-sonnet-4.6",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "anthropic/claude-opus-4.6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-4.6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/claude-haiku-4.5"
+  }
+}
+```
 
 </details>
 
