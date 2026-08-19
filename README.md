@@ -516,11 +516,11 @@ If you find AutoSci useful in your research, please cite our paper:
 ## Star History
 
 <div align="center">
-<a href="https://star-history.com/#skyllwt/AutoSci&Date">
+<a href="https://star-history.dera.page/#skyllwt/AutoSci&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" />
-    <img alt="AutoSci Star History Chart" src="https://api.star-history.com/svg?repos=skyllwt/AutoSci&type=Date" width="600" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=skyllwt/AutoSci&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=skyllwt/AutoSci&type=Date" />
+    <img alt="AutoSci Star History Chart" src="https://star-history.dera.page/svg?repos=skyllwt/AutoSci&type=Date" width="600" />
   </picture>
 </a>
 </div>
