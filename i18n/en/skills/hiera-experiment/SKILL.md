@@ -10,6 +10,10 @@ Use this skill only when the user explicitly chooses the optional Hiera search p
 
 For exact JSON fields and the run directory contract, read [references/interface.md](references/interface.md) before creating a run.
 
+## Continue the user journey after every stage
+
+After each Hiera command, report the concrete result and the state it changed. If the next stage is unblocked, include one exact next-step command (or a short command template with the run and candidate IDs filled in) and explain what it will do. If a human gate, missing semantic hypothesis, source review, or contract decision remains, state exactly what the user must review or provide and stop before that gated action. Do not silently advance through `approve`, deployment, execution, or result acceptance.
+
 The search has real repeated iterations:
 
 1. **Initialize and inspect.** Read the linked wiki experiment, idea, and design as read-only inputs. Run `python -m tools.hiera.cli init <slug> --run-id <id>`. Review `semantic_space.json` and `task_contract.yaml`. The generated semantic space contains only a conservative baseline until the user supplies mechanism hypotheses and relations. Do not invent methods, score direction, or commands.

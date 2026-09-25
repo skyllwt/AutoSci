@@ -292,6 +292,8 @@ def run_ssh(cfg: dict, remote_cmd: str, timeout: int = 30) -> tuple[int, str, st
             cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
         )
         return proc.returncode, proc.stdout, proc.stderr
@@ -487,7 +489,14 @@ def cmd_sync_code(cfg: dict, args: argparse.Namespace) -> None:
     cmd += [src, dst]
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
         if proc.returncode != 0:
             _error(f"rsync failed: {proc.stderr.strip()}")
 
@@ -533,7 +542,14 @@ def cmd_setup_env(cfg: dict, args: argparse.Namespace) -> None:
     transport_parts += ["-o", "BatchMode=yes"]
     transport_parts += [req_file, f"{cfg['user']}@{cfg['host']}:{work_dir}/"]
 
-    proc = subprocess.run(transport_parts, capture_output=True, text=True, timeout=30)
+    proc = subprocess.run(
+        transport_parts,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+    )
     if proc.returncode != 0:
         _error(f"scp failed: {proc.stderr.strip()}")
 
@@ -765,7 +781,14 @@ def cmd_pull_results(cfg: dict, args: argparse.Namespace) -> None:
     cmd += [src, dst]
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=300,
+        )
         if proc.returncode != 0:
             _error(f"rsync pull failed: {proc.stderr.strip()}")
 

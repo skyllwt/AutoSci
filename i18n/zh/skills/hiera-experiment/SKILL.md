@@ -10,6 +10,10 @@ argument-hint: <experiment-slug> [--run-id <id>] [--init|--propose|--admit|--app
 
 创建运行前请阅读 [references/interface.md](references/interface.md)，其中定义了精确 JSON 字段和运行目录契约。
 
+## 每一步都给出清晰的后续建议
+
+每次执行 Hiera 命令后，都要说明实际结果和被改变的状态。只要下一步已经具备条件，就给出一条填好 run 和 candidate ID 的确切命令（或简短命令模板），并说明它的作用。如果仍需要人工门控、补充语义假设、检查源码或决定契约，就明确告诉用户需要检查或提供什么，并在门控完成前停止。不得静默越过 `approve`、部署、运行或结果接收等门控。
+
 搜索包含真实的反复迭代：
 
 1. **初始化并检查。** 只读读取关联的 wiki 实验、idea 和 design，执行 `python -m tools.hiera.cli init <slug> --run-id <id>`。检查 `semantic_space.json` 和 `task_contract.yaml`。默认语义空间只有保守的 baseline，用户必须提供机制假设和关系；不得猜测方法、指标方向或命令。
