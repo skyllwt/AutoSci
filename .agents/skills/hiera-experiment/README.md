@@ -49,6 +49,27 @@ init → inspect and complete semantic space → propose
 Every command is run from the AutoSci project root. Replace `<slug>`, `<run-id>`, and `<candidate-id>` with the values for the current run.
 
 ### 1. Initialize an isolated run
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --init
+
+**Add follow-up text when:** a contract file, semantic-space file, local/remote
+choice, or a no-execution boundary is needed. For example:
+
+~~~text
+Use contract-overrides.json and config/server.yaml for a remote run.
+Only initialize and show manifest.json, semantic_space.json, and
+task_contract.yaml. Do not generate candidates, approve, deploy, or run.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . init <slug> --run-id <run-id> --contract contract-overrides.json
+~~~
+
+After initialization, the agent must stop and ask for confirmed semantic
+hypotheses and relations before editing semantic_space.json. There is no fixed
+Python subcommand for that edit; the agent writes and validates the JSON.
+
 
 ```text
 python -m tools.hiera.cli --project . init <slug> --run-id <run-id>
@@ -68,6 +89,24 @@ The initial semantic space is conservative. The user must supply mechanism hypot
 Next step after a successful initialization: inspect the two files, add only the confirmed semantic assumptions, then run `propose`.
 
 ### 2. Propose semantic points
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --propose
+
+**Add follow-up text when:** you need a non-default round or limit, want to
+select particular points, or want display-only behavior:
+
+~~~text
+Generate round 0 with at most 4 proposals. Show operation, semantic point,
+parents, changes, and coverage only. Do not author source, admit, approve, or run.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . propose <slug> --run-id <run-id> --round 0 --limit 4
+~~~
+
+This command creates semantic points only. It does not create candidate source.
+
 
 ```text
 python -m tools.hiera.cli --project . propose <slug> \
@@ -79,6 +118,21 @@ python -m tools.hiera.cli --project . propose <slug> \
 Next step: author a source tree and a spec for each selected point, then use `admit`.
 
 ### 3. Author a modular draft and candidate spec
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --propose
+
+**Follow-up text is required:** identify the selected proposal point IDs,
+parents, source layout, data/seed constraints, and the review boundary:
+
+~~~text
+For proposal <point-id>, generate a modular candidate and candidate spec.
+Write source only under runs/hiera/<slug>/<run-id>/drafts/<candidate-id>/.
+Show complete source, spec, config, parents, semantic point, command, metric,
+direction, and result JSON. Do not write candidates/ and do not run.
+~~~
+
+**Agent Python command:** none. The agent writes the reviewed draft tree and
+spec; the next Python command is admit, only after user inspection.
+
 
 Put reviewed source only under the current run's `drafts/` directory. A non-trivial candidate normally looks like:
 
@@ -100,6 +154,27 @@ This stage is code generation and review preparation only. Do not put source int
 Next step: show the full draft, spec, contract boundary, and evaluation command to the user; after review run `admit`.
 
 ### 4. Admit an immutable candidate
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --admit
+
+**Follow-up text is required:** give the exact spec and source directory:
+
+~~~text
+Admit using
+runs/hiera/<slug>/<run-id>/drafts/<candidate-id>.spec.json
+and
+runs/hiera/<slug>/<run-id>/drafts/<candidate-id>.
+Admit only; do not approve, preflight, deploy, or run.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . admit <slug> --run-id <run-id> --spec runs/hiera/<slug>/<run-id>/drafts/<candidate-id>.spec.json --source-dir runs/hiera/<slug>/<run-id>/drafts/<candidate-id>
+~~~
+
+Admission creates the immutable snapshot and config.json; it does not execute
+the candidate.
+
 
 ```text
 python -m tools.hiera.cli --project . admit <slug> \
@@ -113,6 +188,26 @@ python -m tools.hiera.cli --project . admit <slug> \
 Next step: inspect the immutable candidate snapshot and present the approval gate.
 
 ### 5. Approve the execution contract (human gate)
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --approve
+
+**Follow-up text is required:** approve only after reviewing source, spec,
+entrypoint, command, metric, direction, budget, remote environment, and data:
+
+~~~text
+I have reviewed the candidate source and execution contract, including the
+metric, direction, resource limits, and local/remote boundary. I explicitly
+approve the frozen Hiera execution contract. Run approve only; do not preflight
+or run.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . approve <slug> --run-id <run-id>
+~~~
+
+This freezes the contract digest. A changed contract requires another review.
+
 
 ```text
 python -m tools.hiera.cli --project . approve <slug> --run-id <run-id>
@@ -125,6 +220,23 @@ For a remote contract, explicitly check `resources.remote_config`, `remote_pytho
 Next step after approval: run `preflight` for each admitted candidate.
 
 ### 6. Preflight without consuming an evaluation
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --preflight
+
+**Follow-up text is required:** provide the candidate ID and the no-execution
+boundary:
+
+~~~text
+Preflight candidate <candidate-id> only. Check the frozen contract, source
+digest, entrypoint, placeholders, and execution boundary. Do not consume an
+evaluation or run the full experiment.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . preflight <slug> --run-id <run-id> --candidate <candidate-id>
+~~~
+
 
 ```text
 python -m tools.hiera.cli --project . preflight <slug> \
@@ -136,6 +248,26 @@ Preflight verifies the frozen contract, candidate snapshot, command placeholders
 Next step after a passed preflight: run a bounded screen evaluation.
 
 ### 7. Screen a candidate
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --run
+
+**Follow-up text is required:** provide candidate ID, depth, environment, and
+collection boundary:
+
+~~~text
+Run candidate <candidate-id> at depth screen using the approved <local|remote>
+contract. Deploy only the immutable candidate snapshot, collect the declared
+result and bounded logs, and do not modify wiki or sync AutoSci source.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . run <slug> --run-id <run-id> --candidate <candidate-id> --depth screen
+~~~
+
+The command reserves budget, executes, validates the declared JSON score, and
+writes the receipt.
+
 
 ```text
 python -m tools.hiera.cli --project . run <slug> \
@@ -147,6 +279,38 @@ python -m tools.hiera.cli --project . run <slug> \
 Next step: propose/admit another candidate for comparison, or use `loop`/`tune` on an eligible candidate.
 
 ### 8. Iterate with deep bouts
+**Repeated deep evaluation:**
+
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --loop
+
+**Follow-up text is required:**
+
+~~~text
+Run at most 2 deep bouts with at most 1 bout per candidate. Use existing
+admitted candidates only. Do not propose, generate source, or tune.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . loop <slug> --run-id <run-id> --rounds 2 --max-bouts 1
+~~~
+
+**Parameter children with tune:**
+
+~~~text
+Use <candidate-id> as the parent. Generate at most 3 unseen configurations
+inside the reviewed config_schema, show the child configs and parent relation,
+then run deep evaluation. Do not mutate the parent.
+~~~
+
+~~~powershell
+python -m tools.hiera.cli --project . tune <slug> --run-id <run-id> --candidate <candidate-id> --limit 3 --depth deep
+~~~
+
+Use tune only when config_schema was reviewed. loop evaluates existing
+candidates; it does not call propose or generate source.
+
 
 Use a bounded loop for repeated deep evaluation and tuning:
 
@@ -170,6 +334,38 @@ python -m tools.hiera.cli --project . tune <slug> \
 Next step: inspect scores, seed/stability diagnostics, and tuning decisions; if the search needs a new semantic direction, return to `propose` and repeat admission and approval for the new candidate.
 
 ### 9. Check or recover remote attempts
+**Status user skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --status
+
+**Optional follow-up text:**
+
+~~~text
+Poll all pending remote attempts once and collect terminal receipts. Never
+resubmit a worker or reserve a replacement attempt.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . status <slug> --run-id <run-id>
+~~~
+
+**Recover after a client interruption:**
+
+~~~text
+$hiera-experiment <slug> --run-id <run-id> --recover
+~~~
+
+Add:
+
+~~~text
+Recover the existing remote attempt <attempt-id>. Do not reserve a new budget
+slot and do not resubmit the worker.
+~~~
+
+~~~powershell
+python -m tools.hiera.cli --project . recover <slug> --run-id <run-id> --attempt <attempt-id>
+~~~
+
 
 For a non-blocking status check of all pending remote attempts:
 
@@ -189,6 +385,24 @@ python -m tools.hiera.cli --project . recover <slug> \
 Next step: after a terminal receipt, continue the bounded iteration or finalize the exploratory search.
 
 ### 10. Finalize the exploratory search
+**User skill command ($hiera-experiment):** $hiera-experiment <slug> --run-id <run-id> --finalize
+
+**Follow-up text is required:**
+
+~~~text
+Confirm all remote attempts are collected or recovered, then write the Hiera
+sidecar report only. Do not write results to wiki or declare a formal claim.
+~~~
+
+**Agent Python command:**
+
+~~~powershell
+python -m tools.hiera.cli --project . finalize <slug> --run-id <run-id>
+~~~
+
+For formal confirmation, return to the normal experiment workflow after
+reviewing FINAL_REPORT.json.
+
 
 ```text
 python -m tools.hiera.cli --project . finalize <slug> --run-id <run-id>
