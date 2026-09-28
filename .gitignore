@@ -108,3 +108,8 @@ wiki/graph-view.html
 
 # Local remote-server configuration
 config/server.yaml
+
+# Optional Hiera search state and generated candidate code
+/runs/hiera/
+
+tests/*
