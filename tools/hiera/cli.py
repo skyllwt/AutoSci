@@ -257,7 +257,8 @@ def cmd_admit(args: argparse.Namespace) -> None:
     for name, relative, content in validated_files:
         target = safe_child(candidate_directory, *relative.parts)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8", newline="\n")
+        with target.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
         file_digests[name] = sha256_file(target)
     atomic_write_json(candidate_directory / "config.json", config)
     file_digests["config.json"] = sha256_file(candidate_directory / "config.json")

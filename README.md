@@ -97,6 +97,49 @@ If you find AutoSci useful in your research, please [cite our paper](#citation).
 
 ## 🆕 What's New
 
+### 2026-09-28 - Hiera: guided method iteration
+
+Explore alternative methods for an existing experiment with `/hiera-experiment` in Claude Code or `$hiera-experiment` in Codex. The agent helps propose and implement candidates, compare results, and choose the next method change or parameter search. This optional workflow supports local and remote execution, keeps candidate history under `runs/hiera/`, and asks for your review before running experiments.
+
+<details>
+<summary><b>Quick tutorial: iterate on an existing experiment</b></summary>
+
+**Before starting:** complete `/exp-design <idea-slug>` (Codex: `$exp-design`) and choose an experiment slug from `wiki/experiments/`. Python 3.11 is recommended. Open the corresponding AutoSci checkout in Claude Code or Codex.
+
+**1. Start a run.** In Claude Code, send the command and instruction together. In Codex, replace `/hiera-experiment` with `$hiera-experiment`.
+
+```text
+/hiera-experiment <experiment-slug> --run-id method-01 --init
+Use the existing experiment design and local execution, with a budget of
+10 evaluations. Show the method hypotheses, metric, direction, and execution
+configuration for review. Ask me about any missing choices.
+```
+
+**2. Build and evaluate a candidate.** Reuse the same experiment slug and run ID. Replace `--init` with the flag below and add the accompanying instruction, one step at a time. Substitute the IDs and draft/spec paths the agent shows you.
+
+| Step | Flag | What to tell the agent |
+|---|---|---|
+| Propose methods | `--propose` | Propose up to 3 method variants against the baseline and explain what each tests. |
+| Write a selected method | `--propose` | Implement point `<point-id>` as candidate `<candidate-id>`, using its displayed parent relations. Show the draft code and spec for review; do not run yet. |
+| Accept reviewed code | `--admit` | Admit the reviewed spec at `<spec-path>` from `<draft-directory>`. Do not run yet. |
+| Approve execution | `--approve` | I reviewed the source, configuration, metric, direction, resources, and execution environment. Approve this contract only. |
+| Check readiness | `--preflight` | Check candidate `<candidate-id>` only. |
+| Run and compare | `--run` | Run candidate `<candidate-id>` at screen depth under the approved local contract. Show its score and comparison with any evaluated baseline. |
+
+Confirm the proposed hypotheses and execution settings before proceeding. Evaluate a baseline candidate as well, so method comparisons use actual results.
+
+**3. Choose the next step after reviewing results.**
+
+- **Change the method:** use `--propose`, ask for changes motivated by the previous results, then repeat the draft, review, admit, preflight, and run steps. The existing approval remains valid while the execution contract stays unchanged.
+- **Tune parameters:** after reviewing tunable ranges in the contract, use `--tune` with "Tune candidate `<candidate-id>` with at most 3 variants at deep depth." This creates and runs parameter variants.
+- **Repeat evaluations:** use `--loop` with "Run up to 3 deep rounds, with at most 3 bouts per candidate." It evaluates existing candidates; new methods still require the proposal and authoring steps.
+
+Use `--status` to inspect progress, then `--finalize` once no work is pending to save the exploratory report. Bring the selected method back to the normal `/exp-run` and `/exp-eval` workflow for formal validation (Codex: `$exp-run` and `$exp-eval`).
+
+[Full workflow and remote execution guide](i18n/en/skills/hiera-experiment/README.md) | [Chinese guide](i18n/zh/skills/hiera-experiment/README.md)
+
+</details>
+
 ### 🛠️ 2026-05-19 · Experiment Overhaul
 
 A possible usage process：`$ideate [research-direction-or-topic]`(You can use `--skip-pilot` to decide whether to conduct preliminary experiments) -> `$exp-design <idea-slug>`-> For each experimental block,recommended flow: `$exp-run <slug> [--env local|remote]` to deploy → `$exp-status` to monitor → `$exp-run <slug> --collect` to collect.->`$exp-eval <experiment-slug>`
